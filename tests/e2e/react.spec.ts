@@ -62,6 +62,7 @@ test('zoom + viewport segment', async ({ page }) => {
   await page.fill('#homeInput', 'SaaS');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
+  await expect(page.locator('#zoomIn')).toBeVisible();
   await page.click('#zoomIn');
   await expect(page.locator('#zoomVal')).toHaveText('110%');
   await page.click('[data-vp="mobile"]');
@@ -76,10 +77,12 @@ test('mobile: mtabs navigácia', async ({ page }) => {
   await expect(page.locator('.home')).toBeVisible();
   await page.fill('#homeInput', 'SaaS');
   await page.click('#homeSend');
-  await page.waitForSelector('#previewFrame', { timeout: 10_000 });
+  // na mobile je canvas skrytý (data-view=chat) — čakaj na správu v chate, potom prepní na canvas
+  await expect(page.locator('.plan-step.done').first()).toBeVisible({ timeout: 10_000 });
   await expect(page.locator('.mtabs')).toBeVisible();
   await page.screenshot({ path: SHOTS + '/10-workspace-mobile.png' });
   await page.click('.mtabs [data-view="canvas"]');
+  await page.waitForSelector('#previewFrame', { timeout: 10_000 });
   await page.screenshot({ path: SHOTS + '/08-editor-mobile.png' });
 });
 

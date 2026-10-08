@@ -92,8 +92,8 @@ export function EditorDashboard() {
         </div>
         <div className="ed-tabs" id="edTabs">
           {ED_TABS.map(t => (
-            <button key={t.id} className={'ed-tab' + (localTab === t.id ? ' active' : '')} onClick={() => { setLocalTab(t.id); st.setEdFile(null); }}>
-              {t.label === 'SetBranch History' ? '_mtime History' : t.label}
+            <button key={t.id} data-edtab={t.id} className={'ed-tab' + (localTab === t.id ? ' active' : '')} onClick={() => { setLocalTab(t.id); st.setEdFile(null); }}>
+              {t.id === 'history' ? '🕒 History' : t.label}
             </button>
           ))}
         </div>
