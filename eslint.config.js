@@ -20,6 +20,10 @@ export default tseslint.config(
   {
     files: ['tests/**/*.ts', 'tools/**/*.ts'],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
-    rules: { '@typescript-eslint/no-explicit-any': 'off' },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      /* <\/script> v test stringoch je zámerne (HTML parser bezpečnosť) */
+      'no-useless-escape': 'off',
+    },
   },
 );
