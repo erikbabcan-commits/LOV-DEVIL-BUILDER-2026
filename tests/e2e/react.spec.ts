@@ -240,7 +240,7 @@ test('M1.1 DEBUG2: DOM štruktúra workspace', async ({ page }) => {
       canvasBody: { rect: r(q('.canvas-body')) },
       viewportWrap: { rect: r(q('#viewportWrap')), pad: getComputedStyle(q('#viewportWrap')!).padding },
       device: { rect: r(q('#device')), transform: (q('#device') as HTMLElement).style.transform },
-      frame: { rect: r(q('#previewFrame')), h: q('#previewFrame')?.offsetHeight },
+      frame: { rect: r(q('#previewFrame')), h: q('#previewFrame')?.offsetHeight, flex: getComputedStyle(q('#previewFrame')!).flex, inlineStyle: (q('#previewFrame') as HTMLElement).style.cssText },
       topbarH: q('.topbar')?.offsetHeight
     };
   });
