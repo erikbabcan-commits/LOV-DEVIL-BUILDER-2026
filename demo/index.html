@@ -1148,8 +1148,25 @@ function log(txt, cls='info'){
   if (state.tab === 'console') renderConsole();
 }
 function copy(t){
-  try { navigator.clipboard.writeText(t); }
-  catch { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  /* FIX (M0): clipboard.writeText vracia Promise — bez .catch() vydávala v headless/CI prostredí
+     neprebalenú výnimku (NotAllowedError) do konzoly; fallback na execCommand ostáva.
+     Selhanie kopírovania nezobrazuje chybu používateľovi (rovnaké správanie ako predtým). */
+  try {
+    const p = navigator.clipboard && navigator.clipboard.writeText(t);
+    if (p && p.catch) p.catch(() => {
+      try {
+        const ta = document.createElement('textarea'); ta.value = t;
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); ta.remove();
+      } catch {}
+    });
+  } catch {
+    try {
+      const ta = document.createElement('textarea'); ta.value = t;
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    } catch {}
+  }
 }
 
 /* ---------- generované aplikácie ---------- */
@@ -2116,9 +2133,16 @@ function saveEdFile(){
     return;
   }
   const snap = edSnap();
-  if (!snap || !state.edFile) return;
-  const files = filesFor(snap);
-  const fl = files.find(f => f.name === state.edFile);
+  if (!snap) return;
+  /* FIX (M0-D1): aj priamo v saveEdFile — ak edFile nie je nastavený (alebo ukazuje na neexistujúci
+     súbor), fallback na prvý súbor VFS (rovnaká logika ako v renderEdCode), aby uloženie
+     nikdy nebolo tichý no-op. */
+  let files = filesFor(snap);
+  let fl = files.find(f => f.name === state.edFile) || files[0];
+  if (fl && state.edFile !== fl.name){
+    state.edFile = fl.name;
+    dbg('editor save: fallback výberu → edFile = ' + fl.name);
+  }
   if (!fl) return;
   fl.content = $('#edCodeTa').value;
   fl.modified = true;

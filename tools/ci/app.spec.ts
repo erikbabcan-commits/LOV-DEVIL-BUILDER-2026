@@ -37,18 +37,20 @@ test('vnútorná test suite: všetky testy zelené', async ({ page }) => {
 
 test('D1 regresia: editor uloží zobrazený súbor aj bez predchádzajúceho výberu', async ({ page }) => {
   await page.goto(APP);
-  await page.evaluate(() => {
+  const saved = await page.evaluate(() => {
     const s = { id:'d1e2e', v:1, prompt:'p', time:'10:00', kind:'saas',
-      html:'<html><head><style>x{y:z}</style></head><body><h1>D1-E2E</h1></body></html>' };
-    window.__setState({ snapshots:[s], liveId:s.id, liveHtml:s.html, viewing:null, vfs:{}, edFile:null, mode:'editor' });
+      html:'<html><head><style>x{y:z}</style></head><body><h1>D1-E2E</h1><script>d1()<\/script></body></html>' };
+    window.__setState({ snapshots:[s], liveId:s.id, liveHtml:s.html, viewing:null, vfs:{}, edFile:null });
+    window.__goEditor();
+    window.__setEdTab('files');
+    window.__state().edFile = null;
+    window.__renderEdFiles();
+    document.getElementById('edCodeTa').value = '<html><body><h1>D1-SAVED</h1></body></html>';
+    window.__saveEdFile();
+    return { edFile: window.__state().edFile, html: s.html };
   });
-  await page.reload();
-  await page.evaluate(() => window.__goEditor());
-  await page.evaluate(() => window.__setEdTab('files'));
-  await page.evaluate(() => { window.__state().edFile = null; window.__renderEdFiles(); });
-  await expect(page.locator('#edCodeFile')).toHaveText('index.html');
-  const edFile = await page.evaluate(() => window.__state().edFile);
-  expect(edFile).not.toBe(null);
+  expect(saved.edFile).toBe('index.html');
+  expect(saved.html).toContain('D1-SAVED');
 });
 
 test('D2 regresia: read-only história sa nedá prepísať cez editor', async ({ page }) => {
