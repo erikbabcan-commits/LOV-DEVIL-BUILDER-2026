@@ -161,10 +161,11 @@ test('M1.1 blueprints: klik spustí generovanie (template mód)', async ({ page 
   await page.click('#editorBtn');
   await page.click('[data-edtab="blueprints"]');
   await page.locator('.ed-bp[data-bp="bp-kanban"]').click();
-  // vrati sa do workspace (generate prepne mode) a vygeneruje kanban
+  // vrati sa do workspace (generate prepne mode); frame sa remountuje so starým obsahom,
+  // nový kanban template dorazí po ~2.2s — čakaj kým srcdoc obsahuje Kanban
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
-  const srcdoc = await page.locator('#previewFrame').getAttribute('srcdoc');
-  expect(srcdoc).toContain('Kanban');
+  await expect.poll(async () => await page.locator('#previewFrame').getAttribute('srcdoc'), { timeout: 15_000 })
+    .toContain('Kanban');
 });
 
 /* M1.1 Priority 2: deterministické vizuálne checkpointy — identický stav ako legacy procedúra:
