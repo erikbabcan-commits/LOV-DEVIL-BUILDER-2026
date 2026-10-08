@@ -65,7 +65,7 @@ test('zoom + viewport segment', async ({ page }) => {
   await expect(page.locator('#zoomIn')).toBeVisible();
   await page.click('#zoomIn');
   await expect(page.locator('#zoomVal')).toHaveText('110%');
-  await page.click('[data-vp="mobile"]');
+  await page.click('#viewportSeg [data-vp="mobile"]');
   // viewport zmena v store (šírka device)
   const w = await page.locator('#device').evaluate(el => el.style.width);
   expect(w).toContain('390');
@@ -94,7 +94,8 @@ test('história: snapshot restore funguje (immutability parita)', async ({ page 
   // Ctrl+S checkpoint
   await page.keyboard.press('Control+s');
   await expect(page.locator('#snapCount')).toHaveText('2', { timeout: 5_000 });
-  // view snapshot v1 → read-only banner
+  // expand history (ako v legacy) → view snapshot v1 → read-only banner
+  await page.click('#histToggle');
   await page.locator('.hist-list .snap').first().locator('.view').click();
   await expect(page.locator('#histBanner.show')).toBeVisible();
   await expect(page.locator('#histBannerText')).toContainText('v1');
