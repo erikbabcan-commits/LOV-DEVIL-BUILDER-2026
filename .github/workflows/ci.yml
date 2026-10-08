@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ['**']
+    branches: ["**"]
   pull_request:
-    branches: ['**']
+    branches: ["**"]
 
 jobs:
   test:
@@ -15,7 +15,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Install deps (React app)
         run: npm install
@@ -29,13 +29,13 @@ jobs:
       - name: Typecheck (React)
         run: npx tsc --noEmit
 
-      - name: Unit tests (Vitest — React: utils, VFS D3c, store)
+      - name: "Unit tests (Vitest — utils, VFS, store)"
         run: npx vitest run
 
       - name: Build (React)
         run: npx vite build
 
-      - name: LEGACY: syntax check + browser suite + screenshots
+      - name: LEGACY syntax check + browser suite + screenshots
         run: |
           cd tools/ci
           node extract-scripts.mjs
@@ -43,7 +43,7 @@ jobs:
           node --check build/app-block-1.js
           npx playwright test --reporter=line
 
-      - name: REACT: E2E parity suite + visual baseline
+      - name: REACT E2E parity suite + visual baseline
         run: npx playwright test -c tests/e2e/playwright.config.ts --reporter=line
 
       - name: Upload legacy test reports
@@ -57,7 +57,7 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Upload legacy + React screenshots
+      - name: Upload screenshots (legacy + React)
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -73,7 +73,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: react-e2e-artifacts
-          path: |
-            tests/e2e/test-results/
+          path: tests/e2e/test-results/
           retention-days: 14
           if-no-files-found: warn
