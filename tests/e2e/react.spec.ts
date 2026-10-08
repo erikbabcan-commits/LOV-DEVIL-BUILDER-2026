@@ -220,3 +220,25 @@ test('M1.1 DEBUG: device geometria', async ({ page }) => {
   });
   console.log('GEOMETRY:', JSON.stringify(geo, null, 2));
 });
+
+test('M1.1 DEBUG2: DOM štruktúra workspace', async ({ page }) => {
+  await page.goto('http://localhost:5173');
+  await page.fill('#homeInput', 'SaaS');
+  await page.click('#homeSend');
+  await page.waitForSelector('#previewFrame', { timeout: 10_000 });
+  await expect(page.locator('.msg .actions').first()).toBeVisible({ timeout: 15_000 });
+  const info = await page.evaluate(() => {
+    const q = (s: string) => document.querySelector(s);
+    const r = (el: Element | null) => el ? (el as HTMLElement).getBoundingClientRect().toJSON() : null;
+    return {
+      mtabs: { display: getComputedStyle(q('.mtabs')!).display, h: q('.mtabs')?.offsetHeight },
+      canvasTabs: { rect: r(q('.canvas-tabs')), h: q('.canvas-tabs')?.offsetHeight },
+      canvasBody: { rect: r(q('.canvas-body')) },
+      viewportWrap: { rect: r(q('#viewportWrap')), pad: getComputedStyle(q('#viewportWrap')!).padding },
+      device: { rect: r(q('#device')), transform: (q('#device') as HTMLElement).style.transform },
+      frame: { rect: r(q('#previewFrame')), h: q('#previewFrame')?.offsetHeight },
+      topbarH: q('.topbar')?.offsetHeight
+    };
+  });
+  console.log('DOMINFO:', JSON.stringify(info, null, 2));
+});
