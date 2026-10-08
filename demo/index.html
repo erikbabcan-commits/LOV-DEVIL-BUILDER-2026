@@ -457,6 +457,51 @@
   .bpw-label + input:focus, .bpw-label + select:focus{border-color:var(--accent)}
   input[type="color"]{padding:4px}
 
+  /* ---- M3: backend (DB · auth · funkcie · domény) ---- */
+  .be-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .be-ctx{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .be-chiprow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .be-chip{height:28px;padding:0 12px;border-radius:9px;font-size:11.5px;font-weight:600;color:var(--text-dim);
+    border:1px solid var(--border-2);background:var(--panel);transition:.13s}
+  .be-chip span{color:var(--muted);font-weight:400;margin-left:4px;font-size:10px}
+  .be-chip:hover{color:var(--text);border-color:var(--text-dim)}
+  .be-chip.active{color:var(--accent);background:var(--accent-soft);border-color:#1e3a6e}
+  .be-schema{font-family:var(--mono);font-size:10.5px;color:var(--text-dim);margin-bottom:10px;padding:7px 11px;
+    border:1px dashed var(--border-2);border-radius:10px;background:var(--panel)}
+  .be-tablewrap{border:1px solid var(--border);border-radius:14px;overflow:auto;background:var(--panel)}
+  table.be-table{width:100%;border-collapse:collapse;font-size:11.5px}
+  .be-table th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);
+    padding:10px 13px;background:var(--panel-2);border-bottom:1px solid var(--border);white-space:nowrap}
+  .be-table td{padding:9px 13px;border-bottom:1px solid var(--border);color:var(--text-dim)}
+  .be-table tr:last-child td{border-bottom:none}
+  .be-table tr:hover td{background:var(--panel-2)}
+  .be-row-del{width:22px;height:22px;border-radius:7px;font-size:10px;color:var(--muted);border:1px solid transparent;background:transparent}
+  .be-row-del:hover{color:var(--err);border-color:var(--err);background:rgba(220,38,38,.08)}
+  .be-add{height:32px;padding:0 14px;margin-top:12px;font-size:11.5px}
+  .be-authcard{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;margin-bottom:14px;
+    border:1px solid var(--border);border-radius:16px;background:var(--panel);flex-wrap:wrap}
+  .be-authcard b{font-size:13.5px}
+  .be-authcard p{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .be-toggle{height:34px;padding:0 16px;border-radius:10px;font-size:11.5px;font-weight:800;letter-spacing:.5px;
+    color:var(--text-dim);border:1px solid var(--border-2);background:var(--panel-2)}
+  .be-toggle.on{color:#fff;background:var(--ok);border-color:var(--ok)}
+  .be-provs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .be-stats{font-size:11.5px;color:var(--text-dim);margin-bottom:12px}
+  .be-stats b{color:var(--ok);font-family:var(--mono)}
+  .be-user{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--panel)}
+  .be-user .msg{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .be-user .cstat{font-family:var(--mono);font-size:10.5px;flex-shrink:0}
+  .be-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-size:11.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#2563eb,#38bdf8)}
+  .be-method{font-size:9.5px;font-weight:800;padding:3px 7px;border-radius:6px;flex-shrink:0;letter-spacing:.5px}
+  .be-method.get{color:#34d399;background:rgba(5,150,105,.14);border:1px solid #14532d}
+  .be-method.post{color:#93c5fd;background:rgba(37,99,235,.14);border:1px solid #1e3a6e}
+  .be-domadd{display:flex;gap:9px;margin-bottom:14px;flex-wrap:wrap}
+  .be-domadd input{flex:1;min-width:210px;height:38px;border-radius:11px;border:1px solid var(--border-2);
+    background:var(--panel-2);color:var(--text);font-size:12.5px;padding:0 13px;outline:none}
+  .be-domadd input:focus{border-color:var(--accent)}
+  .be-domadd button{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)}
+
   /* ============ Responsive ============ */
   @media (max-width:1023px){
     .topbar{padding:0 10px;gap:7px}
@@ -819,6 +864,7 @@
         <button class="ed-tab" data-edtab="history">🕘 History</button>
         <button class="ed-tab" data-edtab="blueprints">🧱 Blueprints</button>
         <button class="ed-tab" data-edtab="prompts">📝 Prompty</button>
+        <button class="ed-tab" data-edtab="backend">🗄️ Backend</button>
       </div>
       <div class="ed-body">
         <div class="ed-pane active" data-edpane="preview">
@@ -868,6 +914,13 @@
         </div>
         <div class="ed-pane" data-edpane="prompts">
           <div class="ed-grid" id="edPromptGrid"></div>
+        </div>
+        <div class="ed-pane" data-edpane="backend">
+          <div class="be-head">
+            <div class="seg" id="beSeg"></div>
+            <span class="be-ctx" id="beCtx">—</span>
+          </div>
+          <div id="beContent"></div>
         </div>
       </div>
     </div>
@@ -921,6 +974,18 @@
     </div>
   </div>
 
+  <!-- Domain wizard modal (M3) -->
+  <div class="modal-overlay" id="domModal">
+    <div class="modal">
+      <h3 id="domTitle">🌐 Pripoj doménu</h3>
+      <p class="m-sub" id="domSub">Pridaj DNS záznamy — SSL certifikát vydáme automaticky (Let's Encrypt).</p>
+      <div class="pub-step pending" data-ds="1"><span class="pi"></span> Kontrola A záznamu → forge.app</div>
+      <div class="pub-step pending" data-ds="2"><span class="pi"></span> CNAME validácia</div>
+      <div class="pub-step pending" data-ds="3"><span class="pi"></span> Let's Encrypt cert (auto-SSL)</div>
+      <button class="btn-primary" id="domClose" style="align-self:flex-end;display:none;border:none;cursor:pointer">Hotovo</button>
+    </div>
+  </div>
+
   <div class="toasts" id="toasts"></div>
 
 <script>
@@ -948,7 +1013,10 @@ const state = {
   branch: 'main',
   edFile: null,
   edEditing: false,
-  pendingBrand: null
+  pendingBrand: null,
+  bk: {},
+  beTab: 'db',
+  pendingDomain: null
 };
 
 /* ---------- utility ---------- */
@@ -1759,6 +1827,7 @@ function setEdTab(tab){
   if (tab === 'history') renderEdHistory();
   if (tab === 'blueprints') renderEdBpGrid();
   if (tab === 'prompts') renderEdPromptGrid();
+  if (tab === 'backend') renderBackend();
   dbg('editor: tab →', tab);
 }
 $('#edTabs').addEventListener('click', e => {
@@ -2067,6 +2136,308 @@ $('#edPromptGrid').addEventListener('click', e => {
   dbg('prompt knižnica: vložený', p.title, 'mode=' + state.mode);
 });
 
+/* ---------- M3: backend — DB · auth pre end-userov · funkcie · custom domény + SSL ---------- */
+const BE_TABS = [['db','🗄️ DB'],['auth','🔐 Auth'],['fns','⚡ Funkcie'],['domains','🌐 Domény']];
+const BE_NAMES = ['Jana Kováčová','Peter Novák','Elena Hudá','Martin Bielik','Zuzana Wallner','Tomáš Gemba','Ivana Chrastá','Lukáš Doležal'];
+const BE_SEEDS = {
+  saas: { name:'leads', cols:['meno','e-mail','plán','stav'], rows:[
+    ['Jana Kováčová','jana@firma.sk','Pro','aktívny'],['Peter Novák','peter@gmail.com','Free','trial'],
+    ['Elena Hudá','elena@agency.cz','Pro','aktívny'],['Martin Bielik','martin@startup.io','Business','kontakt'],['Zuzana Wallner','zuzana@shop.sk','Free','trial']] },
+  kanban: { name:'tasks', cols:['názov','stav','priradený','tag'], rows:[
+    ['Nakresliť wirefrazy','done','Jana','design'],['Implementovať auth','doing','Peter','backend'],
+    ['Q3 report','todo','Elena','ops'],['Onboarding e-mail','doing','Martin','growth'],['Cenové testy','todo','Zuzana','product']] },
+  settings: { name:'profiles', cols:['meno','e-mail','rola','2FA'], rows:[
+    ['Admin User','admin@forge.app','owner','✓'],['Editor User','editor@forge.app','editor','✗'],['Viewer User','viewer@forge.app','viewer','✗']] },
+  dashboard: { name:'orders', cols:['číslo','zákazník','suma','stav'], rows:[
+    ['#1041','Jana K.','129 €','platená'],['#1042','Peter N.','49 €','nová'],['#1043','Elena H.','359 €','platená'],
+    ['#1044','Martin B.','19 €','expedovaná'],['#1045','Zuzana W.','249 €','nová']] }
+};
+const AUTH_INJECT = '<!-- forge-auth --><div style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(8,8,14,.55);font-family:system-ui">' +
+  '<div style="width:320px;max-width:92%;padding:26px;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(0,0,0,.35);color:#111">' +
+  '<b style="font-size:16px">Prihlásenie</b>' +
+  '<p style="font-size:12px;color:#666;margin:6px 0 14px">Forge Auth — prihlásenie pre end-userov</p>' +
+  '<input placeholder="e-mail" style="width:100%;box-sizing:border-box;margin-bottom:9px;padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:13px">' +
+  '<input type="password" placeholder="heslo" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:13px">' +
+  '<button style="width:100%;margin-top:12px;padding:11px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;cursor:pointer">Prihlásiť sa</button>' +
+  '<p style="font-size:10.5px;color:#999;margin:12px 0 0;text-align:center">demo — vypneš v Forge → Backend → Auth</p>' +
+  '</div></div>';
+function seedBackend(snap){
+  const kind = (snap && snap.kind) || 'dashboard';
+  const s = BE_SEEDS[kind] || BE_SEEDS.dashboard;
+  return {
+    table: s.name,
+    tables: [
+      { name:s.name, cols:s.cols.slice(), rows:s.rows.map(r => r.slice()) },
+      { name:'users', cols:['meno','e-mail','posledné prihlásenie'], rows:[
+        ['Jana Kováčová','jana@enduser.sk','dnes 09:12'],['Peter Novák','peter@enduser.sk','včera 18:40'],['Elena Hudá','elena@enduser.cz','dnes 07:55']] }
+    ],
+    auth: { enabled:false, providers:{ 'E-mail':true, 'Google':true, 'GitHub':false }, sessions: 0 },
+    fns: [
+      { name:'Zoznam ' + s.name, method:'GET', path:'/api/' + s.name, desc:'paginovaný zoznam (?page=, ?limit=)', ms:42 },
+      { name:'Nový záznam', method:'POST', path:'/api/' + s.name, desc:'vytvorí záznam, validuje dáta', ms:68 },
+      { name:'Aktuálny user', method:'GET', path:'/api/me', desc:'session token → profil end-usera', ms:25 },
+      { name:'Webhook platieb', method:'POST', path:'/api/hooks/stripe', desc:'notifikácie s HMAC podpisom', ms:51 }
+    ],
+    domains: [{ name:'moja-appka.forge.app', ssl:'active', primary:true }]
+  };
+}
+function backendFor(snap){
+  if (!snap) return null;
+  if (!state.bk[snap.id]) state.bk[snap.id] = seedBackend(snap);
+  return state.bk[snap.id];
+}
+function renderBackend(){
+  const snap = edSnap();
+  const be = backendFor(snap);
+  $('#beSeg').innerHTML = BE_TABS.map(([k, l]) => `<button class="${state.beTab === k ? 'active' : ''}" data-betab="${k}">${l}</button>`).join('');
+  $('#beCtx').textContent = snap ? ('projekt v' + snap.v + ' · ' + (ED_FILES[snap.kind] || 'index.html')) : 'žiadny projekt';
+  if (!be){
+    $('#beContent').innerHTML = '<div class="pane-empty">Žiadny projekt — backend (DB, auth, funkcie, domény) sa naviaže na projekt. Vygeneruj appku v chatovacom režime alebo cez blueprint.</div>';
+    dbg('backend: render bez projektu');
+    return;
+  }
+  if (state.beTab === 'db') renderBeDb(be);
+  if (state.beTab === 'auth') renderBeAuth(be);
+  if (state.beTab === 'fns') renderBeFns(be);
+  if (state.beTab === 'domains') renderBeDomains(be);
+  dbg('backend: render', 'tab=' + state.beTab, 'projekt=' + (snap ? snap.id.slice(0, 7) : '-'));
+}
+function renderBeDb(be){
+  const t = be.tables.find(x => x.name === be.table) || be.tables[0];
+  $('#beContent').innerHTML = `
+    <div class="be-chiprow">${be.tables.map(x => `<button class="be-chip ${x.name === t.name ? 'active' : ''}" data-btable="${x.name}">${x.name}<span>${x.rows.length}</span></button>`).join('')}</div>
+    <div class="be-schema">schéma: ${t.cols.join(' · ')} — Forge DB (PostgreSQL, RLS zapnuté)</div>
+    <div class="be-tablewrap"><table class="be-table">
+      <thead><tr>${t.cols.map(c => `<th>${esc(c)}</th>`).join('')}<th></th></tr></thead>
+      <tbody>${t.rows.map((r, i) => `<tr>${r.map(v => `<td>${esc(String(v))}</td>`).join('')}<td><button class="be-row-del" data-delrow="${i}" title="zmazať záznam">✕</button></td></tr>`).join('')}</tbody>
+    </table></div>
+    <button class="ed-cbtn be-add" data-addrow="1">+ Pridať záznam</button>`;
+}
+function renderBeAuth(be){
+  const users = be.tables.find(x => x.name === 'users');
+  $('#beContent').innerHTML = `
+    <div class="be-authcard">
+      <div>
+        <b>Auth pre end-userov ${be.auth.enabled ? '· 🔓 zapnuté' : '· 🔒 vypnuté'}</b>
+        <p>${be.auth.enabled ? 'Login obrazovka je vložená v live preview — end-useri sa prihlasujú e-mailom cez Forge DB.' : 'Zapni auth a login obrazovka sa vloží priamo do live preview appky.'}</p>
+      </div>
+      <button class="be-toggle ${be.auth.enabled ? 'on' : ''}" data-authtoggle="1">${be.auth.enabled ? 'ZAPNUTÉ' : 'ZAPNÚŤ'}</button>
+    </div>
+    <div class="be-provs">${Object.keys(be.auth.providers).map(p => `<button class="be-chip ${be.auth.providers[p] ? 'active' : ''}" data-prov="${esc(p)}">${be.auth.providers[p] ? '✓ ' : ''}${p}</button>`).join('')}</div>
+    <div class="be-stats">sessions dnes: <b>${be.auth.sessions}</b> · registrovaní end-useri: <b>${users.rows.length}</b></div>
+    <div class="ed-commits">${users.rows.map(r => `
+      <div class="be-user">
+        <span class="be-avatar">${esc(String(r[0]).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase())}</span>
+        <span class="msg"><b style="font-size:12.5px">${esc(String(r[0]))}</b> <span style="color:var(--muted);font-size:11.5px">· ${esc(String(r[1]))}</span></span>
+        <span class="cstat"><span class="p" style="color:var(--text-dim)">${esc(String(r[2]))}</span></span>
+      </div>`).join('')}</div>`;
+}
+function renderBeFns(be){
+  $('#beContent').innerHTML = `
+    <div class="be-schema">serverless runtime (edge) — funkcie bežia pri produkcii appky, logy v Console</div>
+    <div class="ed-commits">${be.fns.map((f, i) => `
+      <div class="ed-commit">
+        <span class="be-method ${f.method.toLowerCase()}">${f.method}</span>
+        <span class="hash">${esc(f.path)}</span>
+        <span class="msg">${esc(f.name)} — ${esc(f.desc)}</span>
+        <span class="cstat"><span class="p">~${f.ms} ms</span></span>
+        <span class="ed-cbtns"><button class="ed-cbtn" data-betest="${i}">Testovať</button></span>
+      </div>`).join('')}</div>`;
+}
+function renderBeDomains(be){
+  $('#beContent').innerHTML = `
+    <div class="be-domadd">
+      <input id="beDomInput" placeholder="napr. app.mojafirma.sk" spellcheck="false">
+      <button id="beDomAdd">🌐 Pripojiť doménu</button>
+    </div>
+    <div class="ed-commits">${be.domains.map((d, i) => `
+      <div class="ed-commit ${d.primary ? 'head' : ''}">
+        <span class="hash">🌐 ${esc(d.name)}</span>
+        ${d.primary ? '<span class="ed-head-badge">PRIMÁRNA</span>' : ''}
+        <span class="msg">${d.ssl === 'active' ? 'SSL ✅ Let’s Encrypt · auto-renew · HTTP/2' : 'čaká na certifikát'}</span>
+        ${d.primary ? '' : `<span class="ed-cbtns"><button class="ed-cbtn" data-domprimary="${i}">Nastaviť primárnu</button><button class="ed-cbtn" data-domdel="${i}">Odobrať</button></span>`}
+      </div>`).join('')}</div>`;
+}
+$('#beSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-betab]');
+  if (!b) return;
+  state.beTab = b.dataset.betab;
+  renderBackend();
+  dbg('backend: sub-tab →', state.beTab);
+});
+function beBe(){
+  const be = backendFor(edSnap());
+  if (!be){ toast('Najprv vygeneruj projekt — backend je viazaný na projekt', 'warn'); return null; }
+  return be;
+}
+$('#beContent').addEventListener('click', e => {
+  const chip = e.target.closest('[data-btable]');
+  if (chip){
+    const be = beBe(); if (!be) return;
+    be.table = chip.dataset.btable;
+    renderBeDb(be);
+    dbg('backend DB: tabuľka →', be.table);
+    return;
+  }
+  const del = e.target.closest('[data-delrow]');
+  if (del){
+    const be = beBe(); if (!be) return;
+    const t = be.tables.find(x => x.name === be.table) || be.tables[0];
+    const r = t.rows.splice(+del.dataset.delrow, 1);
+    renderBeDb(be);
+    toast('Záznam vymazaný: ' + (r[0] ? r[0][0] : '?'), 'ok');
+    log('🗄 DB: delete z ' + t.name + ' → ' + t.rows.length + ' riadkov', 'ok');
+    dbg('backend DB: delete', t.name, 'riadok=' + del.dataset.delrow);
+    return;
+  }
+  const add = e.target.closest('[data-addrow]');
+  if (add){
+    const be = beBe(); if (!be) return;
+    const t = be.tables.find(x => x.name === be.table) || be.tables[0];
+    const nm = BE_NAMES[Math.floor(Math.random() * BE_NAMES.length)];
+    const row = t.cols.map(c => {
+      if (/mail/.test(c)) return nm.toLowerCase().replace(/[^a-z]/g, '.') + '@enduser.sk';
+      if (/suma/.test(c)) return (19 + Math.floor(Math.random() * 380)) + ' €';
+      if (/číslo|number/.test(c)) return '#' + (1050 + t.rows.length);
+      if (/stav/.test(c)) return ['nová','platená','aktívny','todo'][Math.floor(Math.random() * 4)];
+      if (/plán|rola/.test(c)) return ['Free','Pro','editor'][Math.floor(Math.random() * 3)];
+      return nm;
+    });
+    t.rows.push(row);
+    renderBeDb(be);
+    toast('+ záznam do ' + t.name, 'ok');
+    log('🗄 DB: insert do ' + t.name + ' → ' + t.rows.length + ' riadkov', 'ok');
+    dbg('backend DB: insert', t.name, row.join(' | '));
+    return;
+  }
+  const at = e.target.closest('[data-authtoggle]');
+  if (at){
+    const be = beBe(); if (!be) return;
+    const on = !be.auth.enabled;
+    const snap = edSnap();
+    be.auth.enabled = on;
+    if (snap){
+      if (on){
+        if (!snap.html.includes('<!-- forge-auth -->')){
+          snap.html = snap.html.includes('</body>')
+            ? snap.html.replace('</body>', () => AUTH_INJECT + '\n</body>')
+            : snap.html + '\n' + AUTH_INJECT;
+        }
+        be.auth.sessions = 12 + Math.floor(Math.random() * 40);
+        state.vfs[snap.id] = null;
+        if (state.liveId === snap.id) state.liveHtml = snap.html;
+        renderPreview(); renderEditor();
+        toast('🔓 auth zapnuté — login v appke', 'ok');
+        log('🔐 auth: zapnuté pre projekt v' + snap.v + ' (login v preview, providers: ' + Object.keys(be.auth.providers).filter(p => be.auth.providers[p]).join(', ') + ')', 'ok');
+      } else {
+        snap.html = snap.html.split(AUTH_INJECT + '\n').join('').split('\n' + AUTH_INJECT).join('').split(AUTH_INJECT).join('');
+        if (state.liveId === snap.id) state.liveHtml = snap.html;
+        state.vfs[snap.id] = null;
+        renderPreview(); renderEditor();
+        toast('🔒 auth vypnuté — login odstránený', 'ok');
+        log('🔐 auth: vypnuté pre projekt v' + snap.v, 'info');
+      }
+      renderBeAuth(be);
+      dbg('backend auth: toggle', 'on=' + on, 'snap=' + snap.id.slice(0, 7));
+    }
+    return;
+  }
+  const prov = e.target.closest('[data-prov]');
+  if (prov){
+    const be = beBe(); if (!be) return;
+    const p = prov.dataset.prov;
+    be.auth.providers[p] = !be.auth.providers[p];
+    renderBeAuth(be);
+    toast('Provider ' + p + ': ' + (be.auth.providers[p] ? 'zapnutý' : 'vypnutý'), 'info');
+    dbg('backend auth: provider', p, be.auth.providers[p]);
+    return;
+  }
+  const test = e.target.closest('[data-betest]');
+  if (test){
+    const be = beBe(); if (!be) return;
+    const f = be.fns[+test.dataset.betest];
+    if (!f) return;
+    test.textContent = '…';
+    test.disabled = true;
+    const t0 = performance.now();
+    setTimeout(() => {
+      const ms = Math.round(f.ms * (0.8 + Math.random() * 0.4));
+      const t = be.tables.find(x => x.name === be.table) || be.tables[0];
+      log('⚡ ' + f.method + ' ' + f.path + ' → 200 OK (' + ms + ' ms, ' + t.rows.length + ' záznamov, ' + (performance.now() - t0).toFixed(0) + ' ms reálne)', 'ok');
+      toast('⚡ ' + f.method + ' ' + f.path + ' → 200', 'ok');
+      test.textContent = 'Testovať';
+      test.disabled = false;
+      dbg('backend fn: test', f.method, f.path, ms + ' ms');
+    }, 550);
+    return;
+  }
+  const domAdd = e.target.closest('#beDomAdd');
+  if (domAdd){
+    const be = beBe(); if (!be) return;
+    const inp = $('#beDomInput');
+    const dom = (inp.value || '').trim().toLowerCase();
+    if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(dom)){
+      toast('Neplatný formát domény — napr. app.mojafirma.sk', 'warn');
+      dbg('backend domény: neplatný vstup', dom);
+      return;
+    }
+    if (be.domains.some(d => d.name === dom)){
+      toast('Doména už je pripojená', 'warn');
+      return;
+    }
+    state.pendingDomain = dom;
+    $('#domSub').textContent = dom + ' — pridaj DNS záznamy, certifikát vydáme automaticky.';
+    const steps = $('#domModal .pub-step');
+    steps.forEach(st => { st.className = 'pub-step pending'; st.querySelector('.pi').textContent = ''; });
+    $('#domClose').style.display = 'none';
+    $('#domModal').classList.add('open');
+    log('🌐 domény: pripájam ' + dom + ' (DNS + SSL flow)', 'info');
+    steps.forEach((st, i) => {
+      setTimeout(() => {
+        st.classList.remove('pending'); st.classList.add('running');
+        setTimeout(() => {
+          st.classList.remove('running'); st.classList.add('done');
+          st.querySelector('.pi').textContent = '✓';
+          if (i === steps.length - 1){
+            be.domains.push({ name: dom, ssl:'active', primary:false });
+            state.pendingDomain = null;
+            $('#domClose').style.display = 'flex';
+            renderBeDomains(be);
+            toast('🌐 doména ' + dom + ' pripojená so SSL ✅', 'ok');
+            log('🌐 domény: pripojená ' + dom + ' · SSL aktívne (Let’s Encrypt)', 'ok');
+            dbg('backend domény: pripojená', dom);
+          }
+        }, 500);
+      }, i * 700);
+    });
+    dbg('backend domény: DNS/SSL wizard spustený', dom);
+    return;
+  }
+  const prim = e.target.closest('[data-domprimary]');
+  if (prim){
+    const be = beBe(); if (!be) return;
+    const d = be.domains[+prim.dataset.domprimary];
+    be.domains.forEach(x => { x.primary = false; });
+    d.primary = true;
+    renderBeDomains(be);
+    toast('🌐 ' + d.name + ' je nová primárna doména', 'ok');
+    log('🌐 domény: primárna → ' + d.name, 'info');
+    dbg('backend domény: primárna', d.name);
+    return;
+  }
+  const domdel = e.target.closest('[data-domdel]');
+  if (domdel){
+    const be = beBe(); if (!be) return;
+    const d = be.domains.splice(+domdel.dataset.domdel, 1)[0];
+    renderBeDomains(be);
+    toast('Doména ' + d.name + ' odobraná', 'info');
+    log('🌐 domény: odobraná ' + d.name, 'info');
+    dbg('backend domény: delete', d.name);
+  }
+});
+$('#domClose').addEventListener('click', () => { $('#domModal').classList.remove('open'); dbg('backend domény: wizard zavretý'); });
+$('#domModal').addEventListener('click', e => { if (e.target.id === 'domModal'){ $('#domModal').classList.remove('open'); dbg('backend domény: wizard zavretý overlayom'); } });
+
 /* ---------- top bar ---------- */
 $('#modelChip').addEventListener('click', e => { e.stopPropagation(); $('#modelMenu').classList.toggle('open'); $('#settingsPop').classList.remove('open'); });
 $('#modelMenu').addEventListener('click', e => {
@@ -2126,6 +2497,7 @@ $('#newSessionBtn').addEventListener('click', () => {
   state.editMode = false;
   state.vfs = {}; state.branches = [{ name: 'main', headIdx: Infinity }]; state.branch = 'main';
   state.edFile = null; state.edEditing = false; state.pendingBrand = null;
+  state.bk = {}; state.beTab = 'db'; state.pendingDomain = null;
   $('#editToggle').classList.remove('active');
   $('#editTip').classList.remove('show');
   $('#publishBtnTxt').textContent = 'Publish';

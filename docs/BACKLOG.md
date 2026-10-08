@@ -27,7 +27,7 @@
 |---|---|---|---|---|
 | **M1** | **Reálny engine + MVP predaj** | AI backend, multi-file codegen, sandbox preview, auth, hosting na `*.forge.app`, billing Free/Pro | 6–10 týždňov | **prvý platiaci zákazník** |
 | **M2** | **Editor + blueprinty** | file explorer, Monaco, git-like history, blueprint galéria + wizard, prompt knižnica | 6–8 týždňov | Pro retencia, onboarding do 5 min — **✅ prototyp hotový (M2 Build Prompt nižšie)** |
-| **M3** | **Fullstack & data** | DB pre vygenerované appky, auth pre end-userov, backend funkcie, custom domény + SSL | 6–8 týždňov | appky „robia niečo užitočné" |
+| **M3** | **Fullstack & data** | DB pre vygenerované appky, auth pre end-userov, backend funkcie, custom domény + SSL | 6–8 týždňov | appky „robia niečo užitočné" — **✅ prototyp hotový (M3 Build Prompt nižšie)** |
 | **M4** | **Tímy & Business tier** | realtime kolaborácia, komentáre v preview, share linky, seat billing, RBAC | 6–8 týždňov | B2B (Business) plán |
 | **M5** | **Enterprise & scale** | SSO/SAML, audit log, compliance (GDPR/SOC2 cesta), SLA, rate limiting | 8–12 týždňov | Enterprise zákazky |
 | **M6** | **Ekosystém** | komunitná galéria, marketplace blueprintov, remix, affiliate, template contest | priebežne | rast organický (virality) |
@@ -279,3 +279,35 @@ Pravidlá:
 - Blueprint wizard vygeneruje projekt s aplikovanou vlastnou značkou podľa vstupu.
 
 **Stav: ✅ celý M2 implementovaný v prototype (8. 10. 2026)** — file explorer s VFS, editor so syntax highlightom, git-like history s branchmi, blueprint galéria s brand wizardom a prompt knižnica sú v workspace prototype hotové a otestované (syntax-check + smoke-test roundtrip VFS/brand; plná suite Ctrl+Shift+T v prehliadači).
+---
+
+## 8. M3 Build Prompt — Fullstack & data
+
+> Prompt priamo na mieru z míľnika **M3**. Cieľ: jeden senior frontend engineer implementuje celý M3 do existujúceho single-file prototypu (nadväzuje na hotový M2 editor).
+
+**Rola:** Si senior frontend engineer. Pracuješ v existujúcom single-file HTML prototype Forge AI Builder (Lovable klon, hotové M0–M2). Doimplementuj celý míľnik M3 — Fullstack & data.
+
+**Rozsah (4 veci):**
+
+1. **DB pre vygenerované appky** — nová záložka „Backend → DB" v `/editor`: per-projekt databáza (tabuľky podľa typu appky: `leads`/`tasks`/`profiles`/`orders` + `users`), schéma, data browser so záznamami, pridanie/odstránenie záznamu, počty riadkov.
+2. **Auth pre end-userov** — „Backend → Auth": zapnutie/vypnutie auth per projekt, providery (E-mail/Google/GitHub), zoznam registrovaných end-userov, sessions metrika; zapnutie vloží login obrazovku priamo do live preview appky (jedným klikom vrátiť).
+3. **Backend funkcie** — „Backend → Funkcie": serverless API endpointy per projekt (`GET/POST /api/…`), metóda, path, popis, latencia; „Testovať" vykoná mock volanie a odpoveď 200 vypíše do Console.
+4. **Custom domény + SSL** — „Backend → Domény": pripojenie vlastnej domény (validácia formátu), DNS + Let's Encrypt wizard (3 kroky: A záznam → CNAME → cert), zoznam domén so SSL statusom, primárna doména, odobranie.
+
+**Pravidlá:**
+
+- Zachovaj všetky existujúce ID/API — test suite musí ostať zelená.
+- Žiadne CDN závislosti, všetko inline v jednom súbore.
+- Slovenské UI, dbg() log na každej akcii, respektuj CSS tokens a tmavú tému.
+- Všetky zmeny responsive (mobil 390 px).
+- V reťazcoch v JS vždy escapuj `</script>` ako `<\/script>`.
+- Backend cache per snapshot ID (ako VFS), reset pri novom projekte.
+
+**Akceptačné kritériá:**
+
+- Každá zo 4 sekcií Backendu je použiteľná bez vygenerovaného projektu (prázdny stav) aj s projektom.
+- Zapnutie auth preukázateľne zmení live preview (login obrazovka) a dá sa vypnúť.
+- Test endpointu vypíše odpoveď do Console; pripojená doména má SSL status.
+- DB záznamy sa dajú pridávať a mazať bez reloadu.
+
+**Stav: ✅ celý M3 implementovaný v prototype (8. 10. 2026)** — DB data browser, end-user auth s login injekciou do preview, serverless funkcie s testovaním a custom domény s SSL wizardom sú v workspace prototype hotové a otestované (syntax-check + smoke-test; plná suite Ctrl+Shift+T v prehliadači).
