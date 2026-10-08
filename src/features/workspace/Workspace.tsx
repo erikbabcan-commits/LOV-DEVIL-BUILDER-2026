@@ -59,6 +59,19 @@ export function Workspace() {
     if (frame.getAttribute('srcdoc') !== doc) frame.setAttribute('srcdoc', doc);
   }, [html]);
 
+  /* applyViewport port: auto-fit scale, rovnaký výpočet ako legacy */
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const wrap = wrapRef.current, device = document.getElementById('device');
+    if (!wrap || !device) return;
+    let scale = st.zoomPct / 100;
+    const cs = getComputedStyle(wrap);
+    const avail = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const intended = device.style.width === '100%' ? avail : parseInt(device.style.width);
+    if (st.zoomPct <= 100 && intended * scale > avail) scale = (avail / intended) * scale;
+    device.style.transform = `scale(${scale})`;
+  }, [st.viewport, st.zoomPct, html]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [st.messages.length]);
@@ -69,7 +82,8 @@ export function Workspace() {
     st.generate(v);
   };
 
-  const deviceW = st.viewport === 'tablet' ? 768 : st.viewport === 'mobile' ? 390 : 1200;
+  /* legacy applyViewport parita: desktop = 100% šírky + auto-fit scale; tablet/mobile fixná šírka */
+  const deviceW = st.viewport === 'desktop' ? '100%' : st.viewport === 'tablet' ? 768 : 390;
 
   return (
     <main id="workspaceView">
@@ -172,7 +186,7 @@ export function Workspace() {
         </div>
         <div className="canvas-body">
           <div className={'pane' + (st.tab === 'preview' ? ' active' : '')} data-pane="preview">
-            <div className="viewport-wrap" id="viewportWrap">
+            <div className="viewport-wrap" id="viewportWrap" ref={wrapRef}>
               {st.viewing && (
                 <div className="hist-banner show" id="histBanner">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
@@ -181,9 +195,8 @@ export function Workspace() {
                 </div>
               )}
               {html ? (
-                <div className="device" id="device" style={{ width: deviceW, maxWidth: '100%' }}>
-                  <iframe id="previewFrame" ref={frameRef} sandbox="allow-scripts" title="Live preview"
-                    style={{ transform: `scale(${st.zoomPct / 100})`, transformOrigin: 'top center' }} />
+                <div className="device" id="device" style={{ width: deviceW, height: 'calc(100% - 8px)' }}>
+                  <iframe id="previewFrame" ref={frameRef} sandbox="allow-scripts" title="Live preview" />
                   {st.generating && (
                     <div className="skeleton show" id="skeleton">
                       <div className="sk-gen"><span className="spinner"></span><span id="skModel">Agent · {st.model}</span></div>
