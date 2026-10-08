@@ -244,7 +244,7 @@ export const SNIPPETS = {
   <div class="kpi"><b>48 210</b></div>
 </div>`
 };
-const THUMBS = {
+export const THUMBS = {
   saas:'linear-gradient(135deg,#7c3aed,#ec4899)', kanban:'linear-gradient(135deg,#1f1f26,#a855f7)',
   settings:'linear-gradient(135deg,#7c3aed,#0ea5e9)', dashboard:'linear-gradient(135deg,#a855f7,#f59e0b)'
 };

@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit",
+    "lint": "eslint src",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test -c tests/e2e/playwright.config.ts"
@@ -19,6 +19,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.56.0",
     "@svgr/plugin-jsx": "^8.1.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -26,8 +27,12 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
     "jsdom": "^25.0.1",
     "typescript": "~5.6.2",
+    "typescript-eslint": "^8.71.1",
     "vite": "^6.0.5",
     "vitest": "^3.2.7"
   }

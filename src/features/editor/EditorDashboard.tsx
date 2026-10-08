@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState } from 'react';
 import { useStore } from '../../stores/useAppStore';
-import { filesFor, filesToHtml, VfsFile } from '../../lib/vfs/filesFor';
+import { filesFor, VfsFile } from '../../lib/vfs/filesFor';
 import { hl } from '../../lib/utils';
+import { BLUEPRINTS, PROMPT_LIB } from '../../lib/templates/editorData';
 
 /* /editor dashboard — port 1:1 štruktúry; core flow: preview, súbory, história (M1 rozsah);
    blueprints/prompts/backend/team sú v legacy mock panely — pre M1 sú zachované ako
@@ -10,9 +11,15 @@ import { hl } from '../../lib/utils';
 const ED_TABS = [
   { id: 'preview', label: '🎨 Preview' },
   { id: 'files', label: '📁 Súbory' },
-  { id: 'history', label: 'SetBranch History' },
+  { id: 'history', label: '🕘 History' },
+  { id: 'blueprints', label: '🧱 Blueprints' },
+  { id: 'prompts', label: '📝 Prompty' },
   { id: 'backend', label: '🗄️ Backend' },
+  { id: 'team', label: '👥 Tím' },
+  { id: 'gallery', label: '🌐 Galéria' },
 ] as const;
+
+export const _ED_TAB_IDS = ED_TABS.map(t => t.id);
 
 export function EditorDashboard() {
   const st = useStore();
@@ -93,7 +100,7 @@ export function EditorDashboard() {
         <div className="ed-tabs" id="edTabs">
           {ED_TABS.map(t => (
             <button key={t.id} data-edtab={t.id} className={'ed-tab' + (localTab === t.id ? ' active' : '')} onClick={() => { setLocalTab(t.id); st.setEdFile(null); }}>
-              {t.id === 'history' ? '🕒 History' : t.label}
+              {t.label}
             </button>
           ))}
         </div>
@@ -175,9 +182,51 @@ export function EditorDashboard() {
                 ))}
             </div>
           </div>
+          <div className={'ed-pane' + (localTab === 'blueprints' ? ' active' : '')} data-edpane="blueprints">
+            <div className="pane-inner">
+              <div className="ed-bp-grid" id="edBpGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 12 }}>
+                {BLUEPRINTS.map(bp => (
+                  <div key={bp.id} className="ed-bp" data-bp={bp.id} role="button" tabIndex={0}
+                    onClick={() => { st.generate('Blueprint: ' + bp.name + ' — ' + bp.desc, bp.kind); }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); st.generate('Blueprint: ' + bp.name + ' — ' + bp.desc, bp.kind); } }}>
+                    <div className="ed-bp-thumb" style={{ background: bp.demo }}>{bp.emoji}</div>
+                    <b>{bp.emoji} {bp.name}</b>
+                    <span className="desc">{bp.desc}</span>
+                    <span className="stack">{bp.stack} · {bp.time}</span>
+                    <span className="use">Použi blueprint</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className={'ed-pane' + (localTab === 'prompts' ? ' active' : '')} data-edpane="prompts">
+            <div className="pane-inner">
+              <div className="ed-prompt-grid" id="edPromptGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 10 }}>
+                {PROMPT_LIB.map((p, i) => (
+                  <div key={i} className="ed-prompt" role="button" tabIndex={0}
+                    onClick={() => { st.goHome(); st.toast('Prompt vložený — doplň [zástupné zátvorky]'); }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); st.goHome(); st.toast('Prompt vložený — doplň [zástupné zátvorky]'); } }}>
+                    <span className="cat">{p.cat}</span>
+                    <b>{p.title}</b>
+                    <span className="txt" style={{ fontSize: 11.5, color: 'var(--text-dim)', lineHeight: 1.5 }}>{p.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
           <div className={'ed-pane' + (localTab === 'backend' ? ' active' : '')} data-edpane="backend">
             <div className="pane-empty">
-              🔒 Backend & data (DB, auth, API) — mock panel z legacy verzie, reálna implementácia až v M3.
+              🔒 Backend & data (DB schémy, data browser, auth) — mock panel ako v legacy; reálna implementácia až v M3.
+            </div>
+          </div>
+          <div className={'ed-pane' + (localTab === 'team' ? ' active' : '')} data-edpane="team">
+            <div className="pane-empty">
+              👥 Tím & kolaborácia (seats, RBAC, komentáre v preview) — mock panel ako v legacy; reálna implementácia až v M4.
+            </div>
+          </div>
+          <div className={'ed-pane' + (localTab === 'gallery' ? ' active' : '')} data-edpane="gallery">
+            <div className="pane-empty">
+              🌐 Komunitná galéria (publikácia blueprintov, hodnotenie, trending) — mock panel ako v legacy; reálna implementácia až v M6.
             </div>
           </div>
         </div>

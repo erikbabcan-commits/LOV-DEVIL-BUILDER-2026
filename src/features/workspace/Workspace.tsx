@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useStore } from '../../stores/useAppStore';
 import { esc, hl } from '../../lib/utils';
 
@@ -44,6 +44,7 @@ function ChatMessage({ m }: { m: ReturnType<typeof useStore.getState>['messages'
 export function Workspace() {
   const st = useStore();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [dragging, setDragging] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -109,7 +110,21 @@ export function Workspace() {
           </div>
         </div>
       </aside>
-      <div className="resizer" id="resizer" title="Potiahni · dvojklik = reset"></div>
+      <div className={'resizer' + (dragging ? ' dragging' : '')} id="resizer" title="Potiahni · dvojklik = reset"
+        role="separator" aria-orientation="vertical" aria-label="Zmeniť šírku chat panelu"
+        tabIndex={0}
+        onPointerDown={e => { setDragging(true); (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
+        onPointerMove={e => {
+          if (!dragging) return;
+          document.documentElement.style.setProperty('--chat-w', Math.min(560, Math.max(340, e.clientX)) + 'px');
+        }}
+        onPointerUp={() => setDragging(false)}
+        onDoubleClick={() => document.documentElement.style.setProperty('--chat-w', '420px')}
+        onKeyDown={e => {
+          const cur = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--chat-w')) || 420;
+          if (e.key === 'ArrowLeft'){ e.preventDefault(); document.documentElement.style.setProperty('--chat-w', Math.max(340, cur - 20) + 'px'); }
+          if (e.key === 'ArrowRight'){ e.preventDefault(); document.documentElement.style.setProperty('--chat-w', Math.min(560, cur + 20) + 'px'); }
+        }} />
       <section className="canvas-panel">
         <div className="canvas-tabs">
           <div className="ct-tabs" id="ctTabs">

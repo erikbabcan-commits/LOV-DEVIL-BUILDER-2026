@@ -1,28 +1,43 @@
 import { describe, it, expect } from 'vitest';
 import { vfsSplitBlocks, vfsJoinBlocks } from '../../src/lib/vfs';
 
-describe('VFS D3c (M1)', () => {
-  it('interleaved scripty (oddelené DOM) sa NEextrahujú — exact preservation', () => {
-    const src = '<body><script>first()<\/script><div id="x">X</div><script>second()<\/script></body>';
+describe('VFS D3d (M1.1) — faithful reconstruction over consolidation', () => {
+  it('jeden klasický inline script → extrakcia (bežný prípad)', () => {
+    const src = '<html><head><style>a{b:c}</style></head><body><h1>Ahoj</h1><script>let x = 1<\/script></body></html>';
+    const r = vfsSplitBlocks(src);
+    expect(r.jsParts.length).toBe(1);
+    expect(r.jsParts[0].content).toContain('let x = 1');
+    expect(r.cssParts.length).toBe(1);
+    expect(r.indexHtml).not.toContain('let x = 1');
+  });
+
+  it('D3d: 2+ klasické inline scripty (aj adjacent) sa NESPÁJAJÚ — izolácia script kontextov', () => {
+    const src = '<head><script>let x = 1<\/script><script>let x = 2<\/script></head><body>b</body>';
     const r = vfsSplitBlocks(src);
     expect(r.jsParts.length).toBe(0);
-    expect(r.indexHtml).toContain('first()');
-    expect(r.indexHtml).toContain('second()');
-    expect(r.indexHtml.indexOf('first()')).toBeLessThan(r.indexHtml.indexOf('<div'));
-    expect(r.indexHtml.indexOf('<div')).toBeLessThan(r.indexHtml.indexOf('second()'));
+    expect(r.indexHtml).toContain('let x = 1');
+    expect(r.indexHtml).toContain('let x = 2');
+    expect(r.skippedScript).toBe(true);
+    // roundtrip: nič sa nestratilo
+    const out = vfsJoinBlocks(r.indexHtml, '', '');
+    expect(out).toBe(r.indexHtml);
+  });
+
+  it('D3d: throw izolácia — scripty ostanú oddelené (blok2 beží aj keď blok1 throw)', () => {
+    const src = '<body><script>throw new Error("x")<\/script><script>ok()<\/script></body>';
+    const r = vfsSplitBlocks(src);
+    expect(r.jsParts.length).toBe(0);
+    expect(r.indexHtml).toMatch(/<script>throw[\s\S]*?<\/script><script>ok\(\)/);
+  });
+
+  it('D3d: "use strict" v jednom scripte sa nerozširuje — scripty ostanú oddelené', () => {
+    const src = '<head><script>"use strict"; a()<\/script><script>b()<\/script></head>';
+    const r = vfsSplitBlocks(src);
+    expect(r.jsParts.length).toBe(0);
     expect(r.skippedScript).toBe(true);
   });
 
-  it('adjacent scripty sa extrahujú a spájajú (bezpečné)', () => {
-    const src = '<head><script>a()<\/script>\n<script>b()<\/script></head><body>ok</body>';
-    const r = vfsSplitBlocks(src);
-    expect(r.jsParts.length).toBe(2);
-    expect(r.jsParts[0].content).toContain('a()');
-    expect(r.jsParts[1].content).toContain('b()');
-    expect(r.indexHtml).not.toContain('a()');
-  });
-
-  it('module/JSON/src/atribútové bloky sa NESPÁJAJÚ', () => {
+  it('module/JSON/src/atribútové bloky sa NEDOTÝKAJÚ', () => {
     const src = '<head>'
       + '<script src="https://cdn.example.com/lib.js"><\/script>'
       + '<script type="module">mod()<\/script>'
@@ -39,22 +54,37 @@ describe('VFS D3c (M1)', () => {
     expect(r.jsParts[0].content).toContain('classic()');
   });
 
-  it('multi-block CSS roundtrip zachová poradie (kaskáda)', () => {
-    const src = '<style>a{color:red}</style><p>x</p><style>a{color:blue}</style>';
+  it('CSS adjacent skupina sa extrahuje (kaskáda = poradie pravidiel)', () => {
+    const src = '<head><style>a{color:red}<\/style><style>a{color:blue}<\/style></head><body>x</body>';
     const r = vfsSplitBlocks(src);
+    expect(r.cssParts.length).toBe(2);
     const css = r.cssParts.map(p => p.content.trim()).join('\n');
     expect(css.indexOf('color:red')).toBeLessThan(css.indexOf('color:blue'));
-    const out = vfsJoinBlocks(r.indexHtml, css, '');
-    expect(out).toContain('color:red');
-    expect(out).toContain('color:blue');
   });
 
-  it('roundtrip: jednoduchá appka sa zachová', () => {
+  it('D3d: ne-adjacent CSS (DOM medzi stylemi) → exact preservation', () => {
+    const src = '<style>a{b:c}<\/style><p>medzi</p><style>p{color:red}<\/style>';
+    const r = vfsSplitBlocks(src);
+    expect(r.cssParts.length).toBe(0);
+    expect(r.skippedStyle).toBe(true);
+    expect(r.indexHtml).toContain('a{b:c}');
+    expect(r.indexHtml).toContain('p{color:red}');
+    expect(r.indexHtml).toContain('<p>medzi</p>');
+  });
+
+  it('roundtrip: extrahovaný obsah sa stratovo vráti', () => {
     const src = '<html><head><style>a{b:c}</style></head><body><h1>Ahoj</h1><script>let x = 1<\/script></body></html>';
     const r = vfsSplitBlocks(src);
-    const out = vfsJoinBlocks(r.indexHtml, r.cssParts[0].content, r.jsParts[0].content);
+    const out = vfsJoinBlocks(r.indexHtml, r.cssParts[0].content.trim(), r.jsParts[0].content.trim());
     expect(out).toContain('a{b:c}');
     expect(out).toContain('let x = 1');
     expect(out).toContain('<h1>Ahoj</h1>');
+    expect((out.match(/<style/g) || []).length).toBe(1);
+    expect((out.match(/<script/g) || []).length).toBe(1);
+  });
+
+  it('bez placeholderov: index.html nezmenený', () => {
+    const out = vfsJoinBlocks('<html><body>x</body></html>', 'a{}', 'z()');
+    expect(out).toBe('<html><body>x</body></html>');
   });
 });

@@ -104,7 +104,7 @@ export interface AppState {
   edSnap: () => Snapshot | null;
 }
 
-let generationTimers: number[] = [];
+const generationTimers: number[] = [];
 
 export const useStore = create<AppState>((set, get) => ({
   model: 'Lovable Cloud',
@@ -280,7 +280,7 @@ export const useStore = create<AppState>((set, get) => ({
     const snap = s.edSnap();
     if (!snap) return;
     const files = s.vfs[snap.id] || filesFor(snap);
-    let fl = files.find(f => f.name === s.edFile) || files[0];
+    const fl = files.find(f => f.name === s.edFile) || files[0];
     if (fl && s.edFile !== fl.name) set({ edFile: fl.name });
     if (!fl) return;
     fl.content = content;
