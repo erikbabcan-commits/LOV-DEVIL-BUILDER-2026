@@ -4122,12 +4122,12 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
     });
     t('REGRESIA D3 (M1.1-D3d): multi-block — CSS adjacent sa spája, JS len jeden blok', () => {
       const s = { id:'d3multi', v:1, prompt:'p', time:'10:00', kind:'saas',
-        html:'<!doctype html><html><head><style>a{b:c}</style></head><body><h1>x</h1><script>first()<\/script><style>p{color:red}<\/style></body></html>' };
+        html:'<!doctype html><html><head><style>a{b:c}</style><style>p{color:red}<\/style></head><body><h1>x</h1><script>first()<\/script></body></html>' };
       state.vfs = {};
       const f = filesFor(s);
       const css = f.find(x => x.name === 'styles.css').content;
       const js = f.find(x => x.name === 'app.js').content;
-      ok(css.includes('a{b:c}') && css.includes('p{color:red}'), 'oba CSS bloky extrahované (adjacent)');
+      ok(css.includes('a{b:c}') && css.includes('p{color:red}'), 'oba CSS bloky extrahované (adjacent v head)');
       ok(js.includes('first()'), 'jediný JS blok extrahovaný');
       const idx = f.find(x => x.name === 'index.html').content;
       ok(idx.includes('<h1>x</h1>'), 'obsah medzi blokmi zachovaný');
