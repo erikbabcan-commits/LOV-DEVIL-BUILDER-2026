@@ -99,7 +99,7 @@ test('história: snapshot restore funguje (immutability parita)', async ({ page 
   await expect(page.locator('#snapCount')).toHaveText('2', { timeout: 5_000 });
   // expand history (ako v legacy) → view snapshot v1 → read-only banner
   await page.click('#histToggle');
-  await page.locator('.hist-list .snap').first().locator('.view').click();
+  await page.locator('.hist-list .snap').first().click();
   await expect(page.locator('#histBanner.show')).toBeVisible();
   await expect(page.locator('#histBannerText')).toContainText('v1');
   // späť na live

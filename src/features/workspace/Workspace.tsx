@@ -277,7 +277,10 @@ export function Workspace() {
           <div className="hist-list" id="histList">
             {st.snapshots.length === 0 ? <div className="pane-empty">Žiadne verzie — vygeneruj appku (Ctrl+Enter) alebo ulož checkpoint (Ctrl+S).</div> :
               [...st.snapshots].reverse().map(s => (
-                <div key={s.id} className={'snap' + (s.pinned ? ' pinned' : '') + (!st.viewing && s.id === st.liveId ? ' current' : '')} data-snap={s.id}>
+                <div key={s.id} role="button" tabIndex={0}
+                  className={'snap' + (s.pinned ? ' pinned' : '') + (!st.viewing && s.id === st.liveId ? ' current' : '')} data-snap={s.id}
+                  onClick={() => st.viewSnapshot(s.id)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); st.viewSnapshot(s.id); } }}>
                   <div className="snap-thumb" style={{ background: (THUMBS as Record<string, string>)[s.kind] || THUMBS.dashboard }}>v{s.v}</div>
                   <div className="snap-row"><span className="snap-ver">v{s.v}</span><span className="snap-time">{s.time}</span></div>
                   <div className="snap-prompt">{s.prompt}</div>
