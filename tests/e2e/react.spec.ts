@@ -26,6 +26,9 @@ test('generovanie: SaaS template → workspace + preview iframe + agent plán', 
   await expect(page.locator('.plan-step.done').first()).toBeVisible({ timeout: 10_000 });
   const srcdoc = await page.locator('#previewFrame').getAttribute('srcdoc');
   expect(srcdoc).toContain('hero');
+  /* parity s legacy procedúrou: expand history pred screenshotom */
+  await page.click('#histToggle');
+  await page.waitForTimeout(300);
   await page.screenshot({ path: SHOTS + '/02-workspace-desktop.png' });
 });
 
