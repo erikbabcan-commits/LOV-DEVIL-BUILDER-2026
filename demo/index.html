@@ -1148,8 +1148,25 @@ function log(txt, cls='info'){
   if (state.tab === 'console') renderConsole();
 }
 function copy(t){
-  try { navigator.clipboard.writeText(t); }
-  catch { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  /* FIX (M0): clipboard.writeText vracia Promise — bez .catch() vydávala v headless/CI prostredí
+     neprebalenú výnimku (NotAllowedError) do konzoly; fallback na execCommand ostáva.
+     Selhanie kopírovania nezobrazuje chybu používateľovi (rovnaké správanie ako predtým). */
+  try {
+    const p = navigator.clipboard && navigator.clipboard.writeText(t);
+    if (p && p.catch) p.catch(() => {
+      try {
+        const ta = document.createElement('textarea'); ta.value = t;
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); ta.remove();
+      } catch {}
+    });
+  } catch {
+    try {
+      const ta = document.createElement('textarea'); ta.value = t;
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    } catch {}
+  }
 }
 
 /* ---------- generované aplikácie ---------- */
@@ -1981,32 +1998,105 @@ function edSnap(){
   if (state.viewing) return state.viewing;
   return state.snapshots.find(s => s.id === state.liveId) || state.snapshots[state.snapshots.length - 1] || null;
 }
+function vfsBlockType(attrs){
+  const m = (attrs || '').match(/type\s*=\s*("([^"]*)"|'([^']*)'|(\S+))/i);
+  return m ? (m[2] != null ? m[2] : (m[3] != null ? m[3] : m[4] || '')) : '';
+}
+function vfsIsClassicJs(type, attrs){
+  return (!type || /^(text|application)\/(javascript|ecmascript)$/i.test(type)) && !/\ssrc\s*=/.test(attrs || '');
+}
+function vfsSplitBlocks(html){
+  const cssParts = [], jsParts = [];
+  let skippedScript = false;
+  /* FIX (M0-D3b): do styles.css/app.js sa zlučujú IBA klasické inline bloky bez atribútov —
+     zlučenie nemení vykonávanie (klasické scripty bežia sekvenčne v poradí dokumentu, CSS kaskáda
+     závisí len na poradí pravidiel, ktoré sa zachová). Bloky s inou sémantikou sa NEDOTÝKAJÚ:
+     - <script src=…> — externý obsah, nesmie sa stratiť ani presunúť
+     - <script type="module"> — defer/strict sémantika
+     - <script type="application/json"|importmap|…> — nevykonateľné dáta (spojenie = SyntaxError)
+     - <style media=…> — CSS podmienené médiom by sa zrušením atribútu aplikovalo vždy
+     Zostávajú na pôvodnom mieste v index.html s pôvodnými atribútmi. */
+  /* FIX (M1-D3c): navyše, JS bloky sa extrahujú len ak tvoria JEDNU súvislú (adjacent) skupinu —
+     scripty oddelené DOM prvkami sa NEDOTÝKAJÚ: v origináli beží druhý až po parsovaní elementov
+     medzi nimi; spojením na pozíciu prvého by videl nedokončený DOM (getElementById → null).
+     Preferujeme exact preservation nad lossy transform. */
+  const markStyle = (attrs, content, orig) => {
+    if (/\S/.test(attrs || '')) return orig;
+    cssParts.push({ attrs: '', content: content != null ? content : '' });
+    return '<link rel="stylesheet" href="styles.css">';
+  };
+  const markScript = (attrs, content, orig) => {
+    const type = vfsBlockType(attrs);
+    if (!vfsIsClassicJs(type, attrs)){ skippedScript = true; return orig; }
+    jsParts.push({ attrs: '', content: content != null ? content : '' });
+    return '<script src="app.js"><\/script>';
+  };
+  let indexHtml = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/g, (m, a, c) => markStyle(a, c, m))
+                     .replace(/<script([^>]*)>([\s\S]*?)<\/script>/g, (m, a, c) => markScript(a, c, m));
+  const PH = '<script src="app.js"><\/script>';
+  if (indexHtml.includes(PH)){
+    const positions = [];
+    const rePH = /<script src="app\.js"><\/script>/g; let pm;
+    while ((pm = rePH.exec(indexHtml)) !== null) positions.push(pm.index);
+    let groups = 1;
+    for (let i = 1; i < positions.length; i++){
+      const between = indexHtml.slice(positions[i-1] + PH.length, positions[i]);
+      if (!/^\s*$/.test(between)) groups++;
+    }
+    if (groups > 1){
+      /* viac súvislých skupín → exact preservation: všetky inline JS bloky sa vrátia na miesto */
+      let pi = 0;
+      indexHtml = indexHtml.replace(/<script src="app\.js"><\/script>/g, () => {
+        const part = jsParts[pi++];
+        return '<script>' + ((part && part.content) || '') + '<\/script>';
+      });
+      skippedScript = true;
+      jsParts.length = 0;
+    }
+  }
+  return { indexHtml, cssParts, jsParts, skippedScript };
+}
+function vfsJoinBlocks(indexHtml, cssContent, jsContent){
+  const reCSS = /<link rel="stylesheet" href="styles\.css">/;
+  const reJS = /<script src="app\.js"><\/script>/;
+  let html = indexHtml;
+  if (reCSS.test(html)){
+    const block = '<style>\n' + cssContent + '\n</style>';
+    html = html.replace(reCSS, () => block);
+    html = html.split('<link rel="stylesheet" href="styles.css">').join('');
+  }
+  if (reJS.test(html)){
+    const block = '<script>\n' + jsContent + '\n<\/script>';
+    html = html.replace(reJS, () => block);
+    html = html.split('<script src="app.js"><\/script>').join('');
+  }
+  return html;
+}
 function filesFor(snap){
   if (state.vfs[snap.id]) return state.vfs[snap.id];
-  let html = snap.html;
-  const styleM = html.match(/<style[^>]*>([\s\S]*?)<\/style>/);
-  const css = styleM ? styleM[1].trim() : '';
-  if (styleM) html = html.replace(styleM[0], () => '<link rel="stylesheet" href="styles.css">');
-  /* REVIEW: extrahuje sa len PRVÝ <style>/<script> blok — appka s viacerými blokmi by zvyšok nechala v index.html a VFS by bol nekonzistentný. Rigoróznejšie: html.matchAll() cyklus nad oboma vzormi a náhrada všetkých výskytov (tú istú mapu zdieľa filesToHtml). */
-  const scriptM = html.match(/<script[^>]*>([\s\S]*?)<\/script>/);
-  const js = scriptM ? scriptM[1].trim() : '';
-  if (scriptM) html = html.replace(scriptM[0], () => '<script src="app.js"><\/script>');
+  const html = snap.html;
+  /* FIX (M0-D3): extrakcia VŠETKÝCH <style>/<script> blokov v pôvodnom poradí (nie len prvý) —
+     obsah sa spája do styles.css/app.js v poradí výskytu, takže roundtrip je bezstrátový pre
+     multi-block appky; atribúty blokov sa zachovajú v pripojenej hlavičke komentára. */
+  const { indexHtml, cssParts, jsParts, skippedScript } = vfsSplitBlocks(html);
+  const cssHeader = cssParts.length > 1 ? '/* VFS: ' + cssParts.length + ' style bloky spojené v pôvodnom poradí */\n' : '';
+  const jsHeader = jsParts.length > 1 ? '// VFS: ' + jsParts.length + ' script bloky spojené v pôvodnom poradí\n' : '';
+  const css = cssParts.map(p => p.content.trim()).join('\n');
+  const js = jsParts.map(p => p.content.trim()).join('\n');
   const files = [
-    { name:'index.html', content: html.trim(), modified:false },
-    { name:'styles.css', content: css || '/* žiadne štýly */', modified:false },
-    { name:'app.js', content: js || '// žiadna logika', modified:false },
+    { name:'index.html', content: indexHtml.trim(), modified:false },
+    { name:'styles.css', content: css ? cssHeader + css : '/* žiadne štýly */', modified:false },
+    { name:'app.js', content: js ? jsHeader + js : '// žiadna logika', modified:false },
     { name:'README.md', content: '# ' + snap.prompt.slice(0, 60) + '\n\nVygenerované vo Forge AI Builder · v' + snap.v + ' · ' + snap.time + '\nSúbory: index.html, styles.css, app.js — edituj v záložke Súbory.', modified:false }
   ];
-  dbg('VFS: extrakcia súborov', 'snap=' + snap.id.slice(0, 7), 'style=' + (styleM ? css.length : 0) + ' B', 'script=' + (scriptM ? js.length : 0) + ' B', 'index=' + html.length + ' B');
+  dbg('VFS: extrakcia súborov', 'snap=' + snap.id.slice(0, 7), 'style=' + cssParts.length + ' blokov/' + css.length + ' B', 'script=' + jsParts.length + ' blokov/' + js.length + ' B', 'index=' + indexHtml.length + ' B');
   state.vfs[snap.id] = files;
   return files;
 }
 function filesToHtml(files){
   const f = {};
   files.forEach(x => { f[x.name] = x.content; });
-  let html = f['index.html'] || '';
-  if (f['styles.css'] != null) html = html.replace('<link rel="stylesheet" href="styles.css">', () => '<style>\n' + f['styles.css'] + '\n</style>');
-  if (f['app.js'] != null) html = html.replace('<script src="app.js"><\/script>', () => '<script>\n' + f['app.js'] + '\n<\/script>');
+  const html = vfsJoinBlocks(f['index.html'] || '', f['styles.css'] || '', f['app.js'] || '');
   dbg('VFS: spätný zostroj', files.length + ' súborov', '→ ' + html.length + ' B', 'css=' + (f['styles.css'] != null), 'js=' + (f['app.js'] != null));
   return html;
 }
@@ -2030,8 +2120,12 @@ function renderEdFiles(){
 function renderEdCode(){
   const snap = edSnap();
   const files = snap ? filesFor(snap) : [];
-  const fl = files.find(f => f.name === state.edFile) || files[0];
-  /* REVIEW: keď state.edFile === null, fallback zobrazí files[0], ale saveEdFile() potom ticho skončí (guard !state.edFile) — používateľ upravuje a uloženie nič nespraví. Fix: tu priradiť state.edFile = fl.name, aby editácia vždy patrila k zobrazenému súboru. */
+  let fl = files.find(f => f.name === state.edFile) || files[0];
+  /* FIX (M0-D1): fallback vždy priradí zobrazený súbor do state.edFile — uloženie už nikdy nie je tichý no-op, editácia patrí k súboru, ktorý používateľ reálne vidí. */
+  if (fl && state.edFile !== fl.name){
+    state.edFile = fl.name;
+    dbg('editor code: fallback výberu → edFile = ' + fl.name);
+  }
   if (!fl) return;
   /* PERF: obsah sa splittuje raz (pôvodne 3×) a renderuje s CAP limitom — veľké appky nerozbijú hlavné vlákno jedným obrovským innerHTML (REVIEW #3 vyriešené). */
   const lines = fl.content.split('\n');
@@ -2055,11 +2149,25 @@ function renderEdCode(){
   }
 }
 function saveEdFile(){
-  /* REVIEW: chýba guard na state.viewing — edSnap() vracia aj prezeranú historickú verziu, takže uloženie (a auth toggle) prepíše HTML read-only snapshotu a poruší sľub rewindu. Buď zablokovať editáciu pri viewing, alebo uloženie vytvorí nový commit namiesto prepisu histórie. */
+  /* FIX (M0-D2): read-only rewind — prezeraný historický snapshot je nemenný; uloženie v viewing režime je odmietnuté so správou (história sa nikdy neprepíše cez editor). */
+  if (state.viewing){
+    state.edEditing = false;
+    renderEdCode();
+    toast('Read-only — prezeráš historickú verziu. Obnov ju (Obnoviť) pre editáciu.', 'warn');
+    log('editor: uloženie odmietnuté — read-only snapshot ' + state.viewing.id.slice(0, 7), 'warn');
+    return;
+  }
   const snap = edSnap();
-  if (!snap || !state.edFile) return;
-  const files = filesFor(snap);
-  const fl = files.find(f => f.name === state.edFile);
+  if (!snap) return;
+  /* FIX (M0-D1): aj priamo v saveEdFile — ak edFile nie je nastavený (alebo ukazuje na neexistujúci
+     súbor), fallback na prvý súbor VFS (rovnaká logika ako v renderEdCode), aby uloženie
+     nikdy nebolo tichý no-op. */
+  let files = filesFor(snap);
+  let fl = files.find(f => f.name === state.edFile) || files[0];
+  if (fl && state.edFile !== fl.name){
+    state.edFile = fl.name;
+    dbg('editor save: fallback výberu → edFile = ' + fl.name);
+  }
   if (!fl) return;
   fl.content = $('#edCodeTa').value;
   fl.modified = true;
@@ -4004,6 +4112,73 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
       ]);
       eq(out, '<html><body>x</body></html>', 'nič sa nevložilo');
     });
+    t('REGRESIA D3: multi-block VFS — roundtrip zachytí všetky style/script bloky v poradi', () => {
+      /* M1-D3c: scripty oddelené DOM sa NEextrahujú (execution timing) — tento test
+         používa teraz adjacent scripty; interleaved prípad pokrýva REGRESIA D3c */
+      const s = { id:'d3multi', v:1, prompt:'p', time:'10:00', kind:'saas',
+        html:'<!doctype html><html><head><style>a{b:c}</style></head><body><h1>x</h1><script>first()<\/script><script>second()<\/script><style>p{color:red}<\/style></body></html>' };
+      state.vfs = {};
+      const f = filesFor(s);
+      const css = f.find(x => x.name === 'styles.css').content;
+      const js = f.find(x => x.name === 'app.js').content;
+      ok(css.includes('a{b:c}') && css.includes('p{color:red}'), 'oba CSS bloky extrahované');
+      ok(js.includes('first()') && js.includes('second()'), 'oba JS bloky extrahované (adjacent)');
+      ok(js.indexOf('first()') < js.indexOf('second()'), 'poradie blokov zachované');
+      const idx = f.find(x => x.name === 'index.html').content;
+      ok(idx.includes('<h1>x</h1>'), 'obsah medzi blokmi zachovaný');
+      ok(!idx.includes('a{b:c}') && !idx.includes('first()'), 'v index.html nezostal kód blokov');
+      const out = filesToHtml(f);
+      ok(out.includes('a{b:c}') && out.includes('p{color:red}'), 'CSS po roundtrip');
+      ok(out.includes('first()') && out.includes('second()'), 'JS po roundtrip');
+      ok(out.includes('<h1>x</h1>'), 'štruktúra zachovaná');
+      ok((out.match(/<style/g) || []).length === 1 && (out.match(/<script/g) || []).length === 1, 'práve 1 style a 1 script blok po roundtrip');
+      state.vfs = {};
+    });
+    t('REGRESIA D3: nezvyčajný obsah — script so stringom obsahujúcim </style>, atribúty blokov', () => {
+      const src = '<html><head><style>body{}</style></head><body><script>const t = "</style>"; tricky()<\/script></body></html>';
+      const { indexHtml, cssParts, jsParts } = vfsSplitBlocks(src);
+      eq(cssParts.length, 1, 'style blok 1×');
+      ok(jsParts.length >= 1 && jsParts[0].content.includes('tricky()'), 'script obsah extrahovaný');
+      ok(indexHtml.includes('<body>'), 'index.html zachováva telo');
+      ok(!indexHtml.includes('tricky()'), 'script kód mimo index.html');
+    });
+    t('REGRESIA D3b: module/JSON/src scripty a style s atribútmi sa NESPÁJAJÚ — sémantika zachovaná', () => {
+      const src = '<head>' +
+        '<script src="https://cdn.example.com/lib.js"><\/script>' +
+        '<script type="module">import x from "y"; mod()<\/script>' +
+        '<script type="application/json">{"data":1}<\/script>' +
+        '<style media="print">p{color:red}<\/style>' +
+        '<script>classicInline()<\/script>' +
+        '</head><body>obsah</body>';
+      const { indexHtml, cssParts, jsParts, skippedScript } = vfsSplitBlocks(src);
+      ok(indexHtml.includes('src="https://cdn.example.com/lib.js"'), 'externý src script zostáva na mieste');
+      ok(indexHtml.includes('type="module"'), 'module script zostáva na mieste (defer sémantika)');
+      ok(indexHtml.includes('type="application/json"'), 'JSON blok zostáva na mieste (dáta, nie JS)');
+      ok(indexHtml.includes('media="print"'), 'style s media atribútom zostáva na mieste');
+      eq(jsParts.length, 1, 'len klasický inline script do app.js');
+      ok(jsParts[0].content.includes('classicInline()'), 'správny obsah v app.js');
+      eq(cssParts.length, 0, 'žiadny CSS blok do styles.css (iba atribútový)');
+      ok(skippedScript, 'detekovaný preskočený blok');
+      ok(!indexHtml.includes('classicInline()'), 'inline script mimo index.html');
+    });
+    t('REGRESIA D3c: interleaved scripty (oddelené DOM) sa NEextrahujú — exact preservation', () => {
+      const src = '<body><script>first()<\/script><div id="x">X</div><script>second()<\/script></body>';
+      const { indexHtml, jsParts, skippedScript } = vfsSplitBlocks(src);
+      eq(jsParts.length, 0, 'žiadny JS do app.js (2 skupiny → preservation)');
+      ok(indexHtml.includes('first()') && indexHtml.includes('second()'), 'oba scripty zostávajú inline');
+      ok(indexHtml.indexOf('first()') < indexHtml.indexOf('<div') && indexHtml.indexOf('<div') < indexHtml.indexOf('second()'), 'poradie v dokumente zachované');
+      ok(skippedScript, 'preskočenie detekované');
+      /* roundtrip: app.js prázdny → index.html sa nemá čím pokaziť */
+      const out = vfsJoinBlocks(indexHtml, '', '');
+      eq(out, indexHtml, 'roundtrip bez zmeny');
+    });
+    t('REGRESIA D3c: adjacent scripty sa stále extrahujú a spájajú (bezpečné)', () => {
+      const src = '<head><script>a()<\/script>\n<script>b()<\/script></head><body>ok</body>';
+      const { indexHtml, jsParts } = vfsSplitBlocks(src);
+      eq(jsParts.length, 2, 'oba adjacent extrahované');
+      ok(jsParts[0].content.includes('a()') && jsParts[1].content.includes('b()'), 'poradie');
+      ok(!indexHtml.includes('a()') && !indexHtml.includes('b()'), 'mimo index.html');
+    });
     t('applyBrand: premapuje mená, farby (aj upper-case) aj soft pozadie', () => {
       const src = '<b>Nimbus</b><i>FlowDeck</i><em>Aurora</em><span style="color:#7c3aed">#7C3AED</span><div style="background:#f3eefc">x</div>';
       const out = applyBrand(src, { name:'Zenitest', color:'#00aa99' });
@@ -4055,12 +4230,39 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
       ok(!state.edEditing, 'edit režim vypnutý po uložení');
       const after = s.html;
       state.edFile = null;
+      $('#edCodeTa').value = 'a{color:copper}';
       saveEdFile();
-      eq(s.html, after, 'edge: null edFile → tichý no-op (viď REVIEW)');
+      ok(state.edFile != null, 'FIX D1: null edFile → fallback priradí zobrazený súbor');
+      ok(s.html.includes('a{color:copper}'), 'FIX D1: uloženie už nie je tichý no-op');
       state.edFile = 'styles.css'; state.liveId = null;
       saveEdFile();
       ok(true, 'edge: bez liveId nepadne (fallback na posledný snapshot)');
       setEdTab('preview');
+    });
+    t('REGRESIA D1: zobrazený súbor je vždy súbor, ktorý sa ukladá', () => {
+      const s = { id:'d1snap', v:1, prompt:'p', time:'10:00', kind:'saas',
+        html:'<html><head><style>x{y:z}</style></head><body><h1>D1</h1></body></html>' };
+      state.snapshots = [s]; state.liveId = s.id; state.liveHtml = s.html; state.viewing = null;
+      state.vfs = {}; state.edFile = null; state.edEditing = true;
+      renderEdFiles();
+      eq(state.edFile, 'index.html', 'fallback render priradil edFile');
+      $('#edCodeTa').value = '<html><body><h1>D1-EDIT</h1></body></html>';
+      saveEdFile();
+      ok(s.html.includes('D1-EDIT'), 'uložené do snapshotu');
+      eq(state.edFile, 'index.html', 'edFile ostáva priradený');
+      setEdTab('preview');
+    });
+    t('REGRESIA D2: editor nemôže zmutovať historický (read-only) snapshot', () => {
+      const hist = { id:'d2hist', v:1, prompt:'hist', time:'09:00', kind:'saas', html:'<p>HIST-ORIGINAL</p>' };
+      const live = { id:'d2live', v:2, prompt:'live', time:'09:30', kind:'saas', html:'<p>LIVE</p>' };
+      state.snapshots = [hist, live]; state.liveId = live.id; state.liveHtml = live.html;
+      state.viewing = hist; state.edFile = 'index.html'; state.edEditing = true; state.vfs = {};
+      $('#edCodeTa').value = '<p>HIST-HACKED</p>';
+      saveEdFile();
+      ok(!hist.html.includes('HIST-HACKED'), 'historický snapshot neprepísaný');
+      eq(hist.html, '<p>HIST-ORIGINAL</p>', 'história nedotknutá');
+      ok(!state.edEditing, 'edit režim ukončený');
+      state.viewing = null; setEdTab('preview');
     });
     t('renderEdHistory: commity s hashom, HEAD badge a diff štatistikou', () => {
       state.snapshots = [
@@ -4480,6 +4682,19 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
 
   /* ---------- spúšťače ---------- */
   window.__runForgeTests = runTests;
+  /* ---------- CI test hooks (M0: len pre Playwright/CI overenie, appka ich nepoužíva) ---------- */
+  window.__state = () => state;
+  window.__setState = patch => Object.assign(state, patch);
+  window.__goEditor = goEditor;
+  window.__goHome = goHome;
+  window.__showWorkspace = showWorkspace;
+  window.__setTab = setTab;
+  window.__setEdTab = setEdTab;
+  window.__renderEdFiles = renderEdFiles;
+  window.__renderHistory = renderHistory;
+  window.__saveEdFile = saveEdFile;
+  window.__startEdit = () => { state.edEditing = true; renderEdCode(); };
+  window.__vfsSplitBlocks = vfsSplitBlocks;
   window.addEventListener('keydown', e => {
     if (e.ctrlKey && e.shiftKey && (e.key === 'T' || e.key === 't')){
       e.preventDefault();
