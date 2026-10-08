@@ -387,6 +387,76 @@
   .ed-empty b{font-size:15px}
   .ed-empty p{font-size:12.5px;color:var(--muted);max-width:340px;line-height:1.6}
 
+  /* ---- M2: editor tabs / files / history / blueprints / prompts ---- */
+  .ed-tabs{height:44px;flex-shrink:0;display:flex;align-items:stretch;gap:2px;padding:0 10px;border-bottom:1px solid var(--border);background:var(--panel);overflow-x:auto}
+  .ed-tab{display:flex;align-items:center;gap:6px;padding:0 13px;font-size:12px;font-weight:600;color:var(--muted);
+    border-bottom:2px solid transparent;white-space:nowrap;transition:.14s}
+  .ed-tab:hover{color:var(--text)}
+  .ed-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .ed-body{flex-direction:column;padding:0;overflow:hidden}
+  .ed-pane{display:none;flex:1;min-height:0;overflow:auto;padding:16px}
+  .ed-pane.active{display:block}
+  .ed-pane[data-edpane="preview"]{padding:0;overflow:hidden;display:none}
+  .ed-pane[data-edpane="preview"].active{display:flex;flex-direction:column}
+  .ed-split{display:flex;gap:12px;height:100%;min-height:0}
+  .ed-files{width:230px;flex-shrink:0;overflow:auto;display:flex;flex-direction:column;gap:4px}
+  .ed-fileitem{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:10px;font-size:12px;
+    color:var(--text-dim);border:1px solid transparent;cursor:pointer;transition:.13s;white-space:nowrap;overflow:hidden}
+  .ed-fileitem:hover{background:var(--panel-2);color:var(--text)}
+  .ed-fileitem.active{background:var(--accent-soft);border-color:#1e3a6e;color:var(--text)}
+  .ed-fileitem .fi-ic{width:15px;text-align:center;flex-shrink:0}
+  .ed-fileitem .fi-nm{flex:1;overflow:hidden;text-overflow:ellipsis}
+  .ed-fileitem .mod{font-size:9px;font-weight:700;color:var(--warn);background:rgba(251,191,36,.12);
+    border:1px solid #5c431f;border-radius:6px;padding:1px 5px;flex-shrink:0}
+  .ed-codewrap{flex:1;min-width:0;display:flex;flex-direction:column;background:#141318;border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .ed-codebar{height:40px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--border);background:var(--panel)}
+  .ed-codebar .cf{font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--text)}
+  .ed-codebar .meta{font-size:10.5px;color:var(--muted);font-family:var(--mono);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ed-codebar .cbtn{height:26px;padding:0 10px;border-radius:8px;font-size:10.5px;font-weight:600;color:var(--text-dim);
+    border:1px solid var(--border-2);background:var(--panel)}
+  .ed-codebar .cbtn:hover{color:var(--text);border-color:var(--text-dim)}
+  .ed-codebar .cbtn.save{color:#fff;background:var(--accent);border-color:var(--accent)}
+  .ed-code{flex:1;overflow:auto;padding:10px 0;font-family:var(--mono);font-size:11.5px;line-height:1.7}
+  .ed-cl{display:flex;gap:12px;padding:0 14px 0 0}
+  .ed-ln{width:34px;text-align:right;color:var(--muted);flex-shrink:0;user-select:none}
+  .ed-lc{flex:1;white-space:pre-wrap;word-break:break-word;color:#d4d1db}
+  .ed-codeta{flex:1;display:none;background:transparent;border:none;outline:none;resize:none;padding:10px 14px;
+    font-family:var(--mono);font-size:11.5px;line-height:1.7;color:#d4d1db;white-space:pre;min-height:100%}
+  .ed-histhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .ed-commits{display:flex;flex-direction:column;gap:8px}
+  .ed-commit{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--panel);transition:.13s}
+  .ed-commit.head{border-color:var(--accent);background:var(--accent-soft)}
+  .ed-commit .hash{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--accent);flex-shrink:0}
+  .ed-commit .msg{flex:1;min-width:0;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ed-commit .cstat{display:flex;gap:10px;font-family:var(--mono);font-size:10.5px;flex-shrink:0}
+  .ed-commit .cstat .p{color:var(--ok)}.ed-commit .cstat .m{color:var(--err)}
+  .ed-cbtns{display:flex;gap:6px;flex-shrink:0}
+  .ed-cbtn{height:26px;padding:0 10px;border-radius:8px;font-size:10.5px;font-weight:600;color:var(--text-dim);
+    border:1px solid var(--border-2);background:var(--bg)}
+  .ed-cbtn:hover{color:var(--text);border-color:var(--text-dim)}
+  .ed-head-badge{font-size:9.5px;font-weight:800;color:#fff;background:var(--accent);border-radius:6px;padding:2px 6px;flex-shrink:0}
+  .ed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px}
+  .ed-bp{display:flex;flex-direction:column;gap:9px;padding:14px;border:1px solid var(--border);border-radius:16px;
+    background:var(--panel);cursor:pointer;transition:.15s}
+  .ed-bp:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+  .ed-bp-thumb{height:64px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px}
+  .ed-bp b{font-size:13px}
+  .ed-bp .desc{font-size:11px;color:var(--muted);line-height:1.5}
+  .ed-bp .stack{font-family:var(--mono);font-size:10px;color:var(--text-dim)}
+  .ed-bp .use{font-size:10.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);
+    border:1px solid #1e3a6e;border-radius:8px;padding:4px 0;text-align:center}
+  .ed-prompt{display:flex;flex-direction:column;gap:7px;padding:13px 14px;border:1px solid var(--border);border-radius:14px;
+    background:var(--panel);cursor:pointer;transition:.14s}
+  .ed-prompt:hover{border-color:var(--accent)}
+  .ed-prompt .cat{font-size:9.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px}
+  .ed-prompt b{font-size:12.5px}
+  .ed-prompt .ptxt{font-size:11px;color:var(--muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .bpw-label{display:block;font-size:11.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px}
+  .bpw-label + input, .bpw-label + select{width:100%;height:38px;border-radius:11px;border:1px solid var(--border-2);
+    background:var(--panel-2);color:var(--text);font-size:13px;padding:0 12px;outline:none}
+  .bpw-label + input:focus, .bpw-label + select:focus{border-color:var(--accent)}
+  input[type="color"]{padding:4px}
+
   /* ============ Responsive ============ */
   @media (max-width:1023px){
     .topbar{padding:0 10px;gap:7px}
@@ -425,6 +495,8 @@
     .ed-side{display:none}
     .ed-meta{grid-template-columns:repeat(2,1fr)}
     .ed-actions .ed-act{padding:0 9px}
+    .ed-split{flex-direction:column;height:auto}
+    .ed-files{width:100%;max-height:170px}
   }
   @media (max-width:420px){
     .session-title{max-width:92px}
@@ -741,24 +813,61 @@
           <button class="ed-act primary" id="edPublishBtn">Publish</button>
         </div>
       </div>
+      <div class="ed-tabs" id="edTabs">
+        <button class="ed-tab active" data-edtab="preview">🎨 Preview</button>
+        <button class="ed-tab" data-edtab="files">📁 Súbory</button>
+        <button class="ed-tab" data-edtab="history">🕘 History</button>
+        <button class="ed-tab" data-edtab="blueprints">🧱 Blueprints</button>
+        <button class="ed-tab" data-edtab="prompts">📝 Prompty</button>
+      </div>
       <div class="ed-body">
-        <div class="ed-stage">
-          <div class="ed-meta">
-            <div class="ed-stat"><span>Súbor</span><b id="edFile">—</b></div>
-            <div class="ed-stat"><span>Verzia</span><b id="edVerStat">—</b></div>
-            <div class="ed-stat"><span>Veľkosť</span><b id="edSize">—</b></div>
-            <div class="ed-stat"><span>Model</span><b id="edModel">—</b></div>
-            <div class="ed-stat"><span>Stav</span><b id="edState">—</b></div>
-          </div>
-          <div class="ed-frame-wrap">
-            <iframe id="editorFrame" sandbox="allow-scripts" title="Editor live preview"></iframe>
-            <div class="ed-empty" id="edEmpty">
-              <div class="ed-empty-ic">▦</div>
-              <b>Zatiaľ žiadny projekt</b>
-              <p>Vygeneruj appku v chatovacom režime — automaticky sa objaví tu a bude živo prepojená s canvasom.</p>
-              <button class="ed-act primary" id="edStartBtn">Začať projekt</button>
+        <div class="ed-pane active" data-edpane="preview">
+          <div class="ed-stage">
+            <div class="ed-meta">
+              <div class="ed-stat"><span>Súbor</span><b id="edFile">—</b></div>
+              <div class="ed-stat"><span>Verzia</span><b id="edVerStat">—</b></div>
+              <div class="ed-stat"><span>Veľkosť</span><b id="edSize">—</b></div>
+              <div class="ed-stat"><span>Model</span><b id="edModel">—</b></div>
+              <div class="ed-stat"><span>Stav</span><b id="edState">—</b></div>
+            </div>
+            <div class="ed-frame-wrap">
+              <iframe id="editorFrame" sandbox="allow-scripts" title="Editor live preview"></iframe>
+              <div class="ed-empty" id="edEmpty">
+                <div class="ed-empty-ic">▦</div>
+                <b>Zatiaľ žiadny projekt</b>
+                <p>Vygeneruj appku v chatovacom režime — automaticky sa objaví tu a bude živo prepojená s canvasom.</p>
+                <button class="ed-act primary" id="edStartBtn">Začať projekt</button>
+              </div>
             </div>
           </div>
+        </div>
+        <div class="ed-pane" data-edpane="files">
+          <div class="ed-split">
+            <div class="ed-files" id="edFileList"></div>
+            <div class="ed-codewrap">
+              <div class="ed-codebar">
+                <span class="cf" id="edCodeFile">index.html</span>
+                <span class="meta" id="edFileMeta">—</span>
+                <button class="cbtn" id="edFileEdit" style="display:none">Upraviť</button>
+                <button class="cbtn save" id="edFileSave" style="display:none">Uložiť</button>
+              </div>
+              <div class="ed-code" id="edCodeView"></div>
+              <textarea class="ed-codeta" id="edCodeTa" spellcheck="false"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="ed-pane" data-edpane="history">
+          <div class="ed-histhead">
+            <div class="seg" id="edBranchSeg"></div>
+            <button class="ed-cbtn" id="edNewBranch">+ Nová branch</button>
+          </div>
+          <div class="ed-commits" id="edCommits"></div>
+        </div>
+        <div class="ed-pane" data-edpane="blueprints">
+          <div class="ed-grid" id="edBpGrid"></div>
+        </div>
+        <div class="ed-pane" data-edpane="prompts">
+          <div class="ed-grid" id="edPromptGrid"></div>
         </div>
       </div>
     </div>
@@ -774,6 +883,41 @@
       <div class="pub-step pending" data-ps="3"><span class="pi"></span> Deploy na globálny CDN</div>
       <div class="pub-url" id="pubUrl"><span id="pubUrlTxt"></span><button id="copyPubUrl">Kopírovať</button></div>
       <button class="btn-primary" id="pubClose" style="align-self:flex-end;display:none">Hotovo</button>
+    </div>
+  </div>
+
+  <!-- Blueprint wizard modal -->
+  <div class="modal-overlay" id="bpWizard">
+    <div class="modal">
+      <h3 id="bpwTitle">🧱 Blueprint</h3>
+      <p class="m-sub" id="bpwSub">Prispôsob značku — wizard vygeneruje projekt na mieru.</p>
+      <div id="bpwStep1" style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label class="bpw-label" for="bpwBrand">Názov značky</label>
+          <input id="bpwBrand" value="Nimbus" maxlength="18">
+        </div>
+        <div>
+          <label class="bpw-label" for="bpwColor">Primárna farba</label>
+          <input type="color" id="bpwColor" value="#2563eb">
+        </div>
+        <div>
+          <label class="bpw-label" for="bpwLang">Jazyk UI</label>
+          <select id="bpwLang">
+            <option value="sk">Slovenčina</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:4px">
+          <button class="ed-cbtn" id="bpwCancel" style="height:34px;padding:0 16px">Zrušiť</button>
+          <button class="btn-primary" id="bpwNext" style="border:none;cursor:pointer">Vygenerovať →</button>
+        </div>
+      </div>
+      <div id="bpwStep2" style="display:none;flex-direction:column;gap:0">
+        <div class="pub-step pending" data-bps="1"><span class="pi"></span> Načítavam blueprint šablónu</div>
+        <div class="pub-step pending" data-bps="2"><span class="pi"></span> Aplikujem značku a farby</div>
+        <div class="pub-step pending" data-bps="3"><span class="pi"></span> Skladám súbory projektu</div>
+        <button class="btn-primary" id="bpwClose" style="align-self:flex-end;display:none;border:none;cursor:pointer">Hotovo</button>
+      </div>
     </div>
   </div>
 
@@ -798,7 +942,13 @@ const state = {
   viewing: null,
   liveId: null,
   generating: false,
-  console: []
+  console: [],
+  vfs: {},
+  branches: [{ name: 'main', headIdx: Infinity }],
+  branch: 'main',
+  edFile: null,
+  edEditing: false,
+  pendingBrand: null
 };
 
 /* ---------- utility ---------- */
@@ -1334,7 +1484,12 @@ function generate(prompt, kindOverride){
   advance(2, 1550);
 
   setTimeout(() => {
-    const html = { saas: buildSaas, kanban: buildKanban, settings: buildSettings }[kind.kind]?.() || buildDashboard(text);
+    let html = { saas: buildSaas, kanban: buildKanban, settings: buildSettings }[kind.kind]?.() || buildDashboard(text);
+    if (state.pendingBrand){
+      html = applyBrand(html, state.pendingBrand);
+      log('🧱 brand aplikovaný: ' + state.pendingBrand.name + ' (' + state.pendingBrand.color + ')', 'ok');
+      state.pendingBrand = null;
+    }
     state.liveHtml = html;
     state.viewing = null;
     $('#histBanner').classList.remove('show');
@@ -1590,6 +1745,328 @@ $('#edUpgrade').addEventListener('click', () => { toast('Upgrade to Pro — chec
 $('#edUpgradeTop').addEventListener('click', () => { toast('Upgrade to Pro — checkout (demo)', 'warn'); dbg('editor: upgrade CTA (top)'); });
 $('#edStartBtn').addEventListener('click', () => { goHome(); homeInput.focus(); dbg('editor → home (štart projektu)'); });
 
+/* ---------- M2: editor taby · file explorer · git history · blueprints · prompt knižnica ---------- */
+const EXT_ICONS = { html:'🟧', css:'🎨', js:'⚡', md:'📘' };
+const extIcon = n => EXT_ICONS[n.split('.').pop()] || '📄';
+
+function setEdTab(tab){
+  $('#edTabs .ed-tab').forEach(b => b.classList.toggle('active', b.dataset.edtab === tab));
+  $('.ed-pane[data-edpane]').forEach(p => p.classList.toggle('active', p.dataset.edpane === tab));
+  state.edEditing = false;
+  $('#edCodeTa').style.display = 'none';
+  if (tab !== 'files'){ $('#edCodeView').style.display = 'block'; }
+  if (tab === 'files') renderEdFiles();
+  if (tab === 'history') renderEdHistory();
+  if (tab === 'blueprints') renderEdBpGrid();
+  if (tab === 'prompts') renderEdPromptGrid();
+  dbg('editor: tab →', tab);
+}
+$('#edTabs').addEventListener('click', e => {
+  const b = e.target.closest('.ed-tab');
+  if (b) setEdTab(b.dataset.edtab);
+});
+
+/* ---- M2: virtuálny súborový systém ---- */
+function edSnap(){
+  if (state.viewing) return state.viewing;
+  return state.snapshots.find(s => s.id === state.liveId) || state.snapshots[state.snapshots.length - 1] || null;
+}
+function filesFor(snap){
+  if (state.vfs[snap.id]) return state.vfs[snap.id];
+  let html = snap.html;
+  const styleM = html.match(/<style[^>]*>([\s\S]*?)<\/style>/);
+  const css = styleM ? styleM[1].trim() : '';
+  if (styleM) html = html.replace(styleM[0], () => '<link rel="stylesheet" href="styles.css">');
+  const scriptM = html.match(/<script[^>]*>([\s\S]*?)<\/script>/);
+  const js = scriptM ? scriptM[1].trim() : '';
+  if (scriptM) html = html.replace(scriptM[0], () => '<script src="app.js"><\/script>');
+  const files = [
+    { name:'index.html', content: html.trim(), modified:false },
+    { name:'styles.css', content: css || '/* žiadne štýly */', modified:false },
+    { name:'app.js', content: js || '// žiadna logika', modified:false },
+    { name:'README.md', content: '# ' + snap.prompt.slice(0, 60) + '\n\nVygenerované vo Forge AI Builder · v' + snap.v + ' · ' + snap.time + '\nSúbory: index.html, styles.css, app.js — edituj v záložke Súbory.', modified:false }
+  ];
+  state.vfs[snap.id] = files;
+  return files;
+}
+function filesToHtml(files){
+  const f = {};
+  files.forEach(x => { f[x.name] = x.content; });
+  let html = f['index.html'] || '';
+  if (f['styles.css'] != null) html = html.replace('<link rel="stylesheet" href="styles.css">', () => '<style>\n' + f['styles.css'] + '\n</style>');
+  if (f['app.js'] != null) html = html.replace('<script src="app.js"><\/script>', () => '<script>\n' + f['app.js'] + '\n<\/script>');
+  return html;
+}
+function renderEdFiles(){
+  const snap = edSnap();
+  const list = $('#edFileList');
+  if (!snap){
+    list.innerHTML = '<div class="pane-empty">Žiadny projekt — vygeneruj appku v chatovacom režime alebo cez blueprint.</div>';
+    $('#edCodeFile').textContent = 'index.html'; $('#edFileMeta').textContent = '—';
+    $('#edCodeView').innerHTML = ''; $('#edFileEdit').style.display = 'none'; $('#edFileSave').style.display = 'none';
+    return;
+  }
+  const files = filesFor(snap);
+  list.innerHTML = files.map(f => `
+    <button class="ed-fileitem ${state.edFile === f.name ? 'active' : ''}" data-file="${f.name}">
+      <span class="fi-ic">${extIcon(f.name)}</span><span class="fi-nm">${f.name}</span>${f.modified ? '<span class="mod">M</span>' : ''}
+    </button>`).join('');
+  renderEdCode();
+}
+function renderEdCode(){
+  const snap = edSnap();
+  const files = snap ? filesFor(snap) : [];
+  const fl = files.find(f => f.name === state.edFile) || files[0];
+  if (!fl) return;
+  $('#edCodeFile').textContent = fl.name;
+  $('#edFileMeta').textContent = fl.content.split('\n').length + ' riadkov · ' + (fl.content.length / 1024).toFixed(1) + ' kB' + (fl.modified ? ' · upravené' : '');
+  if (state.edEditing){
+    $('#edCodeView').style.display = 'none';
+    const ta = $('#edCodeTa');
+    ta.style.display = 'block'; ta.value = fl.content;
+    $('#edFileEdit').style.display = 'none'; $('#edFileSave').style.display = '';
+  } else {
+    $('#edCodeTa').style.display = 'none'; $('#edCodeView').style.display = 'block';
+    $('#edCodeView').innerHTML = fl.content.split('\n').map((l, i) => `<div class="ed-cl"><span class="ed-ln">${i + 1}</span><span class="ed-lc">${hl(l) || '&nbsp;'}</span></div>`).join('');
+    $('#edFileEdit').style.display = ''; $('#edFileSave').style.display = 'none';
+  }
+}
+function saveEdFile(){
+  const snap = edSnap();
+  if (!snap || !state.edFile) return;
+  const files = filesFor(snap);
+  const fl = files.find(f => f.name === state.edFile);
+  if (!fl) return;
+  fl.content = $('#edCodeTa').value;
+  fl.modified = true;
+  snap.html = filesToHtml(files);
+  if (state.liveId === snap.id){ state.liveHtml = snap.html; renderPreview(); }
+  renderEditor();
+  state.edEditing = false;
+  renderEdFiles();
+  toast('💾 ' + fl.name + ' uložený', 'ok');
+  log('editor: uložený ' + fl.name + ' (' + fl.content.length + ' B)', 'ok');
+  dbg('editor: save súboru', fl.name, 'snap=' + snap.id.slice(0, 7));
+}
+$('#edFileList').addEventListener('click', e => {
+  const b = e.target.closest('[data-file]');
+  if (!b) return;
+  state.edFile = b.dataset.file;
+  state.edEditing = false;
+  renderEdFiles();
+  dbg('editor: súbor →', state.edFile);
+});
+$('#edFileEdit').addEventListener('click', () => {
+  state.edEditing = true;
+  renderEdCode();
+  $('#edCodeTa').focus();
+  dbg('editor: editovanie súboru', state.edFile);
+});
+$('#edFileSave').addEventListener('click', saveEdFile);
+$('#edCodeTa').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); saveEdFile(); }
+});
+
+/* ---- M2: git-like history (commity + branche) ---- */
+function branchHeadIdx(br){
+  return br.headIdx === Infinity ? state.snapshots.length - 1 : br.headIdx;
+}
+function renderEdHistory(){
+  const br = state.branches.find(b => b.name === state.branch) || state.branches[0];
+  $('#edBranchSeg').innerHTML = state.branches.map(b => `<button class="${state.branch === b.name ? 'active' : ''}" data-branch="${esc(b.name)}">${esc(b.name)}</button>`).join('');
+  const commits = state.snapshots.map((s, i) => ({ s, i })).filter(c => br.headIdx === Infinity || c.i <= br.headIdx).reverse();
+  const head = branchHeadIdx(br);
+  $('#edCommits').innerHTML = commits.length ? commits.map(({ s, i }) => {
+    const prev = i > 0 ? state.snapshots[i - 1] : null;
+    const cur = new Set(s.html.split('\n')), old = new Set((prev ? prev.html : '').split('\n'));
+    let adds = 0, dels = 0;
+    cur.forEach(l => { if (!old.has(l)) adds++; });
+    old.forEach(l => { if (!cur.has(l)) dels++; });
+    return `
+    <div class="ed-commit ${i === head ? 'head' : ''}">
+      <span class="hash">${s.id.slice(0, 7)}</span>
+      ${i === head ? '<span class="ed-head-badge">HEAD</span>' : ''}
+      <span class="msg">v${s.v} · ${esc(s.prompt.slice(0, 50))}</span>
+      <span class="cstat"><span class="p">+${adds}</span><span class="m">−${dels}</span></span>
+      <span class="ed-cbtns">
+        <button class="ed-cbtn" data-restore="${s.id}">Obnoviť</button>
+        <button class="ed-cbtn" data-view="${s.id}">Pozrieť</button>
+        <button class="ed-cbtn" data-diff="${s.id}">Diff</button>
+      </span>
+    </div>`;
+  }).join('') : '<div class="pane-empty">Žiadne commity — vygeneruj prvý projekt.</div>';
+  dbg('editor: history render', 'commits=' + commits.length, 'branch=' + br.name);
+}
+$('#edBranchSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-branch]');
+  if (!b) return;
+  state.branch = b.dataset.branch;
+  const br = state.branches.find(x => x.name === state.branch);
+  const snap = state.snapshots[branchHeadIdx(br)];
+  if (snap){
+    state.liveId = snap.id; state.liveHtml = snap.html; state.viewing = null;
+    $('#histBanner').classList.remove('show');
+    renderHistory(); renderPreview(); renderEditor();
+  }
+  renderEdHistory();
+  toast('⑂ checkout „' + state.branch + '"', 'ok');
+  log('editor: checkout branch ' + state.branch + ' → v' + (snap ? snap.v : '?'), 'info');
+  dbg('editor: branch checkout', state.branch);
+});
+$('#edNewBranch').addEventListener('click', () => {
+  const name = 'feature/' + uid().slice(0, 4);
+  const cur = state.snapshots.find(s => s.id === state.liveId);
+  const idx = cur ? state.snapshots.indexOf(cur) : state.snapshots.length - 1;
+  state.branches.push({ name, headIdx: idx });
+  state.branch = name;
+  renderEdHistory();
+  toast('⑂ nová branch „' + name + '"', 'ok');
+  log('editor: nová branch ' + name + ' (head v' + (idx >= 0 && state.snapshots[idx] ? state.snapshots[idx].v : '?') + ')', 'info');
+  dbg('editor: new branch', name, 'headIdx=' + idx);
+});
+$('#edCommits').addEventListener('click', e => {
+  const b = e.target.closest('[data-restore], [data-view], [data-diff]');
+  if (!b) return;
+  const s = state.snapshots.find(x => x.id === (b.dataset.restore || b.dataset.view || b.dataset.diff));
+  if (!s) return;
+  if (b.dataset.restore){
+    state.liveHtml = s.html; state.viewing = null; state.liveId = s.id;
+    $('#histBanner').classList.remove('show');
+    renderPreview(); renderHistory(); renderEditor(); renderEdHistory();
+    toast('↺ v' + s.v + ' obnovená ako live', 'ok');
+    log('editor: restore v' + s.v + ' → live', 'ok');
+  } else if (b.dataset.view){
+    viewSnapshot(s.id);
+  } else {
+    showWorkspace(); setTab('diff');
+    log('editor: diff v' + s.v + ' otvorený v canvasi', 'info');
+  }
+  dbg('editor: commit akcia', b.dataset.restore ? 'restore' : (b.dataset.view ? 'view' : 'diff'), 'v' + s.v);
+});
+
+/* ---- M2: blueprint galéria + brand wizard ---- */
+const BLUEPRINTS = [
+  { id:'bp-saas', kind:'saas', emoji:'🚀', name:'SaaS Landing', desc:'Hero, features, pricing, CTA — one-page pre startup.', stack:'HTML · CSS · JS', time:'~40 s', demo:'linear-gradient(135deg,#2563eb,#38bdf8)' },
+  { id:'bp-kanban', kind:'kanban', emoji:'📋', name:'Kanban Board', desc:'Drag & drop tickety, tímový board, tmavý panel.', stack:'HTML · CSS · JS', time:'~45 s', demo:'linear-gradient(135deg,#1e40af,#7c3aed)' },
+  { id:'bp-settings', kind:'settings', emoji:'⚙️', name:'Settings Dashboard', desc:'Profil, notifikácie, billing, security sekcie.', stack:'HTML · CSS · JS', time:'~40 s', demo:'linear-gradient(135deg,#0ea5e9,#2563eb)' },
+  { id:'bp-crm', kind:'dashboard', emoji:'📊', name:'CRM Dashboard', desc:'KPI karty, grafy, pipeline tabuľka s filtrami.', stack:'HTML · CSS · JS', time:'~50 s', demo:'linear-gradient(135deg,#2563eb,#0d9488)' },
+  { id:'bp-blog', kind:'dashboard', emoji:'✍️', name:'Blog SaaS', desc:'Články, autori, tagy — redakčná obsahová platforma.', stack:'HTML · CSS · JS', time:'~45 s', demo:'linear-gradient(135deg,#38bdf8,#6366f1)' },
+  { id:'bp-eshop', kind:'dashboard', emoji:'🛒', name:'E-shop Dashboard', desc:'Objednávky, produkty, tržby, conversion metriky.', stack:'HTML · CSS · JS', time:'~50 s', demo:'linear-gradient(135deg,#475569,#2563eb)' }
+];
+function renderEdBpGrid(){
+  $('#edBpGrid').innerHTML = BLUEPRINTS.map(bp => `
+    <div class="ed-bp" data-bp="${bp.id}">
+      <div class="ed-bp-thumb" style="background:${bp.demo}">${bp.emoji}</div>
+      <b>${bp.emoji} ${bp.name}</b>
+      <span class="desc">${bp.desc}</span>
+      <span class="stack">${bp.stack} · ${bp.time}</span>
+      <span class="use">Použi blueprint</span>
+    </div>`).join('');
+  dbg('editor: blueprint grid render', 'počet=' + BLUEPRINTS.length);
+}
+let bpSelected = null;
+function openBpWizard(bp){
+  bpSelected = bp;
+  $('#bpwTitle').textContent = '🧱 ' + bp.emoji + ' ' + bp.name;
+  $('#bpwSub').textContent = bp.desc + ' · ' + bp.time;
+  $('#bpwStep1').style.display = 'flex';
+  $('#bpwStep2').style.display = 'none';
+  $('#bpwClose').style.display = 'none';
+  $('#bpWizard').classList.add('open');
+  dbg('blueprint wizard: otvorený', bp.id);
+}
+function closeBpWizard(){
+  $('#bpWizard').classList.remove('open');
+  bpSelected = null;
+  dbg('blueprint wizard: zavretý');
+}
+$('#edBpGrid').addEventListener('click', e => {
+  const el = e.target.closest('[data-bp]');
+  if (!el) return;
+  openBpWizard(BLUEPRINTS.find(b => b.id === el.dataset.bp));
+});
+function applyBrand(html, brand){
+  let out = html.replace(/Nimbus|FlowDeck|Aurora/g, brand.name);
+  out = out.replace(/#7c3aed|#a855f7|#ec4899|#6d28d9/gi, brand.color);
+  out = out.replace(/#f3eefc/gi, brand.color + '26');
+  return out;
+}
+$('#bpwNext').addEventListener('click', () => {
+  if (!bpSelected) return;
+  const bp = bpSelected;
+  const brand = {
+    name: ($('#bpwBrand').value || 'Nimbus').trim().slice(0, 18) || 'Nimbus',
+    color: $('#bpwColor').value,
+    lang: $('#bpwLang').value
+  };
+  $('#bpwStep1').style.display = 'none';
+  $('#bpwStep2').style.display = 'flex';
+  const wSteps = $('#bpwStep2 .pub-step');
+  wSteps.forEach(st => { st.className = 'pub-step pending'; const pi = st.querySelector('.pi'); pi.textContent = ''; });
+  log('🧱 blueprint „' + bp.name + '" → generujem pre ' + brand.name, 'info');
+  wSteps.forEach((st, i) => {
+    setTimeout(() => {
+      st.classList.remove('pending'); st.classList.add('running');
+      setTimeout(() => {
+        st.classList.remove('running'); st.classList.add('done');
+        st.querySelector('.pi').textContent = '✓';
+        if (i === wSteps.length - 1){
+          setTimeout(() => {
+            closeBpWizard();
+            state.pendingBrand = brand;
+            const pr = 'Blueprint „' + bp.name + '" — ' + brand.name + ', farba ' + brand.color + ', jazyk ' + (brand.lang === 'en' ? 'EN' : 'SK') + '. ' + bp.desc;
+            generate(pr, bp.kind);
+          }, 380);
+        }
+      }, 480);
+    }, i * 620);
+  });
+  dbg('blueprint wizard: generácia spustená', bp.id, brand.name, brand.color, brand.lang);
+});
+$('#bpwCancel').addEventListener('click', closeBpWizard);
+$('#bpWizard').addEventListener('click', e => { if (e.target.id === 'bpWizard') closeBpWizard(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#bpWizard').classList.contains('open')) closeBpWizard();
+});
+
+/* ---- M2: prompt knižnica ---- */
+const PROMPT_LIB = [
+  { cat:'Build', title:'Landing page s CTA', text:'Postav modernú landing page pre [názov produktu] — hero, 3 benefity, pricing a CTA. Odvetvie: [odvetvie].' },
+  { cat:'Build', title:'Dashboard s KPI', text:'Vytvor dashboard pre [oblasť] s KPI kartami, grafom a tabuľkou. Obdobie: [mesiac].' },
+  { cat:'Edit', title:'Prethemesuj na tmavé', text:'Prethemesuj aplikáciu na tmavú tému — pozadie [hex], akcent [hex], zachovaj kontrast a čitateľnosť.' },
+  { cat:'Edit', title:'Pridaj sekciu', text:'Pridaj sekciu [názov] medzi [sekcia A] a [sekcia B]. Zachovaj existujúci štýl a spacing.' },
+  { cat:'Fix', title:'Oprav layout bug', text:'Oprav: [popis bugu]. Over, že na mobile (390 px) sa nič nepreleje.' },
+  { cat:'Explain', title:'Vysvetli kód', text:'Vysvetli, čo robí [súbor/funkcia] a prečo je to tak napísané. Stručne.' },
+  { cat:'Tests', title:'Napíš testy', text:'Napíš testy pre [funkcia] — happy path, edge cases a chybové stavy.' },
+  { cat:'SEO', title:'SEO meta', text:'Doplň SEO meta pre [stránku]: title, description, Open Graph. Kľúčové slová: [slová].' }
+];
+function renderEdPromptGrid(){
+  $('#edPromptGrid').innerHTML = PROMPT_LIB.map((p, i) => `
+    <div class="ed-prompt" data-plib="${i}">
+      <span class="cat">${p.cat}</span>
+      <b>${p.title}</b>
+      <span class="ptxt">${esc(p.text)}</span>
+    </div>`).join('');
+  dbg('editor: prompt knižnica render', 'počet=' + PROMPT_LIB.length);
+}
+$('#edPromptGrid').addEventListener('click', e => {
+  const el = e.target.closest('[data-plib]');
+  if (!el) return;
+  const p = PROMPT_LIB[+el.dataset.plib];
+  if (!p) return;
+  if (state.mode === 'home' || state.mode === 'editor'){
+    goHome();
+    homeInput.value = p.text;
+    toast('📝 prompt „' + p.title + '" vložený', 'ok');
+  } else {
+    const input = $('#promptInput');
+    input.value = p.text;
+    autoGrow(); updateTokens();
+    toast('📝 prompt „' + p.title + '" vložený', 'ok');
+  }
+  dbg('prompt knižnica: vložený', p.title, 'mode=' + state.mode);
+});
+
 /* ---------- top bar ---------- */
 $('#modelChip').addEventListener('click', e => { e.stopPropagation(); $('#modelMenu').classList.toggle('open'); $('#settingsPop').classList.remove('open'); });
 $('#modelMenu').addEventListener('click', e => {
@@ -1647,6 +2124,8 @@ $('#newSessionBtn').addEventListener('click', () => {
   state.messages = []; state.snapshots = []; state.liveHtml = null;
   state.viewing = null; state.liveId = null; state.publishedUrl = null;
   state.editMode = false;
+  state.vfs = {}; state.branches = [{ name: 'main', headIdx: Infinity }]; state.branch = 'main';
+  state.edFile = null; state.edEditing = false; state.pendingBrand = null;
   $('#editToggle').classList.remove('active');
   $('#editTip').classList.remove('show');
   $('#publishBtnTxt').textContent = 'Publish';

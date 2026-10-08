@@ -26,7 +26,7 @@
 | # | Míľnik | Obsah | Trvanie | Výstup / brána |
 |---|---|---|---|---|
 | **M1** | **Reálny engine + MVP predaj** | AI backend, multi-file codegen, sandbox preview, auth, hosting na `*.forge.app`, billing Free/Pro | 6–10 týždňov | **prvý platiaci zákazník** |
-| **M2** | **Editor + blueprinty** | file explorer, Monaco, git-like history, blueprint galéria + wizard, prompt knižnica | 6–8 týždňov | Pro retencia, onboarding do 5 min |
+| **M2** | **Editor + blueprinty** | file explorer, Monaco, git-like history, blueprint galéria + wizard, prompt knižnica | 6–8 týždňov | Pro retencia, onboarding do 5 min — **✅ prototyp hotový (M2 Build Prompt nižšie)** |
 | **M3** | **Fullstack & data** | DB pre vygenerované appky, auth pre end-userov, backend funkcie, custom domény + SSL | 6–8 týždňov | appky „robia niečo užitočné" |
 | **M4** | **Tímy & Business tier** | realtime kolaborácia, komentáre v preview, share linky, seat billing, RBAC | 6–8 týždňov | B2B (Business) plán |
 | **M5** | **Enterprise & scale** | SSO/SAML, audit log, compliance (GDPR/SOC2 cesta), SLA, rate limiting | 8–12 týždňov | Enterprise zákazky |
@@ -248,3 +248,34 @@ Pravidlá:
 - [ ] Rollback na predchádzajúcu verziu < 30 s
 - [ ] Zrušenie predplatného self-service (GDPR-ready)
 - [ ] Uptime publish pipeline > 99 % počas prvého mesiaca
+---
+
+## 7. M2 Build Prompt — Editor + blueprinty
+
+> Prompt priamo na mieru z míľnika **M2**. Cieľ: jeden senior frontend engineer implementuje celý M2 do existujúceho single-file prototypu.
+
+**Rola:** Si senior frontend engineer. Pracuješ v existujúcom single-file HTML prototype Forge AI Builder (Lovable klon). Doimplementuj celý míľnik M2 — Editor + blueprinty.
+
+**Rozsah (5 vecí):**
+
+1. **File explorer + editor** — záložka „Súbory" v `/editor` dashboardu: virtuálny VFS (index.html, styles.css, app.js, README.md) extrahovaný z jedného HTML snapshotu, Mono-like editor s číslami riadkov a syntax highlightom, editácia v textarea, uloženie (Ctrl+Enter) spätne skladá single-file HTML a prekreslí live preview.
+2. **Git-like history** — záložka „History": commity = verzie (hash, HEAD badge, správa, +adds/−dels diff štatistika), akcie Obnoviť / Pozrieť / Diff, tvorba branch (`feature/xxxx`) a checkout.
+3. **Blueprint galéria** — 6 blueprintov (SaaS Landing, Kanban, Settings, CRM Dashboard, Blog SaaS, E-shop Dashboard) s náhľadmi, stackom a časom generovania.
+4. **Brand wizard** — klik na blueprint otvorí wizard: názov značky, primárna farba (color picker), jazyk UI (SK/EN); po potvrdení sa spustí generovanie s aplikovaným brandingom (premapovanie mien a farieb šablóny).
+5. **Prompt knižnica** — 8 overených promptov (Build×2, Edit×2, Fix, Explain, Tests, SEO) so zástupnými `[zátvorkami]`; klik vloží prompt do composeru.
+
+**Pravidlá:**
+
+- Zachovaj všetky existujúce ID/API — test suite musí ostať zelená.
+- Žiadne CDN závislosti, všetko inline v jednom súbore.
+- Slovenské UI, dbg() log na každej akcii, respektuj CSS tokens a tmavú tému.
+- Všetky zmeny responsive (mobil 390 px).
+- V reťazcoch v JS vždy escapuj `</script>` ako `<\/script>`.
+
+**Akceptačné kritériá:**
+
+- Onboarding do 5 min: používateľ bez vygenerovaného projektu vie otvoriť každú záložku a niečo s ňou urobiť.
+- Uloženie súboru sa prejaví v live preview bez reloadu.
+- Blueprint wizard vygeneruje projekt s aplikovanou vlastnou značkou podľa vstupu.
+
+**Stav: ✅ celý M2 implementovaný v prototype (8. 10. 2026)** — file explorer s VFS, editor so syntax highlightom, git-like history s branchmi, blueprint galéria s brand wizardom a prompt knižnica sú v workspace prototype hotové a otestované (syntax-check + smoke-test roundtrip VFS/brand; plná suite Ctrl+Shift+T v prehliadači).
