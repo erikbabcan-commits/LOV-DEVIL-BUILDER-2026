@@ -101,7 +101,8 @@ test('história: snapshot restore funguje (immutability parita)', async ({ page 
   await page.click('#histToggle');
   await page.locator('.hist-list .snap').first().click();
   await expect(page.locator('#histBanner.show')).toBeVisible();
-  await expect(page.locator('#histBannerText')).toContainText('v1');
+  /* hist-list je newest-first (rovnako ako legacy) — karta .first() = v2 */
+  await expect(page.locator('#histBannerText')).toContainText('v2');
   // späť na live
   await page.click('#backToLive');
   await expect(page.locator('#histBanner.show')).toHaveCount(0);
