@@ -4,56 +4,77 @@ on:
   push:
     branches: ['**']
   pull_request:
-    branches: [main]
+    branches: ['**']
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
-      - name: Install Playwright with Chromium
+      - name: Install deps (React app)
+        run: npm ci
+
+      - name: Install Playwright Chromium (shared)
         run: |
           cd tools/ci
           npm install
           npx playwright install --with-deps chromium
 
-      - name: JavaScript syntax check (node --check)
+      - name: Typecheck (React)
+        run: npx tsc --noEmit
+
+      - name: Unit tests (Vitest — React: utils, VFS D3c, store)
+        run: npx vitest run
+
+      - name: Build (React)
+        run: npx vite build
+
+      - name: LEGACY: syntax check + browser suite + screenshots
         run: |
           cd tools/ci
           node extract-scripts.mjs
           node --check build/app-block-0.js
           node --check build/app-block-1.js
-          echo "Syntax OK"
+          npx playwright test --reporter=line
 
-      - name: Run browser test suite + smoke + screenshots
-        run: |
-          cd tools/ci
-          npx playwright test --reporter=line,list
-        env:
-          CI: 'true'
+      - name: REACT: E2E parity suite + visual baseline
+        run: npx playwright test -c tests/e2e/playwright.config.ts --reporter=line
 
-      - name: Upload test reports & traces
+      - name: Upload legacy test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: legacy-test-reports
           path: |
             tools/ci/playwright-report/
             tools/ci/test-results/
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Upload screenshots baseline
+      - name: Upload legacy + React screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: screenshot-baseline
-          path: tools/ci/screenshots/
+          path: |
+            tools/ci/screenshots/
+            screenshots-react/
           retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload React E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-e2e-artifacts
+          path: |
+            tests/e2e/test-results/
+          retention-days: 14
           if-no-files-found: warn
