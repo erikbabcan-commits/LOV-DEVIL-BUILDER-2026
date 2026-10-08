@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useStore } from '../../stores/useAppStore';
 import { esc, hl } from '../../lib/utils';
+import { THUMBS } from '../../lib/templates';
 
 /* Workspace: chat panel + canvas panel — port 1:1 legacy štruktúry. */
 
@@ -275,14 +276,15 @@ export function Workspace() {
           </div>
           <div className="hist-list" id="histList">
             {st.snapshots.length === 0 ? <div className="pane-empty">Žiadne verzie — vygeneruj appku (Ctrl+Enter) alebo ulož checkpoint (Ctrl+S).</div> :
-              st.snapshots.map(s => (
-                <div key={s.id} className={'snap' + (s.pinned ? ' pinned' : '') + (!st.viewing && s.id === st.liveId ? ' current' : '')}>
-                  <button className="snap-btn pin" title={s.pinned ? 'Odpinovať' : 'Pripnúť'} onClick={() => st.pinSnapshot(s.id)}>{s.pinned ? '★' : '☆'}</button>
-                  <button className="snap-btn restore" onClick={() => st.restoreSnapshot(s.id)}>Obnoviť</button>
-                  <button className="snap-btn view" onClick={() => st.viewSnapshot(s.id)}>Pozrieť</button>
-                  <span className="v">v{s.v}</span>
-                  <span className="p">{s.prompt.slice(0, 40)}</span>
-                  <span className="t">{s.time}</span>
+              [...st.snapshots].reverse().map(s => (
+                <div key={s.id} className={'snap' + (s.pinned ? ' pinned' : '') + (!st.viewing && s.id === st.liveId ? ' current' : '')} data-snap={s.id}>
+                  <div className="snap-thumb" style={{ background: (THUMBS as Record<string, string>)[s.kind] || THUMBS.dashboard }}>v{s.v}</div>
+                  <div className="snap-row"><span className="snap-ver">v{s.v}</span><span className="snap-time">{s.time}</span></div>
+                  <div className="snap-prompt">{s.prompt}</div>
+                  <div className="snap-btns">
+                    <button className="snap-btn" onClick={() => st.restoreSnapshot(s.id)}>↺ Restore</button>
+                    <button className={'snap-btn pin-btn' + (s.pinned ? ' active' : '')} onClick={() => st.pinSnapshot(s.id)}>★ Pin</button>
+                  </div>
                 </div>
               ))}
           </div>
