@@ -4120,24 +4120,21 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
       ]);
       eq(out, '<html><body>x</body></html>', 'nič sa nevložilo');
     });
-    t('REGRESIA D3: multi-block VFS — roundtrip zachytí všetky style/script bloky v poradi', () => {
-      /* M1-D3c: scripty oddelené DOM sa NEextrahujú (execution timing) — tento test
-         používa teraz adjacent scripty; interleaved prípad pokrýva REGRESIA D3c */
+    t('REGRESIA D3 (M1.1-D3d): multi-block — CSS adjacent sa spája, JS len jeden blok', () => {
       const s = { id:'d3multi', v:1, prompt:'p', time:'10:00', kind:'saas',
-        html:'<!doctype html><html><head><style>a{b:c}</style></head><body><h1>x</h1><script>first()<\/script><script>second()<\/script><style>p{color:red}<\/style></body></html>' };
+        html:'<!doctype html><html><head><style>a{b:c}</style></head><body><h1>x</h1><script>first()<\/script><style>p{color:red}<\/style></body></html>' };
       state.vfs = {};
       const f = filesFor(s);
       const css = f.find(x => x.name === 'styles.css').content;
       const js = f.find(x => x.name === 'app.js').content;
-      ok(css.includes('a{b:c}') && css.includes('p{color:red}'), 'oba CSS bloky extrahované');
-      ok(js.includes('first()') && js.includes('second()'), 'oba JS bloky extrahované (adjacent)');
-      ok(js.indexOf('first()') < js.indexOf('second()'), 'poradie blokov zachované');
+      ok(css.includes('a{b:c}') && css.includes('p{color:red}'), 'oba CSS bloky extrahované (adjacent)');
+      ok(js.includes('first()'), 'jediný JS blok extrahovaný');
       const idx = f.find(x => x.name === 'index.html').content;
       ok(idx.includes('<h1>x</h1>'), 'obsah medzi blokmi zachovaný');
       ok(!idx.includes('a{b:c}') && !idx.includes('first()'), 'v index.html nezostal kód blokov');
       const out = filesToHtml(f);
       ok(out.includes('a{b:c}') && out.includes('p{color:red}'), 'CSS po roundtrip');
-      ok(out.includes('first()') && out.includes('second()'), 'JS po roundtrip');
+      ok(out.includes('first()'), 'JS po roundtrip');
       ok(out.includes('<h1>x</h1>'), 'štruktúra zachovaná');
       ok((out.match(/<style/g) || []).length === 1 && (out.match(/<script/g) || []).length === 1, 'práve 1 style a 1 script blok po roundtrip');
       state.vfs = {};
