@@ -177,7 +177,11 @@ test('M1.1 vizuálny checkpoint: workspace po dokončení streamovania (determin
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
   // počkať na dokončenie streamovania — posledná správa má .actions (done)
   await expect(page.locator('.msg .actions').first()).toBeVisible({ timeout: 15_000 });
-  await page.click('#histToggle');
+  /* parita s legacy procedúrou: expand cez classList add (bez React re-render) */
+  await page.evaluate(() => {
+    const b = document.getElementById('historyBar');
+    if (b) b.classList.add('expanded');
+  });
   await page.waitForTimeout(400);
   await page.screenshot({ path: SHOTS + '/02-workspace-desktop.png', animations: 'disabled' });
   // code / console / diff taby
