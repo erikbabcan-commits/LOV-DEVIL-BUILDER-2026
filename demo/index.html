@@ -502,6 +502,67 @@
   .be-domadd input:focus{border-color:var(--accent)}
   .be-domadd button{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)}
 
+  /* ---- M4/M5: tím & business tier · enterprise · compliance ---- */
+  .tm-presence{display:flex;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .tm-presence .be-avatar{width:34px;height:34px;margin-left:-9px;border:2px solid var(--panel)}
+  .tm-presence .be-avatar:first-child{margin-left:0}
+  .tm-presence .be-avatar.off{opacity:.38;filter:grayscale(1)}
+  .tm-presence .be-ctx{margin-left:12px}
+  .tm-card{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;margin-bottom:14px;
+    border:1px solid var(--border);border-radius:16px;background:var(--panel);flex-wrap:wrap}
+  .tm-card b{font-size:13.5px}
+  .tm-card p{font-size:11.5px;color:var(--muted);margin-top:4px;max-width:430px}
+  .tm-role{height:26px;padding:0 11px;border-radius:8px;font-size:10.5px;font-weight:800;letter-spacing:.4px;flex-shrink:0;cursor:pointer}
+  .tm-role.owner{color:#f59e0b;background:rgba(245,158,11,.12);border:1px solid #78350f}
+  .tm-role.admin{color:#93c5fd;background:var(--accent-soft);border:1px solid #1e3a6e}
+  .tm-role.editor{color:#34d399;background:rgba(5,150,105,.12);border:1px solid #14532d}
+  .tm-role.viewer{color:var(--muted);background:var(--panel-2);border:1px solid var(--border-2)}
+  .tm-invite{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+  .tm-invite input,.tm-invite select{flex:1;min-width:200px;height:36px;border-radius:11px;border:1px solid var(--border-2);
+    background:var(--panel-2);color:var(--text);font-size:12.5px;padding:0 12px;outline:none}
+  .tm-invite input:focus,.tm-invite select:focus{border-color:var(--accent)}
+  .tm-invite button{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .tm-bill{padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--panel)}
+  .tm-bill > b{font-size:13px}
+  .tm-bill .row{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--text-dim);padding:5px 0;flex-wrap:wrap}
+  .tm-bill .row b{font-family:var(--mono);color:var(--text)}
+  .tm-bill .total{border-top:1px dashed var(--border-2);margin-top:8px;padding-top:10px;display:flex;justify-content:space-between;gap:8px;font-size:13px;flex-wrap:wrap}
+  .tm-bill .total b{font-family:var(--mono);color:var(--ok)}
+  .tm-meter{height:8px;border-radius:5px;background:var(--panel-2);border:1px solid var(--border-2);overflow:hidden;margin-top:10px}
+  .tm-meter i{display:block;height:100%;background:var(--accent);border-radius:5px;transition:width .3s}
+  #tmContent .ed-commit{flex-wrap:wrap}
+  .cmt-layer{position:absolute;inset:0;pointer-events:none;z-index:6}
+  .cmt-layer.pinning{pointer-events:auto;cursor:crosshair;background:rgba(37,99,235,.05)}
+  .cmt-pin{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;pointer-events:auto;
+    background:var(--accent);border:2px solid #fff;color:#fff;font-size:11px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5);transition:.13s}
+  .cmt-pin:hover{transform:scale(1.15)}
+  .cmt-pin.resolved{background:var(--ok)}
+  .cmt-thread{flex:1 1 100%;margin:8px 0 2px;padding:10px 12px;border:1px solid var(--border-2);border-radius:12px;
+    background:var(--panel-2);display:flex;flex-direction:column;gap:7px}
+  .cmt-reply{font-size:11.5px;color:var(--text-dim);padding-bottom:7px;border-bottom:1px dashed var(--border-2)}
+  .cmt-reply b{color:var(--accent)}
+  .cmt-new{display:flex;gap:7px;flex-wrap:wrap}
+  .cmt-new input{flex:1;min-width:170px;height:32px;border-radius:9px;border:1px solid var(--border-2);
+    background:var(--panel);color:var(--text);font-size:11.5px;padding:0 11px;outline:none}
+  .cmt-new input:focus{border-color:var(--accent)}
+  /* ---- M6: komunitná galéria · marketplace · affiliate · contest ---- */
+  .g-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:11px}
+  .g-card{border:1px solid var(--border);border-radius:15px;background:var(--panel);overflow:hidden;display:flex;flex-direction:column;transition:.14s;position:relative}
+  .g-card:hover{border-color:var(--text-dim);transform:translateY(-2px)}
+  .g-thumb{height:96px;display:flex;align-items:center;justify-content:center;font-size:28px}
+  .g-body{padding:11px 12px;display:flex;flex-direction:column;gap:5px;flex:1}
+  .g-title{font-size:12.5px;font-weight:700;color:var(--text)}
+  .g-author{font-size:10.5px;color:var(--muted)}
+  .g-tags{display:flex;gap:4px;flex-wrap:wrap}
+  .g-tag{font-size:9.5px;padding:2px 7px;border-radius:6px;background:var(--panel-2);border:1px solid var(--border-2);color:var(--muted)}
+  .g-foot{display:flex;align-items:center;gap:7px;padding:9px 12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted);margin-top:auto}
+  .g-like{display:flex;align-items:center;gap:4px;background:none;border:none;color:var(--muted);font-size:10.5px;cursor:pointer;padding:0}
+  .g-like.liked{color:#f4502a}
+  .g-price{position:absolute;top:8px;right:8px;font-size:10px;font-weight:800;padding:3px 8px;border-radius:7px;
+    color:#fbbf24;background:rgba(245,158,11,.14);border:1px solid #78350f;font-family:var(--mono);z-index:2}
+  .g-price.owned{color:#34d399;background:rgba(5,150,105,.14);border-color:#14532d}
+
   /* ============ Responsive ============ */
   @media (max-width:1023px){
     .topbar{padding:0 10px;gap:7px}
@@ -542,6 +603,7 @@
     .ed-actions .ed-act{padding:0 9px}
     .ed-split{flex-direction:column;height:auto}
     .ed-files{width:100%;max-height:170px}
+    .g-grid{grid-template-columns:1fr}
   }
   @media (max-width:420px){
     .session-title{max-width:92px}
@@ -865,6 +927,8 @@
         <button class="ed-tab" data-edtab="blueprints">🧱 Blueprints</button>
         <button class="ed-tab" data-edtab="prompts">📝 Prompty</button>
         <button class="ed-tab" data-edtab="backend">🗄️ Backend</button>
+        <button class="ed-tab" data-edtab="team">👥 Tím</button>
+        <button class="ed-tab" data-edtab="gallery">🌐 Galéria</button>
       </div>
       <div class="ed-body">
         <div class="ed-pane active" data-edpane="preview">
@@ -878,6 +942,7 @@
             </div>
             <div class="ed-frame-wrap">
               <iframe id="editorFrame" sandbox="allow-scripts" title="Editor live preview"></iframe>
+              <div class="cmt-layer" id="cmtLayer"></div>
               <div class="ed-empty" id="edEmpty">
                 <div class="ed-empty-ic">▦</div>
                 <b>Zatiaľ žiadny projekt</b>
@@ -921,6 +986,20 @@
             <span class="be-ctx" id="beCtx">—</span>
           </div>
           <div id="beContent"></div>
+        </div>
+        <div class="ed-pane" data-edpane="team">
+          <div class="be-head">
+            <div class="seg" id="tmSeg"></div>
+            <span class="be-ctx" id="tmCtx">—</span>
+          </div>
+          <div id="tmContent"></div>
+        </div>
+        <div class="ed-pane" data-edpane="gallery">
+          <div class="be-head">
+            <div class="seg" id="gSeg"></div>
+            <span class="be-ctx" id="gCtx">komunita Forge</span>
+          </div>
+          <div id="gContent"></div>
         </div>
       </div>
     </div>
@@ -986,6 +1065,18 @@
     </div>
   </div>
 
+  <!-- Marketplace checkout modal (M6) -->
+  <div class="modal-overlay" id="gCheckout">
+    <div class="modal">
+      <h3 id="gcoTitle">🛒 Checkout — Marketplace</h3>
+      <p class="m-sub" id="gcoSub">Spracovávam platbu…</p>
+      <div class="pub-step pending" data-gcs="1"><span class="pi"></span> Šifrovaná platba (3-D Secure)</div>
+      <div class="pub-step pending" data-gcs="2"><span class="pi"></span> Faktúra a licencia (80 % autorovi)</div>
+      <div class="pub-step pending" data-gcs="3"><span class="pi"></span> Odomykám remix práva</div>
+      <button class="btn-primary" id="gcoClose" style="align-self:flex-end;display:none;border:none;cursor:pointer">Hotovo</button>
+    </div>
+  </div>
+
   <div class="toasts" id="toasts"></div>
 
 <script>
@@ -1016,7 +1107,20 @@ const state = {
   pendingBrand: null,
   bk: {},
   beTab: 'db',
-  pendingDomain: null
+  pendingDomain: null,
+  teamTab: 'team',
+  team: null,
+  ent: null,
+  aff: null,
+  comments: [],
+  shareLinks: [],
+  audit: [],
+  cmtOpen: null,
+  pinMode: false,
+  gTab: 'gallery',
+  gFilter: 'all',
+  gLiked: {},
+  gVoted: null
 };
 
 /* ---------- utility ---------- */
@@ -1308,39 +1412,54 @@ function detectKind(text){
 }
 
 /* ---------- render: chat ---------- */
+/* PERF: renderChat je inkrementálny — každá správa má podpis (sig); mení sa len DOM uzol správy, ktorej podpis sa zmenil. Počas streamingu sa tak prekreslí jediná bublina namiesto celého chatu (a hl() pre code-block beží len raz, nie každých 55 ms). */
+function msgSig(m){
+  return m.id + '|' + m.role + '|' + (m.pending ? 1 : 0) + '|' + (m.text || '') + '|' + (m.done ? 1 : 0) + '|' + (m.code ? m.code.length : 0) + '|' + (m.plan ? m.plan.map(s => s.state).join('') : '') + '|' + (m.planTitle || '');
+}
+function chatMsgHtml(m){
+  const isUser = m.role === 'user';
+  const planHtml = m.plan ? `
+    <div class="plan">
+      <div class="plan-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v4l2.5 2.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg> Agent Mode${m.planTitle ? ' · ' + esc(m.planTitle) : ''}</div>
+      ${m.plan.map(s => `<div class="plan-step ${s.state}"><span class="pi">${s.state==='done'?'✓':''}</span>${esc(s.label)}</div>`).join('')}
+    </div>` : '';
+  const codeHtml = (m.code && m.done) ? `
+    <div class="code-block">
+      <div class="code-head"><span>${esc(m.file || 'index.html')}</span>
+        <button data-copy="${m.id}">⧉ Kopírovať</button>
+      </div>
+      <pre>${hl(m.code)}</pre>
+    </div>` : '';
+  const actions = (isUser || !m.done) ? '' : `
+    <div class="actions">
+      <button class="qact" data-act="copy" data-id="${m.id}">⧉ Copy</button>
+      <button class="qact" data-act="fork" data-id="${m.id}">⑂ Fork</button>
+      <button class="qact" data-act="rerun" data-id="${m.id}">↻ Re-run</button>
+    </div>`;
+  const body = (m.pending) ? '<div class="typing"><i></i><i></i><i></i></div>'
+    : (m.text ? `<div class="content selectable">${esc(m.text)}</div>` : '');
+  return `
+    <div class="msg ${isUser ? 'user' : 'assistant'}" data-id="${m.id}">
+      <div class="avatar">${isUser ? 'TY' : '<svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z"/></svg>'}</div>
+      <div class="bubble">
+        <div class="meta">${isUser ? 'Ty' : 'Agent · ' + esc(m.model || state.model)} · ${m.time}</div>
+        ${planHtml}${body}${codeHtml}${actions}
+      </div>
+    </div>`;
+}
+const _chatSig = [];
 function renderChat(){
   const el = $('#chatScroll');
-  el.innerHTML = state.messages.map(m => {
-    const isUser = m.role === 'user';
-    const planHtml = m.plan ? `
-      <div class="plan">
-        <div class="plan-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v4l2.5 2.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg> Agent Mode${m.planTitle ? ' · ' + esc(m.planTitle) : ''}</div>
-        ${m.plan.map(s => `<div class="plan-step ${s.state}"><span class="pi">${s.state==='done'?'✓':''}</span>${esc(s.label)}</div>`).join('')}
-      </div>` : '';
-    const codeHtml = (m.code && m.done) ? `
-      <div class="code-block">
-        <div class="code-head"><span>${esc(m.file || 'index.html')}</span>
-          <button data-copy="${m.id}">⧉ Kopírovať</button>
-        </div>
-        <pre>${hl(m.code)}</pre>
-      </div>` : '';
-    const actions = (isUser || !m.done) ? '' : `
-      <div class="actions">
-        <button class="qact" data-act="copy" data-id="${m.id}">⧉ Copy</button>
-        <button class="qact" data-act="fork" data-id="${m.id}">⑂ Fork</button>
-        <button class="qact" data-act="rerun" data-id="${m.id}">↻ Re-run</button>
-      </div>`;
-    const body = (m.pending) ? '<div class="typing"><i></i><i></i><i></i></div>'
-      : (m.text ? `<div class="content selectable">${esc(m.text)}</div>` : '');
-    return `
-      <div class="msg ${isUser ? 'user' : 'assistant'}" data-id="${m.id}">
-        <div class="avatar">${isUser ? 'TY' : '<svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z"/></svg>'}</div>
-        <div class="bubble">
-          <div class="meta">${isUser ? 'Ty' : 'Agent · ' + esc(m.model || state.model)} · ${m.time}</div>
-          ${planHtml}${body}${codeHtml}${actions}
-        </div>
-      </div>`;
-  }).join('');
+  if (el.children.length !== state.messages.length){
+    el.innerHTML = state.messages.map(chatMsgHtml).join('');
+    _chatSig.length = state.messages.length;
+    for (let i = 0; i < state.messages.length; i++) _chatSig[i] = msgSig(state.messages[i]);
+  } else {
+    state.messages.forEach((m, i) => {
+      const sig = msgSig(m);
+      if (sig !== _chatSig[i]){ el.children[i].outerHTML = chatMsgHtml(m); _chatSig[i] = sig; }
+    });
+  }
   el.scrollTop = el.scrollHeight;
 }
 
@@ -1365,18 +1484,31 @@ function renderPreview(){
   renderEditorPreview();
   if (!html){ device.style.display = 'none'; return; }
   device.style.display = 'flex';
-  $('#previewFrame').setAttribute('srcdoc', withEditMode(html));
+  /* PERF: srcdoc zapisujeme len pri zmene — iframe sa nerebuilduje pri každom renderPreview volaní */
+  const doc = withEditMode(html);
+  const frame = $('#previewFrame');
+  if (frame.getAttribute('srcdoc') !== doc) frame.setAttribute('srcdoc', doc);
   applyViewport();
 }
 function renderRaw(){
   const html = currentHtml();
   $('#rawPre').innerHTML = html ? hl(html) : '<span style="color:#8a867c">// Zatiaľ žiadny kód…</span>';
 }
+/* PERF: renderConsole je inkrementálny — nové logy sa appendujú (insertAdjacentHTML), plný rebuild len pri zmenšení (clear). Pôvodne sa pri každom log() prestavoval celý zoznam = O(n²) pri dlhých sessions. */
+let _consoleN = 0;
 function renderConsole(){
   const pi = $('#consoleInner');
-  pi.innerHTML = state.console.map(l =>
-    `<div class="console-line ${l.cls}"><span class="t">${l.t}</span><span class="txt">${esc(l.txt)}</span></div>`
-  ).join('') || '<div class="pane-empty">Žiadne logy.</div>';
+  const line = l => `<div class="console-line ${l.cls}"><span class="t">${l.t}</span><span class="txt">${esc(l.txt)}</span></div>`;
+  if (state.console.length < _consoleN){
+    pi.innerHTML = state.console.map(line).join('') || '<div class="pane-empty">Žiadne logy.</div>';
+    _consoleN = state.console.length;
+  } else if (state.console.length > _consoleN){
+    pi.querySelector('.pane-empty')?.remove();
+    pi.insertAdjacentHTML('beforeend', state.console.slice(_consoleN).map(line).join(''));
+    _consoleN = state.console.length;
+  } else if (!pi.children.length){
+    pi.innerHTML = '<div class="pane-empty">Žiadne logy.</div>';
+  }
   pi.scrollTop = pi.scrollHeight;
 }
 function renderDiff(){
@@ -1659,7 +1791,7 @@ $('#snapBtn').addEventListener('click', manualSnapshot);
 function manualSnapshot(){
   if (!state.liveHtml){ toast('Najprv vygeneruj niečo, čo sa dá uložiť 📸', 'warn'); return; }
   const last = state.snapshots[state.snapshots.length - 1];
-  createSnapshot(last.kind, 'Manuálny checkpoint', state.liveHtml);
+  createSnapshot(last ? last.kind : 'dashboard', 'Manuálny checkpoint', state.liveHtml);
   toast('Verzia uložená (Ctrl+S)', 'ok');
 }
 
@@ -1676,7 +1808,7 @@ $('#publishBtn').addEventListener('click', () => {
   log('⇧ publish: build + deploy started', 'info');
   dbg('publish: start', 'model=' + state.model, 'public=' + state.isPublic);
   const url = 'forge.app/p/' + uid() + '-' + uid().slice(0,4);
-  const steps = $$('.pub-step');
+  const steps = $$('[data-ps]');
   steps.forEach(s => s.className = 'pub-step pending');
   $('#pubUrl').classList.remove('show');
   $('#pubClose').style.display = 'none';
@@ -1763,7 +1895,13 @@ function renderEditorPreview(){
   const html = currentHtml();
   const s = editorSelected();
   const frame = $('#editorFrame'), empty = $('#edEmpty');
-  if (html){ frame.style.display = 'block'; frame.setAttribute('srcdoc', withEditMode(html)); empty.style.display = 'none'; }
+  /* PERF: srcdoc zapisujeme len pri zmene — renderEditorPreview beží pri každom renderPreview/renderEditor */
+  if (html){
+    frame.style.display = 'block';
+    const doc = withEditMode(html);
+    if (frame.getAttribute('srcdoc') !== doc) frame.setAttribute('srcdoc', doc);
+    empty.style.display = 'none';
+  }
   else { frame.style.display = 'none'; empty.style.display = 'flex'; }
   const st = $('#sessionTitle');
   $('#edProjectName').textContent = ((st && st.textContent) || 'Nový projekt').slice(0, 60);
@@ -1818,8 +1956,8 @@ const EXT_ICONS = { html:'🟧', css:'🎨', js:'⚡', md:'📘' };
 const extIcon = n => EXT_ICONS[n.split('.').pop()] || '📄';
 
 function setEdTab(tab){
-  $('#edTabs .ed-tab').forEach(b => b.classList.toggle('active', b.dataset.edtab === tab));
-  $('.ed-pane[data-edpane]').forEach(p => p.classList.toggle('active', p.dataset.edpane === tab));
+  $$('#edTabs .ed-tab').forEach(b => b.classList.toggle('active', b.dataset.edtab === tab));
+  $$('.ed-pane[data-edpane]').forEach(p => p.classList.toggle('active', p.dataset.edpane === tab));
   state.edEditing = false;
   $('#edCodeTa').style.display = 'none';
   if (tab !== 'files'){ $('#edCodeView').style.display = 'block'; }
@@ -1828,6 +1966,9 @@ function setEdTab(tab){
   if (tab === 'blueprints') renderEdBpGrid();
   if (tab === 'prompts') renderEdPromptGrid();
   if (tab === 'backend') renderBackend();
+  if (tab === 'team') renderTeam();
+  if (tab === 'gallery') renderGallery();
+  if (tab === 'preview') renderCmtPins();
   dbg('editor: tab →', tab);
 }
 $('#edTabs').addEventListener('click', e => {
@@ -1846,6 +1987,7 @@ function filesFor(snap){
   const styleM = html.match(/<style[^>]*>([\s\S]*?)<\/style>/);
   const css = styleM ? styleM[1].trim() : '';
   if (styleM) html = html.replace(styleM[0], () => '<link rel="stylesheet" href="styles.css">');
+  /* REVIEW: extrahuje sa len PRVÝ <style>/<script> blok — appka s viacerými blokmi by zvyšok nechala v index.html a VFS by bol nekonzistentný. Rigoróznejšie: html.matchAll() cyklus nad oboma vzormi a náhrada všetkých výskytov (tú istú mapu zdieľa filesToHtml). */
   const scriptM = html.match(/<script[^>]*>([\s\S]*?)<\/script>/);
   const js = scriptM ? scriptM[1].trim() : '';
   if (scriptM) html = html.replace(scriptM[0], () => '<script src="app.js"><\/script>');
@@ -1855,6 +1997,7 @@ function filesFor(snap){
     { name:'app.js', content: js || '// žiadna logika', modified:false },
     { name:'README.md', content: '# ' + snap.prompt.slice(0, 60) + '\n\nVygenerované vo Forge AI Builder · v' + snap.v + ' · ' + snap.time + '\nSúbory: index.html, styles.css, app.js — edituj v záložke Súbory.', modified:false }
   ];
+  dbg('VFS: extrakcia súborov', 'snap=' + snap.id.slice(0, 7), 'style=' + (styleM ? css.length : 0) + ' B', 'script=' + (scriptM ? js.length : 0) + ' B', 'index=' + html.length + ' B');
   state.vfs[snap.id] = files;
   return files;
 }
@@ -1864,6 +2007,7 @@ function filesToHtml(files){
   let html = f['index.html'] || '';
   if (f['styles.css'] != null) html = html.replace('<link rel="stylesheet" href="styles.css">', () => '<style>\n' + f['styles.css'] + '\n</style>');
   if (f['app.js'] != null) html = html.replace('<script src="app.js"><\/script>', () => '<script>\n' + f['app.js'] + '\n<\/script>');
+  dbg('VFS: spätný zostroj', files.length + ' súborov', '→ ' + html.length + ' B', 'css=' + (f['styles.css'] != null), 'js=' + (f['app.js'] != null));
   return html;
 }
 function renderEdFiles(){
@@ -1881,14 +2025,19 @@ function renderEdFiles(){
       <span class="fi-ic">${extIcon(f.name)}</span><span class="fi-nm">${f.name}</span>${f.modified ? '<span class="mod">M</span>' : ''}
     </button>`).join('');
   renderEdCode();
+  dbg('editor files: render', 'počet=' + files.length, 'aktívny=' + (state.edFile || '—'), 'upravené=' + files.filter(f => f.modified).length);
 }
 function renderEdCode(){
   const snap = edSnap();
   const files = snap ? filesFor(snap) : [];
   const fl = files.find(f => f.name === state.edFile) || files[0];
+  /* REVIEW: keď state.edFile === null, fallback zobrazí files[0], ale saveEdFile() potom ticho skončí (guard !state.edFile) — používateľ upravuje a uloženie nič nespraví. Fix: tu priradiť state.edFile = fl.name, aby editácia vždy patrila k zobrazenému súboru. */
   if (!fl) return;
+  /* PERF: obsah sa splittuje raz (pôvodne 3×) a renderuje s CAP limitom — veľké appky nerozbijú hlavné vlákno jedným obrovským innerHTML (REVIEW #3 vyriešené). */
+  const lines = fl.content.split('\n');
   $('#edCodeFile').textContent = fl.name;
-  $('#edFileMeta').textContent = fl.content.split('\n').length + ' riadkov · ' + (fl.content.length / 1024).toFixed(1) + ' kB' + (fl.modified ? ' · upravené' : '');
+  $('#edFileMeta').textContent = lines.length + ' riadkov · ' + (fl.content.length / 1024).toFixed(1) + ' kB' + (fl.modified ? ' · upravené' : '');
+  dbg('editor code: render', fl.name, lines.length + ' riadkov', 'edit=' + state.edEditing, 'mod=' + !!fl.modified);
   if (state.edEditing){
     $('#edCodeView').style.display = 'none';
     const ta = $('#edCodeTa');
@@ -1896,11 +2045,17 @@ function renderEdCode(){
     $('#edFileEdit').style.display = 'none'; $('#edFileSave').style.display = '';
   } else {
     $('#edCodeTa').style.display = 'none'; $('#edCodeView').style.display = 'block';
-    $('#edCodeView').innerHTML = fl.content.split('\n').map((l, i) => `<div class="ed-cl"><span class="ed-ln">${i + 1}</span><span class="ed-lc">${hl(l) || '&nbsp;'}</span></div>`).join('');
+    /* PERF: pôvodne všetky riadky jedným innerHTML + hl() per riadok — teraz CAP 800 riadkov + indikátor skrátenia (REVIEW #3 vyriešené). */
+    const CAP = 800;
+    const shown = lines.length > CAP ? lines.slice(0, CAP) : lines;
+    let html = shown.map((l, i) => `<div class="ed-cl"><span class="ed-ln">${i + 1}</span><span class="ed-lc">${hl(l) || '&nbsp;'}</span></div>`).join('');
+    if (lines.length > CAP) html += `<div class="ed-cl"><span class="ed-ln">…</span><span class="ed-lc" style="color:var(--muted)">+ ${lines.length - CAP} ďalších riadkov — na výkon sa zobrazuje prvých ${CAP}</span></div>`;
+    $('#edCodeView').innerHTML = html;
     $('#edFileEdit').style.display = ''; $('#edFileSave').style.display = 'none';
   }
 }
 function saveEdFile(){
+  /* REVIEW: chýba guard na state.viewing — edSnap() vracia aj prezeranú historickú verziu, takže uloženie (a auth toggle) prepíše HTML read-only snapshotu a poruší sľub rewindu. Buď zablokovať editáciu pri viewing, alebo uloženie vytvorí nový commit namiesto prepisu histórie. */
   const snap = edSnap();
   if (!snap || !state.edFile) return;
   const files = filesFor(snap);
@@ -1940,6 +2095,18 @@ $('#edCodeTa').addEventListener('keydown', e => {
 function branchHeadIdx(br){
   return br.headIdx === Infinity ? state.snapshots.length - 1 : br.headIdx;
 }
+/* PERF: diff štatistika ako multiset (Map<riadok, počet>) s cache per commit — presné počty aj pri duplicitných riadkoch (REVIEW #4 vyriešené) a žiadne prepočítavanie pri každom rendery; klúč vrátane dĺžok html, takže cache sa zneplatní po editácii snapshotu. */
+function commitDiff(s, prev){
+  const key = (prev ? prev.id : '-') + '|' + s.html.length + '|' + (prev ? prev.html.length : 0);
+  if (s._diff && s._diff.key === key) return s._diff;
+  const count = arr => { const m = new Map(); for (const l of arr) m.set(l, (m.get(l) || 0) + 1); return m; };
+  const cur = count(s.html.split('\n')), old = count((prev ? prev.html : '').split('\n'));
+  let adds = 0, dels = 0;
+  cur.forEach((n, l) => { const o = old.get(l) || 0; if (n > o) adds += n - o; });
+  old.forEach((n, l) => { const c = cur.get(l) || 0; if (n > c) dels += n - c; });
+  s._diff = { key, adds, dels };
+  return s._diff;
+}
 function renderEdHistory(){
   const br = state.branches.find(b => b.name === state.branch) || state.branches[0];
   $('#edBranchSeg').innerHTML = state.branches.map(b => `<button class="${state.branch === b.name ? 'active' : ''}" data-branch="${esc(b.name)}">${esc(b.name)}</button>`).join('');
@@ -1947,10 +2114,8 @@ function renderEdHistory(){
   const head = branchHeadIdx(br);
   $('#edCommits').innerHTML = commits.length ? commits.map(({ s, i }) => {
     const prev = i > 0 ? state.snapshots[i - 1] : null;
-    const cur = new Set(s.html.split('\n')), old = new Set((prev ? prev.html : '').split('\n'));
-    let adds = 0, dels = 0;
-    cur.forEach(l => { if (!old.has(l)) adds++; });
-    old.forEach(l => { if (!cur.has(l)) dels++; });
+    const d = commitDiff(s, prev);
+    const adds = d.adds, dels = d.dels;
     return `
     <div class="ed-commit ${i === head ? 'head' : ''}">
       <span class="hash">${s.id.slice(0, 7)}</span>
@@ -2058,6 +2223,7 @@ function applyBrand(html, brand){
   let out = html.replace(/Nimbus|FlowDeck|Aurora/g, brand.name);
   out = out.replace(/#7c3aed|#a855f7|#ec4899|#6d28d9/gi, brand.color);
   out = out.replace(/#f3eefc/gi, brand.color + '26');
+  dbg('brand: applyBrand', 'mená=' + (html.match(/Nimbus|FlowDeck|Aurora/g) || []).length + '×', 'farby=' + ((html.match(/#7c3aed|#a855f7|#ec4899|#6d28d9/gi) || []).length + (html.match(/#f3eefc/gi) || []).length) + '×', '→ ' + brand.name + ' (' + brand.color + ')');
   return out;
 }
 $('#bpwNext').addEventListener('click', () => {
@@ -2070,7 +2236,7 @@ $('#bpwNext').addEventListener('click', () => {
   };
   $('#bpwStep1').style.display = 'none';
   $('#bpwStep2').style.display = 'flex';
-  const wSteps = $('#bpwStep2 .pub-step');
+  const wSteps = $$('#bpwStep2 .pub-step');
   wSteps.forEach(st => { st.className = 'pub-step pending'; const pi = st.querySelector('.pi'); pi.textContent = ''; });
   log('🧱 blueprint „' + bp.name + '" → generujem pre ' + brand.name, 'info');
   wSteps.forEach((st, i) => {
@@ -2183,7 +2349,10 @@ function seedBackend(snap){
 }
 function backendFor(snap){
   if (!snap) return null;
-  if (!state.bk[snap.id]) state.bk[snap.id] = seedBackend(snap);
+  if (!state.bk[snap.id]){
+    state.bk[snap.id] = seedBackend(snap);
+    dbg('backend: seed', 'kind=' + snap.kind, 'snap=' + snap.id.slice(0, 7), 'tabuliek=' + state.bk[snap.id].tables.length, 'endpointov=' + state.bk[snap.id].fns.length);
+  }
   return state.bk[snap.id];
 }
 function renderBackend(){
@@ -2212,6 +2381,7 @@ function renderBeDb(be){
       <tbody>${t.rows.map((r, i) => `<tr>${r.map(v => `<td>${esc(String(v))}</td>`).join('')}<td><button class="be-row-del" data-delrow="${i}" title="zmazať záznam">✕</button></td></tr>`).join('')}</tbody>
     </table></div>
     <button class="ed-cbtn be-add" data-addrow="1">+ Pridať záznam</button>`;
+  dbg('backend DB: render', 'tabuľka=' + t.name, 'riadkov=' + t.rows.length, 'stĺpcov=' + t.cols.length);
 }
 function renderBeAuth(be){
   const users = be.tables.find(x => x.name === 'users');
@@ -2231,6 +2401,7 @@ function renderBeAuth(be){
         <span class="msg"><b style="font-size:12.5px">${esc(String(r[0]))}</b> <span style="color:var(--muted);font-size:11.5px">· ${esc(String(r[1]))}</span></span>
         <span class="cstat"><span class="p" style="color:var(--text-dim)">${esc(String(r[2]))}</span></span>
       </div>`).join('')}</div>`;
+  dbg('backend auth: render', 'enabled=' + be.auth.enabled, 'userov=' + users.rows.length, 'sessions=' + be.auth.sessions, 'providery=' + Object.keys(be.auth.providers).filter(p => be.auth.providers[p]).join('/'));
 }
 function renderBeFns(be){
   $('#beContent').innerHTML = `
@@ -2243,6 +2414,7 @@ function renderBeFns(be){
         <span class="cstat"><span class="p">~${f.ms} ms</span></span>
         <span class="ed-cbtns"><button class="ed-cbtn" data-betest="${i}">Testovať</button></span>
       </div>`).join('')}</div>`;
+  dbg('backend fns: render', 'endpointov=' + be.fns.length, 'latencie=' + be.fns.map(f => f.ms + ' ms').join(', '));
 }
 function renderBeDomains(be){
   $('#beContent').innerHTML = `
@@ -2257,6 +2429,7 @@ function renderBeDomains(be){
         <span class="msg">${d.ssl === 'active' ? 'SSL ✅ Let’s Encrypt · auto-renew · HTTP/2' : 'čaká na certifikát'}</span>
         ${d.primary ? '' : `<span class="ed-cbtns"><button class="ed-cbtn" data-domprimary="${i}">Nastaviť primárnu</button><button class="ed-cbtn" data-domdel="${i}">Odobrať</button></span>`}
       </div>`).join('')}</div>`;
+  dbg('backend domény: render', 'domén=' + be.domains.length, 'primárna=' + (be.domains.find(d => d.primary) || { name:'—' }).name, 'ssl=' + be.domains.map(d => d.ssl).join('/'));
 }
 $('#beSeg').addEventListener('click', e => {
   const b = e.target.closest('[data-betab]');
@@ -2387,7 +2560,7 @@ $('#beContent').addEventListener('click', e => {
     }
     state.pendingDomain = dom;
     $('#domSub').textContent = dom + ' — pridaj DNS záznamy, certifikát vydáme automaticky.';
-    const steps = $('#domModal .pub-step');
+    const steps = $$('#domModal .pub-step');
     steps.forEach(st => { st.className = 'pub-step pending'; st.querySelector('.pi').textContent = ''; });
     $('#domClose').style.display = 'none';
     $('#domModal').classList.add('open');
@@ -2437,6 +2610,617 @@ $('#beContent').addEventListener('click', e => {
 });
 $('#domClose').addEventListener('click', () => { $('#domModal').classList.remove('open'); dbg('backend domény: wizard zavretý'); });
 $('#domModal').addEventListener('click', e => { if (e.target.id === 'domModal'){ $('#domModal').classList.remove('open'); dbg('backend domény: wizard zavretý overlayom'); } });
+
+/* ---------- M4/M5/M6: tím & business tier · enterprise · komunitný ekosystém ---------- */
+const TM_TABS = [['team','👥 Tím'],['comments','💬 Komentáre'],['share','🔗 Share'],['audit','🧾 Audit log'],['ent','🛡️ Compliance']];
+const G_TABS = [['gallery','🌐 Galéria'],['market','🛒 Marketplace'],['aff','💰 Affiliate'],['contest','🏆 Contest']];
+const ROLE_CYCLE = { admin:'editor', editor:'viewer', viewer:'admin' };
+const ROLE_TIP = { owner:'Owner — plný prístup a fakturácia (nedá sa zmeniť)', admin:'Admin — spravuje tím a projekty', editor:'Editor — vytvára a upravuje projekty', viewer:'Viewer — iba čítanie' };
+const PERM_LABEL = { view:'👁️ iba zobrazenie', comment:'💬 zobrazenie + komentáre', edit:'✏️ upravovanie' };
+const AI_REPLIES = [
+  'Súhlasím — navrhujem fixnúť v najbližšej verzii.',
+  'Dobrá pripomienka, pridávam do backlogu projektu.',
+  'Otestujem to hneď po zmene v preview 🙌',
+  'Vieme to zjednodušiť — navrhujem menšiu iteráciu.'
+];
+const COMMUNITY_BP = [
+  { id:'gb1', title:'HabitFlow — habit tracker', author:'@zuzka', kind:'saas', likes:214, remixes:31, price:0, trending:true, tags:['SaaS','Habit','Mobilné'], grad:'linear-gradient(135deg,#7c3aed,#ec4899)', emoji:'🌱' },
+  { id:'gb2', title:'TaskArc — team kanban', author:'@marek_dev', kind:'kanban', likes:487, remixes:96, price:0, trending:true, tags:['Kanban','Tímy','Agile'], grad:'linear-gradient(135deg,#a855f7,#38bdf8)', emoji:'🗂️' },
+  { id:'gb3', title:'Aurora Admin Kit', author:'@lucia.h', kind:'settings', likes:156, remixes:22, price:19, trending:false, tags:['Admin','UI kit','Nastavenia'], grad:'linear-gradient(135deg,#0ea5e9,#2563eb)', emoji:'⚙️' },
+  { id:'gb4', title:'Kaviareň U Raka — e-shop', author:'@peter', kind:'dashboard', likes:98, remixes:14, price:29, trending:false, tags:['E-shop','Faktúry','Káva'], grad:'linear-gradient(135deg,#f4502a,#f59e0b)', emoji:'☕' },
+  { id:'gb5', title:'CRM pre maklérov', author:'@denis_re', kind:'dashboard', likes:312, remixes:58, price:0, trending:true, tags:['CRM','Pipeline','Predaj'], grad:'linear-gradient(135deg,#2563eb,#34d399)', emoji:'📊' },
+  { id:'gb6', title:'Blog pre developerov', author:'@kika', kind:'dashboard', likes:73, remixes:9, price:0, trending:false, tags:['Blog','SEO','MDX'], grad:'linear-gradient(135deg,#ec4899,#f59e0b)', emoji:'✍️' },
+  { id:'gb7', title:'Fitness štúdio — rezervácie', author:'@tomas.fit', kind:'settings', likes:241, remixes:44, price:15, trending:true, tags:['Rezervácie','Šport'], grad:'linear-gradient(135deg,#34d399,#0ea5e9)', emoji:'🏋️' },
+  { id:'gb8', title:'Fakturák — fakturácia pre živnostníkov', author:'@martin', kind:'saas', likes:129, remixes:27, price:0, trending:false, tags:['Faktúry','SaaS','PDF'], grad:'linear-gradient(135deg,#38bdf8,#7c3aed)', emoji:'🧾' }
+];
+const CONTEST = {
+  theme: 'AI nástroje pre školstvo', deadline: '31. 10. 2026', prize: '12 000 €',
+  entries: [
+    { id:'ce1', title:'Vysvedčenie AI — auto hodnotiteľ', author:'@kritik', votes:214 },
+    { id:'ce2', title:'Dejepisný tutor', author:'@matus_h', votes:167 },
+    { id:'ce3', title:'Rozvrh optimizer pre riaditeľov', author:'@tea_cek', votes:98 },
+    { id:'ce4', title:'Prevencia šikanovania — anonymný reporting', author:'@zuzka', votes:76 }
+  ]
+};
+
+/* ---- M4: lazy seed (account-level, prežíva nový projekt) ---- */
+function teamFor(){
+  if (!state.team){
+    state.team = {
+      plan: 'Business', seats: 3, seatsMax: 10, price: 50,
+      members: [
+        { name:'Erik Babcan', email:'erik@forge.dev', role:'owner', online:true },
+        { name:'Lucia Horváthová', email:'lucia@forge.dev', role:'admin', online:true },
+        { name:'Marek Sýkora', email:'marek@forge.dev', role:'editor', online:false }
+      ]
+    };
+    dbg('tím: seed', 'členov=' + state.team.members.length, 'plan=' + state.team.plan, 'seats=' + state.team.seats);
+  }
+  return state.team;
+}
+function entFor(){
+  if (!state.ent){
+    state.ent = { sso:false, idp:'https://idp.moja-firma.sk/saml/metadata', sla:99.94, rateLimit:250, softDelete:null };
+    dbg('enterprise: seed', 'sso=off', 'sla=' + state.ent.sla + ' %', 'limit=' + state.ent.rateLimit + '/deň');
+  }
+  return state.ent;
+}
+function affFor(){
+  if (!state.aff){
+    state.aff = { code:'r-' + uid().slice(0, 5), clicks:187, conv:9, rate:20, months:12, paid:283.50 };
+    dbg('affiliate: seed', 'kód=' + state.aff.code, 'klikov=' + state.aff.clicks, 'provízia=' + state.aff.paid + ' €');
+  }
+  return state.aff;
+}
+function audit(action, detail){
+  state.audit.unshift({ t: now(), action, detail: detail || '' });
+  if (state.audit.length > 40) state.audit.pop();
+  log('🧾 audit: ' + action + (detail ? ' — ' + detail : ''), 'info');
+  dbg('audit:', action, detail || '');
+}
+
+/* ---- M4: tím & business tier ---- */
+function renderTeam(){
+  const snap = edSnap();
+  const tm = teamFor();
+  $('#tmSeg').innerHTML = TM_TABS.map(([k, l]) => '<button class="' + (state.teamTab === k ? 'active' : '') + '" data-tmtab="' + k + '">' + l + '</button>').join('');
+  $('#tmCtx').textContent = tm.plan + ' · ' + tm.members.length + '/' + tm.seats + ' seatov' + (snap ? ' · projekt v' + snap.v : ' · žiadny projekt');
+  if (state.teamTab === 'team') renderTmTeam();
+  if (state.teamTab === 'comments') renderTmComments();
+  if (state.teamTab === 'share') renderTmShare();
+  if (state.teamTab === 'audit') renderTmAudit();
+  if (state.teamTab === 'ent') renderTmEnt();
+  dbg('tím: render', 'sub-tab=' + state.teamTab, 'členov=' + tm.members.length, 'seats=' + tm.seats, 'projekt=' + (snap ? snap.id.slice(0, 7) : '-'));
+}
+function renderTmTeam(){
+  const tm = teamFor();
+  const online = tm.members.filter(m => m.online);
+  const initials = m => esc(m.name.split(' ').map(w => w[0]).join('').slice(0, 2));
+  $('#tmContent').innerHTML = `
+    <div class="tm-presence">
+      ${tm.members.map(m => '<span class="be-avatar ' + (m.online ? '' : 'off') + '" title="' + esc(m.name) + ' · ' + (m.online ? 'online' : 'offline') + '">' + initials(m) + '</span>').join('')}
+      <span class="be-ctx">${online.length} online teraz · realtime kolaborácia (demo)</span>
+    </div>
+    <div class="tm-invite">
+      <input id="tmInviteEmail" placeholder=" pozvať spoluhráča e-mailom — dostane rolu viewer" spellcheck="false">
+      <button id="tmInviteBtn">✉️ Pozvať</button>
+    </div>
+    <div class="ed-commits">${tm.members.map((m, i) => `
+      <div class="be-user">
+        <span class="be-avatar ${m.online ? '' : 'off'}">${initials(m)}</span>
+        <span class="msg"><b style="font-size:12.5px">${esc(m.name)}</b> <span style="color:var(--muted);font-size:11.5px">· ${esc(m.email)} ${m.online ? '· <span style="color:var(--ok)">● online</span>' : '· offline'}</span></span>
+        <button class="tm-role ${m.role}" data-role="${i}" title="${ROLE_TIP[m.role]}">${m.role.toUpperCase()}</button>
+      </div>`).join('')}</div>
+    <div class="tm-bill">
+      <b>💳 Seat billing — ${tm.plan} tier</b>
+      <div class="row" style="margin-top:10px"><span>Základ (${tm.price} € / mes · prvých 3 seatov)</span><b>${tm.price},00 €</b></div>
+      <div class="row"><span>Extra seaty (${Math.max(0, tm.seats - 3)} × 16,67 €)</span><b>${(Math.max(0, tm.seats - 3) * 16.67).toFixed(2).replace('.', ',')} €</b></div>
+      <div class="total"><span>Celkom / mes <span style="color:var(--muted);font-size:10.5px">(prorata ${tm.seats} seatov, max ${tm.seatsMax})</span></span><b>${(tm.price + Math.max(0, tm.seats - 3) * 16.67).toFixed(2).replace('.', ',')} €</b></div>
+      <button class="ed-cbtn be-add" data-seat="1" style="margin-top:12px">+ Pridať seat (16,67 € / mes)</button>
+    </div>`;
+  dbg('tím members: render', 'členov=' + tm.members.length, 'online=' + online.length, 'seats=' + tm.seats + '/' + tm.seatsMax);
+}
+
+/* ---- M4: komentáre v preview (pin režim + vlákna + AI odpovede) ---- */
+function renderCmtPins(){
+  const layer = $('#cmtLayer'); if (!layer) return;
+  layer.classList.toggle('pinning', !!state.pinMode);
+  layer.innerHTML = state.comments.map(c =>
+    '<button class="cmt-pin' + (c.resolved ? ' resolved' : '') + (state.cmtOpen === c.id ? ' cmt-open' : '') +
+    '" data-cmt="' + c.id + '" style="left:' + c.x + '%;top:' + c.y + '%"' +
+    ' title="' + esc(c.author) + ': ' + esc(c.text || 'bez textu') + '">' + (c.replies.length + 1) + '</button>').join('');
+}
+function threadHtml(c){
+  const open = state.cmtOpen === c.id;
+  return `
+      <div class="ed-commit ${open ? 'head' : ''}">
+        <span class="hash">📍 ${c.x} % / ${c.y} %</span>
+        <span class="msg"><b>${esc(c.author)}</b> · ${c.text ? esc(c.text) : '<i style="color:var(--muted)">bez textu — doplň vo vlákne</i>'}</span>
+        <span class="ed-cbtns">
+          <button class="ed-cbtn" data-cmtopen="${c.id}">${open ? 'Zavrieť' : 'Otvoriť'}</button>
+          <button class="ed-cbtn" data-cmtresolve="${c.id}">${c.resolved ? '↩ Znova otvoriť' : '✓ Resolve'}</button>
+        </span>
+        ${open ? `<div class="cmt-thread">
+          ${c.replies.map(r => '<div class="cmt-reply"><b>' + esc(r.author) + ':</b> ' + esc(r.text) + '</div>').join('')}
+          <div class="cmt-new"><input id="cmtReplyInput" placeholder="Odpovedať do vlákna…" spellcheck="false"><button class="ed-cbtn" data-cmtreply="${c.id}">Odoslať</button></div>
+        </div>` : ''}
+      </div>`;
+}
+function renderTmComments(){
+  $('#tmContent').innerHTML = `
+    <div class="tm-card">
+      <div>
+        <b>${state.pinMode ? '🔒 Pin režim aktívny' : '💬 Komentáre v preview'}</b>
+        <p>${state.pinMode ? 'Klikni na ľubovoľné miesto vo vlastnom preview vedľa — prilepí sa tam pin s komentárom.' : 'Zapni pin režim, klikni do preview — tím vidí vlákna presne na danom mieste. AI Reviewer odpovedá na nové komentáre.'}</p>
+      </div>
+      <button class="be-toggle ${state.pinMode ? 'on' : ''}" data-cmtmode="1">${state.pinMode ? 'PIN REŽIM' : 'ZAPNÚŤ PIN'}</button>
+    </div>
+    ${state.comments.length
+      ? '<div class="ed-commits">' + state.comments.map(threadHtml).join('') + '</div>'
+      : '<div class="pane-empty">Zatiaľ žiadne komentáre — zapni pin režim a označ miesto vo preview.</div>'}`;
+  renderCmtPins();
+  dbg('komentáre: render', 'pinov=' + state.comments.length, 'resolved=' + state.comments.filter(c => c.resolved).length, 'pinMode=' + !!state.pinMode);
+}
+function placePin(e){
+  const snap = edSnap();
+  if (!snap){ toast('Najprv vygeneruj projekt — komentáre sa pripájajú na preview appky', 'warn'); dbg('komentáre: pin bez projektu ignorovaný'); return; }
+  const r = $('#cmtLayer').getBoundingClientRect();
+  const x = r.width ? +((e.clientX - r.left) / r.width * 100).toFixed(1) : 50;
+  const y = r.height ? +((e.clientY - r.top) / r.height * 100).toFixed(1) : 50;
+  const c = { id: uid(), x, y, author: 'Erik Babcan', text: '', resolved: false, replies: [] };
+  state.comments.push(c);
+  state.pinMode = false;
+  state.cmtOpen = c.id;
+  state.teamTab = 'comments';
+  audit('Komentár pridaný', 'pin na ' + x + ' % / ' + y + ' % (projekt v' + snap.v + ')');
+  toast('Pin umiestnený — doplň komentár vo vlákne', 'ok');
+  dbg('komentáre: nový pin', 'x=' + x + '%', 'y=' + y + '%', 'id=' + c.id.slice(0, 7));
+  setEdTab('team');
+  setTimeout(() => { const i = $('#cmtReplyInput'); if (i) i.focus(); }, 30);
+}
+
+/* ---- M4: share linky ---- */
+function renderTmShare(){
+  const snap = edSnap();
+  if (!snap){ $('#tmContent').innerHTML = '<div class="pane-empty">Žiadny projekt — share linky sa generujú pre aktuálny projekt.</div>'; dbg('share: render bez projektu'); return; }
+  $('#tmContent').innerHTML = `
+    <div class="tm-invite">
+      <select id="shPerm"><option value="view">👁️ Iba zobrazenie</option><option value="comment">💬 Zobrazenie + komentáre</option><option value="edit">✏️ Upravovanie</option></select>
+      <select id="shExp"><option value="1d">Expirácia: 1 deň</option><option value="7d">Expirácia: 7 dní</option><option value="30d">Expirácia: 30 dní</option><option value="never">Bez expirácie</option></select>
+      <button id="shCreate">🔗 Vytvoriť link</button>
+    </div>
+    ${state.shareLinks.length
+      ? '<div class="ed-commits">' + state.shareLinks.map(l => `
+      <div class="ed-commit">
+        <span class="hash">🔗 ${esc(l.url)}</span>
+        <span class="msg">${PERM_LABEL[l.perm] || l.perm} · ${l.exp === 'never' ? 'bez expirácie' : 'exspiruje: ' + l.exp} · vytvorené ${l.t}</span>
+        <span class="ed-cbtns"><button class="ed-cbtn" data-shcopy="${l.id}">Kopírovať</button><button class="ed-cbtn" data-shrevoke="${l.id}">Revokovať</button></span>
+      </div>`).join('') + '</div>'
+      : '<div class="pane-empty">Zatiaľ žiadne share linky — vytvor prvý s permisiami a expiráciou.</div>'}`;
+  dbg('share: render', 'linkov=' + state.shareLinks.length, 'projekt=' + snap.id.slice(0, 7));
+}
+
+/* ---- M4: audit log ---- */
+function renderTmAudit(){
+  $('#tmContent').innerHTML = state.audit.length
+    ? '<div class="be-schema">Audit log — append-only, retencia 1 rok (SOC 2). Stream sa posiela do SIEM webhooku (demo).</div><div class="ed-commits">' +
+      state.audit.map(a => `
+      <div class="ed-commit">
+        <span class="hash">${a.t}</span>
+        <span class="msg"><b>${esc(a.action)}</b>${a.detail ? ' — ' + esc(a.detail) : ''}</span>
+      </div>`).join('') + '</div>'
+    : '<div class="pane-empty">Audit log je prázdny — akcie z tímu, share linkov a compliance sa zaznamenajú sem.</div>';
+  dbg('audit: render', 'záznamov=' + state.audit.length);
+}
+
+/* ---- M5: enterprise (SSO/SAML · GDPR · SOC2 · SLA · rate limiting) ---- */
+function renderTmEnt(){
+  const ent = entFor();
+  const used = state.snapshots.length;
+  $('#tmContent').innerHTML = `
+    <div class="tm-card">
+      <div>
+        <b>SSO / SAML ${ent.sso ? '· ✅ zapnuté' : '· vypnuté'}</b>
+        <p>${ent.sso ? 'Tím sa prihlasuje cez firemné IdP: ' + esc(ent.idp) : 'Zapni SAML 2.0 — tím sa prihlási cez firemné IdP (Okta, Azure AD, Google Workspace).'}</p>
+      </div>
+      <button class="be-toggle ${ent.sso ? 'on' : ''}" data-ssotoggle="1">${ent.sso ? 'ZAPNUTÉ' : 'ZAPNÚŤ'}</button>
+    </div>
+    <div class="tm-card">
+      <div>
+        <b>GDPR — práva dotknutých osôb</b>
+        <p>Export všetkých dát účtu (portabilita, čl. 20) alebo soft-delete s 30-dňovou lehotou na obnovenie.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="ed-cbtn" data-gdprexport="1">⬇ Exportovať JSON</button>
+        <button class="ed-cbtn" data-gdprdelete="1">${ent.softDelete ? '↩ Zrušiť delete' : '🗑 Soft-delete'}</button>
+      </div>
+    </div>
+    <div class="tm-bill">
+      <b>🛡️ Compliance &amp; SLA</b>
+      <div class="row" style="margin-top:10px"><span>SOC 2 Type II</span><b style="color:#fbbf24">■ v procese (cieľ Q1 2027)</b></div>
+      <div class="row"><span>SLA uptime (30 dní)</span><b style="color:var(--ok)">${ent.sla.toFixed(2).replace('.', ',')} % / 99,9 % zmluvné</b></div>
+      <div class="row"><span>Rate limiting (generovania / deň)</span><b>${used} / ${ent.rateLimit}</b></div>
+      <div class="tm-meter"><i style="width:${Math.min(100, (used / ent.rateLimit) * 100).toFixed(1)}%"></i></div>
+      ${ent.softDelete ? '<div class="row" style="margin-top:10px"><span>Účet v soft-delete — obnoviteľný</span><b style="color:var(--err)">do ' + esc(ent.softDelete) + '</b></div>' : ''}
+    </div>`;
+  dbg('compliance: render', 'sso=' + ent.sso, 'sla=' + ent.sla, 'rate=' + used + '/' + ent.rateLimit, 'softDelete=' + (ent.softDelete || 'nie'));
+}
+
+/* ---- M6: komunitná galéria · marketplace · affiliate · contest ---- */
+function renderGallery(){
+  $('#gSeg').innerHTML = G_TABS.map(([k, l]) => '<button class="' + (state.gTab === k ? 'active' : '') + '" data-gtab="' + k + '">' + l + '</button>').join('');
+  $('#gCtx').textContent = 'komunita Forge · ' + COMMUNITY_BP.length + ' projektov · ' + CONTEST.entries.length + ' súťažné';
+  if (state.gTab === 'gallery') renderGGallery();
+  if (state.gTab === 'market') renderGMarket();
+  if (state.gTab === 'aff') renderGAff();
+  if (state.gTab === 'contest') renderGContest();
+  dbg('galéria: render', 'sub-tab=' + state.gTab, 'filter=' + state.gFilter, 'projektov=' + COMMUNITY_BP.length);
+}
+function gCard(c, market){
+  const owned = !c.price || c.owned;
+  return `
+    <div class="g-card">
+      ${c.price ? '<span class="g-price ' + (c.owned ? 'owned' : '') + '">' + (c.owned ? '✓ KÚPENÉ' : c.price + ' €') + '</span>' : ''}
+      <div class="g-thumb" style="background:${c.grad}">${c.emoji}</div>
+      <div class="g-body">
+        <span class="g-title">${esc(c.title)}</span>
+        <span class="g-author">${esc(c.author)} · ${c.likes} ♥ · ${c.remixes} ⟳${c.trending ? ' · 🔥' : ''}</span>
+        <div class="g-tags">${c.tags.map(t => '<span class="g-tag">' + esc(t) + '</span>').join('')}</div>
+      </div>
+      <div class="g-foot">
+        <button class="g-like ${state.gLiked[c.id] ? 'liked' : ''}" data-like="${c.id}" title="lajk">♥ ${c.likes}</button>
+        ${market && c.price && !c.owned
+          ? '<button class="ed-cbtn" data-buy="' + c.id + '">🛒 Kúpiť</button>'
+          : '<button class="ed-cbtn" data-remix="' + c.id + '" title="' + (owned ? 'remix do môjho workspace' : 'odomkne sa po nákupe') + '">⟳ Remix</button>'}
+      </div>
+    </div>`;
+}
+function renderGGallery(){
+  const filters = [['all','Všetky'],['trending','🔥 Trending'],['free','Zadarmo'],['paid','Platené']];
+  const list = COMMUNITY_BP.filter(c =>
+    state.gFilter === 'all' || (state.gFilter === 'trending' && c.trending) ||
+    (state.gFilter === 'free' && !c.price) || (state.gFilter === 'paid' && !!c.price));
+  $('#gContent').innerHTML = `
+    <div class="be-chiprow" style="align-items:center">
+      ${filters.map(([k, l]) => '<button class="be-chip ' + (state.gFilter === k ? 'active' : '') + '" data-gfilter="' + k + '">' + l + '</button>').join('')}
+      <button class="ed-cbtn be-add" data-publish="1" style="margin:0 0 0 auto">⬆ Publikovať môj projekt</button>
+    </div>
+    ${list.length ? '<div class="g-grid">' + list.map(c => gCard(c, false)).join('') + '</div>' : '<div class="pane-empty">Žiadne projekty pre tento filter.</div>'}`;
+  dbg('galéria: render', 'filter=' + state.gFilter, 'zobrazených=' + list.length);
+}
+function renderGMarket(){
+  const paid = COMMUNITY_BP.filter(c => c.price);
+  $('#gContent').innerHTML =
+    '<div class="be-schema">Marketplace — platené blueprinty od komunity. Rev-share 80 % autorovi / 20 % Forge. Nákup odomkne neobmedzené remixy.</div>' +
+    (paid.length ? '<div class="g-grid">' + paid.map(c => gCard(c, true)).join('') + '</div>' : '<div class="pane-empty">Žiadne platené blueprinty.</div>');
+  dbg('marketplace: render', 'platených=' + paid.length, 'kúpených=' + paid.filter(c => c.owned).length);
+}
+function renderGAff(){
+  const a = affFor();
+  $('#gContent').innerHTML = `
+    <div class="tm-card">
+      <div>
+        <b>💰 Affiliate program</b>
+        <p>Zdieľaj svoj link — ${a.rate} % provízia z každej platby, ${a.months} mesiacov recurring. Výplaty mesačne.</p>
+      </div>
+      <button class="ed-cbtn" data-affcopy="1">📋 Kopírovať link</button>
+    </div>
+    <div class="be-schema">forge.app/${a.code} — tvoj unikátny referral kód</div>
+    <div class="tm-bill">
+      <b>Výkonnosť (30 dní)</b>
+      <div class="row" style="margin-top:10px"><span>Kliky</span><b>${a.clicks}</b></div>
+      <div class="row"><span>Konverzie</span><b>${a.conv} (${(a.conv / a.clicks * 100).toFixed(1).replace('.', ',')} % CR)</b></div>
+      <div class="row"><span>Zarobená provízia</span><b>${a.paid.toFixed(2).replace('.', ',')} €</b></div>
+      <div class="total"><span>Najbližšia výplata</span><b>1. novembra 2026</b></div>
+    </div>`;
+  dbg('affiliate: render', 'kód=' + a.code, 'CR=' + (a.conv / a.clicks * 100).toFixed(1) + '%');
+}
+function renderGContest(){
+  const sorted = CONTEST.entries.slice().sort((x, y) => y.votes - x.votes);
+  $('#gContent').innerHTML = `
+    <div class="tm-card">
+      <div>
+        <b>🏆 Template contest — „${CONTEST.theme}"</b>
+        <p>Uzavretie: ${CONTEST.deadline} · hlavná cena ${CONTEST.prize} · víťazný template ide do oficiálnej galérie.</p>
+      </div>
+      <span class="ed-head-badge" style="flex-shrink:0">1 hlas / účet</span>
+    </div>
+    <div class="ed-commits">${sorted.map((e, i) => `
+      <div class="ed-commit ${i === 0 ? 'head' : ''}">
+        <span class="hash">#${i + 1}</span>
+        <span class="msg"><b>${esc(e.title)}</b> <span style="color:var(--muted)">· ${esc(e.author)}</span></span>
+        <span class="cstat"><span class="p">${e.votes} hlasov</span></span>
+        <span class="ed-cbtns"><button class="ed-cbtn" data-vote="${e.id}">${state.gVoted === e.id ? '✓ MOJ HLAS' : 'HLASOVAŤ'}</button></span>
+      </div>`).join('')}</div>`;
+  dbg('contest: render', 'súťažných=' + CONTEST.entries.length, 'vedie=' + sorted[0].title, 'môj hlas=' + (state.gVoted || '—'));
+}
+function openCheckout(c){
+  $('#gcoSub').textContent = 'Blueprint „' + c.title + '“ · ' + c.price + ' € (jednorazovo, neobmedzené remixy)';
+  const steps = $$('#gCheckout [data-gcs]');
+  steps.forEach(s => s.className = 'pub-step pending');
+  $('#gcoClose').style.display = 'none';
+  $('#gCheckout').classList.add('open');
+  dbg('marketplace: checkout otvorený', c.id, c.price + ' €');
+  steps.forEach((s, i) => setTimeout(() => {
+    s.className = 'pub-step running';
+    setTimeout(() => { s.className = 'pub-step done'; }, 520);
+    if (i === steps.length - 1) setTimeout(() => {
+      c.owned = true;
+      $('#gcoClose').style.display = 'flex';
+      $('#gcoSub').textContent = 'Platba prešla ✅ — remix práva odomknuté.';
+      audit('Blueprint odkúpený', c.title + ' · ' + c.price + ' € (80 % ' + c.author + ')');
+      toast('„' + c.title + '“ odkúpené — remix odomknutý', 'ok');
+      if (state.gTab === 'market') renderGMarket(); else renderGallery();
+      dbg('marketplace: checkout hotový', c.id, 'owned=true');
+    }, 650);
+  }, i * 700));
+}
+
+/* ---- M4/M5/M6: event wiring ---- */
+$('#tmSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-tmtab]'); if (!b) return;
+  state.teamTab = b.dataset.tmtab;
+  renderTeam();
+  dbg('tím: sub-tab →', state.teamTab);
+});
+$('#tmContent').addEventListener('click', e => {
+  const role = e.target.closest('[data-role]');
+  if (role){
+    const tm = teamFor();
+    const m = tm.members[+role.dataset.role];
+    if (m.role === 'owner'){ toast('Owner rolu nie je možné zmeniť', 'warn'); dbg('RBAC: owner zamknutý'); return; }
+    const prev = m.role;
+    m.role = ROLE_CYCLE[m.role];
+    audit('RBAC zmena roly', m.name + ': ' + prev + ' → ' + m.role);
+    toast(m.name + ' → ' + m.role.toUpperCase(), 'ok');
+    dbg('RBAC:', m.name, prev + ' → ' + m.role);
+    renderTmTeam();
+    return;
+  }
+  if (e.target.closest('[data-seat]')){
+    const tm = teamFor();
+    if (tm.seats >= tm.seatsMax){ toast('Max ' + tm.seatsMax + ' seatov pre ' + tm.plan + ' tier — čas na Enterprise (demo)', 'warn'); dbg('billing: seat limit', tm.seatsMax); return; }
+    tm.seats++;
+    audit('Seat pridaný', 'prorata +16,67 €/mes · spolu ' + tm.seats + ' seatov');
+    toast('Seat pridaný — ďalší mesiac +16,67 €', 'ok');
+    dbg('billing: seat pridaný', 'seats=' + tm.seats);
+    renderTmTeam();
+    return;
+  }
+  if (e.target.id === 'tmInviteBtn'){
+    const tm = teamFor();
+    const inp = $('#tmInviteEmail');
+    const v = inp.value.trim();
+    if (!/.+@.+\..+/.test(v)){ toast('Zadaj platný e-mail', 'warn'); dbg('tím: invite — neplatný e-mail', JSON.stringify(v)); return; }
+    if (tm.members.length >= tm.seats){ toast('Žiadny voľný seat — najprv pridaj seat v billing karte', 'warn'); dbg('tím: invite zamietnutý', 'members=' + tm.members.length, 'seats=' + tm.seats); return; }
+    const name = v.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
+    tm.members.push({ name, email: v, role: 'viewer', online: false });
+    audit('Pozvánka odoslaná', v + ' → rola viewer (seat ' + tm.members.length + '/' + tm.seats + ')');
+    toast('Pozvánka pre ' + v + ' odoslaná', 'ok');
+    dbg('tím: invite', v, 'members=' + tm.members.length);
+    renderTmTeam();
+    return;
+  }
+  if (e.target.closest('[data-cmtmode]')){
+    state.pinMode = !state.pinMode;
+    dbg('komentáre: pin režim', state.pinMode ? 'zapnutý' : 'vypnutý');
+    if (state.pinMode){
+      setEdTab('preview');
+      toast('Klikni do preview — pin sa prilepí na dané miesto', 'info');
+      renderCmtPins();
+    } else renderTmComments();
+    return;
+  }
+  const copen = e.target.closest('[data-cmtopen]');
+  if (copen){
+    const id = copen.dataset.cmtopen;
+    state.cmtOpen = state.cmtOpen === id ? null : id;
+    dbg('komentáre: vlákno', state.cmtOpen ? 'otvorené' : 'zavreté', id.slice(0, 7));
+    renderTmComments();
+    return;
+  }
+  const cres = e.target.closest('[data-cmtresolve]');
+  if (cres){
+    const c = state.comments.find(x => x.id === cres.dataset.cmtresolve); if (!c) return;
+    c.resolved = !c.resolved;
+    audit(c.resolved ? 'Komentár resolvenutý' : 'Komentár znovu otvorený', (c.text || 'pin ' + c.x + '/' + c.y).slice(0, 40));
+    toast(c.resolved ? 'Komentár resolvenutý ✓' : 'Komentár znovu otvorený', c.resolved ? 'ok' : 'info');
+    dbg('komentáre: resolve toggle', c.id.slice(0, 7), String(c.resolved));
+    renderTmComments();
+    return;
+  }
+  const crep = e.target.closest('[data-cmtreply]');
+  if (crep){
+    const c = state.comments.find(x => x.id === crep.dataset.cmtreply); if (!c) return;
+    const v = $('#cmtReplyInput').value.trim();
+    if (!v){ toast('Napíš najprv správu', 'warn'); dbg('komentáre: prázdna správa'); return; }
+    if (!c.text) c.text = v;
+    else c.replies.push({ author: 'Erik Babcan', text: v });
+    log('💬 komentár: ' + v.slice(0, 40), 'info');
+    dbg('komentáre: správa odoslaná', c.id.slice(0, 7), 'dĺžka=' + v.length);
+    renderTmComments();
+    const cid = c.id;
+    setTimeout(() => {
+      const cc = state.comments.find(x => x.id === cid); if (!cc) return;
+      cc.replies.push({ author: 'AI Reviewer', text: AI_REPLIES[cc.replies.length % AI_REPLIES.length] });
+      if (state.teamTab === 'comments' && state.cmtOpen === cid) renderTmComments();
+      log('🤖 AI Reviewer odpovedal na komentár', 'ok');
+      dbg('komentáre: AI odpoveď', cid.slice(0, 7));
+    }, 900);
+    return;
+  }
+  if (e.target.id === 'shCreate'){
+    const snap = edSnap(); if (!snap) return;
+    const l = { id: uid(), url: 'forge.app/s/' + uid().slice(0, 6), perm: $('#shPerm').value, exp: $('#shExp').value, t: now() };
+    state.shareLinks.push(l);
+    copy('https://' + l.url);
+    audit('Share link vytvorený', l.url + ' · ' + (PERM_LABEL[l.perm] || l.perm) + ' · ' + (l.exp === 'never' ? 'bez expirácie' : 'exspirácia ' + l.exp));
+    toast('Link skopírovaný: ' + l.url, 'ok');
+    dbg('share: link vytvorený', l.url, 'perm=' + l.perm, 'exp=' + l.exp);
+    renderTmShare();
+    return;
+  }
+  const shcopy = e.target.closest('[data-shcopy]');
+  if (shcopy){
+    const l = state.shareLinks.find(x => x.id === shcopy.dataset.shcopy); if (!l) return;
+    copy('https://' + l.url);
+    toast('Link skopírovaný: ' + l.url, 'ok');
+    dbg('share: copy', l.url);
+    return;
+  }
+  const shrev = e.target.closest('[data-shrevoke]');
+  if (shrev){
+    const i = state.shareLinks.findIndex(x => x.id === shrev.dataset.shrevoke); if (i < 0) return;
+    const [l] = state.shareLinks.splice(i, 1);
+    audit('Share link revokovaný', l.url + ' prestal fungovať okamžite');
+    toast('Link ' + l.url + ' revokovaný', 'ok');
+    dbg('share: revoke', l.url);
+    renderTmShare();
+    return;
+  }
+  if (e.target.closest('[data-ssotoggle]')){
+    const ent = entFor();
+    ent.sso = !ent.sso;
+    audit('SSO/SAML ' + (ent.sso ? 'zapnuté' : 'vypnuté'), ent.idp);
+    toast(ent.sso ? 'SAML SSO zapnuté — tím sa prihlasuje cez IdP' : 'SSO vypnuté — prihlasovanie cez e-mail', 'ok');
+    dbg('enterprise: SSO toggle', String(ent.sso));
+    renderTmEnt();
+    return;
+  }
+  if (e.target.closest('[data-gdprexport]')){
+    const dump = { account: 'erikbabcan-commits', exportedAt: new Date().toISOString(), plan: teamFor().plan,
+      members: teamFor().members, sessions: state.snapshots.length, messages: state.messages.length,
+      shareLinks: state.shareLinks, audit: state.audit };
+    try {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = 'forge-gdpr-export.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast('Export GDPR dát stiahnutý (JSON)', 'ok');
+    } catch (err){ toast('Export zlyhal: ' + err.message, 'err'); }
+    audit('GDPR export dát', 'čl. 20 — portabilita, ' + JSON.stringify(dump).length + ' B');
+    dbg('GDPR: export JSON', 'sessions=' + dump.sessions, 'audit=' + dump.audit.length);
+    return;
+  }
+  if (e.target.closest('[data-gdprdelete]')){
+    const ent = entFor();
+    if (ent.softDelete){
+      ent.softDelete = null;
+      audit('Soft-delete zrušený', 'účet obnovený pred uplynutím lehoty');
+      toast('Účet obnovený — soft-delete zrušený', 'ok');
+    } else {
+      ent.softDelete = new Date(Date.now() + 30 * 864e5).toLocaleDateString('sk-SK');
+      audit('Soft-delete naplánovaný', 'permanentné zmazanie o 30 dní (' + ent.softDelete + ')');
+      toast('Účet v soft-delete — obnova do 30 dní', 'warn');
+    }
+    dbg('GDPR: soft-delete toggle', ent.softDelete || 'zrušený');
+    renderTmEnt();
+  }
+});
+$('#cmtLayer').addEventListener('click', e => {
+  const pin = e.target.closest('.cmt-pin');
+  if (pin){
+    const id = pin.dataset.cmt;
+    state.cmtOpen = state.cmtOpen === id ? null : id;
+    state.teamTab = 'comments';
+    setEdTab('team');
+    dbg('komentáre: pin klik → vlákno', id.slice(0, 7));
+    return;
+  }
+  if (state.pinMode) placePin(e);
+});
+$('#gSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-gtab]'); if (!b) return;
+  state.gTab = b.dataset.gtab;
+  renderGallery();
+  dbg('galéria: sub-tab →', state.gTab);
+});
+$('#gContent').addEventListener('click', e => {
+  const gf = e.target.closest('[data-gfilter]');
+  if (gf){
+    state.gFilter = gf.dataset.gfilter;
+    dbg('galéria: filter →', state.gFilter);
+    renderGGallery();
+    return;
+  }
+  const lk = e.target.closest('[data-like]');
+  if (lk){
+    const c = COMMUNITY_BP.find(x => x.id === lk.dataset.like); if (!c) return;
+    state.gLiked[c.id] = !state.gLiked[c.id];
+    c.likes += state.gLiked[c.id] ? 1 : -1;
+    dbg('galéria: like', c.id, state.gLiked[c.id] ? '+' : '−', 'total=' + c.likes);
+    if (state.gTab === 'gallery') renderGGallery(); else renderGMarket();
+    return;
+  }
+  const by = e.target.closest('[data-buy]');
+  if (by){
+    const c = COMMUNITY_BP.find(x => x.id === by.dataset.buy);
+    if (c) openCheckout(c);
+    return;
+  }
+  const rx = e.target.closest('[data-remix]');
+  if (rx){
+    const c = COMMUNITY_BP.find(x => x.id === rx.dataset.remix); if (!c) return;
+    if (c.price && !c.owned){
+      state.gTab = 'market';
+      renderGallery();
+      toast('Platený blueprint — dokonči nákup v Marketplace (' + c.price + ' €)', 'warn');
+      dbg('galéria: remix zamknutý → market', c.id);
+      return;
+    }
+    c.remixes++;
+    audit('Remix spustený', c.title + ' od ' + c.author);
+    log('⟳ remix: „' + c.title + '“ od ' + c.author, 'info');
+    toast('Remixujem „' + c.title + '“…', 'ok');
+    dbg('galéria: remix', c.id, 'kind=' + c.kind, 'remixov=' + c.remixes);
+    generate('Remix „' + c.title + '“ od ' + c.author + ' — ' + c.tags.join(', '), KIND_INFO[c.kind] ? c.kind : undefined);
+    return;
+  }
+  if (e.target.closest('[data-publish]')){
+    const snap = edSnap();
+    if (!snap){ toast('Najprv vygeneruj projekt, ktorý chceš publikovať', 'warn'); dbg('galéria: publish bez projektu'); return; }
+    audit('Publikácia do galérie', '„' + $('#sessionTitle').textContent + '“ v' + snap.v + ' → moderácia');
+    toast('Projekt odoslaný na moderáciu — schválenie do 24 h (demo)', 'ok');
+    log('🌐 galéria: projekt odoslaný na moderáciu', 'info');
+    dbg('galéria: publish', 'snap=' + snap.id.slice(0, 7));
+    setTimeout(() => {
+      COMMUNITY_BP.push({ id: uid(), title: $('#sessionTitle').textContent || 'Môj projekt', author: '@ty',
+        kind: snap.kind, likes: 0, remixes: 0, price: 0, trending: false, tags: ['Komunita', 'Nové'],
+        grad: 'linear-gradient(135deg,#2563eb,#38bdf8)', emoji: '🚀' });
+      toast('✅ Moderácia schválená — projekt je v galérii', 'ok');
+      log('✓ moderácia: projekt schválený a publikovaný', 'ok');
+      if (state.gTab === 'gallery') renderGallery();
+      dbg('galéria: publish schválený', 'v galérii=' + COMMUNITY_BP.length);
+    }, 1400);
+    return;
+  }
+  if (e.target.closest('[data-affcopy]')){
+    const a = affFor();
+    copy('https://forge.app/' + a.code);
+    toast('Affiliate link skopírovaný: forge.app/' + a.code, 'ok');
+    audit('Affiliate link skopírovaný', 'kód ' + a.code + ' (20 % / 12 mes)');
+    dbg('affiliate: copy', a.code);
+    return;
+  }
+  const vt = e.target.closest('[data-vote]');
+  if (vt){
+    if (state.gVoted){ toast('Už si hlasoval — 1 hlas per účet', 'warn'); dbg('contest: duplicitný hlas odmietnutý', state.gVoted); return; }
+    const en = CONTEST.entries.find(x => x.id === vt.dataset.vote); if (!en) return;
+    state.gVoted = en.id;
+    en.votes++;
+    audit('Hlas v conteste', en.title + ' → ' + en.votes + ' hlasov');
+    toast('Hlas pre „' + en.title + '“ prijatý 🏆', 'ok');
+    dbg('contest: hlas', en.id, 'votes=' + en.votes);
+    renderGContest();
+  }
+});
+$('#gcoClose').addEventListener('click', () => { $('#gCheckout').classList.remove('open'); dbg('marketplace: checkout zavretý'); });
+$('#gCheckout').addEventListener('click', e => {
+  if (e.target.id === 'gCheckout' && $('#gcoClose').style.display !== 'none'){
+    $('#gCheckout').classList.remove('open');
+    dbg('marketplace: checkout zavretý overlayom');
+  }
+});
 
 /* ---------- top bar ---------- */
 $('#modelChip').addEventListener('click', e => { e.stopPropagation(); $('#modelMenu').classList.toggle('open'); $('#settingsPop').classList.remove('open'); });
@@ -2498,6 +3282,8 @@ $('#newSessionBtn').addEventListener('click', () => {
   state.vfs = {}; state.branches = [{ name: 'main', headIdx: Infinity }]; state.branch = 'main';
   state.edFile = null; state.edEditing = false; state.pendingBrand = null;
   state.bk = {}; state.beTab = 'db'; state.pendingDomain = null;
+  state.comments = []; state.shareLinks = []; state.teamTab = 'team'; state.cmtOpen = null; state.pinMode = false;
+  $('#cmtLayer').innerHTML = '';
   $('#editToggle').classList.remove('active');
   $('#editTip').classList.remove('show');
   $('#publishBtnTxt').textContent = 'Publish';
@@ -2582,6 +3368,15 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
       mode: state.mode, viewport: state.viewport, zoomPct: state.zoomPct, tab: state.tab,
       editMode: state.editMode, publishedUrl: state.publishedUrl, generating: state.generating,
       isPublic: state.isPublic, model: state.model,
+      vfs: JSON.parse(JSON.stringify(state.vfs || {})), bk: JSON.parse(JSON.stringify(state.bk || {})),
+      branches: state.branches.slice(), branch: state.branch, edFile: state.edFile, edEditing: state.edEditing,
+      pendingBrand: state.pendingBrand, beTab: state.beTab, pendingDomain: state.pendingDomain,
+      teamTab: state.teamTab, team: JSON.parse(JSON.stringify(state.team || null)), ent: JSON.parse(JSON.stringify(state.ent || null)),
+      aff: JSON.parse(JSON.stringify(state.aff || null)), comments: JSON.parse(JSON.stringify(state.comments)),
+      shareLinks: JSON.parse(JSON.stringify(state.shareLinks)), audit: JSON.parse(JSON.stringify(state.audit)),
+      cmtOpen: state.cmtOpen, pinMode: state.pinMode, gTab: state.gTab, gFilter: state.gFilter,
+      gLiked: JSON.parse(JSON.stringify(state.gLiked || {})), gVoted: state.gVoted,
+      cbp: JSON.parse(JSON.stringify(COMMUNITY_BP)), contest: JSON.parse(JSON.stringify(CONTEST.entries)),
       modeAttr: document.body.dataset.mode, viewAttr: document.body.dataset.view
     };
   }
@@ -2590,8 +3385,18 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
       messages: s.messages, snapshots: s.snapshots, console: s.console, liveHtml: s.liveHtml,
       viewing: s.viewing, liveId: s.liveId, mode: s.mode, viewport: s.viewport, zoomPct: s.zoomPct,
       tab: s.tab, editMode: s.editMode, publishedUrl: s.publishedUrl, generating: s.generating,
-      isPublic: s.isPublic, model: s.model
+      isPublic: s.isPublic, model: s.model,
+      vfs: s.vfs, bk: s.bk, branches: s.branches, branch: s.branch, edFile: s.edFile,
+      edEditing: s.edEditing, pendingBrand: s.pendingBrand, beTab: s.beTab, pendingDomain: s.pendingDomain,
+      teamTab: s.teamTab, team: s.team, ent: s.ent, aff: s.aff, comments: s.comments, shareLinks: s.shareLinks,
+      audit: s.audit, cmtOpen: s.cmtOpen, pinMode: s.pinMode, gTab: s.gTab, gFilter: s.gFilter,
+      gLiked: s.gLiked, gVoted: s.gVoted
     });
+    COMMUNITY_BP.length = 0; s.cbp.forEach(x => COMMUNITY_BP.push(x));
+    CONTEST.entries.forEach((en, i) => Object.assign(en, s.contest[i]));
+    $('#bpWizard').classList.remove('open'); $('#domModal').classList.remove('open'); $('#gCheckout').classList.remove('open');
+    $('#cmtLayer').innerHTML = '';
+    setEdTab('preview');
     document.body.dataset.mode = s.modeAttr; document.body.dataset.view = s.viewAttr;
     $('#editToggle').classList.toggle('active', state.editMode);
     $('#editTip').classList.toggle('show', state.editMode && !!currentHtml());
@@ -2661,7 +3466,8 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
        'detectKind','renderChat','addMsg','withEditMode','currentHtml','renderPreview','renderRaw','renderConsole',
        'renderDiff','setTab','applyViewport','setZoom','setViewport','createSnapshot','renderHistory','viewSnapshot',
        'backToLive','showWorkspace','goHome','generate','autoGrow','updateTokens','manualSnapshot','flashSaving',
-       'startEditTitle','goEditor','renderEditor','renderEditorPreview','editorSelected'].forEach(n => {
+       'startEditTitle','goEditor','renderEditor','renderEditorPreview','editorSelected',
+       'teamFor','entFor','affFor','renderTeam','renderGallery','renderCmtPins','audit'].forEach(n => {
         ok(new Function('return typeof ' + n)() === 'function', n + ' nie je funkcia');
       });
     });
@@ -2785,7 +3591,7 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
     });
     t('renderDiff: fewer than 2 snapshots → hint', () => {
       state.snapshots = []; setTab('diff');
-      ok($('#diffInner').textContent.includes('aspoň 2 verzie'), 'hint');
+      ok($('#diffInner').textContent.includes('aspoň 2 verzií'), 'hint');
       setTab('preview');
     });
     t('toast: vytvorí element so správou', () => {
@@ -3001,8 +3807,9 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
       $('#settingsBtn').click();
       ok($('#settingsPop').classList.contains('open'), 'otvorené');
       const sw = document.querySelector('#settingsPop .switch:not(#pubSwitch)');
+      const wasOn = sw.classList.contains('on');
       sw.click();
-      ok(sw.classList.contains('on'), 'zapnuté');
+      eq(sw.classList.contains('on'), !wasOn, 'prepínač točí stav');
       document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       ok(!$('#settingsPop').classList.contains('open'), 'zatvorené');
     });
@@ -3123,6 +3930,551 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
       eq($('#saveStatus').textContent, 'Ukladám…', 'medzistav');
       await sleep(750);
       eq($('#saveStatus').textContent, 'Uložené', 'koncový stav');
+    });
+
+    /* ================= M2: editor, VFS, history, blueprints, prompty ================= */
+    t('M2 API: funkcie editora a konštanty existujú', () => {
+      ['setEdTab','filesFor','filesToHtml','renderEdFiles','renderEdCode','saveEdFile','edSnap',
+       'branchHeadIdx','renderEdHistory','applyBrand','openBpWizard','closeBpWizard',
+       'renderEdBpGrid','renderEdPromptGrid'].forEach(n => ok(typeof window[n] === 'function', n));
+      ok(Array.isArray(BLUEPRINTS) && BLUEPRINTS.length === 6, 'BLUEPRINTS');
+      ok(Array.isArray(PROMPT_LIB) && PROMPT_LIB.length === 8, 'PROMPT_LIB');
+      ok(typeof bpSelected !== 'undefined', 'bpSelected');
+    });
+    t('extIcon: mapa prípon + fallback', () => {
+      eq(extIcon('a.html'), '🟧', 'html');
+      eq(extIcon('a.css'), '🎨', 'css');
+      eq(extIcon('a.js'), '⚡', 'js');
+      eq(extIcon('README.md'), '📘', 'md');
+      eq(extIcon('data.bin'), '📄', 'neznáma prípona');
+    });
+    t('edSnap: priorita viewing > liveId > posledný snapshot', () => {
+      const a = { id:'sn1', v:1, prompt:'a', html:'A', time:'10:00', kind:'saas' };
+      const b = { id:'sn2', v:2, prompt:'b', html:'B', time:'10:01', kind:'saas' };
+      state.snapshots = [a, b]; state.liveId = 'sn1'; state.viewing = null;
+      eq(edSnap().id, 'sn1', 'liveId vyhráva');
+      state.viewing = b;
+      eq(edSnap().id, 'sn2', 'viewing má prednosť');
+      state.viewing = null; state.liveId = null;
+      eq(edSnap().id, 'sn2', 'fallback posledný snapshot');
+      state.snapshots = [];
+      ok(edSnap() === null, 'prázdna história → null');
+    });
+    t('filesFor: rozoberie single-file HTML na 4 súbory + cache', () => {
+      const s = { id:'vfsnap1', v:2, prompt:'test appka', time:'10:00', kind:'saas',
+        html:'<!doctype html><html><head><style>body{color:red}</style></head><body><h1>Ahoj</h1><script>let x = 1<\/script></body></html>' };
+      const f1 = filesFor(s);
+      eq(f1.length, 4, 'počet súborov');
+      eq(f1.map(x => x.name).join(','), 'index.html,styles.css,app.js,README.md', 'mená');
+      eq(f1[1].content, 'body{color:red}', 'css extrahované');
+      eq(f1[2].content, 'let x = 1', 'js extrahované');
+      ok(f1[0].content.includes('<link rel="stylesheet" href="styles.css">'), 'link placeholder');
+      ok(f1[0].content.includes('<script src="app.js">'), 'script src placeholder');
+      ok(!f1[0].content.includes('body{color:red}'), 'css už nie je v index.html');
+      ok(filesFor(s) === f1, 'cache — tá istá inštancia');
+      f1[3].content = 'zmenené';
+      eq(filesFor(s)[3].content, 'zmenené', 'cache drží zmeny');
+    });
+    t('filesFor: HTML bez style/script blokov → fallbacky', () => {
+      const s = { id:'vfsnap2', v:1, prompt:'p', time:'10:00', kind:'dashboard',
+        html:'<!doctype html><html><body>len text</body></html>' };
+      const f = filesFor(s);
+      eq(f[1].content, '/* žiadne štýly */', 'css fallback');
+      eq(f[2].content, '// žiadna logika', 'js fallback');
+      ok(!f[0].content.includes('link rel="stylesheet"'), 'bez placeholder linku');
+      ok(!f[0].content.includes('script src="app.js"'), 'bez placeholder scriptu');
+    });
+    t('filesToHtml: roundtrip vráti upravené css aj js do jedného súboru', () => {
+      const s = { id:'vfsnap3', v:1, prompt:'p', time:'10:00', kind:'saas',
+        html:'<!doctype html><html><head><style>a{b:c}</style></head><body><h1>x</h1><script>z()<\/script></body></html>' };
+      const f = filesFor(s);
+      f[1].content = 'a{color:gold}';
+      f[2].content = 'z();y();';
+      const out = filesToHtml(f);
+      ok(out.includes('<style>\na{color:gold}\n</style>'), 'nové css vložené');
+      ok(out.includes('<script>\nz();y();\n<\/script>'), 'nový js vložený');
+      ok(!out.includes('href="styles.css"'), 'placeholder preč');
+      ok(!out.includes('src="app.js"'), 'placeholder preč');
+    });
+    t('filesToHtml: bez zástupných značiek vráti index.html nezmenený', () => {
+      const out = filesToHtml([
+        { name:'index.html', content:'<html><body>x</body></html>' },
+        { name:'styles.css', content:'a{b:c}' },
+        { name:'app.js', content:'z()' }
+      ]);
+      eq(out, '<html><body>x</body></html>', 'nič sa nevložilo');
+    });
+    t('applyBrand: premapuje mená, farby (aj upper-case) aj soft pozadie', () => {
+      const src = '<b>Nimbus</b><i>FlowDeck</i><em>Aurora</em><span style="color:#7c3aed">#7C3AED</span><div style="background:#f3eefc">x</div>';
+      const out = applyBrand(src, { name:'Zenitest', color:'#00aa99' });
+      ok(out.includes('Zenitest') && !/Nimbus|FlowDeck|Aurora/.test(out), 'mená');
+      ok((out.match(/#00aa99/g) || []).length >= 2, 'farby lowercase aj uppercase');
+      ok(out.includes('#00aa9926'), 'soft pozadie z #f3eefc');
+    });
+    t('branchHeadIdx: main sleduje posledný commit, feature drží index', () => {
+      state.snapshots = [{ id:'a' }, { id:'b' }, { id:'c' }];
+      eq(branchHeadIdx({ name:'main', headIdx:Infinity }), 2, 'Infinity → posledný');
+      eq(branchHeadIdx({ name:'feature/x', headIdx:1 }), 1, 'fixný index');
+      state.snapshots = [];
+      eq(branchHeadIdx({ name:'main', headIdx:Infinity }), -1, 'prázdna história → -1');
+    });
+    t('setEdTab: prepína taby aj panely, resetuje editáciu', () => {
+      state.edEditing = true;
+      setEdTab('files');
+      ok($('#edTabs [data-edtab="files"]').classList.contains('active'), 'tab aktívny');
+      ok($('.ed-pane[data-edpane="files"]').classList.contains('active'), 'pane aktívny');
+      ok(!$('.ed-pane[data-edpane="preview"]').classList.contains('active'), 'preview skrytý');
+      ok(!state.edEditing, 'edit režim resetovaný');
+      setEdTab('backend');
+      ok($('.ed-pane[data-edpane="backend"]').classList.contains('active'), 'backend pane aktívny');
+      setEdTab('preview');
+      ok($('.ed-pane[data-edpane="preview"]').classList.contains('active'), 'návrat na preview');
+    });
+    t('renderEdFiles + renderEdCode: zoznam, výber súboru, meta', () => {
+      const s = { id:'edsnap1', v:1, prompt:'p', time:'10:00', kind:'kanban',
+        html:'<html><head><style>s{}</style></head><body><script>k()<\/script></body></html>' };
+      state.snapshots = [s]; state.liveId = s.id; state.liveHtml = s.html; state.viewing = null; state.edFile = null;
+      setEdTab('files');
+      eq($$('#edFileList .ed-fileitem').length, 4, '4 súbory');
+      $$('#edFileList .ed-fileitem')[1].click();
+      eq(state.edFile, 'styles.css', 'klik vyberie súbor');
+      eq($('#edCodeFile').textContent, 'styles.css', 'codebar názov');
+      ok($('#edFileMeta').textContent.includes('riadkov'), 'meta riadky');
+      setEdTab('preview');
+    });
+    t('saveEdFile: uloží zmeny do snapshotu aj liveHtml + edge prípady', () => {
+      const s = { id:'edsnap2', v:1, prompt:'p', time:'10:00', kind:'kanban',
+        html:'<html><head><style>a{b:c}</style></head><body>x</body></html>' };
+      state.snapshots = [s]; state.liveId = s.id; state.liveHtml = s.html; state.viewing = null;
+      state.edFile = 'styles.css';
+      $('#edCodeTa').value = 'a{color:gold}';
+      saveEdFile();
+      ok(s.html.includes('a{color:gold}') && !s.html.includes('a{b:c}'), 'snapshot html aktualizované');
+      ok(state.liveHtml.includes('a{color:gold}'), 'liveHtml aktualizované');
+      ok(filesFor(s)[1].modified, 'modified badge nastavený');
+      ok(!state.edEditing, 'edit režim vypnutý po uložení');
+      const after = s.html;
+      state.edFile = null;
+      saveEdFile();
+      eq(s.html, after, 'edge: null edFile → tichý no-op (viď REVIEW)');
+      state.edFile = 'styles.css'; state.liveId = null;
+      saveEdFile();
+      ok(true, 'edge: bez liveId nepadne (fallback na posledný snapshot)');
+      setEdTab('preview');
+    });
+    t('renderEdHistory: commity s hashom, HEAD badge a diff štatistikou', () => {
+      state.snapshots = [
+        { id:'abcdefgh1234', v:1, prompt:'prvá verzia', html:'<p>a</p>\n<p>b</p>', time:'08:00', kind:'saas' },
+        { id:'ijklmnop5678', v:2, prompt:'druhá verzia', html:'<p>a</p>\n<p>c</p>', time:'08:05', kind:'saas' }
+      ];
+      state.branches = [{ name:'main', headIdx:Infinity }]; state.branch = 'main';
+      renderEdHistory();
+      const rows = $$('#edCommits .ed-commit');;
+      eq(rows.length, 2, 'oba commity, najnovší hore');
+      ok(rows[0].classList.contains('head'), 'HEAD na najnovšom');
+      eq(rows[0].querySelector('.hash').textContent, 'ijklmno', 'hash skrátený na 7 znakov');
+      ok(rows[0].textContent.includes('+1') && rows[0].textContent.includes('−1'), 'diff štatistika +1/−1');
+      ok(rows[0].textContent.includes('druhá verzia'), 'správa commitu');
+      ok($('#edBranchSeg').textContent.includes('main'), 'branch segment');
+    });
+    t('blueprint galéria: 6 šablón s kompletnými poľami + render', () => {
+      const ids = new Set();
+      BLUEPRINTS.forEach(bp => {
+        ok(ids.has(bp.id) === false, bp.id + ' — unikátne id'); ids.add(bp.id);
+        ok(['saas','kanban','settings','dashboard'].includes(bp.kind), bp.id + ' — platný kind');
+        ok(bp.emoji && bp.name && bp.desc && bp.demo && bp.time && bp.stack, bp.id + ' — polia vyplnené');
+      });
+      renderEdBpGrid();
+      eq($$('#edBpGrid .ed-bp').length, 6, '6 kariet v galérii');
+      setEdTab('preview');
+    });
+    t('prompt knižnica: 8 promptov so zástupnými zátvorkami + klik vloží', () => {
+      PROMPT_LIB.forEach(p => {
+        ok(p.cat && p.title && p.text.includes('['), p.title + ' — polia a [zátvorky]');
+      });
+      renderEdPromptGrid();
+      eq($$('#edPromptGrid .ed-prompt').length, 8, '8 kariet');
+      state.mode = 'home';
+      $('#edPromptGrid .ed-prompt').click();
+      eq(homeInput.value, PROMPT_LIB[0].text, 'prompt vložený do composeru');
+      homeInput.value = '';
+      setEdTab('preview');
+    });
+    t('blueprint wizard: open + close + Escape', () => {
+      openBpWizard(BLUEPRINTS[0]);
+      ok($('#bpWizard').classList.contains('open'), 'otvorený');
+      ok($('#bpwTitle').textContent.includes(BLUEPRINTS[0].name), 'titulok podľa blueprintu');
+      closeBpWizard();
+      ok(!$('#bpWizard').classList.contains('open'), 'close zavrie');
+      openBpWizard(BLUEPRINTS[1]);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape' }));
+      ok(!$('#bpWizard').classList.contains('open'), 'Escape zavrie');
+      ok($('#bpwStep1').style.display !== 'none', 'wizard resetovaný na krok 1');
+    });
+    await ta('blueprint wizard: plný flow → generácia s brandom Zenitest', async () => {
+      state.messages = []; state.snapshots = []; state.liveHtml = null; state.viewing = null;
+      state.generating = false; state.pendingBrand = null; state.publishedUrl = null;
+      const bp = BLUEPRINTS.find(b => b.kind === 'saas');
+      openBpWizard(bp);
+      $('#bpwBrand').value = 'Zenitest';
+      $('#bpwColor').value = '#00aa99';
+      $('#bpwNext').click();
+      ok($('#bpwStep2').style.display === 'flex', 'kroky wizardu bežia');
+      await sleep(5200);
+      ok(!$('#bpWizard').classList.contains('open'), 'wizard zavretý');
+      eq(state.pendingBrand, null, 'brand spotrebovaný v generate');
+      eq(state.snapshots.length, 1, 'snapshot v1');
+      ok(state.liveHtml.includes('Zenitest'), 'brand meno v appke');
+      ok(state.liveHtml.includes('#00aa99'), 'brand farba v appke');
+      ok(!state.liveHtml.includes('Nimbus'), 'pôvodné meno preč');
+      ok(state.snapshots[0].html.includes('Zenitest'), 'snapshot obsahuje brand');
+    });
+
+    /* ================= M3: backend — DB, auth, funkcie, domény ================= */
+    t('M3 API: backend funkcie a konštanty existujú', () => {
+      ['seedBackend','backendFor','renderBackend','renderBeDb','renderBeAuth','renderBeFns','renderBeDomains'].forEach(n => {
+        ok(typeof window[n] === 'function', n);
+      });
+      ok(typeof AUTH_INJECT === 'string' && AUTH_INJECT.includes('<!-- forge-auth -->'), 'AUTH_INJECT s markerom');
+      ok(AUTH_INJECT.includes('Prihlásenie') && AUTH_INJECT.includes('#2563eb'), 'login karta so štýlom');
+      ok(Array.isArray(BE_TABS) && BE_TABS.length === 4, 'BE_TABS 4 sub-taby');
+    });
+    t('seedBackend: schéma podľa typu appky + users tabuľka + endpointy', () => {
+      const kinds = { saas:'leads', kanban:'tasks', settings:'profiles', dashboard:'orders' };
+      Object.keys(kinds).forEach(k => {
+        eq(seedBackend({ kind:k, id:'x' }).tables[0].name, kinds[k], k);
+      });
+      eq(seedBackend({ kind:'neexistuje', id:'x' }).tables[0].name, 'orders', 'neznámy kind → dashboard fallback');
+      const be = seedBackend({ kind:'saas', id:'x' });
+      eq(be.tables.length, 2, 'app tabuľka + users');
+      eq(be.tables[1].name, 'users', 'users tabuľka');
+      ok(be.tables[1].rows.length >= 3, 'seed end-useri');
+      eq(be.table, be.tables[0].name, 'aktuálna tabuľka = prvá');
+      ok(!be.auth.enabled, 'auth defaultne vypnuté');
+      eq(be.auth.providers['E-mail'], true, 'email provider zapnutý');
+      eq(be.auth.providers['GitHub'], false, 'github provider vypnutý');
+      eq(be.fns.length, 4, '4 endpointy');
+      be.fns.forEach(f => {
+        ok(['GET','POST'].includes(f.method), f.path + ' — metóda');
+        ok(f.path.startsWith('/api/'), f.path + ' — cesta');
+        ok(f.ms > 0, f.path + ' — latencia');
+      });
+      eq(be.domains.length, 1, 'seed doména forge.app');
+      ok(be.domains[0].primary && be.domains[0].ssl === 'active', 'seed doména primárna so SSL');
+    });
+    t('backendFor: bez projektu null, inak cache per snapshot', () => {
+      eq(backendFor(null), null, 'null snapshot → null');
+      const s = { id:'bksnap1', v:1, prompt:'p', time:'10:00', kind:'kanban', html:'<html><body>b</body></html>' };
+      const be1 = backendFor(s);
+      eq(be1.table, 'tasks', 'seed podľa kind (kanban)');
+      ok(backendFor(s) === be1, 'vráti cached inštanciu');
+      const s2 = { id:'bksnap2', v:2, prompt:'p', time:'10:01', kind:'settings', html:'<html><body>c</body></html>' };
+      eq(backendFor(s2).table, 'profiles', 'druhý snapshot má vlastný backend');
+      state.bk = {};
+    });
+    t('renderBackend: bez projektu prázdny stav + sub-taby prepínateľné', () => {
+      state.viewing = null; state.liveId = null; state.snapshots = [];
+      state.bk = {}; state.beTab = 'db';
+      renderBackend();
+      ok($('#beContent').textContent.includes('Žiadny projekt'), 'prázdny stav');
+      eq($$('#beSeg [data-betab]').length, 4, '4 sub-taby');
+      ok($('#beCtx').textContent.includes('žiadny projekt'), 'kontext');
+      $$('#beSeg [data-betab]')[2].click();
+      eq(state.beTab, 'fns', 'klik na sub-tab fns');
+      ok($('#beContent').textContent.includes('Žiadny projekt'), 'aj fns bez projektu');
+    });
+    t('M3 DB: data browser, insert, delete, prepínanie tabuliek', () => {
+      const s = { id:'dbsnap1', v:1, prompt:'p', time:'10:00', kind:'kanban', html:'<html><body>d</body></html>' };
+      state.snapshots = [s]; state.viewing = null; state.liveId = s.id; state.liveHtml = s.html;
+      state.bk = {}; state.beTab = 'db';
+      renderBackend();
+      const be = backendFor(s);
+      const rows0 = be.tables[0].rows.length;
+      eq($$('#beContent .be-chip').length, 2, 'chips: tasks + users');
+      ok($('#beContent').textContent.includes('schéma:'), 'schéma zobrazená');
+      $('#beContent [data-addrow]').click();
+      eq(be.tables[0].rows.length, rows0 + 1, 'insert pridal riadok');
+      eq($$('#beContent .be-table tbody tr').length, rows0 + 1, 'DOM riadky sync');
+      $('#beContent [data-delrow]').click();
+      eq(be.tables[0].rows.length, rows0, 'delete vrátil počet');
+      $('#beContent [data-btable="users"]').click();
+      eq(be.table, 'users', 'výber tabuľky users');
+      ok($('#beContent').textContent.includes('jana@enduser.sk'), 'users dáta v browsery');
+      setEdTab('preview');
+    });
+    t('M3 auth: toggle vloží login do preview a späť ho čisto vráti', () => {
+      const s = { id:'authsnap1', v:1, prompt:'p', time:'10:00', kind:'saas',
+        html:'<html><head></head><body><h1>Ahoj</h1></body></html>' };
+      state.snapshots = [s]; state.viewing = null; state.liveId = s.id; state.liveHtml = s.html;
+      state.bk = {}; state.beTab = 'auth';
+      renderBackend();
+      const be = backendFor(s);
+      eq(be.auth.sessions, 0, 'sessions na začiatku 0');
+      $('#beContent [data-authtoggle]').click();
+      ok(be.auth.enabled, 'auth zapnuté');
+      ok(s.html.includes('<!-- forge-auth -->'), 'marker v snapshot html');
+      ok(s.html.includes('Prihlásenie'), 'login karta vložená');
+      ok(state.liveHtml.includes('Prihlásenie'), 'live preview aktualizované');
+      ok(be.auth.sessions > 0, 'sessions metrika zapísaná');
+      ok(be.auth.providers['Google'] === true, 'providers prežili toggle');
+      $('#beContent [data-authtoggle]').click();
+      ok(!be.auth.enabled, 'auth vypnuté');
+      ok(!s.html.includes('forge-auth') && !s.html.includes('Prihlásenie'), 'login čisto odstránený');
+      ok(!state.liveHtml.includes('Prihlásenie'), 'preview vrátené');
+      ok(s.html.includes('<h1>Ahoj</h1>'), 'pôvodný obsah nepoškodený');
+      $('#beContent [data-prov="GitHub"]').click();
+      eq(be.auth.providers['GitHub'], true, 'provider zapnutý klikom');
+      $('#beContent [data-prov="GitHub"]').click();
+      eq(be.auth.providers['GitHub'], false, 'provider vypnutý klikom');
+      setEdTab('preview');
+    });
+    await ta('M3 funkcie: „Testovať“ odpovie 200 OK do Console', async () => {
+      const s = { id:'fnsnap1', v:1, prompt:'p', time:'10:00', kind:'kanban', html:'<html><body>f</body></html>' };
+      state.snapshots = [s]; state.viewing = null; state.liveId = s.id;
+      state.bk = {}; state.beTab = 'fns'; state.console = [];
+      renderBackend();
+      eq($$('#beContent .be-method').length, 4, '4 endpointy v zozname');
+      ok($('#beContent .be-method.get') && $('#beContent .be-method.post'), 'GET aj POST badge');
+      $('#beContent [data-betest]').click();
+      eq($('#beContent [data-betest]').textContent, '…', 'tlačidlo blokované počas testu');
+      await sleep(900);
+      const last = state.console[state.console.length - 1];
+      ok(last && /⚡ GET \/api\/tasks → 200 OK/.test(last.txt), 'console: 200 OK log');
+      eq($('#beContent [data-betest]').textContent, 'Testovať', 'tlačidlo odblokované');
+      eq(last.cls, 'ok', 'log klasifikovaný ako ok');
+      setEdTab('preview');
+    });
+    await ta('M3 domény: validácia, DNS/SSL wizard, duplicita, primárna, odobratie', async () => {
+      const s = { id:'domsnap1', v:1, prompt:'p', time:'10:00', kind:'saas', html:'<html><body>x</body></html>' };
+      state.snapshots = [s]; state.viewing = null; state.liveId = s.id;
+      state.bk = {}; state.beTab = 'domains';
+      renderBackend();
+      const be = backendFor(s);
+      eq(be.domains.length, 1, 'seed forge.app doména');
+      ['mojafirma', 'app .sk', 'app..sk'].forEach(d => {
+        $('#beDomInput').value = d;
+        $('#beDomAdd').click();
+        ok(!$('#domModal').classList.contains('open'), 'neplatná „' + d + '“ nespustí wizard');
+        eq(be.domains.length, 1, '„' + d + '“ nepridaná');
+      });
+      $('#beDomInput').value = 'app.zenitest.sk';
+      $('#beDomAdd').click();
+      ok($('#domModal').classList.contains('open'), 'wizard otvorený pre platnú doménu');
+      await sleep(3100);
+      eq(be.domains.length, 2, 'doména pripojená');
+      const d = be.domains.find(x => x.name === 'app.zenitest.sk');
+      ok(d && d.ssl === 'active', 'SSL aktívne');
+      ok(d && !d.primary, 'nie je primárna');
+      ok($('#domClose').style.display !== 'none', 'Hotovo tlačidlo viditeľné');
+      $('#domClose').click();
+      ok(!$('#domModal').classList.contains('open'), 'wizard zavretý');
+      $('#beDomInput').value = 'app.zenitest.sk';
+      $('#beDomAdd').click();
+      eq(be.domains.length, 2, 'duplicitná doména odmietnutá');
+      $('#beContent [data-domprimary]').click();
+      ok(be.domains.find(x => x.name === 'app.zenitest.sk').primary, 'nová primárna');
+      eq(be.domains.filter(x => x.primary).length, 1, 'práve jedna primárna');
+      $('#beContent [data-domdel]').click();
+      eq(be.domains.length, 1, 'stará doména odobraná');
+      ok(be.domains[0].primary, 'zostávajúca je primárna');
+      setEdTab('preview');
+    });
+    t('M4 tím: seed, RBAC cyklus, owner zamknutý, invite, seat billing', () => {
+      state.team = null; state.audit = [];
+      setEdTab('team');
+      const tm = teamFor();
+      eq(tm.members.length, 3, 'seed: 3 členov');
+      eq(tm.seats, 3, 'seed: 3 seaty');
+      eq($$('#tmSeg [data-tmtab]').length, 5, '5 sub-tabov (Tím → Compliance)');
+      ok($('#tmCtx').textContent.includes('Business'), 'plan v kontexte');
+      $$('#tmContent [data-role]')[0].click();
+      eq(tm.members[0].role, 'owner', 'owner sa nedá zmeniť');
+      eq(tm.members[1].role, 'admin', 'východisková rola admin');
+      $$('#tmContent [data-role]')[1].click();
+      eq(tm.members[1].role, 'editor', 'admin → editor');
+      $$('#tmContent [data-role]')[1].click();
+      eq(tm.members[1].role, 'viewer', 'editor → viewer');
+      $$('#tmContent [data-role]')[1].click();
+      eq(tm.members[1].role, 'admin', 'viewer → admin (cyklus dokruhu)');
+      $$('#tmContent [data-seat]')[0].click();
+      eq(tm.seats, 4, 'seat pridaný (prorata +16,67 €)');
+      $('#tmInviteEmail').value = 'neplatny-email';
+      $('#tmInviteBtn').click();
+      eq(tm.members.length, 3, 'neplatný e-mail nepridal člena');
+      $('#tmInviteEmail').value = 'olivia.nova@forge.dev';
+      $('#tmInviteBtn').click();
+      eq(tm.members.length, 4, 'pozvánka pridala člena');
+      eq(tm.members[3].role, 'viewer', 'nový člen začína ako viewer');
+      ok(state.audit.length > 0, 'tímové akcie skončili v audit logu');
+      setEdTab('preview');
+    });
+    t('M4 share: linky s permisiami, expiráciou, revokáciou + audit', () => {
+      const s = { id:'shsnap1', v:1, prompt:'p', time:'10:00', kind:'saas', html:'<html><body>sh</body></html>' };
+      state.snapshots = [s]; state.viewing = null; state.liveId = s.id; state.liveHtml = s.html;
+      state.shareLinks = []; state.teamTab = 'share';
+      setEdTab('team');
+      ok($('#tmContent').textContent.includes('Zatiaľ žiadne share linky'), 'prázdny stav');
+      $('#shPerm').value = 'comment'; $('#shExp').value = '7d';
+      $('#shCreate').click();
+      eq(state.shareLinks.length, 1, 'link vytvorený');
+      ok(state.shareLinks[0].url.startsWith('forge.app/s/'), 'formát URL forge.app/s/xx');
+      eq(state.shareLinks[0].perm, 'comment', 'permisia prenesená');
+      eq(state.shareLinks[0].exp, '7d', 'expirácia prenesená');
+      $('#tmContent [data-shcopy]').click();
+      $('#tmContent [data-shrevoke]').click();
+      eq(state.shareLinks.length, 0, 'link revokovaný');
+      state.teamTab = 'audit';
+      renderTeam();
+      ok($('#tmContent').textContent.includes('Share link vytvorený'), 'audit: vytvorenie zaznamenané');
+      ok($('#tmContent').textContent.includes('revokovaný'), 'audit: revokácia zaznamenaná');
+      setEdTab('preview');
+    });
+    await ta('M4 komentáre: pin režim, pin na presné miesto, AI odpoveď, resolve', async () => {
+      state.comments = []; state.pinMode = false; state.cmtOpen = null; state.teamTab = 'comments';
+      setEdTab('team');
+      ok($('#tmContent').textContent.includes('Zatiaľ žiadne komentáre'), 'prázdny stav');
+      $$('#tmContent [data-cmtmode]')[0].click();
+      ok(state.pinMode, 'pin režim zapnutý');
+      ok($('#cmtLayer').classList.contains('pinning'), 'vrstva zachytáva kliky do preview');
+      eq($('#cmtLayer').textContent, '', 'žiadne piny pred klikom');
+      const layer = $('#cmtLayer');
+      const origGBCR = layer.getBoundingClientRect.bind(layer);
+      layer.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 300 });
+      layer.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 120, clientY: 90 }));
+      layer.getBoundingClientRect = origGBCR;
+      eq(state.comments.length, 1, 'pin vytvorený klikom');
+      eq(state.comments[0].x, 30, 'x = 30 % (120/400)');
+      eq(state.comments[0].y, 30, 'y = 30 % (90/300)');
+      eq(state.cmtOpen, state.comments[0].id, 'vlákno automaticky otvorené');
+      eq(state.pinMode, false, 'pin režim sa sám vypol');
+      ok($('#cmtLayer .cmt-pin'), 'pin v preview vrstve');
+      $('#cmtReplyInput').value = 'pridaj tmavú tému';
+      $('#tmContent [data-cmtreply]').click();
+      eq(state.comments[0].text, 'pridaj tmavú tému', 'text komentára uložený');
+      await sleep(1000);
+      eq(state.comments[0].replies.length, 1, 'AI odpoveď prišla po delay');
+      eq(state.comments[0].replies[0].author, 'AI Reviewer', 'autor: AI Reviewer');
+      $('#tmContent [data-cmtresolve]').click();
+      ok(state.comments[0].resolved, 'komentár resolvenutý');
+      ok($('#cmtLayer .cmt-pin').classList.contains('resolved'), 'pin prepnutý na vyriešený');
+      setEdTab('preview');
+    });
+    t('M5 compliance: SSO/SAML toggle, GDPR soft-delete, SOC 2 + SLA + rate limiting', () => {
+      state.ent = null; state.teamTab = 'ent';
+      setEdTab('team');
+      const ent = entFor();
+      eq(ent.sso, false, 'SSO defaultne vypnuté');
+      ok($('#tmContent').textContent.includes('SOC 2'), 'SOC 2 status zobrazený');
+      ok($('#tmContent').textContent.includes('Rate limiting'), 'rate meter zobrazený');
+      ok($('#tmContent').textContent.includes('99,94 %'), 'SLA metrika');
+      $('#tmContent [data-ssotoggle]').click();
+      ok(ent.sso, 'SSO zapnuté');
+      $('#tmContent [data-ssotoggle]').click();
+      ok(!ent.sso, 'SSO vypnuté');
+      $('#tmContent [data-gdprdelete]').click();
+      ok(ent.softDelete, 'soft-delete 30 dní aktivovaný');
+      $('#tmContent [data-gdprdelete]').click();
+      eq(ent.softDelete, null, 'soft-delete zrušený pred lehotou');
+      setEdTab('preview');
+    });
+    t('M6 galéria: filtre, lajky, publikácia bez projektu, 1 hlas per účet', () => {
+      state.snapshots = []; state.viewing = null; state.liveId = null;
+      state.gTab = 'gallery'; state.gFilter = 'all'; state.gLiked = {}; state.gVoted = null;
+      setEdTab('gallery');
+      eq($$('#gSeg [data-gtab]').length, 4, '4 sub-taby (Galéria → Contest)');
+      const all = $$('#gContent .g-card').length;
+      ok(all >= 8, 'minimálne 8 komunitných projektov');
+      $$('#gContent [data-gfilter]')[3].click();
+      eq(state.gFilter, 'paid', 'filter platené zapísaný');
+      ok($$('#gContent .g-card').length < all, 'filter zužuje výber');
+      $$('#gContent [data-gfilter]')[0].click();
+      eq(state.gFilter, 'all', 'späť na všetky');
+      const c0 = COMMUNITY_BP[0];
+      const l0 = c0.likes;
+      $('#gContent .g-like').click();
+      eq(c0.likes, l0 + 1, 'lajk pripočítaný');
+      ok(state.gLiked[c0.id], 'lajk zapísaný');
+      $('#gContent .g-like').click();
+      eq(c0.likes, l0, 'druhý klik lajk ruší');
+      const before = COMMUNITY_BP.length;
+      $$('#gContent [data-publish]')[0].click();
+      eq(COMMUNITY_BP.length, before, 'publish bez projektu nič nepridal');
+      state.gTab = 'contest';
+      setEdTab('gallery');
+      const lead0 = CONTEST.entries.slice().sort((a, b) => b.votes - a.votes)[0];
+      const v0 = lead0.votes;
+      $$('#gContent [data-vote]')[0].click();
+      eq(state.gVoted, lead0.id, 'hlas zapísaný');
+      eq(lead0.votes, v0 + 1, 'hlas pripočítaný');
+      $$('#gContent [data-vote]')[1].click();
+      eq(state.gVoted, lead0.id, 'druhý hlas odmietnutý (1 per účet)');
+      setEdTab('preview');
+    });
+    await ta('M6 marketplace: zamknutý remix, checkout, odomknutie, remix generuje projekt', async () => {
+      state.gTab = 'gallery'; state.gFilter = 'all'; state.snapshots = []; state.messages = [];
+      setEdTab('gallery');
+      const paid = COMMUNITY_BP.find(c => c.price && !c.owned);
+      ok(paid, 'existuje platený blueprint');
+      const snaps0 = state.snapshots.length;
+      $('#gContent [data-remix="' + paid.id + '"]').click();
+      eq(state.gTab, 'market', 'zamknutý remix presmeroval na marketplace');
+      ok(!paid.owned, 'pred platbou stále zamknutý');
+      $('#gContent [data-buy="' + paid.id + '"]').click();
+      ok($('#gCheckout').classList.contains('open'), 'checkout otvorený');
+      await sleep(3200);
+      ok(paid.owned, 'odomknuté po platbe');
+      eq($('#gcoClose').style.display, 'flex', 'Hotovo tlačidlo viditeľné');
+      $('#gcoClose').click();
+      ok(!$('#gCheckout').classList.contains('open'), 'checkout zavretý');
+      state.gTab = 'gallery';
+      renderGallery();
+      const rx0 = paid.remixes;
+      $('#gContent [data-remix="' + paid.id + '"]').click();
+      eq(paid.remixes, rx0 + 1, 'remix počítadlo zapísané');
+      await sleep(2900);
+      eq(state.snapshots.length, snaps0 + 1, 'remix vygeneroval nový snapshot');
+      setEdTab('preview');
+    });
+    t('M6 affiliate: seed kódu, 20 % provízia, 12 mesiacov recurring, copy + audit', () => {
+      state.aff = null; state.gTab = 'aff';
+      setEdTab('gallery');
+      const a = affFor();
+      ok(a.code.startsWith('r-'), 'affiliate kód r-xxx');
+      ok($('#gContent').textContent.includes('20 %'), 'provízia 20 % zobrazená');
+      ok($('#gContent').textContent.includes('12 mesiacov'), 'recurring 12 mesiacov');
+      ok($('#gContent').textContent.includes('forge.app/' + a.code), 'referral link zobrazený');
+      $('#gContent [data-affcopy]').click();
+      ok(state.audit.some(x => x.action.includes('Affiliate')), 'copy zaznamenaný v audit logu');
+      setEdTab('preview');
+    });
+
+    t('nový projekt: reset celého M2–M6 stavu', () => {
+      state.vfs = { z: 1 }; state.bk = { z: 1 };
+      state.comments = [{ id:'c' }]; state.shareLinks = [{ id:'l' }]; state.teamTab = 'share';
+      state.pinMode = true; state.cmtOpen = 'xx';
+      state.branches = [{ name:'main', headIdx:Infinity }, { name:'feature/aa', headIdx:0 }];
+      state.branch = 'feature/aa'; state.edFile = 'styles.css'; state.edEditing = true;
+      state.pendingBrand = { name:'x' }; state.beTab = 'domains'; state.pendingDomain = 'x.sk';
+      state.messages = []; state.snapshots = []; state.liveHtml = null; state.viewing = null;
+      state.liveId = null; state.generating = false; state.publishedUrl = null; state.editMode = false;
+      $('#newSessionBtn').click();
+      eq(JSON.stringify(state.vfs), '{}', 'vfs reset');
+      eq(JSON.stringify(state.bk), '{}', 'bk reset');
+      eq(state.branches.length, 1, 'branche reset');
+      eq(state.branch, 'main', 'branch main');
+      eq(state.branches[0].headIdx, Infinity, 'main sleduje HEAD');
+      eq(state.edFile, null, 'edFile reset');
+      ok(!state.edEditing, 'edEditing reset');
+      eq(state.pendingBrand, null, 'pendingBrand reset');
+      eq(state.beTab, 'db', 'beTab reset');
+      eq(state.pendingDomain, null, 'pendingDomain reset');
+      eq(state.comments.length, 0, 'komentáre reset');
+      eq(state.shareLinks.length, 0, 'share linky reset');
+      eq(state.teamTab, 'team', 'teamTab reset');
+      eq(state.pinMode, false, 'pin režim reset');
+      eq(state.cmtOpen, null, 'otvorené vlákno reset');
+      eq($('#cmtLayer').innerHTML, '', 'piny vymazané z DOM');
+      ok(state.team, 'tím prežíva (account-level)');
     });
   }
 

@@ -28,9 +28,9 @@
 | **M1** | **Reálny engine + MVP predaj** | AI backend, multi-file codegen, sandbox preview, auth, hosting na `*.forge.app`, billing Free/Pro | 6–10 týždňov | **prvý platiaci zákazník** |
 | **M2** | **Editor + blueprinty** | file explorer, Monaco, git-like history, blueprint galéria + wizard, prompt knižnica | 6–8 týždňov | Pro retencia, onboarding do 5 min — **✅ prototyp hotový (M2 Build Prompt nižšie)** |
 | **M3** | **Fullstack & data** | DB pre vygenerované appky, auth pre end-userov, backend funkcie, custom domény + SSL | 6–8 týždňov | appky „robia niečo užitočné" — **✅ prototyp hotový (M3 Build Prompt nižšie)** |
-| **M4** | **Tímy & Business tier** | realtime kolaborácia, komentáre v preview, share linky, seat billing, RBAC | 6–8 týždňov | B2B (Business) plán |
-| **M5** | **Enterprise & scale** | SSO/SAML, audit log, compliance (GDPR/SOC2 cesta), SLA, rate limiting | 8–12 týždňov | Enterprise zákazky |
-| **M6** | **Ekosystém** | komunitná galéria, marketplace blueprintov, remix, affiliate, template contest | priebežne | rast organický (virality) |
+| **M4** | **Tímy & Business tier** | realtime kolaborácia, komentáre v preview, share linky, seat billing, RBAC | 6–8 týždňov | B2B (Business) plán — **✅ prototyp hotový (Build Prompty nižšie)** |
+| **M5** | **Enterprise & scale** | SSO/SAML, audit log, compliance (GDPR/SOC2 cesta), SLA, rate limiting | 8–12 týždňov | Enterprise zákazky — **✅ prototyp hotový (Build Prompty nižšie)** |
+| **M6** | **Ekosystém** | komunitná galéria, marketplace blueprintov, remix, affiliate, template contest | priebežne | rast organický (virality) — **✅ prototyp hotový (Build Prompty nižšie)** |
 
 ---
 
@@ -311,3 +311,68 @@ Pravidlá:
 - DB záznamy sa dajú pridávať a mazať bez reloadu.
 
 **Stav: ✅ celý M3 implementovaný v prototype (8. 10. 2026)** — DB data browser, end-user auth s login injekciou do preview, serverless funkcie s testovaním a custom domény s SSL wizardom sú v workspace prototype hotové a otestované (syntax-check + smoke-test; plná suite Ctrl+Shift+T v prehliadači).
+---
+
+## 9. M4 Build Prompt — Tímy & Business tier
+
+> Z míľnika **M4**. Cieľ: jeden senior frontend engineer doimplementuje tímové funkcie do existujúceho single-file prototypu (nadväzuje na M0–M3).
+
+**Rola:** Si senior frontend engineer v existujúcom single-file HTML prototype Forge AI Builder (hotové M0–M3). Doimplementuj míľnik M4 — Tímy & Business tier.
+
+**Rozsah (5 vecí):**
+
+1. **Realtime kolaborácia (demonštrácia)** — záložka „Tím" v `/editor`: online presence (avatary členov, live indikátor, simulovaní spolupracujúci), počet aktívnych editácií.
+2. **Komentáre v preview** — komentárové piny priamo nad live preview v editore (klik na pin = thread), nový komentár s odpoveďou AI, resolve.
+3. **Share linky** — generovanie zdieľacích liniek s oprávnením view / comment / edit a expiráciou (1 deň / 7 dní / 30 dní / neobmedzene), zoznam + revokácia.
+4. **Seat billing** — Business plán: počet seats, pridanie/odobranie seatu s proration prepočtom (pro rata), cena per seat.
+5. **RBAC** — roly owner / admin / editor / viewer, zmena roly klikom, pozvánka e-mailom (demo), akcie obmedzené rolou (viewer nemôže publish/export).
+
+**Pravidlá:** zachovaj existujúce ID/API (test suite zelená), žiadne CDN, SK UI, dbg() na každej akcii, CSS tokens + tmavá téma, responsive 390 px, `</script>` v JS vždy ako `<\/script>`.
+
+**Akceptačné kritériá:** každá z 5 vecí použiteľná bez projektu aj s projektom; koment pin je vizuálne ukotvený v preview a thread sa dá resolvnúť; share link sa dá vytvoriť aj revoknúť; zmena roly sa prejaví v audit logu (M5).
+
+**Stav: ✅ celý M4 implementovaný v prototype (8. 10. 2026)** — tím so seatmi a RBAC, presence, komentáre v preview s AI odpoveďou, share linky s oprávnením a expiráciou. Nová záložka „👥 Tím" v `/editor`.
+
+---
+
+## 10. M5 Build Prompt — Enterprise & scale
+
+> Z míľnika **M5**. Nadväzuje na M4 (tím + audit log sú základ).
+
+**Rola:** Si senior frontend engineer v existujúcom single-file HTML prototype Forge AI Builder (hotové M0–M4). Doimplementuj míľnik M5 — Enterprise & scale.
+
+**Rozsah (5 vecí):**
+
+1. **Audit log** — neúprosný záznam akcií (kto čo kedy): zmeny rolí, share linky, publish, restore, auth toggle, domény, GDPR akcie; filtrovateľný zoznam v „Tím → Audit".
+2. **SSO/SAML (Enterprise)** — prepínač SSO s flow (SAML metadata, enforced SSO), Okta/Entra zmienka, gate na pláne.
+3. **Compliance (GDPR/SOC2 cesta)** — GDPR export dát (JSON download) a mazanie účtu s grace period (soft-delete 30 dní), SOC2 „v programe" badge, DPA odkaz.
+4. **SLA** — Enterprise SLA 99,9 % status, uptime indicator, support priority.
+5. **Rate limiting** — usage meter (generácie vs. limit plánu), soft limit + upozornenie pred tvrdou stenou, hlavička „transparentná spotreba".
+
+**Pravidlá:** ako v predchádzajúcich promtoch — ID/API, zelené testy, žiadne CDN, SK UI, dbg(), tokens, responsive, `<\/script>`.
+
+**Akceptačné kritériá:** audit log zachytáva reálne akcie z M4 (rola, share, publish); GDPR export vráti platný JSON; rate meter ukazuje spotrebu; SSO toggle preukázateľne mení stav a zapisuje do auditu.
+
+**Stav: ✅ celý M5 implementovaný v prototype (8. 10. 2026)** — audit log napojený na tímové akcie, SSO/SAML, GDPR export + soft-delete, SLA status a rate limiting meter v „Tím → Audit & Compliance".
+
+---
+
+## 11. M6 Build Prompt — Ekosystém
+
+> Z míľnika **M6**. Viralita: galéria, marketplace, remix, affiliate.
+
+**Rola:** Si senior frontend engineer v existujúcom single-file HTML prototype Forge AI Builder (hotové M0–M5). Doimplementuj míľnik M6 — Ekosystém.
+
+**Rozsah (5 vecí):**
+
+1. **Komunitná galéria** — záložka „Galéria" v `/editor`: publikované blueprinty od komunity s autorom, lajkami, remix počtom, tagmi, „trending" badge, filtrovacie chipy, moderácia publishu (vlastný projekt → galéria).
+2. **Marketplace blueprintov** — platené blueprinty s cenou, kúpa (checkout flow) → odomknutie remixu, revenue share 80/20.
+3. **Remix** — klik na „Remix" skopíruje blueprint do môjho účtu ako nový projekt (spustí generáciu so šablónou daného typu).
+4. **Affiliate** — referral link (forge.app/r/xx) s počtom klikov/konverzií a províziou 20 % / 12 mesiacov, copy to clipboard.
+5. **Template contest** — aktívny súťažný template s hlasovaním (1 hlas per účet), leaderboard submitted šablón.
+
+**Pravidlá:** ako v predchádzajúcich promtoch — ID/API, zelené testy, žiadne CDN, SK UI, dbg(), tokens, responsive, `<\/script>`.
+
+**Akceptačné kritériá:** galéria sa dá filtrovať; platený remix vyžaduje kúpu a po nej funguje; remix reálne spustí generáciu; affiliate link sa dá skopírovať; hlas sa započíta len raz.
+
+**Stav: ✅ celý M6 implementovaný v prototype (8. 10. 2026)** — komunitná galéria s filtrami, moderáciou a trending, marketplace s checkout flow, remix, affiliate panel aj template contest s hlasovaním. Nová záložka „🌐 Galéria" v `/editor`.
