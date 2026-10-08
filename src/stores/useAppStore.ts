@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { uid, now, dbg } from '../lib/utils';
-import { buildSaas, buildKanban, buildSettings, buildDashboard, detectKind, KIND_INFO, AppKind } from '../lib/templates';
+import { buildSaas, buildKanban, buildSettings, buildDashboard, detectKind, KIND_INFO, SNIPPETS, AppKind } from '../lib/templates';
 import { filesFor, filesToHtml, VfsFile } from '../lib/vfs/filesFor';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
@@ -204,9 +204,25 @@ export const useStore = create<AppState>((set, get) => ({
     const t = window.setTimeout(() => {
       const html = (kind.kind === 'saas' ? buildSaas : kind.kind === 'kanban' ? buildKanban : kind.kind === 'settings' ? buildSettings : buildDashboard)(text);
       const snap = get().createSnapshot(kind.kind, text, html);
-      get().updateMsg(m.id, { plan: steps.map(st => ({ ...st, state: 'done' })), done: true, code: kind.file, file: kind.file });
+      const snippet = (SNIPPETS as Record<string, string>)[kind.kind] || '';
+      get().updateMsg(m.id, { plan: steps.map(st => ({ ...st, state: 'done' })), code: snippet, file: kind.file });
       set({ generating: false, liveHtml: html, viewing: null, liveId: snap.id, tab: 'preview' });
-      get().log('✓ hotovo: ' + kind.file + ' · verzia v' + snap.v, 'ok');
+      get().log('✓ ' + kind.file + ' vygenerovaný (sandbox allow-scripts)', 'ok');
+      /* streaming text asistenta — rovnaký ako legacy (55 ms interval, +3 slová) */
+      const full = `Hotovo! Postavil som **${kind.name}** — beží v sandboxe \`allow-scripts\`, verzia v${snap.v} je v histórii.` +
+        `\n\nMôžeš iterovať: „pridaj tmavú tému“, „zmeň CTA farbu“ alebo zapni Edit mode a klikni na element v preview.`;
+      const words = full.split(' ');
+      let i = 0;
+      const iv = window.setInterval(() => {
+        i += 3;
+        get().updateMsg(m.id, { text: words.slice(0, i).join(' ') });
+        if (i >= words.length){
+          window.clearInterval(iv);
+          get().updateMsg(m.id, { done: true });
+          get().toast('Verzia v' + snap.v + ' hotová', 'ok');
+        }
+      }, 55);
+      generationTimers.push(iv);
     }, 2200);
     generationTimers.push(t);
   },

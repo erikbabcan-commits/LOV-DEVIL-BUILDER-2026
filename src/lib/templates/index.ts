@@ -225,7 +225,7 @@ h1{font-size:20px;letter-spacing:-.3px;margin-bottom:4px}
 </div></body></html>`;
 }
 
-const SNIPPETS = {
+export const SNIPPETS = {
   saas: `<section class="hero">
   <span class="badge">✨ Nové: Nimbus AI 2.0</span>
   <h1>Škáluj rýchlejšie <em>s AI</em></h1>
