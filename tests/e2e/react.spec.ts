@@ -246,4 +246,18 @@ test('M1.1 DEBUG2: DOM štruktúra workspace', async ({ page }) => {
     };
   });
   console.log('DOMINFO:', JSON.stringify(info, null, 2));
+  const chain = await page.evaluate(() => {
+    const q = (s: string) => document.querySelector(s) as HTMLElement | null;
+    const h = (el: HTMLElement | null) => el ? { h: el.offsetHeight, cls: el.className } : null;
+    return {
+      pane: h(q('.pane[data-pane="preview"]')),
+      viewportWrap: h(q('#viewportWrap')),
+      device: h(q('#device')),
+      frame: h(q('#previewFrame')),
+      deviceChildren: Array.from(q('#device')?.children || []).map(c => (c as HTMLElement).className + ':' + (c as HTMLElement).offsetHeight),
+      panePosition: getComputedStyle(q('.pane[data-pane="preview"]')!).position,
+      paneDisplay: getComputedStyle(q('.pane[data-pane="preview"]')!).display
+    };
+  });
+  console.log('CHAIN:', JSON.stringify(chain, null, 2));
 });
