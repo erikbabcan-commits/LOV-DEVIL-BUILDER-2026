@@ -1,0 +1,2289 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Lovable-style AI Builder</title>
+<style>
+  /* ============ Design tokens (Lovable: teplá svetlá téma) ============ */
+  :root{
+    --bg:#000000; --panel:#191512; --panel-2:#221b15; --panel-3:#2b221a;
+    --border:#2c241c; --border-2:#3c3025;
+    --text:#f2ece2; --text-dim:#d3c8b8; --muted:#918475;
+    --accent:#2563eb; --accent-2:#38bdf8; --accent-soft:#101b33;
+    --ok:#4ade80; --warn:#fbbf24; --err:#f87171;
+    --radius:14px; --radius-sm:9px;
+    --font:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --shadow:0 1px 3px rgba(28,27,23,.06),0 8px 28px rgba(28,27,23,.07);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden}
+  body{
+    height:100vh;height:100dvh;width:100vw;display:flex;flex-direction:column;
+    background:var(--bg);color:var(--text);font-family:var(--font);
+    font-size:13.5px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;
+    overscroll-behavior:none;-webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;padding-bottom:env(safe-area-inset-bottom);
+    user-select:none;
+  }
+  input,textarea,pre,code,.selectable{user-select:text}
+  button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:8px;border:2px solid transparent;background-clip:content-box}
+  ::-webkit-scrollbar-thumb:hover{background:#514334;background-clip:content-box}
+  ::-webkit-scrollbar-track{background:transparent}
+  svg{flex-shrink:0}
+  .icon-btn{display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:10px;
+    color:var(--text-dim);font-size:12.5px;border:1px solid transparent;white-space:nowrap;transition:.12s}
+  .icon-btn:hover{background:var(--panel-2);color:var(--text)}
+  .chip{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:10px;
+    border:1px solid var(--border);background:var(--panel);font-size:12px;color:var(--text-dim);white-space:nowrap;transition:.12s}
+  .chip:hover{background:var(--panel-2);border-color:var(--border-2)}
+  .btn-primary{display:flex;align-items:center;gap:7px;height:33px;padding:0 15px;border-radius:11px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-size:12.5px;font-weight:600;
+    box-shadow:0 3px 14px rgba(37,99,235,.4);white-space:nowrap;transition:.15s}
+  .btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .btn-ghost{display:flex;align-items:center;gap:7px;height:32px;padding:0 13px;border-radius:11px;
+    border:1px solid var(--border-2);background:var(--panel);font-size:12.5px;font-weight:600;color:var(--text-dim);white-space:nowrap}
+  .btn-ghost:hover{background:var(--panel-2);color:var(--text)}
+
+  /* ============ Top bar ============ */
+  .topbar{height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+    gap:10px;padding:0 14px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.85);
+    backdrop-filter:blur(12px);position:relative;z-index:60}
+  .tb-group{display:flex;align-items:center;gap:8px;min-width:0}
+  .logo-badge{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 3px 12px rgba(37,99,235,.45)}
+  .app-name{font-weight:700;font-size:14px;letter-spacing:-.2px}
+  .session{display:flex;align-items:center;gap:7px;min-width:0}
+  .session-title{font-size:13px;color:var(--text-dim);font-weight:500;max-width:190px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;border-radius:8px;border:1px solid transparent}
+  .session-title:hover{background:var(--panel-2);border-color:var(--border)}
+  .session-title-input{font-size:13px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;
+    color:var(--text);padding:4px 9px;outline:none;width:190px;font-family:inherit;box-shadow:0 0 0 3px rgba(37,99,235,.18)}
+  .save-status{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .save-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px rgba(5,150,105,.5);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .vis-chip{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:3px 10px;display:flex;align-items:center;gap:5px}
+  .seg{display:flex;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:2.5px;gap:2px}
+  .seg button{display:flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:8px;
+    font-size:11.5px;color:var(--muted);white-space:nowrap;transition:.12s}
+  .seg button:hover{color:var(--text-dim)}
+  .seg button.active{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(28,27,23,.1)}
+  .avatar-chip{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ef4444);
+    color:#fff;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center}
+  .pop-wrap{position:relative}
+  .dropdown{position:absolute;top:calc(100% + 6px);right:0;min-width:210px;background:var(--panel);
+    border:1px solid var(--border);border-radius:14px;padding:6px;box-shadow:var(--shadow);
+    display:none;z-index:100}
+  .dropdown.open{display:block;animation:fadeUp .15s ease}
+  .dropdown .item{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+    padding:9px 11px;border-radius:10px;font-size:12.5px;color:var(--text-dim);text-align:left;transition:.1s}
+  .dropdown .item:hover{background:var(--panel-2);color:var(--text)}
+  .dropdown .item .sub{font-size:10.5px;color:var(--muted)}
+  .settings-pop{position:absolute;top:calc(100% + 8px);right:0;width:240px;background:var(--panel);
+    border:1px solid var(--border);border-radius:14px;padding:12px;box-shadow:var(--shadow);display:none;z-index:100}
+  .settings-pop.open{display:block;animation:fadeUp .15s ease}
+  .settings-pop h4{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:9px}
+  .set-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;font-size:12.5px;color:var(--text-dim)}
+  .switch{width:34px;height:19px;border-radius:10px;background:var(--border-2);position:relative;flex-shrink:0;transition:.15s}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:.15s}
+  .switch.on{background:var(--accent)}
+  .switch.on::after{left:17px}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+  /* ============ Mobile tab rail ============ */
+  .mtabs{display:none;flex-shrink:0;gap:8px;padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--border);align-items:center}
+  .mtabs .tab-btn{flex:1;height:38px;border-radius:12px;font-size:13px;font-weight:500;color:var(--muted);
+    background:var(--panel-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:7px}
+  .mtabs .tab-btn.active{background:var(--panel);color:var(--text);box-shadow:0 1px 4px rgba(28,27,23,.08);border-color:var(--border-2)}
+  .mvp{display:none;gap:3px;background:var(--panel-2);border:1px solid var(--border);border-radius:11px;padding:3px;margin-left:auto}
+  .mvp button{width:36px;height:32px;border-radius:9px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+  .mvp button.active{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(28,27,23,.1)}
+
+  /* ============ HOME (Lovable landing) ============ */
+  .home{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:28px 18px}
+  body[data-mode="work"] .home{display:none}
+  body[data-mode="home"] #workspaceView,
+  body[data-mode="home"] .mtabs{display:none!important}
+  .home-inner{width:100%;max-width:620px;display:flex;flex-direction:column;align-items:center;gap:16px;animation:fadeUp .35s ease}
+  .home-logo{width:54px;height:54px;border-radius:17px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 10px 34px rgba(37,99,235,.45)}
+  .home h1{font-size:31px;font-weight:800;letter-spacing:-.8px;text-align:center}
+  .home h1 em{font-style:normal;background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .home .sub{color:var(--muted);font-size:14px;text-align:center;margin-top:-6px}
+  .home-prompt{width:100%;background:var(--panel);border:1px solid var(--border-2);border-radius:20px;
+    padding:13px;display:flex;flex-direction:column;gap:11px;box-shadow:var(--shadow);transition:.15s}
+  .home-prompt:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px rgba(37,99,235,.16),var(--shadow)}
+  #homeInput{width:100%;background:none;border:none;outline:none;resize:none;color:var(--text);
+    font-family:inherit;font-size:15px;line-height:1.55;min-height:56px}
+  #homeInput::placeholder{color:var(--muted)}
+  .hp-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .hp-left{display:flex;align-items:center;gap:8px;min-width:0}
+  .public-check{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-dim);cursor:pointer;padding:5px 8px;border-radius:8px}
+  .public-check:hover{background:var(--panel-2)}
+  .public-check input{accent-color:var(--accent);width:15px;height:15px}
+  .send-btn{width:38px;height:38px;border-radius:13px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.45);transition:.15s}
+  .send-btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
+  .send-btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none}
+  .home-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .chip-pill{display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:20px;
+    background:var(--panel);border:1px solid var(--border);font-size:12.5px;color:var(--text-dim);transition:.13s}
+  .chip-pill:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--text);transform:translateY(-1px)}
+  .home-shortcuts{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;font-size:11px;color:var(--muted);margin-top:2px}
+  .kbd{font-family:var(--mono);font-size:10px;background:var(--panel);border:1px solid var(--border-2);
+    border-bottom-width:2px;border-radius:6px;padding:2px 7px;color:var(--text-dim)}
+
+  /* ============ Workspace ============ */
+  #workspaceView{flex:1;display:flex;min-height:0;overflow:hidden}
+  :root{--chat-w:420px}
+
+  /* ---- Chat ---- */
+  .chat-panel{width:var(--chat-w);min-width:340px;max-width:560px;display:flex;flex-direction:column;
+    background:var(--bg);border-right:1px solid var(--border);min-height:0;flex-shrink:0}
+  .chat-head{height:48px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
+  .chat-head .iter{font-size:12.5px;font-weight:600;color:var(--text-dim);display:flex;align-items:center;gap:8px}
+  .chat-head .iter .n{color:var(--accent);background:var(--accent-soft);border:1px solid #1e3a6e;
+    padding:2px 9px;border-radius:20px;font-size:11.5px}
+  .new-session{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);height:30px;
+    padding:0 12px;border-radius:10px;border:1px dashed var(--border-2)}
+  .new-session:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+  .chat-scroll{flex:1;overflow-y:auto;padding:6px 16px 18px;display:flex;flex-direction:column;gap:16px;min-height:0}
+  .msg{display:flex;gap:10px;max-width:100%;animation:msgIn .22s ease}
+  @keyframes msgIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+  .msg.user{flex-direction:row-reverse}
+  .avatar{width:28px;height:28px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:2px}
+  .msg.assistant .avatar{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff}
+  .msg.user .avatar{background:var(--panel-3);border:1px solid var(--border-2);color:var(--text-dim);font-weight:700;font-size:10.5px}
+  .bubble{min-width:0;max-width:calc(100% - 46px);display:flex;flex-direction:column;gap:8px}
+  .msg.user .bubble{align-items:flex-end}
+  .msg .meta{font-size:11px;color:var(--muted);padding:0 3px}
+  .msg .content{background:var(--panel);border:1px solid var(--border);border-radius:16px;border-top-left-radius:6px;
+    padding:12px 14px;font-size:13.5px;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-word;
+    box-shadow:0 1px 2px rgba(28,27,23,.04)}
+  .msg.user .content{background:var(--accent-soft);border-color:#2c4a75;border-radius:16px;border-top-right-radius:6px}
+  .msg .actions{display:flex;gap:4px;padding:0 2px}
+  .qact{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);height:28px;
+    padding:0 10px;border-radius:9px;border:1px solid transparent}
+  .qact:hover{color:var(--text);background:var(--panel);border-color:var(--border)}
+  .plan{display:flex;flex-direction:column;gap:2px;background:var(--panel);border:1px solid var(--border);
+    border-radius:16px;border-top-left-radius:6px;padding:11px 13px;box-shadow:0 1px 2px rgba(28,27,23,.04)}
+  .plan-title{font-size:11px;font-weight:700;color:var(--text-dim);display:flex;align-items:center;gap:6px;margin-bottom:7px}
+  .plan-step{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);padding:4.5px 0;transition:.2s}
+  .plan-step .pi{width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .plan-step.pending .pi{border:1.5px solid var(--border-2)}
+  .plan-step.running .pi{border:1.5px solid var(--accent-2);border-top-color:transparent;animation:spin .7s linear infinite}
+  .plan-step.running{color:var(--text)}
+  .plan-step.done .pi{background:rgba(74,222,128,.14);border:none;color:var(--ok);font-size:11px;font-weight:800}
+  .plan-step.done{color:var(--text-dim);text-decoration:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .typing{display:flex;gap:4px;padding:11px 13px;background:var(--panel);border:1px solid var(--border);border-radius:16px;border-top-left-radius:6px}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--border-2);animation:blink 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1;transform:translateY(-3px)}}
+  .code-block{border:1px solid var(--border);border-radius:13px;overflow:hidden;background:#141318;align-self:stretch;max-width:100%}
+  .code-head{display:flex;align-items:center;justify-content:space-between;padding:6px 9px 6px 12px;
+    background:#1b1a20;border-bottom:1px solid #2a2830;font-size:10.5px;color:#8b8894;font-family:var(--mono)}
+  .code-head button{color:#8b8894;font-size:10.5px;display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px}
+  .code-head button:hover{color:#e6e4ea;background:#26242c}
+  .code-block pre{padding:12px;overflow-x:auto;font-family:var(--mono);font-size:11px;line-height:1.65;color:#d4d1db}
+  .tok-tag{color:#7ee787}.tok-str{color:#a5d6ff}.tok-com{color:#6e6a78;font-style:italic}
+
+  /* ---- Composer ---- */
+  .composer{flex-shrink:0;padding:10px 12px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px}
+  .comp-box{background:var(--panel);border:1px solid var(--border-2);border-radius:18px;padding:10px;
+    display:flex;flex-direction:column;gap:9px;box-shadow:var(--shadow);transition:.15s}
+  .comp-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px rgba(37,99,235,.14),var(--shadow)}
+  #promptInput{width:100%;background:none;border:none;outline:none;resize:none;color:var(--text);
+    font-family:inherit;font-size:13.5px;line-height:1.55;min-height:44px;max-height:160px;overflow-y:auto}
+  #promptInput::placeholder{color:var(--muted)}
+  .comp-actions{display:flex;align-items:center;justify-content:space-between}
+  .comp-left,.comp-right{display:flex;align-items:center;gap:6px}
+  .token-count{font-size:10.5px;color:var(--muted);font-family:var(--mono);white-space:nowrap}
+
+  /* ---- Resizer ---- */
+  .resizer{width:5px;flex-shrink:0;cursor:col-resize;position:relative;z-index:20}
+  .resizer:hover,.resizer.dragging{background:rgba(37,99,235,.35)}
+  .resizer::after{content:"";position:absolute;top:50%;left:1.5px;width:2px;height:28px;transform:translateY(-50%);
+    border-radius:2px;background:var(--border-2)}
+
+  /* ---- Canvas panel ---- */
+  .canvas-panel{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--panel-2)}
+  .canvas-tabs{height:48px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:0 10px;border-bottom:1px solid var(--border);background:var(--panel)}
+  .ct-tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+  .ct-tabs::-webkit-scrollbar{display:none}
+  .ct-tab{display:flex;align-items:center;gap:7px;height:48px;padding:0 14px;font-size:12.5px;font-weight:500;
+    color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+  .ct-tab:hover{color:var(--text-dim)}
+  .ct-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .ct-actions{display:flex;align-items:center;gap:5px;overflow-x:auto;scrollbar-width:none}
+  .ct-actions::-webkit-scrollbar{display:none}
+  .edit-chip{display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:20px;
+    border:1px solid var(--border-2);background:var(--panel);font-size:12px;font-weight:600;color:var(--muted);transition:.13s}
+  .edit-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 3px 12px rgba(37,99,235,.4)}
+  .zoom-ctl{display:flex;align-items:center;gap:1px;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:2px}
+  .zoom-ctl button{width:28px;height:26px;border-radius:8px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+  .zoom-ctl button:hover{background:var(--panel);color:var(--text)}
+  .zoom-ctl span{font-size:11px;color:var(--text-dim);min-width:38px;text-align:center;font-variant-numeric:tabular-nums}
+
+  .canvas-body{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+  .pane{flex:1;min-height:0;display:none;flex-direction:column}
+  .pane.active{display:flex}
+  .viewport-wrap{flex:1;min-height:0;overflow:auto;display:flex;align-items:stretch;justify-content:center;
+    padding:20px;position:relative;
+    background:var(--panel-2);
+    background-image:radial-gradient(rgba(255,214,170,.055) 1px,transparent 1px);
+    background-size:19px 19px}
+  .device{position:relative;display:flex;flex-direction:column;background:var(--panel);border-radius:14px;
+    overflow:hidden;min-width:390px;flex:0 0 auto;
+    box-shadow:0 22px 55px rgba(0,0,0,.55),0 0 0 1px rgba(255,214,170,.12);
+    transform-origin:center;transition:width .2s ease}
+  .device iframe{flex:1;width:100%;border:none;background:#fff}
+  .skeleton{position:absolute;inset:0;background:var(--panel);z-index:5;display:none;flex-direction:column;gap:14px;padding:26px}
+  .skeleton.show{display:flex}
+  .sk-bar{border-radius:8px;background:linear-gradient(90deg,var(--panel-2) 25%,var(--panel-3) 50%,var(--panel-2) 75%);
+    background-size:200% 100%;animation:shimmer 1.3s infinite}
+  @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+  .sk-gen{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text-dim)}
+  .spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--accent);animation:spin .7s linear infinite}
+  .edit-tip{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:30;display:none;align-items:center;gap:8px;
+    padding:8px 14px;border-radius:12px;font-size:12px;color:var(--text);background:rgba(28,27,23,.88);color:#fff;
+    box-shadow:0 8px 26px rgba(28,27,23,.3);white-space:nowrap}
+  .edit-tip.show{display:flex}
+  .hist-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:40;display:none;align-items:center;gap:10px;
+    padding:8px 9px 8px 15px;border-radius:12px;font-size:12px;color:var(--text);white-space:nowrap;
+    background:rgba(25,21,18,.9);backdrop-filter:blur(12px);border:1px solid var(--border-2);
+    box-shadow:0 8px 28px rgba(0,0,0,.4)}
+  .hist-banner.show{display:flex;animation:fadeUp .2s ease}
+  .hist-banner .back{color:var(--accent);font-weight:600;padding:4px 9px;border-radius:8px;background:var(--accent-soft)}
+  .hist-banner .back:hover{background:#16305c}
+
+  .pane-inner{flex:1;min-height:0;overflow:auto;padding:16px}
+  .raw-pre{font-family:var(--mono);font-size:11.5px;line-height:1.7;white-space:pre;color:#d4d1db;background:#141318;
+    border-radius:14px;padding:16px;min-height:calc(100% - 0px)}
+  .console-line{font-family:var(--mono);font-size:11.5px;line-height:2;white-space:pre-wrap;word-break:break-word}
+  .console-line .t{color:var(--muted);margin-right:9px}
+  .console-line.ok .txt{color:var(--ok)}.console-line.warn .txt{color:var(--warn)}.console-line.info .txt{color:var(--text-dim)}
+  .diff-line{font-family:var(--mono);font-size:11.5px;line-height:1.75;white-space:pre;display:flex;gap:10px;padding:0 10px;border-radius:5px}
+  .diff-line .sign{width:14px;flex-shrink:0}
+  .diff-line.add{background:rgba(5,150,105,.09)}.diff-line.add .sign{color:var(--ok)}
+  .diff-line.del{background:rgba(220,38,38,.08)}.diff-line.del .sign{color:var(--err)}
+  .diff-line.ctx .sign{color:var(--muted)}
+  .diff-line .ln{color:var(--muted);width:26px;text-align:right;flex-shrink:0}
+  .diff-head{font-size:12px;color:var(--text-dim);margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);
+    border-radius:12px;background:var(--panel);display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .diff-head .plus{color:var(--ok);font-weight:600}.diff-head .minus{color:var(--err);font-weight:600}
+  .pane-empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:12.5px}
+
+  /* ---- History bar ---- */
+  .history{flex-shrink:0;border-top:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;min-height:44px}
+  .hist-head{height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 14px;gap:10px}
+  .hist-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text-dim)}
+  .hist-title .count{font-size:10.5px;color:var(--accent);background:var(--accent-soft);border:1px solid #1e3a6e;padding:1px 8px;border-radius:20px}
+  .hist-list{display:none;gap:10px;overflow-x:auto;padding:0 14px 13px;flex-shrink:0}
+  .history.expanded .hist-list{display:flex}
+  .hist-list:empty::after{content:"Zatiaľ žiadne verzie — vygeneruj prvú appku.";font-size:11.5px;color:var(--muted);padding:6px 0}
+  .snap{flex-shrink:0;width:200px;border:1px solid var(--border);border-radius:14px;background:var(--bg);
+    padding:10px;display:flex;flex-direction:column;gap:7px;cursor:pointer;transition:.14s}
+  .snap:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+  .snap.pinned{border-color:#f3d68a}
+  .snap.current{border-color:var(--accent);background:var(--accent-soft)}
+  .snap-thumb{height:54px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-size:10.5px;font-weight:700;color:rgba(255,255,255,.95);letter-spacing:.4px}
+  .snap-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+  .snap-ver{font-size:11.5px;font-weight:700}
+  .snap-time{font-size:10px;color:var(--muted);font-family:var(--mono)}
+  .snap-prompt{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .snap-btns{display:flex;gap:5px}
+  .snap-btn{flex:1;height:27px;border-radius:8px;font-size:10.5px;font-weight:600;color:var(--text-dim);border:1px solid var(--border-2);background:var(--panel)}
+  .snap-btn:hover{color:var(--text);border-color:var(--text-dim)}
+  .snap-btn.pin-btn.active{color:var(--warn);border-color:#5c431f;background:rgba(251,191,36,.12)}
+
+  /* ---- Publish modal ---- */
+  .modal-overlay{position:fixed;inset:0;background:rgba(28,27,23,.45);backdrop-filter:blur(6px);z-index:300;
+    display:none;align-items:center;justify-content:center;padding:18px}
+  .modal-overlay.open{display:flex;animation:fadeUp .2s ease}
+  .modal{width:100%;max-width:410px;background:var(--panel);border-radius:22px;padding:26px;
+    box-shadow:0 24px 70px rgba(28,27,23,.3);display:flex;flex-direction:column;gap:18px}
+  .modal h3{font-size:18px;font-weight:800;letter-spacing:-.3px}
+  .modal .m-sub{font-size:12.5px;color:var(--muted);margin-top:-10px}
+  .pub-step{display:flex;align-items:center;gap:11px;font-size:13px;color:var(--muted);padding:7px 0;transition:.2s}
+  .pub-step .pi{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .pub-step.pending .pi{border:1.5px solid var(--border-2)}
+  .pub-step.running .pi{border:1.5px solid var(--accent-2);border-top-color:transparent;animation:spin .7s linear infinite}
+  .pub-step.running{color:var(--text)}
+  .pub-step.done .pi{background:rgba(74,222,128,.14);color:var(--ok);font-size:11px;font-weight:800}
+  .pub-step.done{color:var(--text-dim)}
+  .pub-url{display:none;align-items:center;gap:9px;background:var(--panel-2);border:1px solid var(--border-2);
+    border-radius:12px;padding:11px 13px;font-family:var(--mono);font-size:12px;color:var(--accent);word-break:break-all}
+  .pub-url.show{display:flex;animation:fadeUp .25s ease}
+  .pub-url button{color:var(--muted);font-size:11.5px;font-weight:600;padding:4px 9px;border-radius:7px;background:var(--panel);border:1px solid var(--border-2);white-space:nowrap}
+  .pub-url button:hover{color:var(--text)}
+
+  /* ---- Toasts ---- */
+  .toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:400}
+  .toast{display:flex;align-items:center;gap:10px;padding:11px 15px;border-radius:13px;font-size:12.5px;color:var(--text);
+    background:rgba(30,25,20,.94);backdrop-filter:blur(12px);border:1px solid var(--border-2);
+    box-shadow:0 10px 30px rgba(28,27,23,.16);animation:fadeUp .2s ease;max-width:330px}
+  .toast .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+  .toast.ok .dot{background:var(--ok)}.toast.warn .dot{background:var(--warn)}
+
+  /* ============ Editor (/editor) ============ */
+  #editorView{flex:1;display:none;min-height:0;overflow:hidden}
+  body[data-mode="editor"] #editorView{display:flex}
+  body[data-mode="editor"] .home{display:none}
+  body[data-mode="editor"] #workspaceView{display:none!important}
+  body[data-mode="editor"] .mtabs{display:none!important}
+  body[data-mode="editor"] #editorBtn{border-color:var(--accent);background:var(--accent-soft);color:var(--text)}
+  .ed-side{width:250px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:14px;padding:14px 10px;overflow-y:auto}
+  .ed-new{display:flex;align-items:center;justify-content:center;gap:8px;height:36px;border-radius:11px;font-size:12.5px;font-weight:700;color:#fff;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 3px 14px rgba(37,99,235,.4)}
+  .ed-new:hover{filter:brightness(1.08)}
+  .ed-search{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:0 10px;height:32px;color:var(--muted)}
+  .ed-search input{flex:1;min-width:0;background:none;border:none;outline:none;color:var(--text);font-size:12px;font-family:inherit}
+  .ed-nav-title{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);padding:0 4px 7px}
+  .ed-projects{display:flex;flex-direction:column;gap:3px}
+  .ed-proj{display:flex;align-items:center;gap:9px;padding:8px;border-radius:10px;border:1px solid transparent;text-align:left;width:100%;transition:.12s}
+  .ed-proj:hover{background:var(--panel-2);border-color:var(--border)}
+  .ed-proj.active{background:var(--accent-soft);border-color:#1e3a6e}
+  .ed-proj-thumb{width:26px;height:26px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10.5px;font-weight:800}
+  .ed-proj-meta{flex:1;min-width:0;display:flex;flex-direction:column}
+  .ed-proj-meta b{font-size:11.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ed-proj-meta span{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ed-proj-time{font-size:9.5px;color:var(--muted);font-family:var(--mono)}
+  .ed-empty-list{font-size:11px;color:var(--muted);padding:8px 6px}
+  .ed-conn{display:flex;align-items:center;gap:9px;width:100%;padding:8px 9px;border-radius:10px;font-size:12px;color:var(--text-dim);border:1px solid transparent}
+  .ed-conn:hover{background:var(--panel-2);border-color:var(--border)}
+  .ed-build{margin-top:auto;background:var(--panel-2);border:1px solid var(--border);border-radius:13px;padding:12px;display:flex;flex-direction:column;gap:7px}
+  .ed-build b{font-size:12.5px}
+  .ed-build p{font-size:10.5px;color:var(--muted);line-height:1.5}
+  .ed-build button{height:30px;border-radius:9px;font-size:11.5px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+  .ed-main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+  .ed-top{height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px;border-bottom:1px solid var(--border)}
+  .ed-crumb{display:flex;align-items:center;gap:9px;min-width:0}
+  .ed-crumb #edProjectName{font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ed-ver{font-size:10.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border:1px solid #1e3a6e;padding:2px 9px;border-radius:20px;flex-shrink:0}
+  .ed-actions{display:flex;gap:6px;align-items:center}
+  .ed-act{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:10px;border:1px solid var(--border-2);
+    background:var(--panel);font-size:12px;font-weight:600;color:var(--text-dim);white-space:nowrap;transition:.12s}
+  .ed-act:hover{background:var(--panel-2);color:var(--text)}
+  .ed-act.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;box-shadow:0 3px 14px rgba(37,99,235,.4)}
+  .ed-act.primary:hover{filter:brightness(1.08)}
+  .ed-body{flex:1;min-height:0;overflow-y:auto;padding:16px}
+  .ed-stage{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .ed-meta{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .ed-stat{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:11px 13px;min-width:0}
+  .ed-stat span{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+  .ed-stat b{font-size:13px;color:var(--text-dim);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ed-frame-wrap{position:relative;background:var(--panel-2);border:1px solid var(--border);border-radius:16px;overflow:hidden;height:min(58vh,560px)}
+  #editorFrame{width:100%;height:100%;border:none;background:#fff;display:none}
+  .ed-empty{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;padding:20px}
+  .ed-empty .ed-empty-ic{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:22px;
+    background:var(--panel-3);border:1px solid var(--border-2);color:var(--muted)}
+  .ed-empty b{font-size:15px}
+  .ed-empty p{font-size:12.5px;color:var(--muted);max-width:340px;line-height:1.6}
+
+  /* ============ Responsive ============ */
+  @media (max-width:1023px){
+    .topbar{padding:0 10px;gap:7px}
+    .app-name{display:none}
+    .session-title{max-width:110px}
+    .session-title-input{width:150px}
+    .save-status span{display:none}
+    #codePreviewSeg,.hide-m{display:none!important}
+    .mtabs{display:flex}
+    .mvp{display:flex}
+    body[data-view="chat"] .mvp{display:none!important}
+    .resizer{display:none}
+    .chat-panel{width:100%!important;max-width:none;min-width:0;border-right:none}
+    .canvas-panel{width:100%}
+    body[data-view="chat"] .canvas-panel{display:none}
+    body[data-view="canvas"] .chat-panel{display:none}
+    .chat-head{height:50px}
+    .new-session{height:34px;font-size:12.5px}
+    .chat-scroll{padding:6px 13px 20px;gap:16px}
+    .avatar{width:30px;height:30px;border-radius:10px;font-size:12px}
+    .bubble{max-width:calc(100% - 44px)}
+    .msg .content{font-size:13.5px;padding:12px 14px;border-radius:16px}
+    .qact{height:34px;font-size:12px;padding:0 11px}
+    .ct-tab{padding:0 13px}
+    .ct-actions .icon-btn{width:38px;height:38px;justify-content:center;padding:0}
+    .viewport-wrap{padding:6px}
+    .device{min-width:0;border-radius:16px}
+    .history{min-height:48px}
+    .hist-head{height:48px}
+    .snap-btn{height:31px;font-size:11px}
+    .hist-banner{left:10px;right:10px;transform:none;justify-content:center;flex-wrap:wrap;text-align:center;font-size:11.5px;gap:8px;padding:9px 10px}
+    .toasts{left:14px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom))}
+    .toast{max-width:none}
+    .home h1{font-size:25px}
+    .home-prompt{padding:12px}
+    .ed-side{display:none}
+    .ed-meta{grid-template-columns:repeat(2,1fr)}
+    .ed-actions .ed-act{padding:0 9px}
+  }
+  @media (max-width:420px){
+    .session-title{max-width:92px}
+    .session-title-input{width:130px}
+    #modelName,.hide-s{display:none!important}
+    .chip{gap:5px;padding:0 9px}
+    .mvp button{width:38px;height:34px}
+    .zoom-ctl span{min-width:34px}
+  }
+  @media (max-width:360px){ .session-title{max-width:70px} .session-title-input{width:100px} }
+</style>
+</head>
+<body data-mode="home" data-view="chat">
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="tb-group">
+      <div class="logo-badge">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z"/></svg>
+      </div>
+      <span class="app-name">Forge</span>
+      <div class="session">
+        <span class="session-title" id="sessionTitle" title="Klikni pre premenovanie">Nový projekt</span>
+        <button class="icon-btn" id="editTitleBtn" title="Premenovať" style="padding:0 5px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+        </button>
+      </div>
+      <div class="save-status"><i class="save-dot"></i><span id="saveStatus">Uložené</span></div>
+      <span class="vis-chip hide-m" id="visChip"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Súkromné</span></span>
+      <button class="chip" id="editorBtn" title="/editor — dashboard projektov">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span class="hide-s">Editor</span>
+      </button>
+    </div>
+
+    <div class="tb-group">
+      <div class="pop-wrap">
+        <button class="chip" id="modelChip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c2.5.5 4 2.5 4 5a5 5 0 0 1-3 4.6V18a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-2.4A5 5 0 0 1 4 11c0-2.5 1.5-4.5 4-5a4 4 0 0 1 4-4Z"/></svg>
+          <span id="modelName">Lovable Cloud</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="dropdown" id="modelMenu">
+          <button class="item" data-model="Lovable Cloud"><span>Lovable Cloud<div class="sub">Agent 3 · plný stack, auth &amp; DB</div></span><span class="check">✓</span></button>
+          <button class="item" data-model="Claude 4.5 Sonnet"><span>Claude 4.5 Sonnet<div class="sub">Najlepší na UI/UX</div></span><span class="check"></span></button>
+          <button class="item" data-model="GPT-5"><span>GPT-5<div class="sub">Silný na logiku</div></span><span class="check"></span></button>
+          <button class="item" data-model="Llama 4"><span>Llama 4<div class="sub">Open-source</div></span><span class="check"></span></button>
+        </div>
+      </div>
+      <button class="btn-ghost hide-m" id="remixBtn" title="Remix komunitného projektu">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Remix
+      </button>
+      <button class="btn-ghost hide-s" id="exportBtn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export ZIP
+      </button>
+      <button class="btn-primary" id="publishBtn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2 0-2.8-.8-.7-2-.8-3 0Zm7-5.5 2 2c5-5 7-11 7-11s-6 2-11 7l2 2Zm-5 1c-2 1-3 3-3 5 1 0 3.5-.5 5-2"/></svg>
+        <span id="publishBtnTxt">Publish</span>
+      </button>
+      <div class="pop-wrap">
+        <button class="icon-btn" id="settingsBtn" title="Nastavenia" style="padding:0 7px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+        </button>
+        <div class="settings-pop" id="settingsPop">
+          <h4>Nastavenia projektu</h4>
+          <div class="set-row">Public projekt <div class="switch" data-set id="pubSwitch"></div></div>
+          <div class="set-row">Auto-save <div class="switch on" data-set></div></div>
+          <div class="set-row">Skeleton pri generovaní <div class="switch on" data-set></div></div>
+        </div>
+      </div>
+      <div class="avatar-chip hide-m">YH</div>
+    </div>
+  </header>
+
+  <!-- Mobile tab rail -->
+  <div class="mtabs">
+    <button class="tab-btn" data-view="chat">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg> Chat
+    </button>
+    <button class="tab-btn" data-view="canvas">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg> Preview
+    </button>
+    <div class="mvp" id="mvpSeg">
+      <button data-vp="desktop" class="active" title="Desktop">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      </button>
+      <button data-vp="tablet" title="Tablet">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+      </button>
+      <button data-vp="mobile" title="Mobile">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ HOME ============ -->
+  <div class="home">
+    <div class="home-inner">
+      <div class="home-logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z"/></svg>
+      </div>
+      <h1>Čo chceš <em>postaviť</em>?</h1>
+      <p class="sub">Popíš svoju ideu — Agent Mode ju naplánuje, vygeneruje a nasadí.</p>
+
+      <div class="home-prompt">
+        <textarea id="homeInput" rows="2" placeholder="Napíš svoju ideu, napr. „rezervačný systém pre fitness štúdio s platbou“…"></textarea>
+        <div class="hp-row">
+          <div class="hp-left">
+            <button class="icon-btn" id="homeAttach" title="Prílohy / screenshot" style="padding:0 7px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.4 11.1-9.2 9.2a5.7 5.7 0 0 1-8-8l9-9a3.8 3.8 0 0 1 5.4 5.4l-9 9a1.9 1.9 0 0 1-2.7-2.7l8.3-8.2"/></svg>
+            </button>
+            <label class="public-check">
+              <input type="checkbox" id="publicCheck" />
+              <span>Aplikácia bude public</span>
+            </label>
+          </div>
+          <button class="send-btn" id="homeSend" title="Odoslať (Ctrl+Enter)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="home-chips" id="homeChips">
+        <button class="chip-pill" data-kind="saas" data-prompt="Vytvor modernú SaaS landing page s hero sekciou, funkciami a cenami">🚀 SaaS Landing</button>
+        <button class="chip-pill" data-kind="kanban" data-prompt="Vytvor Kanban board s drag & drop, 3 stĺpcami a tagmi">🗂️ Kanban Board</button>
+        <button class="chip-pill" data-kind="settings" data-prompt="Vytvor Settings dashboard so sidebarom, prepínačmi a profilom">⚙️ Settings</button>
+        <button class="chip-pill" data-kind="dashboard" data-prompt="Vytvor CRM dashboard s metrikami a grafmi">📊 CRM Dashboard</button>
+        <button class="chip-pill" data-kind="dashboard" data-prompt="Vytvor jednoduchý blog so zoznamom článkov">📝 Blog</button>
+      </div>
+
+      <div class="home-shortcuts">
+        <span><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> odoslať</span>
+        <span><span class="kbd">Ctrl</span> + <span class="kbd">K</span> zamerať prompt</span>
+        <span><span class="kbd">Ctrl</span> + <span class="kbd">S</span> verzia</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ WORKSPACE ============ -->
+  <main id="workspaceView">
+    <!-- Chat -->
+    <aside class="chat-panel" id="chatPanel">
+      <div class="chat-head">
+        <div class="iter">Verzia <span class="n" id="iterNum">v1</span></div>
+        <button class="new-session" id="newSessionBtn">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Nový projekt
+        </button>
+      </div>
+      <div class="chat-scroll" id="chatScroll"></div>
+      <div class="composer">
+        <div class="comp-box">
+          <textarea id="promptInput" rows="1" placeholder="Popíš zmenu… (Ctrl+Enter)"></textarea>
+          <div class="comp-actions">
+            <div class="comp-left">
+              <button class="icon-btn" id="attachBtn" title="Prílohy" style="padding:0 7px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.4 11.1-9.2 9.2a5.7 5.7 0 0 1-8-8l9-9a3.8 3.8 0 0 1 5.4 5.4l-9 9a1.9 1.9 0 0 1-2.7-2.7l8.3-8.2"/></svg>
+              </button>
+              <span class="token-count" id="tokenCount">≈ 0 tok · 200k ctx</span>
+            </div>
+            <div class="comp-right">
+              <button class="send-btn" id="sendBtn" title="Odoslať (Ctrl+Enter)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="resizer" id="resizer" title="Potiahni · dvojklik = reset"></div>
+
+    <!-- Canvas -->
+    <section class="canvas-panel">
+      <div class="canvas-tabs">
+        <div class="ct-tabs" id="ctTabs">
+          <button class="ct-tab active" data-tab="preview">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12a9 9 0 1 0 9-9 9 9 0 0 0-9 9Z"/><path d="m10 8 6 4-6 4Z"/></svg>
+            Preview
+          </button>
+          <button class="ct-tab" data-tab="raw">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+            Code
+          </button>
+          <button class="ct-tab" data-tab="console">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m4 17 6-5-6-5M12 19h8"/></svg>
+            Console
+          </button>
+          <button class="ct-tab" data-tab="diff">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8h4M5 16h4M15 8h4M15 16h4"/></svg>
+            Diff
+          </button>
+        </div>
+        <div class="ct-actions">
+          <button class="edit-chip" id="editToggle" title="Visual Edit mode — klikaj na elementy v preview">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            Edit
+          </button>
+          <div class="seg" id="viewportSeg">
+            <button data-vp="desktop" class="active" title="Desktop — 100%">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            </button>
+            <button data-vp="tablet" title="Tablet — 768px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+            </button>
+            <button data-vp="mobile" title="Mobile — 390px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+            </button>
+          </div>
+          <div class="zoom-ctl">
+            <button id="zoomOut" title="Zmenšiť">−</button>
+            <span id="zoomVal">100%</span>
+            <button id="zoomIn" title="Zväčšiť">+</button>
+          </div>
+          <button class="icon-btn" id="refreshBtn" title="Obnoviť preview" style="padding:0 7px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5"/></svg>
+          </button>
+          <button class="icon-btn hide-m" id="openTabBtn" title="Otvoriť v novom tabe" style="padding:0 7px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg>
+          </button>
+          <button class="icon-btn" id="snapBtn" title="Uložiť verziu (Ctrl+S)" style="padding:0 7px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="canvas-body">
+        <div class="pane active" data-pane="preview">
+          <div class="viewport-wrap" id="viewportWrap">
+            <div class="hist-banner" id="histBanner">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+              <span id="histBannerText"></span>
+              <button class="back" id="backToLive">Späť na live verziu</button>
+            </div>
+            <div class="device" id="device" style="display:none">
+              <iframe id="previewFrame" sandbox="allow-scripts" title="Live preview"></iframe>
+              <div class="skeleton" id="skeleton">
+                <div class="sk-gen"><span class="spinner"></span> <span id="skModel"></span></div>
+                <div class="sk-bar" style="height:36px;width:55%"></div>
+                <div class="sk-bar" style="height:12px;width:82%"></div>
+                <div class="sk-bar" style="height:12px;width:64%"></div>
+                <div style="display:flex;gap:12px"><div class="sk-bar" style="height:66px;flex:1"></div><div class="sk-bar" style="height:66px;flex:1"></div><div class="sk-bar" style="height:66px;flex:1"></div></div>
+                <div class="sk-bar" style="height:100px;flex:1"></div>
+              </div>
+            </div>
+            <div class="edit-tip" id="editTip">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              Edit mode — prejdi kurzorom po preview a vyber element na úpravu
+            </div>
+          </div>
+        </div>
+        <div class="pane" data-pane="raw"><div class="pane-inner"><pre class="raw-pre" id="rawPre"></pre></div></div>
+        <div class="pane" data-pane="console"><div class="pane-inner" id="consoleInner"></div></div>
+        <div class="pane" data-pane="diff"><div class="pane-inner" id="diffInner"></div></div>
+      </div>
+
+      <div class="history" id="historyBar">
+        <div class="hist-head">
+          <div class="hist-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5M3.05 13A9 9 0 1 0 6 5.3L3 8M12 7v5l3 3"/></svg>
+            História verzií <span class="count" id="snapCount">0</span>
+          </div>
+          <button class="icon-btn" id="histToggle">
+            <span id="histToggleTxt">Expandovať</span>
+            <svg id="histChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+        </div>
+        <div class="hist-list" id="histList"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ EDITOR (/editor) ============ -->
+  <section id="editorView">
+    <aside class="ed-side">
+      <button class="ed-new" id="edNew">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        New
+      </button>
+      <div class="ed-search">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+        <input id="edSearch" placeholder="Hľadať projekty…" />
+      </div>
+      <div>
+        <div class="ed-nav-title">Projekty</div>
+        <div class="ed-projects" id="edProjectList"></div>
+      </div>
+      <div>
+        <div class="ed-nav-title">Connectors</div>
+        <div class="ed-conn-list">
+          <button class="ed-conn" data-conn="GitHub">🐙 GitHub</button>
+          <button class="ed-conn" data-conn="Figma">🎨 Figma</button>
+          <button class="ed-conn" data-conn="Notion">📓 Notion</button>
+        </div>
+      </div>
+      <div class="ed-build">
+        <b>Forge Pro</b>
+        <p>Odomyš private projekty, viac modelov a rýchlejšie buildy.</p>
+        <button id="edUpgrade">Upgrade to Pro</button>
+      </div>
+    </aside>
+    <div class="ed-main">
+      <div class="ed-top">
+        <div class="ed-crumb">
+          <span id="edProjectName">Nový projekt</span>
+          <span class="ed-ver" id="edVer">v0</span>
+        </div>
+        <div class="ed-actions">
+          <button class="ed-act" id="edPreviewBtn">▶ Preview</button>
+          <button class="ed-act" id="edShareBtn">↗ Share</button>
+          <button class="ed-act hide-m" id="edUpgradeTop">Upgrade</button>
+          <button class="ed-act primary" id="edPublishBtn">Publish</button>
+        </div>
+      </div>
+      <div class="ed-body">
+        <div class="ed-stage">
+          <div class="ed-meta">
+            <div class="ed-stat"><span>Súbor</span><b id="edFile">—</b></div>
+            <div class="ed-stat"><span>Verzia</span><b id="edVerStat">—</b></div>
+            <div class="ed-stat"><span>Veľkosť</span><b id="edSize">—</b></div>
+            <div class="ed-stat"><span>Model</span><b id="edModel">—</b></div>
+            <div class="ed-stat"><span>Stav</span><b id="edState">—</b></div>
+          </div>
+          <div class="ed-frame-wrap">
+            <iframe id="editorFrame" sandbox="allow-scripts" title="Editor live preview"></iframe>
+            <div class="ed-empty" id="edEmpty">
+              <div class="ed-empty-ic">▦</div>
+              <b>Zatiaľ žiadny projekt</b>
+              <p>Vygeneruj appku v chatovacom režime — automaticky sa objaví tu a bude živo prepojená s canvasom.</p>
+              <button class="ed-act primary" id="edStartBtn">Začať projekt</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Publish modal -->
+  <div class="modal-overlay" id="publishModal">
+    <div class="modal">
+      <h3>🚀 Publikuj aplikáciu</h3>
+      <p class="m-sub" id="pubSub">Nasádzam na Lovable Cloud…</p>
+      <div class="pub-step pending" data-ps="1"><span class="pi"></span> Production build</div>
+      <div class="pub-step pending" data-ps="2"><span class="pi"></span> Optimalizácia assets</div>
+      <div class="pub-step pending" data-ps="3"><span class="pi"></span> Deploy na globálny CDN</div>
+      <div class="pub-url" id="pubUrl"><span id="pubUrlTxt"></span><button id="copyPubUrl">Kopírovať</button></div>
+      <button class="btn-primary" id="pubClose" style="align-self:flex-end;display:none">Hotovo</button>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+<script>
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+const state = {
+  model: 'Lovable Cloud',
+  mode: 'home',
+  viewport: 'desktop',
+  zoomPct: 100,
+  tab: 'preview',
+  editMode: false,
+  isPublic: false,
+  publishedUrl: null,
+  messages: [],
+  snapshots: [],
+  liveHtml: null,
+  viewing: null,
+  liveId: null,
+  generating: false,
+  console: []
+};
+
+/* ---------- utility ---------- */
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function hl(code){
+  let s = esc(code);
+  s = s.replace(/(&lt;!--[\s\S]*?--&gt;)/g,'<span class="tok-com">$1</span>');
+  s = s.replace(/("[^"\n]*")/g,'<span class="tok-str">$1</span>');
+  s = s.replace(/(&lt;\/?)([a-zA-Z][\w-]*)/g,'$1<span class="tok-tag">$2</span>');
+  return s;
+}
+const now = () => new Date().toLocaleTimeString('sk-SK',{hour:'2-digit',minute:'2-digit'});
+const uid = () => Math.random().toString(36).slice(2,9);
+const dbg = (...a) => console.debug('[Forge]', new Date().toISOString().slice(11,23), ...a);
+
+function toast(msg, kind){
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind ? ' ' + kind : '');
+  el.innerHTML = '<span class="dot"></span>' + esc(msg);
+  $('#toasts').appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 2600);
+}
+function log(txt, cls='info'){
+  state.console.push({t: now(), txt, cls});
+  if (state.tab === 'console') renderConsole();
+}
+function copy(t){
+  try { navigator.clipboard.writeText(t); }
+  catch { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+}
+
+/* ---------- generované aplikácie ---------- */
+function buildSaas(){
+  return `<!doctype html>
+<html lang="sk"><head><meta charset="utf-8"><title>Nimbus — AI SaaS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body{background:#fafafc;color:#0f172a}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+nav{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+nav b{font-size:19px;letter-spacing:-.3px}
+nav b i{color:#7c3aed;font-style:normal}
+nav .links{display:flex;gap:26px;font-size:14px;color:#475569}
+nav .cta{background:#7c3aed;color:#fff;padding:9px 18px;border-radius:9px;font-size:14px;font-weight:600}
+.hero{text-align:center;padding:64px 0 76px;position:relative}
+.hero .glow{position:absolute;inset:-40px;background:radial-gradient(420px 220px at 50% 30%,rgba(124,58,237,.16),transparent);pointer-events:none}
+.badge{display:inline-block;background:#f3eefc;color:#7c3aed;font-size:12.5px;font-weight:600;padding:5px 14px;border-radius:30px;margin-bottom:20px}
+h1{font-size:52px;letter-spacing:-1.5px;line-height:1.08}
+h1 em{font-style:normal;background:linear-gradient(90deg,#7c3aed,#ec4899);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:#64748b;font-size:17px;max-width:520px;margin:18px auto 30px;line-height:1.6}
+.btns{display:flex;gap:12px;justify-content:center}
+.btn-p{background:#7c3aed;color:#fff;padding:13px 26px;border-radius:11px;font-size:15px;font-weight:600;box-shadow:0 8px 24px rgba(124,58,237,.3)}
+.btn-g{background:#fff;border:1px solid #e2e8f0;color:#334155;padding:13px 26px;border-radius:11px;font-size:15px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:24px 0 64px}
+.card{background:#fff;border:1px solid #eef0f5;border-radius:15px;padding:22px;transition:.2s}
+.card:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(15,23,42,.09)}
+.card .ic{width:38px;height:38px;border-radius:10px;background:#f3eefc;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:13px}
+.card h3{font-size:16px;margin-bottom:7px}
+.card p{font-size:13.5px;color:#64748b;line-height:1.6}
+.stats{display:flex;justify-content:space-around;border-top:1px solid #eef0f5;border-bottom:1px solid #eef0f5;padding:28px 0;margin-bottom:56px;text-align:center}
+.stats b{display:block;font-size:29px;letter-spacing:-.5px;color:#7c3aed}
+.stats span{font-size:12.5px;color:#94a3b8}
+footer{text-align:center;color:#94a3b8;font-size:13px;padding:26px 0;border-top:1px solid #eef0f5}
+</style></head><body>
+<div class="wrap">
+  <nav><b>Nimbus<i>.</i></b><div class="links"><span>Produkt</span><span>Cenník</span><span>Dokumentácia</span><span>Blog</span></div><span class="cta">Začať zdarma</span></nav>
+  <section class="hero"><div class="glow"></div>
+    <div class="badge">✨ Nové: Nimbus AI 2.0 je tu</div>
+    <h1>Škáluj rýchlejšie<br><em>s AI-driven analytikou</em></h1>
+    <p class="sub">Nimbus prepája vaše dáta, notifikácie a reporting do jedného dashboardu. Bez kódu, bez čakania.</p>
+    <div class="btns"><span class="btn-p">Začať zdarma</span><span class="btn-g">Žiadať demo →</span></div>
+  </section>
+  <section class="grid">
+    <div class="card"><div class="ic">⚡</div><h3>Realtime rýchlosť</h3><p>Dotazy nad 50M riadkami vráti výsledok pod 90 ms vďaka edge replikám.</p></div>
+    <div class="card"><div class="ic">🛡️</div><h3>Safety-first</h3><p>SOC 2 Type II, end-to-end šifrovanie a granulárne prístupové práva.</p></div>
+    <div class="card"><div class="ic">🧩</div><h3>120+ integrácií</h3><p>Stripe, Slack, Notion, Linear a ďalšie — pripojenie na 2 kliky.</p></div>
+  </section>
+  <section class="stats">
+    <div><b>12 400+</b><span>aktívnych tímov</span></div>
+    <div><b>99.99%</b><span>uptime SLA</span></div>
+    <div><b>4.9/5</b><span>na G2 &amp; Capterra</span></div>
+    <div><b>38%</b><span>nižšie náklady</span></div>
+  </section>
+  <footer>© 2026 Nimbus, s.r.o. — Built with Forge</footer>
+</div></body></html>`;
+}
+
+function buildKanban(){
+  return `<!doctype html>
+<html lang="sk"><head><meta charset="utf-8"><title>FlowDeck — Kanban</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body{background:#101014;min-height:100%;color:#e4e4e7;padding:22px}
+.head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.head h1{font-size:19px;letter-spacing:-.3px}
+.head h1 i{color:#a855f7;font-style:normal}
+.head p{font-size:12px;color:#71717a;margin-top:3px}
+.add{background:#a855f7;color:#fff;font-size:13px;font-weight:600;padding:8px 16px;border-radius:8px}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.col{background:#17171c;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:13px;min-height:320px}
+.col-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:12px}
+.tag-dot{width:8px;height:8px;border-radius:50%}
+.count{margin-left:auto;font-size:11px;color:#71717a;background:rgba(255,255,255,.06);padding:1px 8px;border-radius:12px}
+.card{background:#1f1f26;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;margin-bottom:10px;transition:.18s;cursor:grab}
+.card:hover{transform:translateY(-2px);border-color:rgba(168,85,247,.5)}
+.card h4{font-size:13px;font-weight:600;margin-bottom:8px}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.chip{font-size:10px;padding:2px 8px;border-radius:11px;font-weight:600}
+.c-design{background:rgba(168,85,247,.16);color:#d8b4fe}
+.c-bug{background:rgba(248,113,113,.14);color:#fca5a5}
+.c-feat{background:rgba(52,211,153,.13);color:#6ee7b7}
+.c-doc{background:rgba(251,191,36,.13);color:#fcd34d}
+.row{display:flex;align-items:center;justify-content:space-between}
+.due{font-size:10.5px;color:#71717a}
+.av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff}
+.new-card{width:100%;border:1px dashed rgba(255,255,255,.15);border-radius:9px;padding:9px;color:#71717a;font-size:12px;background:none;cursor:pointer}
+.new-card:hover{color:#a1a1aa;border-color:rgba(168,85,247,.5)}
+</style></head><body>
+<div class="head">
+  <div><h1>FlowDeck <i>· Šprint 42</i></h1><p>3 stĺpce · 7 kariet · update pred 2 min</p></div>
+  <button class="add">+ Nová karta</button>
+</div>
+<div class="board">
+  <div class="col">
+    <div class="col-h"><span class="tag-dot" style="background:#f87171"></span>Todo<span class="count">3</span></div>
+    <div class="card"><h4>Redizajn onboarding flow</h4><div class="chips"><span class="chip c-design">design</span><span class="chip c-feat">v2.0</span></div><div class="row"><span class="due">📅 12. okt</span><span class="av" style="background:#7c3aed">MK</span></div></div>
+    <div class="card"><h4>Migrácia DB na Postgres 16</h4><div class="chips"><span class="chip c-bug">infra</span></div><div class="row"><span class="due">📅 18. okt</span><span class="av" style="background:#0ea5e9">JT</span></div></div>
+    <div class="card"><h4>Docs: API reference v2</h4><div class="chips"><span class="chip c-doc">docs</span></div><div class="row"><span class="due">Backlog</span><span class="av" style="background:#f59e0b">LA</span></div></div>
+    <button class="new-card">+ Pridať kartu</button>
+  </div>
+  <div class="col">
+    <div class="col-h"><span class="tag-dot" style="background:#fbbf24"></span>Rozpracované<span class="count">2</span></div>
+    <div class="card"><h4>Refaktor auth modulu</h4><div class="chips"><span class="chip c-bug">bug #341</span><span class="chip c-design">prio</span></div><div class="row"><span class="due">📅 9. okt</span><span class="av" style="background:#a855f7">ZK</span></div></div>
+    <div class="card"><h4>A/B test pricing page</h4><div class="chips"><span class="chip c-feat">growth</span></div><div class="row"><span class="due">📅 10. okt</span><span class="av" style="background:#10b981">NP</span></div></div>
+    <button class="new-card">+ Pridať kartu</button>
+  </div>
+  <div class="col">
+    <div class="col-h"><span class="tag-dot" style="background:#34d399"></span>Hotovo<span class="count">2</span></div>
+    <div class="card"><h4>✅ Dark mode pre celý app</h4><div class="chips"><span class="chip c-feat">v1.8</span></div><div class="row"><span class="due">Hotové 6. okt</span><span class="av" style="background:#f43f5e">EV</span></div></div>
+    <div class="card"><h4>✅ Optimalizácia bundle o 41%</h4><div class="chips"><span class="chip c-doc">perf</span></div><div class="row"><span class="due">Hotové 5. okt</span><span class="av" style="background:#7c3aed">MK</span></div></div>
+    <button class="new-card">+ Pridať kartu</button>
+  </div>
+</div></body></html>`;
+}
+
+function buildSettings(){
+  return `<!doctype html>
+<html lang="sk"><head><meta charset="utf-8"><title>Aurora — Settings</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body{background:#f6f7f9;color:#0f172a;display:flex;min-height:100%}
+.side{width:228px;background:#fff;border-right:1px solid #e6e8ee;padding:22px 14px;display:flex;flex-direction:column;gap:3px}
+.side .logo{font-size:18px;font-weight:800;margin:0 10px 20px;letter-spacing:-.4px}
+.side .logo i{color:#7c3aed;font-style:normal}
+.side a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;font-size:13.5px;color:#475569;text-decoration:none}
+.side a.on{background:#f3eefc;color:#6d28d9;font-weight:600}
+.side a:hover{background:#f1f5f9}
+.side .out{margin-top:auto;color:#94a3b8;font-size:12.5px}
+main{flex:1;padding:30px 38px;max-width:760px}
+.breadcrumb{font-size:12.5px;color:#94a3b8;margin-bottom:8px}
+h1{font-size:23px;letter-spacing:-.4px;margin-bottom:20px}
+.card{background:#fff;border:1px solid #e6e8ee;border-radius:14px;padding:20px;margin-bottom:16px}
+.card h2{font-size:14.5px;margin-bottom:4px}
+.card .desc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}
+.profile{display:flex;align-items:center;gap:14px}
+.pav{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:17px}
+.profile b{font-size:15px}.profile span{font-size:12.5px;color:#94a3b8;display:block}
+.row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9}
+.row:last-child{border-bottom:none}
+.row .l b{font-size:13.5px;font-weight:600;display:block}
+.row .l span{font-size:11.5px;color:#94a3b8}
+.sw{width:38px;height:21px;border-radius:11px;background:#e2e8f0;position:relative;cursor:pointer;transition:.18s;flex-shrink:0}
+.sw::after{content:"";position:absolute;top:2.5px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.18s}
+.sw.on{background:#7c3aed}
+.sw.on::after{left:19px}
+.save-bar{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
+.btn{padding:10px 20px;border-radius:9px;font-size:13.5px;font-weight:600}
+.btn.ghost{background:#fff;border:1px solid #e2e8f0;color:#475569}
+.btn.pri{background:#7c3aed;color:#fff;box-shadow:0 6px 18px rgba(124,58,237,.3)}
+</style></head><body>
+<aside class="side">
+  <div class="logo">Aurora<i>.</i></div>
+  <a href="#">📋 Prehľad</a>
+  <a href="#" class="on">⚙️ Nastavenia</a>
+  <a href="#">👥 Členovia</a>
+  <a href="#">🔑 API kľúče</a>
+  <a href="#">🧾 Fakturácia</a>
+  <a href="#" class="out">↩ Odhlásiť sa</a>
+</aside>
+<main>
+  <div class="breadcrumb">Workspace / Nastavenia</div>
+  <h1>Nastavenia workspace</h1>
+  <div class="card">
+    <h2>Profil</h2><div class="desc">Tieto údaje sa zobrazujú ostatným členom tímu.</div>
+    <div class="profile"><div class="pav">JH</div><div><b>Jana Hrušková</b><span>jana@aurora.app · Owner</span></div></div>
+  </div>
+  <div class="card">
+    <h2>Preferencie</h2><div class="desc">Prispôsob si správanie workspace.</div>
+    <div class="row"><div class="l"><b>Emailové notifikácie</b><span>Týždenný súhrn aktivít</span></div><div class="sw on"></div></div>
+    <div class="row"><div class="l"><b>Dvojfaktorové overenie</b><span>Prihlásenie cez TOTP app</span></div><div class="sw on"></div></div>
+    <div class="row"><div class="l"><b>Kompaktný režim</b><span>Hustejšie riadky v tabuľkách</span></div><div class="sw"></div></div>
+    <div class="row"><div class="l"><b>Telemetria</b><span>Anonymné štatistiky používania</span></div><div class="sw"></div></div>
+  </div>
+  <div class="save-bar"><span class="btn ghost">Zrušiť</span><span class="btn pri">Uložiť zmeny</span></div>
+</main></body></html>`;
+}
+
+function buildDashboard(prompt){
+  const p = esc(prompt).slice(0,40);
+  return `<!doctype html>
+<html lang="sk"><head><meta charset="utf-8"><title>Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body{background:#f6f5f1;color:#1c1b17;padding:24px}
+h1{font-size:20px;letter-spacing:-.3px;margin-bottom:4px}
+.sub{font-size:12.5px;color:#8a867c;margin-bottom:22px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{background:#fff;border:1px solid #e9e6de;border-radius:14px;padding:16px}
+.kpi span{font-size:11.5px;color:#8a867c}
+.kpi b{display:block;font-size:24px;margin:6px 0 4px;letter-spacing:-.5px}
+.delta{font-size:11px;font-weight:600}
+.up{color:#059669}.down{color:#dc2626}
+.chart{background:#fff;border:1px solid #e9e6de;border-radius:14px;padding:20px;margin-bottom:18px}
+.chart h3{font-size:13.5px;margin-bottom:16px}
+.bars{display:flex;align-items:flex-end;gap:14px;height:150px}
+.bar{flex:1;background:linear-gradient(180deg,#a855f7,#7c3aed);border-radius:6px 6px 2px 2px;position:relative;transition:.2s}
+.bar:hover{filter:brightness(1.15)}
+.bar i{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-style:normal;font-size:10.5px;color:#8a867c}
+.legend{display:flex;gap:8px;margin-top:14px}
+.legend span{font-size:11px;color:#8a867c;background:#f4f2ec;padding:4px 10px;border-radius:12px}
+</style></head><body>
+<h1>Dashboard</h1>
+<div class="sub">Generované z promptu: „${p}…“</div>
+<div class="kpis">
+  <div class="kpi"><span>Navštevy</span><b>48 210</b><span class="delta up">▲ 12.4%</span></div>
+  <div class="kpi"><span>Konverzia</span><b>3.8%</b><span class="delta up">▲ 0.6 pp</span></div>
+  <div class="kpi"><span>Priem. čas</span><b>2m 41s</b><span class="delta down">▼ 8.1%</span></div>
+  <div class="kpi"><span>Chyby</span><b>0.02%</b><span class="delta up">▲ stab.</span></div>
+</div>
+<div class="chart">
+  <h3>Týždenná aktivita</h3>
+  <div class="bars">
+    <div class="bar" style="height:44%"><i>44</i></div><div class="bar" style="height:62%"><i>62</i></div>
+    <div class="bar" style="height:38%"><i>38</i></div><div class="bar" style="height:81%"><i>81</i></div>
+    <div class="bar" style="height:95%"><i>95</i></div><div class="bar" style="height:71%"><i>71</i></div>
+    <div class="bar" style="height:56%"><i>56</i></div>
+  </div>
+  <div class="legend"><span>Posledných 7 dní</span><span>Update: práve teraz</span></div>
+</div></body></html>`;
+}
+
+const SNIPPETS = {
+  saas: `<section class="hero">
+  <span class="badge">✨ Nové: Nimbus AI 2.0</span>
+  <h1>Škáluj rýchlejšie <em>s AI</em></h1>
+</section>`,
+  kanban: `<div class="board">
+  <div class="col">
+    <div class="col-h">Todo <span class="count">3</span></div>
+    <div class="card">…</div>
+  </div>
+</div>`,
+  settings: `<div class="card">
+  <h2>Preferencie</h2>
+  <div class="row">…</div>
+</div>`,
+  dashboard: `<div class="kpis">
+  <div class="kpi"><b>48 210</b></div>
+</div>`
+};
+const THUMBS = {
+  saas:'linear-gradient(135deg,#7c3aed,#ec4899)', kanban:'linear-gradient(135deg,#1f1f26,#a855f7)',
+  settings:'linear-gradient(135deg,#7c3aed,#0ea5e9)', dashboard:'linear-gradient(135deg,#a855f7,#f59e0b)'
+};
+const KINDS = [
+  { re:/landing|saas|hero|web|blog/i, kind:'saas', file:'index.html', name:'SaaS Landing Page' },
+  { re:/kanban|board|stĺpc/i, kind:'kanban', file:'board.html', name:'Kanban Board' },
+  { re:/settings|nastaven|dashboard|profil|crm/i, kind:'settings', file:'settings.html', name:'Settings Dashboard' },
+];
+const KIND_INFO = {
+  saas: { file:'index.html', name:'SaaS Landing Page' },
+  kanban: { file:'board.html', name:'Kanban Board' },
+  settings: { file:'settings.html', name:'Settings Dashboard' },
+  dashboard: { file:'dashboard.html', name:'Dashboard' },
+};
+function detectKind(text){
+  for (const k of KINDS) if (k.re.test(text)) return k;
+  return { kind:'dashboard', file:'dashboard.html', name:'Dashboard' };
+}
+
+/* ---------- render: chat ---------- */
+function renderChat(){
+  const el = $('#chatScroll');
+  el.innerHTML = state.messages.map(m => {
+    const isUser = m.role === 'user';
+    const planHtml = m.plan ? `
+      <div class="plan">
+        <div class="plan-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v4l2.5 2.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg> Agent Mode${m.planTitle ? ' · ' + esc(m.planTitle) : ''}</div>
+        ${m.plan.map(s => `<div class="plan-step ${s.state}"><span class="pi">${s.state==='done'?'✓':''}</span>${esc(s.label)}</div>`).join('')}
+      </div>` : '';
+    const codeHtml = (m.code && m.done) ? `
+      <div class="code-block">
+        <div class="code-head"><span>${esc(m.file || 'index.html')}</span>
+          <button data-copy="${m.id}">⧉ Kopírovať</button>
+        </div>
+        <pre>${hl(m.code)}</pre>
+      </div>` : '';
+    const actions = (isUser || !m.done) ? '' : `
+      <div class="actions">
+        <button class="qact" data-act="copy" data-id="${m.id}">⧉ Copy</button>
+        <button class="qact" data-act="fork" data-id="${m.id}">⑂ Fork</button>
+        <button class="qact" data-act="rerun" data-id="${m.id}">↻ Re-run</button>
+      </div>`;
+    const body = (m.pending) ? '<div class="typing"><i></i><i></i><i></i></div>'
+      : (m.text ? `<div class="content selectable">${esc(m.text)}</div>` : '');
+    return `
+      <div class="msg ${isUser ? 'user' : 'assistant'}" data-id="${m.id}">
+        <div class="avatar">${isUser ? 'TY' : '<svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z"/></svg>'}</div>
+        <div class="bubble">
+          <div class="meta">${isUser ? 'Ty' : 'Agent · ' + esc(m.model || state.model)} · ${m.time}</div>
+          ${planHtml}${body}${codeHtml}${actions}
+        </div>
+      </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function addMsg(role, text, extra={}){
+  const m = { id: uid(), role, text, time: now(), ...extra };
+  state.messages.push(m);
+  dbg('addMsg', role, JSON.stringify(text).slice(0,50), 'id=' + m.id);
+  renderChat();
+  return m;
+}
+
+/* ---------- render: preview / panely ---------- */
+const EDIT_CSS = `<style>*{cursor:pointer!important}* :hover{outline:2.5px solid #2563eb!important;outline-offset:-2.5px;border-radius:3px}html{background:#fff}</style>`;
+function withEditMode(html){
+  return state.editMode && html ? html.replace('</head>', EDIT_CSS + '</head>') : html;
+}
+function currentHtml(){ return state.viewing ? state.viewing.html : state.liveHtml; }
+function renderPreview(){
+  const html = currentHtml();
+  const device = $('#device');
+  dbg('renderPreview', state.viewing ? 'snapshot v' + state.viewing.v : (html ? 'live (' + html.length + ' B)' : 'žiadny HTML — skrývam device'));
+  renderEditorPreview();
+  if (!html){ device.style.display = 'none'; return; }
+  device.style.display = 'flex';
+  $('#previewFrame').setAttribute('srcdoc', withEditMode(html));
+  applyViewport();
+}
+function renderRaw(){
+  const html = currentHtml();
+  $('#rawPre').innerHTML = html ? hl(html) : '<span style="color:#8a867c">// Zatiaľ žiadny kód…</span>';
+}
+function renderConsole(){
+  const pi = $('#consoleInner');
+  pi.innerHTML = state.console.map(l =>
+    `<div class="console-line ${l.cls}"><span class="t">${l.t}</span><span class="txt">${esc(l.txt)}</span></div>`
+  ).join('') || '<div class="pane-empty">Žiadne logy.</div>';
+  pi.scrollTop = pi.scrollHeight;
+}
+function renderDiff(){
+  const el = $('#diffInner');
+  const n = state.snapshots.length;
+  if (n < 2){
+    el.innerHTML = '<div class="pane-empty"><span style="font-size:22px">±</span>Diff bude dostupný po vygenerovaní aspoň 2 verzií.</div>';
+    return;
+  }
+  const prev = state.snapshots[n-2], curr = state.snapshots[n-1];
+  const pl = prev.html.split('\n'), cl = curr.html.split('\n');
+  let ln = 0, out = '';
+  const mark = (line, sign, cls) => { ln++; return `<div class="diff-line ${cls}"><span class="ln">${ln}</span><span class="sign">${sign}</span><span>${esc(line)}</span></div>`; };
+  out += `<div class="diff-head"><span><b>v${prev.v}</b> → <b>v${curr.v}</b></span><span class="plus">+${cl.length} additions</span><span class="minus">−${Math.round(pl.length*.4)} deletions</span><span style="margin-left:auto;color:var(--muted)">${esc(curr.prompt.slice(0,36))}…</span></div>`;
+  pl.slice(24, 30).forEach(l => { out += mark(l, '−', 'del'); });
+  cl.slice(24, 34).forEach(l => { out += mark(l, '+', 'add'); });
+  cl.slice(34, 38).forEach(l => { out += mark(l, ' ', 'ctx'); });
+  el.innerHTML = out;
+}
+function setTab(tab){
+  state.tab = tab;
+  dbg('setTab →', tab);
+  $$('.ct-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  $$('.pane').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
+  if (tab === 'raw') renderRaw();
+  if (tab === 'console') renderConsole();
+  if (tab === 'diff') renderDiff();
+}
+
+/* ---------- viewport & zoom ---------- */
+function applyViewport(){
+  const wrap = $('#viewportWrap'), device = $('#device');
+  const isPhone = window.matchMedia('(max-width:1023px)').matches;
+  const w = { desktop: '100%', tablet: '768px', mobile: '390px' }[state.viewport];
+  device.style.width = (isPhone && state.viewport !== 'tablet') ? '100%' : w;
+  device.style.height = 'calc(100% - 8px)';
+  let scale = state.zoomPct / 100;
+  const cs = getComputedStyle(wrap);
+  const avail = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const intended = device.style.width === '100%' ? avail : parseInt(device.style.width);
+  if (intended * scale > avail && state.zoomPct > 100) { /* scroll */ }
+  if (state.zoomPct <= 100 && intended * scale > avail) scale = avail / intended * scale;
+  device.style.transform = `scale(${scale})`;
+  $('#zoomVal').textContent = state.zoomPct + '%';
+  dbg('applyViewport', state.viewport, state.zoomPct + '%', 'w=' + device.style.width, 'scale=' + Math.round(scale*1000)/1000);
+}
+function setZoom(pct){
+  state.zoomPct = Math.min(150, Math.max(50, pct));
+  dbg('setZoom', pct + '% →', state.zoomPct + '%');
+  applyViewport();
+}
+$('#zoomIn').addEventListener('click', () => setZoom(state.zoomPct + 10));
+$('#zoomOut').addEventListener('click', () => setZoom(state.zoomPct - 10));
+$('#viewportSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setViewport(b.dataset.vp); });
+$('#mvpSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setViewport(b.dataset.vp); });
+function setViewport(v){
+  state.viewport = v;
+  dbg('setViewport →', v);
+  $$('#viewportSeg button').forEach(x => x.classList.toggle('active', x.dataset.vp === v));
+  $$('#mvpSeg button').forEach(x => x.classList.toggle('active', x.dataset.vp === v));
+  applyViewport();
+}
+
+/* ---------- Edit mode ---------- */
+$('#editToggle').addEventListener('click', () => {
+  state.editMode = !state.editMode;
+  dbg('editMode →', state.editMode);
+  $('#editToggle').classList.toggle('active', state.editMode);
+  $('#editTip').classList.toggle('show', state.editMode && !!currentHtml());
+  if (currentHtml()){ renderPreview(); toast(state.editMode ? 'Edit mode zapnutý — vizuálne úpravy' : 'Edit mode vypnutý'); }
+  log(state.editMode ? '✎ edit mode: ON (visual edits)' : '✎ edit mode: OFF', 'info');
+});
+
+/* ---------- snapshots & history ---------- */
+function createSnapshot(kind, prompt, html){
+  const snap = { id: uid(), v: state.snapshots.length + 1, time: now(), kind, prompt, html, pinned: false };
+  state.snapshots.push(snap);
+  state.liveId = snap.id;
+  dbg('snapshot vytvorený: v' + snap.v, 'kind=' + kind, 'id=' + snap.id, html.length + ' B');
+  $('#iterNum').textContent = 'v' + (snap.v + 1);
+  $('#snapCount').textContent = state.snapshots.length;
+  renderHistory();
+  log(`✓ verzia v${snap.v} uložená`, 'ok');
+  return snap;
+}
+function renderHistory(){
+  $('#histList').innerHTML = state.snapshots.slice().reverse().map(s => `
+    <div class="snap ${s.pinned ? 'pinned' : ''} ${(!state.viewing && s.id === state.liveId) ? 'current' : ''}" data-snap="${s.id}">
+      <div class="snap-thumb" style="background:${THUMBS[s.kind] || THUMBS.dashboard}">v${s.v}</div>
+      <div class="snap-row"><span class="snap-ver">v${s.v}</span><span class="snap-time">${s.time}</span></div>
+      <div class="snap-prompt">${esc(s.prompt)}</div>
+      <div class="snap-btns">
+        <button class="snap-btn" data-restore="${s.id}">↺ Restore</button>
+        <button class="snap-btn pin-btn ${s.pinned ? 'active' : ''}" data-pin="${s.id}">★ Pin</button>
+      </div>
+    </div>`).join('');
+}
+function viewSnapshot(id){
+  const s = state.snapshots.find(x => x.id === id);
+  if (!s){ dbg('viewSnapshot: nenašlo sa', id); return; }
+  state.viewing = s;
+  dbg('viewSnapshot → v' + s.v, '(read-only)');
+  $('#histBannerText').textContent = `Prezeráš historickú verziu v${s.v}`;
+  $('#histBanner').classList.add('show');
+  setTab('preview');
+  renderPreview();
+  renderHistory();
+  log(`👁 rewind na v${s.v} (read-only)`, 'warn');
+}
+function backToLive(){
+  state.viewing = null;
+  dbg('backToLive → liveId=' + state.liveId);
+  $('#histBanner').classList.remove('show');
+  renderPreview();
+  renderHistory();
+  log('↩ späť na live verziu', 'info');
+}
+
+/* ---------- Agent Mode generovanie ---------- */
+function showWorkspace(){
+  state.mode = 'work';
+  document.body.dataset.mode = 'work';
+  requestAnimationFrame(() => { applyViewport(); });
+}
+function goHome(){
+  state.mode = 'home';
+  document.body.dataset.mode = 'home';
+}
+
+function generate(prompt, kindOverride){
+  if (state.generating){ dbg('generate: ignorujem — už prebieha generovanie'); return; }
+  const text = prompt.trim();
+  if (!text){ dbg('generate: ignorujem — prázdny prompt'); return; }
+  const kind = kindOverride && KIND_INFO[kindOverride]
+    ? { kind: kindOverride, ...KIND_INFO[kindOverride] }
+    : detectKind(text);
+  dbg('generate →', 'prompt=' + JSON.stringify(text.slice(0,60)), 'kind=' + kind.kind, 'file=' + kind.file, 'model=' + state.model);
+
+  addMsg('user', text);
+  const input = $('#promptInput');
+  input.value = ''; autoGrow(); updateTokens();
+
+  state.generating = true;
+  $('#sendBtn').disabled = true;
+  showWorkspace();
+  setTab('preview');
+  $('#emptyPreviewTip')?.remove();
+  const device = $('#device');
+  device.style.display = 'flex';
+  $('#skeleton').classList.add('show');
+  $('#skModel').textContent = 'Agent · ' + state.model;
+
+  const steps = [
+    { label: 'Analyzujem prompt…', state: 'running' },
+    { label: 'Plánujem štruktúru aplikácie', state: 'pending' },
+    { label: `Navrhujem UI a generujem ${kind.file}`, state: 'pending' },
+    { label: 'Ukladám verziu do histórie', state: 'pending' },
+  ];
+  const m = addMsg('assistant', '', { plan: steps, planTitle: kind.name, model: state.model });
+  log(`› prompt prijatý (${Math.ceil(text.length/4)} tok) · agent: ${state.model}`, 'info');
+  log(`› plánujem komponenty: ${kind.kind === 'dashboard' ? 4 : 7}`, 'info');
+
+  const advance = (idx, delay) => setTimeout(() => {
+    if (m.plan[idx].state !== 'done') m.plan[idx].state = 'done';
+    if (m.plan[idx + 1]) m.plan[idx + 1].state = 'running';
+    dbg('agent krok ' + (idx+1) + '/' + m.plan.length, m.plan[idx].label, '→ ' + (m.plan[idx+1] ? m.plan[idx+1].label : 'koniec'));
+    renderChat();
+    log(`✓ krok: ${m.plan[idx].label}`, 'ok');
+  }, delay);
+
+  advance(0, 450);
+  advance(1, 950);
+  advance(2, 1550);
+
+  setTimeout(() => {
+    const html = { saas: buildSaas, kanban: buildKanban, settings: buildSettings }[kind.kind]?.() || buildDashboard(text);
+    state.liveHtml = html;
+    state.viewing = null;
+    $('#histBanner').classList.remove('show');
+    const snap = createSnapshot(kind.kind, text, html);
+    m.plan.forEach(s => s.state = 'done');
+    m.code = SNIPPETS[kind.kind];
+    m.file = kind.file;
+    renderChat();
+    state.generating = false;
+    $('#sendBtn').disabled = false;
+    $('#skeleton').classList.remove('show');
+    renderPreview();
+    log(`✓ ${kind.file} vygenerovaný (sandbox allow-scripts)`, 'ok');
+    dbg('generate: hotovo', 'v' + snap.v, html.length + ' B', 'editMode=' + state.editMode, 'snapshotId=' + snap.id);
+
+    const full = `Hotovo! Postavil som **${kind.name}** — beží v sandboxe \`allow-scripts\`, verzia v${snap.v} je v histórii.\n\nMôžeš iterovať: „pridaj tmavú tému“, „zmeň CTA farbu“ alebo zapni Edit mode a klikni na element v preview.`;
+    const words = full.split(' ');
+    let i = 0;
+    m.text = '';
+    const iv = setInterval(() => {
+      i += 3;
+      m.text = words.slice(0, i).join(' ');
+      renderChat();
+      if (i >= words.length){
+        clearInterval(iv);
+        m.done = true;
+        dbg('stream dokončený', words.length, 'slov', 'msgId=' + m.id);
+        renderChat();
+        toast(`Verzia v${snap.v} hotová`, 'ok');
+      }
+    }, 55);
+  }, 2250);
+}
+
+/* ---------- composer ---------- */
+const input = $('#promptInput');
+const homeInput = $('#homeInput');
+function autoGrow(){
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+}
+function updateTokens(){
+  const used = Math.ceil(input.value.length / 4) + state.messages.reduce((a,m) => a + Math.ceil((m.text||'').length/4) + Math.ceil((m.code||'').length/4), 0);
+  $('#tokenCount').textContent = `≈ ${input.value.length ? Math.ceil(input.value.length/4) + ' tok' : '0 tok'} · ${(used/1000).toFixed(1)}k / 200k ctx`;
+}
+input.addEventListener('input', () => { autoGrow(); updateTokens(); });
+input.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); generate(input.value); }
+});
+$('#sendBtn').addEventListener('click', () => generate(input.value));
+homeInput.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); generate(homeInput.value); }
+});
+$('#homeSend').addEventListener('click', () => generate(homeInput.value));
+homeInput.addEventListener('input', () => { const h = homeInput.style; homeInput.style.height = 'auto'; homeInput.style.height = Math.min(homeInput.scrollHeight, 180) + 'px'; });
+$('#homeAttach').addEventListener('click', () => toast('Prílohy & screenshoty: drag & drop (demo)', 'warn'));
+$('#attachBtn').addEventListener('click', () => toast('Prílohy & screenshoty: drag & drop (demo)', 'warn'));
+$('#publicCheck').addEventListener('change', e => {
+  state.isPublic = e.target.checked;
+  $('#visChip span').textContent = state.isPublic ? 'Public' : 'Súkromné';
+  $('#pubSwitch').classList.toggle('on', state.isPublic);
+  toast(state.isPublic ? 'Projekt bude public' : 'Projekt je súkromný');
+});
+$('#homeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip-pill'); if (!c) return;
+  homeInput.value = c.dataset.prompt;
+  generate(c.dataset.prompt, c.dataset.kind);
+});
+
+/* ---------- chat akcie ---------- */
+$('#chatScroll').addEventListener('click', e => {
+  const copyBtn = e.target.closest('[data-copy]');
+  if (copyBtn){
+    const m = state.messages.find(x => x.id === copyBtn.dataset.copy);
+    if (m?.code){ copy(m.code); toast('Kód skopírovaný', 'ok'); }
+    return;
+  }
+  const act = e.target.closest('[data-act]');
+  if (!act) return;
+  const m = state.messages.find(x => x.id === act.dataset.id);
+  if (!m) return;
+  if (act.dataset.act === 'copy'){ copy(m.code || m.text); toast('Skopírované', 'ok'); }
+  if (act.dataset.act === 'fork'){ toast(`Fork vetvy → v${state.snapshots.length + 1} (demo)`); log(`⑂ fork z v${state.snapshots.length}`, 'warn'); }
+  if (act.dataset.act === 'rerun'){
+    const prevUser = [...state.messages].reverse().find(x => x.role === 'user');
+    if (prevUser){ toast('Re-run posledného promptu…'); generate(prevUser.text); }
+  }
+});
+
+/* ---------- canvas akcie ---------- */
+$('#ctTabs').addEventListener('click', e => { const b = e.target.closest('.ct-tab'); if (b) setTab(b.dataset.tab); });
+$('#refreshBtn').addEventListener('click', () => {
+  if (!currentHtml()){ toast('Niet čo obnoviť — najprv vygeneruj appku', 'warn'); return; }
+  $('#previewFrame').setAttribute('srcdoc', withEditMode(currentHtml()));
+  toast('Preview obnovený'); log('↻ preview reloaded', 'info');
+});
+$('#openTabBtn').addEventListener('click', () => toast('Nový tab je v sandboxe blokovaný — použi Publish', 'warn'));
+$('#snapBtn').addEventListener('click', manualSnapshot);
+function manualSnapshot(){
+  if (!state.liveHtml){ toast('Najprv vygeneruj niečo, čo sa dá uložiť 📸', 'warn'); return; }
+  const last = state.snapshots[state.snapshots.length - 1];
+  createSnapshot(last.kind, 'Manuálny checkpoint', state.liveHtml);
+  toast('Verzia uložená (Ctrl+S)', 'ok');
+}
+
+/* ---------- publish ---------- */
+$('#publishBtn').addEventListener('click', () => {
+  if (!state.liveHtml){ toast('Najprv vygeneruj aplikáciu', 'warn'); return; }
+  if (state.publishedUrl){
+    copy(state.publishedUrl);
+    toast('Link už je publikovaný — skopírovaný: ' + state.publishedUrl, 'ok');
+    return;
+  }
+  const modal = $('#publishModal');
+  modal.classList.add('open');
+  log('⇧ publish: build + deploy started', 'info');
+  dbg('publish: start', 'model=' + state.model, 'public=' + state.isPublic);
+  const url = 'forge.app/p/' + uid() + '-' + uid().slice(0,4);
+  const steps = $$('.pub-step');
+  steps.forEach(s => s.className = 'pub-step pending');
+  $('#pubUrl').classList.remove('show');
+  $('#pubClose').style.display = 'none';
+  $('#pubSub').textContent = 'Nasádzam na Lovable Cloud…';
+  steps.forEach((s, i) => setTimeout(() => {
+    s.className = 'pub-step running';
+    setTimeout(() => { s.className = 'pub-step done'; }, 520);
+    if (i === steps.length - 1) setTimeout(() => {
+      state.publishedUrl = url;
+      dbg('publish: deployed → https://' + url);
+      $('#pubUrlTxt').textContent = 'https://' + url;
+      $('#pubUrl').classList.add('show');
+      $('#pubClose').style.display = 'flex';
+      $('#pubSub').textContent = 'Hotovo 🎉 Tvoja appka je naživo.';
+      $('#publishBtnTxt').textContent = 'Publikované ✓';
+      log('✓ deployed: https://' + url, 'ok');
+      toast('Aplikácia je live: ' + url, 'ok');
+    }, 650);
+  }, i * 700));
+});
+$('#copyPubUrl').addEventListener('click', () => { copy('https://' + state.publishedUrl); toast('Link skopírovaný', 'ok'); });
+$('#pubClose').addEventListener('click', () => $('#publishModal').classList.remove('open'));
+$('#publishModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+$('#remixBtn').addEventListener('click', () => {
+  homeInput.value = 'Remix komunitného projektu: „AI journaling app so zápismi a náladami“';
+  goHome();
+  toast('Remix — projekt nahraný do promptu');
+  homeInput.focus();
+});
+$('#exportBtn').addEventListener('click', () => {
+  if (!state.liveHtml){ toast('Najprv vygeneruj appku na export', 'warn'); return; }
+  toast('Export ZIP: index.html + assets (demo)', 'ok');
+  log('📦 export.zip pripravený (3 súbory)', 'ok');
+});
+
+/* ---------- história ---------- */
+$('#histToggle').addEventListener('click', () => {
+  const bar = $('#historyBar');
+  bar.classList.toggle('expanded');
+  dbg('history panel →', bar.classList.contains('expanded') ? 'expanded' : 'collapsed');
+  $('#histToggleTxt').textContent = bar.classList.contains('expanded') ? 'Zbaliť' : 'Expandovať';
+  $('#histChevron').style.transform = bar.classList.contains('expanded') ? 'rotate(180deg)' : '';
+});
+$('#histList').addEventListener('click', e => {
+  const pin = e.target.closest('[data-pin]');
+  if (pin){
+    const s = state.snapshots.find(x => x.id === pin.dataset.pin);
+    s.pinned = !s.pinned;
+    dbg('pin v' + s.v, '→', s.pinned);
+    renderHistory();
+    toast(s.pinned ? `v${s.v} pripnuté ★` : `v${s.v} odopnuté`);
+    return;
+  }
+  const res = e.target.closest('[data-restore]');
+  if (res){
+    const s = state.snapshots.find(x => x.id === res.dataset.restore);
+    state.liveHtml = s.html; state.viewing = null; state.liveId = s.id;
+    dbg('restore → v' + s.v, 'je nová live verzia');
+    $('#histBanner').classList.remove('show');
+    renderPreview(); renderHistory();
+    setTab('preview');
+    toast(`Verzia v${s.v} obnovená ako live`, 'ok');
+    log(`↺ restore v${s.v} → live`, 'ok');
+    return;
+  }
+  const snap = e.target.closest('[data-snap]');
+  if (snap) viewSnapshot(snap.dataset.snap);
+});
+$('#backToLive').addEventListener('click', backToLive);
+
+/* ---------- editor (/editor dashboard) ---------- */
+const ED_FILES = { saas:'index.html', kanban:'board.html', settings:'settings.html', dashboard:'dashboard.html' };
+function editorSelected(){
+  if (state.viewing) return state.viewing;
+  return state.snapshots.find(s => s.id === state.liveId) || null;
+}
+function goEditor(){
+  state.mode = 'editor';
+  document.body.dataset.mode = 'editor';
+  renderEditor();
+  dbg('editor: dashboard otvorený · projektov=' + state.snapshots.length, 'viewing=' + (state.viewing ? 'v' + state.viewing.v : 'live'));
+}
+function renderEditorPreview(){
+  const html = currentHtml();
+  const s = editorSelected();
+  const frame = $('#editorFrame'), empty = $('#edEmpty');
+  if (html){ frame.style.display = 'block'; frame.setAttribute('srcdoc', withEditMode(html)); empty.style.display = 'none'; }
+  else { frame.style.display = 'none'; empty.style.display = 'flex'; }
+  const st = $('#sessionTitle');
+  $('#edProjectName').textContent = ((st && st.textContent) || 'Nový projekt').slice(0, 60);
+  $('#edVer').textContent = s ? 'v' + s.v : 'v0';
+  $('#edFile').textContent = s ? (ED_FILES[s.kind] || 'index.html') : '—';
+  $('#edVerStat').textContent = s ? 'v' + s.v : '—';
+  $('#edSize').textContent = html ? (html.length / 1024).toFixed(1) + ' kB' : '—';
+  $('#edModel').textContent = state.model;
+  $('#edState').textContent = state.viewing ? 'Read-only' : (state.publishedUrl ? 'Publikované' : (html ? 'Draft' : 'Prázdne'));
+}
+function renderEditor(){
+  const q = ($('#edSearch').value || '').toLowerCase();
+  const items = state.snapshots.slice().reverse().filter(s => s.prompt.toLowerCase().includes(q));
+  const selId = (editorSelected() || {}).id;
+  $('#edProjectList').innerHTML = items.length ? items.map(s => `
+    <button class="ed-proj ${s.id === selId ? 'active' : ''}" data-proj="${s.id}">
+      <span class="ed-proj-thumb" style="background:${THUMBS[s.kind] || THUMBS.dashboard}">${s.v}</span>
+      <span class="ed-proj-meta"><b>v${s.v} · ${(s.html.length / 1024).toFixed(1)} kB</b><span>${esc(s.prompt.slice(0, 40))}</span></span>
+      <span class="ed-proj-time">${s.time}</span>
+    </button>`).join('') : '<div class="ed-empty-list">' + (q ? 'Nič sa nenašlo.' : 'Zatiaľ žiadne projekty — vygeneruj prvý.') + '</div>';
+  renderEditorPreview();
+}
+$('#editorBtn').addEventListener('click', goEditor);
+$('#edNew').addEventListener('click', () => $('#newSessionBtn').click());
+$('#edSearch').addEventListener('input', renderEditor);
+$('#edProjectList').addEventListener('click', e => {
+  const b = e.target.closest('[data-proj]');
+  if (!b) return;
+  viewSnapshot(b.dataset.proj);
+  renderEditor();
+  toast('Projekt načítaný do editora (read-only)', 'ok');
+  log('▦ editor: výber projektu v' + (state.viewing ? state.viewing.v : '?'), 'info');
+  dbg('editor: klik na projekt', b.dataset.proj);
+});
+$('#editorView').addEventListener('click', e => {
+  const c = e.target.closest('.ed-conn');
+  if (c) { toast('Connector ' + c.dataset.conn + ': pripojenie (demo)', 'warn'); log('⇄ connector: ' + c.dataset.conn + ' (demo)', 'warn'); dbg('editor: connector', c.dataset.conn); }
+});
+$('#edPreviewBtn').addEventListener('click', () => { showWorkspace(); setTab('preview'); dbg('editor → workspace preview'); });
+$('#edShareBtn').addEventListener('click', () => {
+  if (state.publishedUrl){ copy('https://' + state.publishedUrl); toast('Link skopírovaný: ' + state.publishedUrl, 'ok'); }
+  else toast('Najprv publikuj projekt — potom vieme zdieľať', 'warn');
+  dbg('editor: share', 'published=' + !!state.publishedUrl);
+});
+$('#edPublishBtn').addEventListener('click', () => { dbg('editor: publish cez hlavný flow'); $('#publishBtn').click(); });
+$('#edUpgrade').addEventListener('click', () => { toast('Upgrade to Pro — checkout (demo)', 'warn'); log('★ upgrade CTA klik (demo)', 'warn'); dbg('editor: upgrade CTA'); });
+$('#edUpgradeTop').addEventListener('click', () => { toast('Upgrade to Pro — checkout (demo)', 'warn'); dbg('editor: upgrade CTA (top)'); });
+$('#edStartBtn').addEventListener('click', () => { goHome(); homeInput.focus(); dbg('editor → home (štart projektu)'); });
+
+/* ---------- top bar ---------- */
+$('#modelChip').addEventListener('click', e => { e.stopPropagation(); $('#modelMenu').classList.toggle('open'); $('#settingsPop').classList.remove('open'); });
+$('#modelMenu').addEventListener('click', e => {
+  const b = e.target.closest('.item'); if (!b) return;
+  state.model = b.dataset.model;
+  $('#modelName').textContent = state.model;
+  $$('#modelMenu .item').forEach(x => x.querySelector('.check').textContent = x === b ? '✓' : '');
+  $('#modelMenu').classList.remove('open');
+  toast(`Model: ${state.model}`, 'ok');
+  log(`⚙ model → ${state.model}`, 'info');
+});
+$('#settingsBtn').addEventListener('click', e => { e.stopPropagation(); $('#settingsPop').classList.toggle('open'); $('#modelMenu').classList.remove('open'); });
+$('#settingsPop').addEventListener('click', e => {
+  const sw = e.target.closest('.switch');
+  if (sw){
+    sw.classList.toggle('on');
+    if (sw.id === 'pubSwitch'){
+      $('#publicCheck').checked = sw.classList.contains('on');
+      $('#publicCheck').dispatchEvent(new Event('change'));
+    }
+  }
+});
+document.addEventListener('click', () => { $('#modelMenu').classList.remove('open'); $('#settingsPop').classList.remove('open'); });
+$('#pubSwitch').addEventListener('click', () => {});
+
+function flashSaving(){
+  const s = $('#saveStatus'); s.textContent = 'Ukladám…';
+  setTimeout(() => s.textContent = 'Uložené', 650);
+}
+function startEditTitle(){
+  const span = $('#sessionTitle');
+  const original = span.textContent;
+  const inp = document.createElement('input');
+  inp.className = 'session-title-input';
+  inp.value = original;
+  span.replaceWith(inp);
+  inp.focus(); inp.select();
+  const commit = () => {
+    const n = document.createElement('span');
+    n.className = 'session-title'; n.id = 'sessionTitle';
+    n.title = 'Klikni pre premenovanie';
+    n.textContent = inp.value.trim() || original;
+    inp.replaceWith(n);
+    n.addEventListener('click', startEditTitle);
+    flashSaving();
+    dbg('session title commit →', JSON.stringify(n.textContent));
+  };
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape'){ inp.value = original; inp.blur(); } });
+}
+$('#sessionTitle').addEventListener('click', startEditTitle);
+$('#editTitleBtn').addEventListener('click', startEditTitle);
+
+$('#newSessionBtn').addEventListener('click', () => {
+  state.messages = []; state.snapshots = []; state.liveHtml = null;
+  state.viewing = null; state.liveId = null; state.publishedUrl = null;
+  state.editMode = false;
+  $('#editToggle').classList.remove('active');
+  $('#editTip').classList.remove('show');
+  $('#publishBtnTxt').textContent = 'Publish';
+  $('#iterNum').textContent = 'v1';
+  $('#snapCount').textContent = '0';
+  $('#histBanner').classList.remove('show');
+  renderHistory(); renderChat();
+  goHome();
+  homeInput.value = '';
+  log('✦ nový projekt', 'info');
+  dbg('nový projekt: reset stavu', 'snapshotov=' + state.snapshots.length, 'msg=' + state.messages.length);
+  toast('Nový projekt — popíš ďalšiu ideu', 'ok');
+  homeInput.focus();
+});
+
+/* ---------- resizer & mobile ---------- */
+const resizer = $('#resizer');
+resizer.addEventListener('pointerdown', e => { resizer.classList.add('dragging'); resizer.setPointerCapture(e.pointerId); });
+resizer.addEventListener('pointermove', e => {
+  if (!resizer.classList.contains('dragging')) return;
+  document.documentElement.style.setProperty('--chat-w', Math.min(560, Math.max(340, e.clientX)) + 'px');
+});
+resizer.addEventListener('pointerup', () => resizer.classList.remove('dragging'));
+resizer.addEventListener('dblclick', () => document.documentElement.style.setProperty('--chat-w','420px'));
+
+$$('.mtabs .tab-btn').forEach(b => b.addEventListener('click', () => {
+  document.body.dataset.view = b.dataset.view;
+  $$('.mtabs .tab-btn').forEach(x => x.classList.toggle('active', x === b));
+  if (b.dataset.view === 'canvas') applyViewport();
+}));
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k'){ e.preventDefault(); (state.mode === 'home' ? homeInput : input).focus(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's'){ e.preventDefault(); if (state.mode === 'work') manualSnapshot(); }
+  if (e.key === 'Escape'){
+    if ($('#publishModal').classList.contains('open')) $('#publishModal').classList.remove('open');
+    else if (state.viewing) backToLive();
+  }
+});
+window.addEventListener('resize', applyViewport);
+
+/* ---------- init ---------- */
+renderHistory();
+renderConsole();
+renderEditor();
+log('✓ sandbox inicializovaný (allow-scripts)', 'ok');
+log('✓ /editor dashboard pripravený', 'ok');
+log('✓ Lovable Cloud pripojený · auth & DB ready', 'ok');
+homeInput.focus();
+dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoom=' + state.zoomPct + '%', 'model=' + state.model);
+</script>
+
+<!-- ============ TEST SUITE (Ctrl+Shift+T alebo window.__runForgeTests()) ============ -->
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- mini framework ---------- */
+  const R = [];
+  let pass = 0, fail = 0, running = false;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  function eq(a, e, msg){
+    if (a !== e) throw new Error((msg || 'eq') + ' — očakávané: ' + JSON.stringify(e) + ', dostal: ' + JSON.stringify(a));
+  }
+  function ok(c, msg){ if (!c) throw new Error(msg || 'podmienka nesplnená'); }
+  function t(name, fn){
+    try { fn(); R.push({ name, ok: true, detail: '' }); pass++; }
+    catch (e){ R.push({ name, ok: false, detail: String(e && e.message || e) }); fail++; }
+    renderPanel(true);
+  }
+  async function ta(name, fn){
+    try { await fn(); R.push({ name, ok: true, detail: '' }); pass++; }
+    catch (e){ R.push({ name, ok: false, detail: String(e && e.message || e) }); fail++; }
+    renderPanel(true);
+  }
+
+  /* ---------- záloha a obnova stavu (testy nenechajú stopy) ---------- */
+  function saveState(){
+    return {
+      messages: state.messages.slice(), snapshots: state.snapshots.slice(), console: state.console.slice(),
+      liveHtml: state.liveHtml, viewing: state.viewing, liveId: state.liveId,
+      mode: state.mode, viewport: state.viewport, zoomPct: state.zoomPct, tab: state.tab,
+      editMode: state.editMode, publishedUrl: state.publishedUrl, generating: state.generating,
+      isPublic: state.isPublic, model: state.model,
+      modeAttr: document.body.dataset.mode, viewAttr: document.body.dataset.view
+    };
+  }
+  function restoreState(s){
+    Object.assign(state, {
+      messages: s.messages, snapshots: s.snapshots, console: s.console, liveHtml: s.liveHtml,
+      viewing: s.viewing, liveId: s.liveId, mode: s.mode, viewport: s.viewport, zoomPct: s.zoomPct,
+      tab: s.tab, editMode: s.editMode, publishedUrl: s.publishedUrl, generating: s.generating,
+      isPublic: s.isPublic, model: s.model
+    });
+    document.body.dataset.mode = s.modeAttr; document.body.dataset.view = s.viewAttr;
+    $('#editToggle').classList.toggle('active', state.editMode);
+    $('#editTip').classList.toggle('show', state.editMode && !!currentHtml());
+    $('#histBanner').classList.toggle('show', !!state.viewing);
+    $('#publishBtnTxt').textContent = state.publishedUrl ? 'Publikované ✓' : 'Publish';
+    $('#iterNum').textContent = 'v' + (state.snapshots.length + 1);
+    $('#snapCount').textContent = String(state.snapshots.length);
+    $('#edSearch').value = '';
+    $('#publishModal').classList.remove('open');
+    renderChat(); renderHistory(); renderEditor(); setTab(state.tab); applyViewport();
+  }
+
+  /* ---------- test panel ---------- */
+  function showPanel(){
+    let p = document.getElementById('forgeTestPanel');
+    if (!p){
+      p = document.createElement('div');
+      p.id = 'forgeTestPanel';
+      p.style.cssText = 'position:fixed;top:14px;right:14px;width:362px;max-width:calc(100vw - 28px);max-height:78vh;z-index:500;display:flex;flex-direction:column;gap:9px;background:rgba(19,17,16,.97);border:1px solid #3c3025;border-radius:14px;padding:13px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#f2ece2;box-shadow:0 18px 50px rgba(0,0,0,.5);backdrop-filter:blur(10px)';
+      document.body.appendChild(p);
+    }
+    p.style.display = 'flex';
+    return p;
+  }
+  function renderPanel(runningNow){
+    const p = document.getElementById('forgeTestPanel');
+    if (!p) return;
+    const rows = R.map(r => '<div style="display:flex;gap:7px;padding:2px 0;' + (r.ok ? '' : 'flex-wrap:wrap') + '">' +
+      '<span style="color:' + (r.ok ? '#4ade80' : '#f87171') + ';flex-shrink:0">' + (r.ok ? '✓' : '✗') + '</span>' +
+      '<span style="min-width:0;' + (r.ok ? '' : 'color:#fca5a5;') + '">' + esc(r.name) + '</span>' +
+      (r.ok ? '' : '<span style="color:#918475;flex-basis:100%;padding-left:17px;word-break:break-word">' + esc(r.detail) + '</span>') +
+      '</div>').join('');
+    p.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #2c241c;padding-bottom:8px">' +
+        '<b style="font-size:12px">🧪 Forge Test Suite ' + (runningNow ? '— beží…' : '— ' + pass + '✓ / ' + fail + '✗') + '</b>' +
+        '<span style="display:flex;gap:5px">' +
+          '<button id="tpRun" style="background:#191512;border:1px solid #3c3025;color:#d3c8b8;border-radius:7px;padding:3px 8px;cursor:pointer;font-size:10px;font-family:inherit">↻ Znova</button>' +
+          '<button id="tpClose" style="background:#191512;border:1px solid #3c3025;color:#d3c8b8;border-radius:7px;padding:3px 8px;cursor:pointer;font-size:10px;font-family:inherit">✕</button>' +
+        '</span>' +
+      '</div>' +
+      '<div style="flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column">' + rows + '</div>';
+    document.getElementById('tpRun').onclick = () => runTests();
+    document.getElementById('tpClose').onclick = () => { p.style.display = 'none'; };
+  }
+
+  /* ---------- testy ---------- */
+  async function runTests(){
+    if (running){ toast('Testy už bežia…', 'warn'); return; }
+    if (state.generating){ toast('Počkaj na dokončenie generovania', 'warn'); return; }
+    running = true;
+    R.length = 0; pass = 0; fail = 0;
+    showPanel(); renderPanel(true);
+    const saved = saveState();
+    try { await execTests(); }
+    catch (e){ R.push({ name: 'runTests: neočakávaná chyba', ok: false, detail: String(e && e.message || e) }); fail++; }
+    restoreState(saved);
+    running = false;
+    renderPanel();
+    dbg('tests: hotovo', pass + ' ✓', fail + ' ✗');
+    toast('Testy: ' + pass + ' prešlo, ' + fail + ' zlyhalo', fail ? 'warn' : 'ok');
+    return { pass, fail };
+  }
+
+  async function execTests(){
+    t('API: všetky kľúčové funkcie existujú', () => {
+      ['esc','hl','now','uid','dbg','toast','log','copy','buildSaas','buildKanban','buildSettings','buildDashboard',
+       'detectKind','renderChat','addMsg','withEditMode','currentHtml','renderPreview','renderRaw','renderConsole',
+       'renderDiff','setTab','applyViewport','setZoom','setViewport','createSnapshot','renderHistory','viewSnapshot',
+       'backToLive','showWorkspace','goHome','generate','autoGrow','updateTokens','manualSnapshot','flashSaving',
+       'startEditTitle','goEditor','renderEditor','renderEditorPreview','editorSelected'].forEach(n => {
+        ok(new Function('return typeof ' + n)() === 'function', n + ' nie je funkcia');
+      });
+    });
+
+    t('esc: escapuje &, <, >', () => {
+      eq(esc('a<b>&c'), 'a&lt;b&gt;&amp;c');
+      eq(esc('<script>'), '&lt;script&gt;');
+    });
+    t('hl: zvýrazňuje tagy a reťazce', () => {
+      const out = hl('<div class="x">');
+      ok(out.includes('<span class="tok-tag">div</span>'), 'tok-tag');
+      ok(out.includes('<span class="tok-str">"x"</span>'), 'tok-str');
+    });
+    t('hl: zvýrazňuje komentáre', () => {
+      ok(hl('<!-- kom -->').includes('tok-com'), 'tok-com');
+    });
+    t('uid: 7 znakov, unikátne', () => {
+      const set = new Set();
+      for (let i = 0; i < 200; i++){ const u = uid(); eq(u.length, 7, 'dĺžka'); set.add(u); }
+      eq(set.size, 200, 'unikátnosť');
+    });
+    t('now: formát HH:MM', () => {
+      ok(/^\d{1,2}:\d{2}$/.test(now()), 'formát');
+    });
+    t('dbg: volateľné bez chyby', () => { dbg('test', 'dbg-ok'); });
+
+    t('buildSaas: kompletné HTML', () => {
+      const h = buildSaas();
+      ok(h.startsWith('<!doctype html'), 'doctype');
+      ok(h.includes('Nimbus') && h.includes('</html>'), 'obsah');
+    });
+    t('buildKanban: 3 stĺpce boardu', () => {
+      const h = buildKanban();
+      ok(h.includes('FlowDeck'), 'názov');
+      eq((h.match(/class="col"/g) || []).length, 3, 'počet stĺpcov');
+    });
+    t('buildSettings: obsahuje profil a prepínače', () => {
+      const h = buildSettings();
+      ok(h.includes('Aurora') && h.includes('Nastavenia workspace'), 'obsah');
+      ok((h.match(/class="sw/g) || []).length >= 4, 'prepínače');
+    });
+    t('buildDashboard: vkladá prompt do sub', () => {
+      const h = buildDashboard('moj super projekt');
+      ok(h.includes('moj super projekt'), 'prompt');
+      ok(h.includes('48 210'), 'KPI');
+    });
+    t('SNIPPETS/THUMBS: kompletné pre všetky 4 druhy', () => {
+      Object.keys(SNIPPETS).forEach(k => { ok(SNIPPETS[k].includes('<'), 'SNIPPETS[' + k + ']'); eq(THUMBS[k].includes('linear-gradient'), true, 'THUMBS[' + k + ']'); });
+    });
+    t('detectKind: smerovanie promptov + fallback', () => {
+      eq(detectKind('moderná landing page').kind, 'saas');
+      eq(detectKind('kanban board so stĺpcami').kind, 'kanban');
+      eq(detectKind('crm pre e-shop').kind, 'settings');
+      eq(detectKind('vyrob mi kolu').kind, 'dashboard', 'fallback');
+      eq(detectKind('').kind, 'dashboard', 'prázdny prompt');
+    });
+    t('KIND_INFO a ED_FILES: konzistentné názvy súborov', () => {
+      eq(Object.keys(KIND_INFO).length, 4);
+      Object.keys(KIND_INFO).forEach(k => eq(ED_FILES[k], KIND_INFO[k].file, 'ED_FILES[' + k + ']'));
+    });
+
+    t('withEditMode: vkladá EDIT_CSS len pri editMode', () => {
+      const h = '<html><head></head><body></body></html>';
+      state.editMode = false; eq(withEditMode(h), h, 'bez editMode');
+      state.editMode = true; ok(withEditMode(h).includes('cursor:pointer'), 's editMode');
+      state.editMode = false;
+    });
+    t('currentHtml: priorita viewing > liveHtml', () => {
+      state.liveHtml = null; state.viewing = null; eq(currentHtml(), null, 'prázdne');
+      state.liveHtml = 'LIVE'; eq(currentHtml(), 'LIVE', 'live');
+      state.viewing = { html: 'SNAP' }; eq(currentHtml(), 'SNAP', 'snapshot');
+      state.viewing = null; state.liveHtml = null;
+    });
+    t('setZoom: clamp 50–150 %', () => {
+      setZoom(10); eq(state.zoomPct, 50, 'dole');
+      setZoom(999); eq(state.zoomPct, 150, 'hore');
+      setZoom(100); eq(state.zoomPct, 100, '100');
+    });
+    t('setViewport: tablet 768px, mobile 390px + aktívny segment', () => {
+      setViewport('tablet'); eq($('#device').style.width, '768px');
+      ok(document.querySelector('#viewportSeg button[data-vp="tablet"]').classList.contains('active'), 'aktívny tablet');
+      setViewport('mobile'); eq($('#device').style.width, '390px');
+      setViewport('desktop');
+    });
+    t('applyViewport: zoom label sedí so stavom', () => {
+      state.zoomPct = 100; applyViewport(); eq($('#zoomVal').textContent, '100%');
+    });
+
+    t('addMsg + renderChat: user správa v DOM so data-id', () => {
+      state.messages = [];
+      const m = addMsg('user', 'ahoj');
+      eq(m.role, 'user'); ok(m.id, 'id');
+      ok(document.querySelector('#chatScroll [data-id="' + m.id + '"]').classList.contains('user'), 'node');
+    });
+    t('addMsg: Agent plan render + planTitle', () => {
+      addMsg('assistant', '', { plan: [{ label: 'Krok A', state: 'pending' }], planTitle: 'Test' });
+      ok(document.querySelector('#chatScroll .plan-step.pending'), 'plan-step');
+      ok(document.querySelector('#chatScroll .plan-title').textContent.includes('Agent Mode · Test'), 'titulok');
+    });
+    t('renderChat: XSS escapované', () => {
+      addMsg('user', '<img src=x onerror=1>');
+      eq(document.querySelectorAll('#chatScroll .msg.user .content img').length, 0, 'žiadny img');
+    });
+    t('renderChat: prázdny chat', () => {
+      state.messages = []; renderChat();
+      eq(document.querySelectorAll('#chatScroll .msg').length, 0);
+    });
+    t('log + renderConsole: záznam s triedou', () => {
+      state.console = []; setTab('console'); log('ahoj log', 'ok');
+      eq(state.console.length, 1); eq(state.console[0].cls, 'ok');
+      ok(document.querySelector('#consoleInner .console-line.ok'), 'render');
+      setTab('preview');
+    });
+    t('setTab raw: kód aj prázdny placeholder', () => {
+      state.liveHtml = '<html><body>RAWTEST</body></html>'; setTab('raw');
+      ok(document.querySelector('.pane[data-pane="raw"]').classList.contains('active'), 'pane');
+      ok($('#rawPre').innerHTML.includes('tok-tag'), 'highlight');
+      state.liveHtml = null; setTab('raw');
+      ok($('#rawPre').innerHTML.includes('Zatiaľ žiadny kód'), 'placeholder');
+      setTab('preview');
+    });
+    t('renderDiff: fewer than 2 snapshots → hint', () => {
+      state.snapshots = []; setTab('diff');
+      ok($('#diffInner').textContent.includes('aspoň 2 verzie'), 'hint');
+      setTab('preview');
+    });
+    t('toast: vytvorí element so správou', () => {
+      toast('test toast', 'ok');
+      ok(document.querySelector('#toasts .toast.ok').textContent.includes('test toast'), 'text');
+    });
+    t('copy: nevyhodí chybu', () => { copy('test-string'); });
+
+    t('createSnapshot: verzovanie, liveId, DOM counters', () => {
+      state.snapshots = []; state.liveHtml = '<html>ABC</html>';
+      const s = createSnapshot('saas', 'test prompt', '<html>ABC</html>');
+      eq(s.v, 1, 'verzia'); eq(state.liveId, s.id, 'liveId');
+      eq($('#snapCount').textContent, '1', 'counter'); eq($('#iterNum').textContent, 'v2', 'iter');
+      ok(state.snapshots[0].pinned === false, 'pinned default');
+    });
+    t('manualSnapshot: bez HTML nič nepridá', () => {
+      state.liveHtml = null; const n = state.snapshots.length; manualSnapshot();
+      eq(state.snapshots.length, n, 'bez zmeny');
+    });
+    t('manualSnapshot: s HTML pridá checkpoint', () => {
+      state.liveHtml = '<html>CHK</html>'; const n = state.snapshots.length; manualSnapshot();
+      eq(state.snapshots.length, n + 1, '+1');
+      eq(state.snapshots[state.snapshots.length - 1].prompt, 'Manuálny checkpoint', 'prompt');
+    });
+    t('viewSnapshot: neexistujúce ID → bez zmeny', () => {
+      state.viewing = null; viewSnapshot('neexistujuci-id');
+      eq(state.viewing, null);
+    });
+    t('viewSnapshot + backToLive: banner, read-only, restore', () => {
+      const s = state.snapshots[state.snapshots.length - 1];
+      viewSnapshot(s.id);
+      eq(state.viewing && state.viewing.id, s.id, 'viewing');
+      ok($('#histBanner').classList.contains('show'), 'banner');
+      ok($('#histBannerText').textContent.includes('v' + s.v), 'text bannera');
+      setTab('preview');
+      ok(($('#previewFrame').getAttribute('srcdoc') || '').includes('ABC') || ($('#previewFrame').getAttribute('srcdoc') || '').includes('CHK'), 'srcdoc snapshotu');
+      backToLive();
+      eq(state.viewing, null, 'live');
+      ok(!$('#histBanner').classList.contains('show'), 'banner skrytý');
+    });
+    t('renderDiff: 2 snapshoty → diff-head a + riadky', () => {
+      const long = Array.from({ length: 40 }, (_, i) => 'line' + i).join('\n');
+      state.snapshots = []; state.liveHtml = long;
+      createSnapshot('saas', 'prvý', long); createSnapshot('kanban', 'druhý', long);
+      setTab('diff');
+      ok($('#diffInner').querySelector('.diff-head'), 'diff-head');
+      ok($('#diffInner').querySelector('.diff-line.add'), '+ riadky');
+      setTab('preview');
+    });
+    t('renderHistory: pin trieda', () => {
+      const s = state.snapshots[state.snapshots.length - 1];
+      s.pinned = true; renderHistory();
+      ok(document.querySelector('#histList .snap.pinned'), 'pinned node');
+      s.pinned = false; renderHistory();
+    });
+
+    t('renderEditor: prázdny stav', () => {
+      state.snapshots = []; state.liveHtml = null; state.viewing = null; state.publishedUrl = null;
+      renderEditor();
+      ok($('#edProjectList').textContent.includes('Zatiaľ žiadne projekty'), 'empty list');
+      eq($('#edEmpty').style.display, 'flex', 'empty overlay');
+      eq($('#editorFrame').style.display, 'none', 'frame skrytý');
+      eq($('#edState').textContent, 'Prázdne', 'stav');
+    });
+    t('renderEditor: projekt s dátami + live preview sync', () => {
+      const s = createSnapshot('saas', 'editor projekt', '<html>EDTEST</html>');
+      state.liveHtml = s.html; renderEditor();
+      eq(document.querySelectorAll('#edProjectList [data-proj]').length, 1, 'položka');
+      eq($('#edFile').textContent, 'index.html', 'súbor');
+      eq($('#edVer').textContent, 'v' + s.v, 'verzia');
+      ok($('#edSize').textContent.includes('kB'), 'veľkosť');
+      eq($('#edState').textContent, 'Draft', 'stav');
+      ok(($('#editorFrame').getAttribute('srcdoc') || '').includes('EDTEST'), 'srcdoc');
+    });
+    t('renderEditor: fulltext filter', () => {
+      $('#edSearch').value = 'xyz-nenasobene'; renderEditor();
+      ok($('#edProjectList').textContent.includes('Nič sa nenašlo.'), 'filter');
+      $('#edSearch').value = ''; renderEditor();
+    });
+    t('editorSelected: priorita viewing pred liveId', () => {
+      const s = state.snapshots[0];
+      state.viewing = s; eq(editorSelected() && editorSelected().id, s.id, 'viewing');
+      state.viewing = null; state.liveId = s.id;
+      eq(editorSelected() && editorSelected().id, s.id, 'live fallback');
+      state.liveId = null; eq(editorSelected(), null, 'nič');
+    });
+    t('modelMenu: výber zmení model', () => {
+      const prev = state.model;
+      document.querySelector('#modelMenu .item[data-model="GPT-5"]').click();
+      eq(state.model, 'GPT-5'); eq($('#modelName').textContent, 'GPT-5');
+      state.model = prev; $('#modelName').textContent = prev;
+      $('#modelMenu').classList.remove('open');
+    });
+    t('publicCheck: prepína public stav', () => {
+      const ch = $('#publicCheck'); const orig = ch.checked;
+      ch.checked = true; ch.dispatchEvent(new Event('change'));
+      eq(state.isPublic, true); ok($('#pubSwitch').classList.contains('on'), 'switch');
+      ch.checked = false; ch.dispatchEvent(new Event('change'));
+      eq(state.isPublic, false);
+      ch.checked = orig;
+    });
+    t('autoGrow + updateTokens', () => {
+      input.value = 'nejaky text pre testy';
+      autoGrow(); ok(input.style.height.includes('px'), 'výška');
+      updateTokens(); ok($('#tokenCount').textContent.includes('tok'), 'tokeny');
+      input.value = ''; updateTokens();
+    });
+    t('startEditTitle: editácia → commit cez blur', () => {
+      const span = $('#sessionTitle'); const orig = span.textContent;
+      span.click();
+      const inp = document.querySelector('.session-title-input');
+      ok(inp, 'input aktívny');
+      inp.value = 'Testovací názov'; inp.blur();
+      eq($('#sessionTitle').textContent, 'Testovací názov', 'commit');
+      $('#sessionTitle').textContent = orig;
+    });
+    t('Ctrl+K: zameranie promptu', () => {
+      state.mode = 'home'; document.body.dataset.mode = 'home';
+      document.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k', bubbles: true, cancelable: true }));
+      ok(document.activeElement === homeInput || document.activeElement === input, 'focus');
+      document.activeElement.blur();
+    });
+
+    /* --- 2. skupina: event handlery a UI interakcie --- */
+    t('editToggle: zapne/vypne visual edit', () => {
+      state.liveHtml = '<html><head></head><body>E</body></html>'; state.viewing = null; state.editMode = false;
+      $('#editToggle').click();
+      eq(state.editMode, true); ok($('#editToggle').classList.contains('active'), 'aktívny');
+      ok($('#editTip').classList.contains('show'), 'tip zobrazený');
+      $('#editToggle').click();
+      eq(state.editMode, false); ok(!$('#editTip').classList.contains('show'), 'tip skrytý');
+      state.liveHtml = null;
+    });
+    t('refreshBtn: bez HTML len upozorní, s HTML obnoví', () => {
+      state.liveHtml = null; state.viewing = null;
+      $('#refreshBtn').click();
+      state.liveHtml = '<html><head></head><body>REF</body></html>';
+      $('#refreshBtn').click();
+      ok(($('#previewFrame').getAttribute('srcdoc') || '').includes('REF'), 'srcdoc');
+      state.liveHtml = null;
+    });
+    t('histToggle: expand/collapse', () => {
+      $('#histToggle').click();
+      ok($('#historyBar').classList.contains('expanded'), 'expanded');
+      eq($('#histToggleTxt').textContent, 'Zbaliť', 'text');
+      $('#histToggle').click();
+      ok(!$('#historyBar').classList.contains('expanded'), 'collapsed');
+      eq($('#histToggleTxt').textContent, 'Expandovať', 'text');
+    });
+    t('histList: pin / restore / view delegácia', () => {
+      const html = '<html><head></head><body>H</body></html>';
+      state.snapshots = []; state.liveHtml = html; state.viewing = null;
+      const s1 = createSnapshot('saas', 'prvy projekt', html);
+      const s2 = createSnapshot('kanban', 'druhy projekt', html);
+      document.querySelector('[data-pin="' + s2.id + '"]').click();
+      eq(state.snapshots.find(x => x.id === s2.id).pinned, true, 'pin');
+      document.querySelector('[data-restore="' + s1.id + '"]').click();
+      eq(state.liveId, s1.id, 'restore → liveId');
+      eq(state.viewing, null, 'viewing null');
+      document.querySelector('[data-snap="' + s2.id + '"]').click();
+      eq(state.viewing && state.viewing.id, s2.id, 'viewSnapshot cez kartu');
+      backToLive();
+    });
+    t('chat akcie: copy/fork bez pádu, rerun blokovaný', () => {
+      state.messages = []; state.generating = true;
+      const m = addMsg('assistant', 'odpoved', { code: '<div>x</div>', done: true });
+      document.querySelector('[data-copy="' + m.id + '"]').click();
+      document.querySelector('[data-act="copy"][data-id="' + m.id + '"]').click();
+      document.querySelector('[data-act="fork"][data-id="' + m.id + '"]').click();
+      document.querySelector('[data-act="rerun"][data-id="' + m.id + '"]').click();
+      eq(state.messages.length, 1, 'rerun nepridal správu (guard)');
+      state.generating = false;
+    });
+    t('newSessionBtn: reset projektu + prechod na home', () => {
+      state.messages = [{ id: 'x', role: 'user', text: 'a', time: '00:00' }];
+      state.snapshots = [{}]; state.liveHtml = '<html></html>';
+      state.publishedUrl = 'forge.app/p/abc'; state.editMode = true; state.viewing = null;
+      $('#newSessionBtn').click();
+      eq(state.messages.length, 0, 'messages');
+      eq(state.snapshots.length, 0, 'snapshots');
+      eq(state.liveHtml, null, 'html');
+      eq(state.publishedUrl, null, 'url');
+      eq(state.editMode, false, 'editMode');
+      eq(state.mode, 'home', 'mode');
+      eq(document.body.dataset.mode, 'home', 'data-mode');
+      eq($('#publishBtnTxt').textContent, 'Publish', 'publish text');
+      eq($('#snapCount').textContent, '0', 'counter');
+      eq($('#iterNum').textContent, 'v1', 'iter');
+    });
+    t('remixBtn: naplní prompt a prejde na home', () => {
+      $('#remixBtn').click();
+      ok(homeInput.value.includes('Remix'), 'prompt');
+      eq(state.mode, 'home', 'mode');
+      homeInput.value = '';
+    });
+    t('exportBtn: s HTML export bez pádu', () => {
+      state.liveHtml = '<html></html>';
+      $('#exportBtn').click();
+      state.liveHtml = null;
+    });
+    t('openTabBtn: sandbox upozorní', () => { $('#openTabBtn').click(); });
+    t('publish modal: copyPubUrl, pubClose, klik na overlay', () => {
+      state.publishedUrl = 'forge.app/p/xyz';
+      $('#copyPubUrl').click();
+      $('#publishModal').classList.add('open');
+      $('#pubClose').click();
+      ok(!$('#publishModal').classList.contains('open'), 'pubClose zatvoril');
+      $('#publishModal').classList.add('open');
+      $('#publishModal').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      ok(!$('#publishModal').classList.contains('open'), 'overlay zatvoril');
+    });
+    t('settingsPop: prepínač + document klik zatvára', () => {
+      $('#settingsBtn').click();
+      ok($('#settingsPop').classList.contains('open'), 'otvorené');
+      const sw = document.querySelector('#settingsPop .switch:not(#pubSwitch)');
+      sw.click();
+      ok(sw.classList.contains('on'), 'zapnuté');
+      document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      ok(!$('#settingsPop').classList.contains('open'), 'zatvorené');
+    });
+    t('modelChip: menu toggle + document klik zatvára', () => {
+      $('#modelChip').click();
+      ok($('#modelMenu').classList.contains('open'), 'otvorené');
+      document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      ok(!$('#modelMenu').classList.contains('open'), 'zatvorené');
+    });
+    t('mtabs: prepínanie chat/canvas zobrazenia', () => {
+      const btn = document.querySelector('.mtabs .tab-btn[data-view="canvas"]');
+      btn.click();
+      eq(document.body.dataset.view, 'canvas', 'data-view');
+      ok(btn.classList.contains('active'), 'aktívny');
+      document.querySelector('.mtabs .tab-btn[data-view="chat"]').click();
+      eq(document.body.dataset.view, 'chat', 'späť na chat');
+    });
+    t('homeChips: naplní prompt z chipu (generovanie zablokované)', () => {
+      state.generating = true;
+      document.querySelector('#homeChips .chip-pill[data-kind="kanban"]').click();
+      ok(homeInput.value.includes('Kanban'), 'prompt z chipu');
+      state.generating = false;
+      homeInput.value = '';
+    });
+    t('renderEditorPreview: stavy Publikované / Read-only', () => {
+      state.liveHtml = '<html>E</html>'; state.viewing = null; state.publishedUrl = 'forge.app/p/x';
+      renderEditorPreview();
+      eq($('#edState').textContent, 'Publikované', 'publikované');
+      state.viewing = { id: 'y', v: 2, time: '00:00', kind: 'kanban', prompt: 'p', html: '<html>V</html>', pinned: false };
+      renderEditorPreview();
+      eq($('#edState').textContent, 'Read-only', 'read-only');
+      state.viewing = null; state.publishedUrl = null; state.liveHtml = null;
+    });
+    t('editorBtn/goEditor: prepne do editora', () => {
+      $('#editorBtn').click();
+      eq(state.mode, 'editor', 'mode');
+      eq(document.body.dataset.mode, 'editor', 'data-mode');
+    });
+    t('edPreviewBtn: návrat do workspace preview', () => {
+      $('#edPreviewBtn').click();
+      eq(state.mode, 'work', 'mode');
+      eq(state.tab, 'preview', 'tab');
+      eq(document.body.dataset.mode, 'work', 'data-mode');
+    });
+    t('edShareBtn: bez URL upozorní, s URL skopíruje', () => {
+      state.publishedUrl = null; $('#edShareBtn').click();
+      state.publishedUrl = 'forge.app/p/ed'; $('#edShareBtn').click();
+      state.publishedUrl = null;
+    });
+    t('edNew + edStartBtn: nový projekt / návrat domov', () => {
+      $('#edNew').click();
+      eq(state.mode, 'home', 'new → home');
+      state.mode = 'editor'; document.body.dataset.mode = 'editor';
+      $('#edStartBtn').click();
+      eq(state.mode, 'home', 'start → home');
+    });
+    t('connectors: klik → demo upozornenie', () => {
+      document.querySelector('.ed-conn[data-conn="GitHub"]').click();
+    });
+    t('Escape: zatvára modal / rewind z histórie', () => {
+      $('#publishModal').classList.add('open');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      ok(!$('#publishModal').classList.contains('open'), 'modal zatvorený');
+      state.viewing = { id: 'v', v: 9, time: '00:00', kind: 'saas', prompt: 'p', html: '<html></html>', pinned: false };
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      eq(state.viewing, null, 'backToLive');
+    });
+    t('Ctrl+S: manuálny snapshot v workspace', () => {
+      state.mode = 'work'; state.snapshots = []; state.liveHtml = '<html>S</html>'; state.viewing = null;
+      document.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 's', bubbles: true, cancelable: true }));
+      eq(state.snapshots.length, 1, 'snapshot vytvorený');
+      state.liveHtml = null;
+    });
+
+    t('generate: guard — prázdny/biely prompt ignoruje', () => {
+      state.messages = []; state.generating = false;
+      generate('   '); eq(state.messages.length, 0, 'biele medzery');
+      generate(''); eq(state.messages.length, 0, 'prázdny');
+      ok(!state.generating, 'generating ostáva false');
+    });
+    t('generate: guard — počas behu druhé volanie ignoruje', () => {
+      state.generating = true; state.messages = [];
+      generate('nejaky prompt'); eq(state.messages.length, 0, 'blokované');
+      state.generating = false;
+    });
+    await ta('generate: plný Agent Mode flow (streaming + snapshot + editor sync)', async () => {
+      state.messages = []; state.snapshots = []; state.liveHtml = null;
+      state.viewing = null; state.publishedUrl = null; state.generating = false;
+      generate('Vytvor landing page pre SaaS');
+      ok(state.generating, 'generating true');
+      eq(state.messages.length, 2, 'user + assistant');
+      eq(state.messages[1].plan.length, 4, '4 kroky plánu');
+      eq(state.messages[1].plan[0].state, 'running', 'krok 1 beží');
+      await sleep(2500);
+      ok(!state.generating, 'generating false po dokončení');
+      eq(state.snapshots.length, 1, 'snapshot v1');
+      ok(state.liveHtml.includes('Nimbus'), 'saas HTML');
+      const m = state.messages[1];
+      ok(m.code && m.code.length > 10, 'code snippet');
+      eq(m.file, 'index.html', 'súbor');
+      eq($('#edFile').textContent, 'index.html', 'editor sync');
+      await sleep(1200);
+      ok(m.done, 'streaming dokončený');
+      ok((m.text || '').includes('Hotovo'), 'text odpovede');
+    });
+    await ta('publish: deploy flow vytvorí URL', async () => {
+      state.liveHtml = '<html>app</html>'; state.publishedUrl = null;
+      $('#publishBtn').click();
+      ok($('#publishModal').classList.contains('open'), 'modal otvorený');
+      await sleep(3200);
+      ok(state.publishedUrl && state.publishedUrl.startsWith('forge.app/p/'), 'URL vygenerované');
+      ok($('#pubUrlTxt').textContent.includes('https://forge.app/p/'), 'URL v modalu');
+      eq($('#publishBtnTxt').textContent, 'Publikované ✓', 'tlačidlo');
+      $('#publishModal').classList.remove('open');
+    });
+    await ta('flashSaving: Ukladám… → Uložené', async () => {
+      flashSaving();
+      eq($('#saveStatus').textContent, 'Ukladám…', 'medzistav');
+      await sleep(750);
+      eq($('#saveStatus').textContent, 'Uložené', 'koncový stav');
+    });
+  }
+
+  /* ---------- spúšťače ---------- */
+  window.__runForgeTests = runTests;
+  window.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'T' || e.key === 't')){
+      e.preventDefault();
+      runTests();
+    }
+  });
+})();
+</script>
+</body>
+</html>
