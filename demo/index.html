@@ -1981,16 +1981,38 @@ function edSnap(){
   if (state.viewing) return state.viewing;
   return state.snapshots.find(s => s.id === state.liveId) || state.snapshots[state.snapshots.length - 1] || null;
 }
+function vfsBlockType(attrs){
+  const m = (attrs || '').match(/type\s*=\s*("([^"]*)"|'([^']*)'|(\S+))/i);
+  return m ? (m[2] != null ? m[2] : (m[3] != null ? m[3] : m[4] || '')) : '';
+}
+function vfsIsClassicJs(type, attrs){
+  return (!type || /^(text|application)\/(javascript|ecmascript)$/i.test(type)) && !/\ssrc\s*=/.test(attrs || '');
+}
 function vfsSplitBlocks(html){
   const cssParts = [], jsParts = [];
-  const mark = (kind, attrs, content) => {
-    const uidMark = kind === 'style' ? '<link rel="stylesheet" href="styles.css">' : '<script src="app.js"><\/script>';
-    (kind === 'style' ? cssParts : jsParts).push({ attrs: attrs || '', content: content != null ? content : '' });
-    return uidMark;
+  let skippedScript = false;
+  /* FIX (M0-D3b): do styles.css/app.js sa zlučujú IBA klasické inline bloky bez atribútov —
+     zlučenie nemení vykonávanie (klasické scripty bežia sekvenčne v poradí dokumentu, CSS kaskáda
+     závisí len na poradí pravidiel, ktoré sa zachová). Bloky s inou sémantikou sa NEDOTÝKAJÚ:
+     - <script src=…> — externý obsah, nesmie sa stratiť ani presunúť
+     - <script type="module"> — defer/strict sémantika
+     - <script type="application/json"|importmap|…> — nevykonateľné dáta (spojenie = SyntaxError)
+     - <style media=…> — CSS podmienené médiom by sa zrušením atribútu aplikovalo vždy
+     Zostávajú na pôvodnom mieste v index.html s pôvodnými atribútmi. */
+  const markStyle = (attrs, content, orig) => {
+    if (/\S/.test(attrs || '')) return orig;
+    cssParts.push({ attrs: '', content: content != null ? content : '' });
+    return '<link rel="stylesheet" href="styles.css">';
   };
-  let indexHtml = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/g, (m, a, c) => mark('style', a, c))
-                     .replace(/<script([^>]*)>([\s\S]*?)<\/script>/g, (m, a, c) => mark('script', a, c));
-  return { indexHtml, cssParts, jsParts };
+  const markScript = (attrs, content, orig) => {
+    const type = vfsBlockType(attrs);
+    if (!vfsIsClassicJs(type, attrs)){ skippedScript = true; return orig; }
+    jsParts.push({ attrs: '', content: content != null ? content : '' });
+    return '<script src="app.js"><\/script>';
+  };
+  let indexHtml = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/g, (m, a, c) => markStyle(a, c, m))
+                     .replace(/<script([^>]*)>([\s\S]*?)<\/script>/g, (m, a, c) => markScript(a, c, m));
+  return { indexHtml, cssParts, jsParts, skippedScript };
 }
 function vfsJoinBlocks(indexHtml, cssContent, jsContent){
   const reCSS = /<link rel="stylesheet" href="styles\.css">/;
@@ -2014,9 +2036,9 @@ function filesFor(snap){
   /* FIX (M0-D3): extrakcia VŠETKÝCH <style>/<script> blokov v pôvodnom poradí (nie len prvý) —
      obsah sa spája do styles.css/app.js v poradí výskytu, takže roundtrip je bezstrátový pre
      multi-block appky; atribúty blokov sa zachovajú v pripojenej hlavičke komentára. */
-  const { indexHtml, cssParts, jsParts } = vfsSplitBlocks(html);
-  const cssHeader = cssParts.length > 1 ? '/* VFS: ' + cssParts.length + ' style bloky spojené v pôvodnom poradí */\n' : (cssParts.length === 1 && cssParts[0].attrs ? '/* VFS: pôvodné atribúty <style' + cssParts[0].attrs + '> */\n' : '');
-  const jsHeader = jsParts.length > 1 ? '// VFS: ' + jsParts.length + ' script bloky spojené v pôvodnom poradí\n' : (jsParts.length === 1 && jsParts[0].attrs ? '// VFS: pôvodné atribúty <script' + jsParts[0].attrs + '>\n' : '');
+  const { indexHtml, cssParts, jsParts, skippedScript } = vfsSplitBlocks(html);
+  const cssHeader = cssParts.length > 1 ? '/* VFS: ' + cssParts.length + ' style bloky spojené v pôvodnom poradí */\n' : '';
+  const jsHeader = jsParts.length > 1 ? '// VFS: ' + jsParts.length + ' script bloky spojené v pôvodnom poradí\n' : '';
   const css = cssParts.map(p => p.content.trim()).join('\n');
   const js = jsParts.map(p => p.content.trim()).join('\n');
   const files = [
@@ -4043,7 +4065,7 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
     });
     t('REGRESIA D3: multi-block VFS — roundtrip zachytí všetky style/script bloky v poradi', () => {
       const s = { id:'d3multi', v:1, prompt:'p', time:'10:00', kind:'saas',
-        html:'<!doctype html><html><head><style>a{b:c}</style></head><body><h1>x</h1><script>first()<\/script><p>stred</p><script type="module">second()<\/script><style media="print">p{color:red}<\/style></body></html>' };
+        html:'<!doctype html><html><head><style>a{b:c}</style></head><body><h1>x</h1><script>first()<\/script><p>stred</p><script>second()<\/script><style>p{color:red}<\/style></body></html>' };
       state.vfs = {};
       const f = filesFor(s);
       const css = f.find(x => x.name === 'styles.css').content;
@@ -4062,13 +4084,31 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
       state.vfs = {};
     });
     t('REGRESIA D3: nezvyčajný obsah — script so stringom obsahujúcim </style>, atribúty blokov', () => {
-      const src = '<html><head><style type="text/css">body{}</style></head><body><script>const t = "</style>"; tricky()<\/script></body></html>';
+      const src = '<html><head><style>body{}</style></head><body><script>const t = "</style>"; tricky()<\/script></body></html>';
       const { indexHtml, cssParts, jsParts } = vfsSplitBlocks(src);
       eq(cssParts.length, 1, 'style blok 1×');
-      ok(cssParts[0].attrs === ' type="text/css"', 'atribúty style bloku zachované');
       ok(jsParts.length >= 1 && jsParts[0].content.includes('tricky()'), 'script obsah extrahovaný');
       ok(indexHtml.includes('<body>'), 'index.html zachováva telo');
       ok(!indexHtml.includes('tricky()'), 'script kód mimo index.html');
+    });
+    t('REGRESIA D3b: module/JSON/src scripty a style s atribútmi sa NESPÁJAJÚ — sémantika zachovaná', () => {
+      const src = '<head>' +
+        '<script src="https://cdn.example.com/lib.js"><\/script>' +
+        '<script type="module">import x from "y"; mod()<\/script>' +
+        '<script type="application/json">{"data":1}<\/script>' +
+        '<style media="print">p{color:red}<\/style>' +
+        '<script>classicInline()<\/script>' +
+        '</head><body>obsah</body>';
+      const { indexHtml, cssParts, jsParts, skippedScript } = vfsSplitBlocks(src);
+      ok(indexHtml.includes('src="https://cdn.example.com/lib.js"'), 'externý src script zostáva na mieste');
+      ok(indexHtml.includes('type="module"'), 'module script zostáva na mieste (defer sémantika)');
+      ok(indexHtml.includes('type="application/json"'), 'JSON blok zostáva na mieste (dáta, nie JS)');
+      ok(indexHtml.includes('media="print"'), 'style s media atribútom zostáva na mieste');
+      eq(jsParts.length, 1, 'len klasický inline script do app.js');
+      ok(jsParts[0].content.includes('classicInline()'), 'správny obsah v app.js');
+      eq(cssParts.length, 0, 'žiadny CSS blok do styles.css (iba atribútový)');
+      ok(skippedScript, 'detekovaný preskočený blok');
+      ok(!indexHtml.includes('classicInline()'), 'inline script mimo index.html');
     });
     t('applyBrand: premapuje mená, farby (aj upper-case) aj soft pozadie', () => {
       const src = '<b>Nimbus</b><i>FlowDeck</i><em>Aurora</em><span style="color:#7c3aed">#7C3AED</span><div style="background:#f3eefc">x</div>';
@@ -4573,6 +4613,19 @@ dbg('init dokončený', 'mode=' + state.mode, 'viewport=' + state.viewport, 'zoo
 
   /* ---------- spúšťače ---------- */
   window.__runForgeTests = runTests;
+  /* ---------- CI test hooks (M0: len pre Playwright/CI overenie, appka ich nepoužíva) ---------- */
+  window.__state = () => state;
+  window.__setState = patch => Object.assign(state, patch);
+  window.__goEditor = goEditor;
+  window.__goHome = goHome;
+  window.__showWorkspace = showWorkspace;
+  window.__setTab = setTab;
+  window.__setEdTab = setEdTab;
+  window.__renderEdFiles = renderEdFiles;
+  window.__renderHistory = renderHistory;
+  window.__saveEdFile = saveEdFile;
+  window.__startEdit = () => { state.edEditing = true; renderEdCode(); };
+  window.__vfsSplitBlocks = vfsSplitBlocks;
   window.addEventListener('keydown', e => {
     if (e.ctrlKey && e.shiftKey && (e.key === 'T' || e.key === 't')){
       e.preventDefault();

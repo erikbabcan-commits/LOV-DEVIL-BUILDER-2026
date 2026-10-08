@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright with Chromium
+        run: |
+          cd tools/ci
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: JavaScript syntax check (node --check)
+        run: |
+          cd tools/ci
+          node extract-scripts.mjs
+          node --check build/app-block-0.js
+          node --check build/app-block-1.js
+          echo "Syntax OK"
+
+      - name: Run browser test suite + smoke + screenshots
+        run: |
+          cd tools/ci
+          npx playwright test --reporter=line,list
+        env:
+          CI: 'true'
+
+      - name: Upload test reports & traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            tools/ci/playwright-report/
+            tools/ci/test-results/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Upload screenshots baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-baseline
+          path: tools/ci/screenshots/
+          retention-days: 30
+          if-no-files-found: warn

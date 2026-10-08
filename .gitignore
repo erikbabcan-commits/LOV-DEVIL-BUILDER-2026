@@ -1,0 +1,5 @@
+node_modules/
+tools/ci/build/
+tools/ci/test-results/
+tools/ci/playwright-report/
+tools/ci/screenshots/
