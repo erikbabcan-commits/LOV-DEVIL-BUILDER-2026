@@ -72,16 +72,19 @@ test('D2 regresia: read-only história sa nedá prepísať cez editor', async ({
 test('D3 regresia: multi-block roundtrip zachová obsah, poradie a sémantiku', async ({ page }) => {
   await page.goto(APP);
   const res = await page.evaluate(() => {
-    const src = '<head><style>a{b:c}</style><script>first()<\/script><style media="print">p{color:red}<\/style>' +
-      '<script type="module">mod()<\/script><script src="https://cdn.x/lib.js"><\/script><script>second()<\/script></head><body>stred</body>';
+    // M1-D3c: adjacent scripty sa extrahujú; module/src/atribútové ostanú na mieste
+    const src = '<head><style>a{b:c}</style><script>first()<\/script><script>second()<\/script>' +
+      '<style media="print">p{color:red}<\/style>' +
+      '<script type="module">mod()<\/script><script src="https://cdn.x/lib.js"><\/script></head><body>stred</body>';
     const { indexHtml, cssParts, jsParts } = window.__vfsSplitBlocks(src);
     return {
       mediaKept: indexHtml.includes('media="print"'),
       moduleKept: indexHtml.includes('type="module"'),
       srcKept: indexHtml.includes('src="https://cdn.x/lib.js"'),
       jsCount: jsParts.length,
-      order: jsParts[0].content.includes('first()') && jsParts[1] && jsParts[1].content.includes('second()'),
-      cssCount: cssParts.length
+      order: jsParts.length === 2 && jsParts[0].content.includes('first()') && jsParts[1].content.includes('second()'),
+      cssCount: cssParts.length,
+      bodyKept: indexHtml.includes('stred')
     };
   });
   expect(res.jsCount).toBe(2);
@@ -90,6 +93,7 @@ test('D3 regresia: multi-block roundtrip zachová obsah, poradie a sémantiku', 
   expect(res.mediaKept).toBe(true);
   expect(res.moduleKept).toBe(true);
   expect(res.srcKept).toBe(true);
+  expect(res.bodyKept).toBe(true);
 });
 
 test('smoke + vizuálna baseline: workspace po generovaní (desktop aj mobile)', async ({ page }) => {
