@@ -138,7 +138,7 @@ export const useStore = create<AppState>((set, get) => ({
   toasts: [],
 
   setMode: m => {
-    document.body.dataset.mode = m === 'editor' ? 'work' : m;
+    document.body.dataset.mode = m;
     set({ mode: m });
   },
   setTab: t => set({ tab: t }),
@@ -247,7 +247,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
   goEditor: () => {
     set({ mode: 'editor' });
-    document.body.dataset.mode = 'work';
+    document.body.dataset.mode = 'editor';
     dbg('editor: dashboard otvorený · projektov=' + get().snapshots.length);
   },
   setEdTab: t => set({ edTab: t, edEditing: false }),
