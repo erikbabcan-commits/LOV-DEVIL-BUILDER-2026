@@ -199,3 +199,24 @@ test('M1.1 vizuálny checkpoint: workspace po dokončení streamovania (determin
   await page.waitForTimeout(800);
   await page.screenshot({ path: SHOTS + '/09-landing-mobile.png', animations: 'disabled' });
 });
+
+test('M1.1 DEBUG: device geometria', async ({ page }) => {
+  await page.goto('http://localhost:5173');
+  await page.fill('#homeInput', 'SaaS');
+  await page.click('#homeSend');
+  await page.waitForSelector('#previewFrame', { timeout: 10_000 });
+  await expect(page.locator('.msg .actions').first()).toBeVisible({ timeout: 15_000 });
+  const geo = await page.evaluate(() => {
+    const d = document.getElementById('device');
+    const w = document.getElementById('viewportWrap');
+    const f = document.getElementById('previewFrame');
+    return {
+      deviceW: d.style.width, deviceH: d.style.height, deviceTransform: d.style.transform,
+      rect: d.getBoundingClientRect().toJSON(),
+      wrapW: w.clientWidth, padding: getComputedStyle(w).padding,
+      frameRect: f.getBoundingClientRect().toJSON(),
+      frameSrcdocLen: (f.getAttribute('srcdoc') || '').length
+    };
+  });
+  console.log('GEOMETRY:', JSON.stringify(geo, null, 2));
+});
