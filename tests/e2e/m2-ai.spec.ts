@@ -92,9 +92,12 @@ test('M2.1 positive: AI (mock za reálnym Honom) vygeneruje súbory → UI → e
   // pôvodná app nemá AI súbory — po stage sa aplikujú (toast + konzola)
   await expect.poll(async () => {
     return await page.evaluate(() => {
-      const w = window as unknown as { __forgeStore: { getState(): { vfs: Record<string, Array<{ name: string }>>; liveId: string | null } } };
+      const w = window as unknown as { __forgeStore: { getState(): { vfs: Record<string, Array<{ name: string }>>; liveId: string | null; messages: Array<{ text?: string; planTitle?: string }> } } };
       const st = w.__forgeStore.getState();
-      return Object.values(st.vfs).flat().filter(f => f.name.startsWith('src/')).length;
+      const srcCount = Object.values(st.vfs).flat().filter(f => f.name.startsWith('src/')).length;
+      const lastMsg = st.messages[st.messages.length - 1];
+      if (srcCount === 0) console.log('[POLL DEBUG] src=0, lastMsg:', JSON.stringify(lastMsg)?.slice(0, 150), '| msgs:', st.messages.length);
+      return srcCount;
     });
   }, { timeout: 30_000 }).toBeGreaterThanOrEqual(4);
 
