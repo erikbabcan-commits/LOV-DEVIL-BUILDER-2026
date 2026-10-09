@@ -474,7 +474,9 @@ export const useStore = create<AppState>((set, get) => ({
         projectTitle: restored.project.title,
         publishedUrl: restored.project.publishedUrl,
         isPublic: restored.project.isPublic,
-        vfs: {},
+        vfs: live && restored.files.length > 0
+          ? { [live.id]: restored.files.map(f => ({ name: f.path, content: f.content, modified: false })) }
+          : {},
         projectId: restored.project.id,
       });
       dbg('restore: projekt obnovený z IndexedDB', 'snapshotov=' + snaps.length);
@@ -492,11 +494,10 @@ export const useStore = create<AppState>((set, get) => ({
     const st = get();
     const snap = st.edSnap();
     if (!snap) { get().toast('Najprv vygeneruj projekt', 'warn'); return; }
+    /* len cesty povolené server pathGuardom — legacy VFS šablóna (styles.css, app.js) sa do buildu neposiela */
     const files = (st.vfs[snap.id] ?? filesFor(snap))
-      .filter(f => f.name !== 'index.html' || f.name === 'index.html')
-      .map(f => ({ path: f.name, content: f.content }))
-      /* sandbox potrebuje React projekt — vstories len ak existuje src/main.tsx */
-      ;
+      .filter(f => /^(src\/|public\/)/.test(f.name) || /^(package\.json|index\.html|tsconfig\.json|vite\.config\.ts|README\.md)$/.test(f.name))
+      .map(f => ({ path: f.name, content: f.content }));
     if (!files.some(f => f.path === 'src/main.tsx')) {
       set({ sandboxErrors: [{ file: '-', message: 'Projekt nemá src/main.tsx — sandbox podporuje React projekty z AI generovania (M3)' }] });
       get().toast('Sandbox: chýba src/main.tsx (React projekt)', 'warn');

@@ -86,7 +86,7 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
           const content = byPath.get(args.path) ?? '';
           const loader = args.path.endsWith('.css') ? 'css' : args.path.endsWith('.json') ? 'json' : 'tsx';
           const resolveDir = args.path.includes('/') ? args.path.slice(0, args.path.lastIndexOf('/')) : '';
-          return { contents: content, loader, resolveDir };
+          return { contents: content, loader, resolveDir: process.cwd() };
         });
       },
     };
@@ -95,6 +95,7 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
       entryPoints: ['forge-entry:src/main.tsx'],
       bundle: true,
       write: false,
+      outdir: 'out',
       format: 'iife',
       jsx: 'automatic',
       platform: 'browser',
@@ -108,18 +109,20 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
         },
       }, vfsPlugin],
       logLevel: 'silent',
-      external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime'],
+      define: { 'process.env.NODE_ENV': '"production"' },
     });
 
-    const appJs = result.outputFiles[0].text;
+    const appJs = result.outputFiles.find(o => o.path.endsWith('.js'))?.text ?? '';
+    const appCss = result.outputFiles.filter(o => o.path.endsWith('.css')).map(o => o.text).join('\n').replace(/<\/style/gi, '<\\/style');
 
     const html = `<!doctype html>
 <html lang="sk"><head><meta charset="utf-8"><title>Forge Sandbox</title>
 <style>body{margin:0;font-family:system-ui,sans-serif}</style>
+${appCss ? `<style>${appCss}</style>\n` : ''}</head><body><div id="root"></div>
 <script>
 (function(){
   try{
-    ${appJs}
+    ${appJs.replace(/<\/script/gi, '<\\/script')}
   }catch(e){
     document.body.innerHTML = '<pre style="padding:20px;color:#f87171">Chyba runtime: ' + String(e && e.message || e) + '</pre>';
     console.error(e);
@@ -127,8 +130,8 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
   }
 })();
 </script>
-</head><body><div id="root"></div></body></html>`;
-    return { ok: true, html, errors: [], durationMs: Date.now() - started, moduleCount: byPath.size };;
+</body></html>`;
+    return { ok: true, html, errors: [], durationMs: Date.now() - started, moduleCount: byPath.size };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     /* esbuild errory obsahujú ✘ [ERROR] bloky so súborom */

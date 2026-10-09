@@ -179,14 +179,8 @@ test('M3 sandbox: AI projekt → Run Sandbox → bežiaci React v iframe → sto
 
   // sandbox build prebehol → iframe s bežiacim projektom
   await expect(page.locator('#sandboxFrame')).toBeVisible({ timeout: 30_000 });
-  // reálne spustený React renderuje CRM obsah
-  await expect.poll(async () => {
-    return await page.evaluate(async () => {
-      const frame = document.getElementById('sandboxFrame') as HTMLIFrameElement | null;
-      if (!frame) return '';
-      try { return frame.contentDocument?.body?.innerText ?? ''; } catch { return ''; }
-    });
-  }, { timeout: 15_000 }).toContain('CRM');
+  // reálne spustený React renderuje CRM obsah (iframe je origin-null → cez frameLocator)
+  await expect(page.frameLocator('#sandboxFrame').locator('body')).toContainText('CRM', { timeout: 15_000 });
 
   // stop
   await page.click('#edSandboxStop');
