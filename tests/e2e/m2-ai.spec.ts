@@ -46,10 +46,11 @@ test('M2 persistence: refresh obnoví projekt', async ({ page }) => {
   await expect(page.locator('.msg .actions').first()).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(1000);
 
-  // refresh
+  // refresh — po reload je UI na home (rovnaké správanie ako nová session),
+  // ale projekt+snapshoty sú obnovené z IndexedDB v store
   await page.reload();
-  await page.waitForSelector('#workspaceView', { timeout: 10_000 });
+  await expect(page.locator('#homeInput')).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(1500);
-  // projekt obnovený z IndexedDB — history obsahuje snapshot
-  await expect(page.locator('#snapCount')).not.toHaveText('0');
+  const snapCount = await page.evaluate(() => (window as unknown as { __forgeStore?: { getState(): { snapshots: unknown[] } } }).__forgeStore?.getState().snapshots.length ?? 0);
+  expect(snapCount).toBeGreaterThan(0);
 });

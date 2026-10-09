@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 import { useStore } from '../stores/useAppStore';
+
+/* E2E test hook */
+(window as unknown as { __forgeStore: typeof useStore }).__forgeStore = useStore;
 import { TopBar } from './TopBar';
 import { MobileTabs } from './MobileTabs';
 import { LandingPage } from '../features/landing/LandingPage';
@@ -27,7 +30,12 @@ export function AppShell() {
   }, [mode, manualSnapshot, st]);
 
   useEffect(() => {
-    const onDoc = () => { st.setModelMenuOpen(false); st.setSettingsOpen(false); };
+    const onDoc = (e: MouseEvent) => {
+      /* ignoruj kliky vnútri pop-wrap (model menu / settings) — inak by sa zatvoril hneď pri otvorení */
+      if ((e.target as HTMLElement)?.closest?.('.pop-wrap')) return;
+      st.setModelMenuOpen(false);
+      st.setSettingsOpen(false);
+    };
     document.addEventListener('click', onDoc);
     return () => document.removeEventListener('click', onDoc);
   }, [st]);
