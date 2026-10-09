@@ -29,13 +29,14 @@ test('M2 vertikálny rez: prompt → AI eventy → súbory v editore → persist
   const toastText = await page.locator('.toast').first().textContent();
   expect(toastText).toMatch(/AI server|nakonfigurovan/);
 
-  // Instant Draft mód stále funguje (explicitný, nie tichý fallback)
+  // Instant Draft mód stále funguje (explicitný, nie tichý fallback) —
+  // po AI pokuse sme vo workspace, použijeme composer tam
   await page.evaluate(() => {
     const w = window as unknown as { __forgeStore: { getState(): { setModel(m: string): void } } };
     w.__forgeStore.getState().setModel('Lovable Cloud');
   });
-  await page.fill('#homeInput', 'CRM dashboard');
-  await page.click('#homeSend');
+  await page.fill('#promptInput', 'CRM dashboard');
+  await page.click('#sendBtn');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
   await expect(page.locator('.plan').first()).toBeVisible();
 });
