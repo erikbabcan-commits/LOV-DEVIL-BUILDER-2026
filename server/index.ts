@@ -5,6 +5,7 @@ import { MistralProvider, makeFetchTransport } from './providers/mistral';
 import type { AIProvider, ProviderTransport } from './providers/types';
 import { runAgent } from './agent/run';
 import { AgentEventSchema } from './agent/schemas';
+import { SandboxFileSchema, buildProject } from './sandbox/builder';
 /* server-side uid (neimportuje client kód) */
 const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -47,6 +48,31 @@ export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?:
   const rateLimit = opts?.rateLimit ?? makeRateLimiter(cfg.rateLimitPerMin ?? 10);
 
   app.get('/api/health', c => c.json({ ok: true, ai: provider ? 'mistral' : 'not-configured' }));
+
+  /* M3 sandbox: izolovaný build vygenerovaného projektu (esbuild compile-only,
+     kód sa NIKDY nespustí v host procese — výstup je HTML pre sandbox iframe) */
+  app.post('/api/sandbox/build', async c => {
+    if (!rateLimit('sandbox')) return c.json({ error: 'rate_limit' }, 429);
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
+    const parsed = SandboxFileSchema.array().max(40).safeParse((body as { files?: unknown })?.files);
+    if (!parsed.success) return c.json({ error: 'invalid_files', issues: parsed.error.issues.slice(0, 5) }, 400);
+    const result = await buildProject(parsed.data);
+    return c.json(result);
+  });
+
+  /* Step 4: AUTOFIX — build → errors → AI patch → rebuild (max 2 pokusy) */
+  app.post('/api/sandbox/autofix', async c => {
+    if (!rateLimit('autofix')) return c.json({ error: 'rate_limit' }, 429);
+    if (!provider) return c.json({ error: 'ai_not_configured' }, 503);
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
+    const parsed = SandboxFileSchema.array().max(40).safeParse((body as { files?: unknown })?.files);
+    if (!parsed.success) return c.json({ error: 'invalid_files' }, 400);
+    const { autofixLoop } = await import('./agent/autofix');
+    const result = await autofixLoop(provider, parsed.data);
+    return c.json(result);
+  });
 
   app.post('/api/agent/generate', async c => {
     if (!rateLimit('agent')) return c.json({ error: 'rate_limit', message: 'Priveľa požiadaviek, skús o minútu.' }, 429);

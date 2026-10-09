@@ -151,3 +151,52 @@ test('M2.1 cancel: prerušenie AI bežiaceho generovania', async ({ page }) => {
     expect(st).toBe(false);
   }
 });
+
+/* ============ M3 SANDBOX E2E: vygenerovaný React projekt reálne beží ============ */
+test('M3 sandbox: AI projekt → Run Sandbox → bežiaci React v iframe → stop', async ({ page }) => {
+  await page.goto('http://localhost:5173');
+  await page.evaluate(() => {
+    const w = window as unknown as { __forgeStore: { getState(): { setModel(m: string): void } } };
+    w.__forgeStore.getState().setModel('AI (Mistral)');
+  });
+  await page.fill('#homeInput', 'Create a modern CRM dashboard with customers, tasks and a sidebar.');
+  await page.click('#homeSend');
+
+  // počkať na AI stage (súbory aplikované)
+  await expect.poll(async () => {
+    return await page.evaluate(() => {
+      const w = window as unknown as { __forgeStore: { getState(): { vfs: Record<string, Array<{ name: string }>> } } };
+      return Object.values(w.__forgeStore.getState().vfs).flat().filter(f => f.name === 'src/main.tsx').length;
+    });
+  }, { timeout: 30_000 }).toBeGreaterThan(0);
+
+  // editor → Run Sandbox
+  await page.click('#editorBtn');
+  await page.click('#edSandboxRun');
+
+  // sandbox build prebehol → iframe s bežiacim projektom
+  await expect(page.locator('#sandboxFrame')).toBeVisible({ timeout: 30_000 });
+  // reálne spustený React renderuje CRM obsah
+  await expect.poll(async () => {
+    return await page.evaluate(async () => {
+      const frame = document.getElementById('sandboxFrame') as HTMLIFrameElement | null;
+      if (!frame) return '';
+      try { return frame.contentDocument?.body?.innerText ?? ''; } catch { return ''; }
+    });
+  }, { timeout: 15_000 }).toContain('CRM');
+
+  // stop
+  await page.click('#edSandboxStop');
+  await expect(page.locator('#sandboxFrame')).toHaveCount(0);
+});
+
+test('M3 sandbox: build chyba sa zobrazí (nie tichý pád)', async ({ page }) => {
+  await page.goto('http://localhost:5173');
+  // projekt bez src/main.tsx → sandbox odmietne s jasnou chybou
+  await page.fill('#homeInput', 'SaaS landing');
+  await page.click('#homeSend');
+  await page.waitForSelector('#previewFrame', { timeout: 10_000 });
+  await page.click('#editorBtn');
+  await page.click('#edSandboxRun');
+  await expect(page.locator('.ed-frame-wrap').first()).toContainText(/src\/main\.tsx|React projekt/i, { timeout: 10_000 });
+});
