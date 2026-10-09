@@ -10,7 +10,11 @@ import { EditorDashboard } from '../features/editor/EditorDashboard';
 export function AppShell() {
   const mode = useStore(s => s.mode);
   const manualSnapshot = useStore(s => s.manualSnapshot);
+  const restoreFromDb = useStore(s => s.restoreFromDb);
   const st = useStore();
+
+  /* M2: obnova projektu po refreshi (IndexedDB) */
+  useEffect(() => { void restoreFromDb(); }, [restoreFromDb]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

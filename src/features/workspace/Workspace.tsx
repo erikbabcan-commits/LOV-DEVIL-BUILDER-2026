@@ -80,7 +80,12 @@ export function Workspace() {
   const submit = () => {
     const v = inputRef.current?.value ?? '';
     if (inputRef.current) { inputRef.current.value = ''; inputRef.current.style.height = 'auto'; }
-    st.generate(v);
+    /* M2: AI (Mistral) model → reálny engine; Instant Draft / iné → template mód */
+    if (st.model === 'AI (Mistral)') {
+      void st.generateWithAi(v, st.snapshots.length ? 'iterate' : 'create');
+    } else {
+      st.generate(v);
+    }
   };
 
   /* legacy applyViewport parita: desktop = 100% šírky + auto-fit scale; tablet/mobile fixná šírka */
@@ -117,9 +122,13 @@ export function Workspace() {
                 <span className="token-count" id="tokenCount">≈ {tokens} tok · 200k ctx</span>
               </div>
               <div className="comp-right">
+                {st.generating && st.aiAbort ? (
+                  <button className="send-btn" id="cancelBtn" title="Zrušiť generovanie" onClick={st.cancelAiRun}>✕</button>
+                ) : (
                 <button className="send-btn" id="sendBtn" title="Odoslať (Ctrl+Enter)" disabled={st.generating} onClick={submit}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>
                 </button>
+                )}
               </div>
             </div>
           </div>
