@@ -195,7 +195,7 @@ ${generatedAt}
 export function generateZipFilename(projectTitle: string): string {
   // Sanitize the project title for use in a filename
   let name = projectTitle
-    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '-') // Remove invalid characters
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '-') // eslint-disable-line no-control-regex
     .replace(/\s+/g, '_') // Replace spaces with underscores
     .substring(0, 100); // Limit length
   
