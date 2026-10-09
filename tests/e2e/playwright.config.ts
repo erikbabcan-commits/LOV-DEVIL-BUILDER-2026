@@ -7,10 +7,19 @@ export default defineConfig({
   reporter: [['line'], ['list']],
   outputDir: 'test-results',
   use: { headless: true, screenshot: 'only-on-failure', trace: 'retain-on-failure', viewport: { width: 1280, height: 800 } },
-  webServer: {
-    command: 'npm run dev',
-    port: 5173,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  webServer: [
+    {
+      /* M2.1: reálny Hono server s MOCK providerom (deterministický, cez reálne HTTP/SSE) */
+      command: 'MOCK_AI=1 LOV_SERVER=1 PORT=8787 npx tsx server/index.ts',
+      port: 8787,
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    {
+      command: 'npm run dev',
+      port: 5173,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+  ],
 });

@@ -91,6 +91,44 @@ export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?:
   return app;
 }
 
+/* ---------- MOCK provider (CI E2E: deterministický, ale cez reálne HTTP/SSE) ---------- */
+import type { CompletionChunk } from './providers/types';
+
+export function makeMockProvider(): AIProvider {
+  const planJson = JSON.stringify({
+    summary: 'CRM dashboard so sidebar, zákazníkmi a úlohami',
+    steps: [
+      { id: 'scaffold', title: 'Vytvor štruktúru projektu', detail: 'package.json + entry súbory' },
+      { id: 'components', title: 'Vygeneruj komponenty', detail: 'App + Sidebar + CRM obsah' },
+    ],
+    filesPlanned: ['package.json', 'index.html', 'src/main.tsx', 'src/App.tsx', 'src/index.css'],
+  });
+  const filesJson = JSON.stringify({
+    files: [
+      { path: 'package.json', content: JSON.stringify({ name: 'crm-app', private: true, dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1' }, devDependencies: { '@types/react': '^18.3.12', '@types/react-dom': '^18.3.1', '@vitejs/plugin-react': '^4.3.4', typescript: '~5.6.2', vite: '^6.0.5' }, scripts: { dev: 'vite', build: 'tsc -b && vite build', preview: 'vite preview' } }, null, 2), action: 'create' },
+      { path: 'index.html', content: '<!doctype html>\n<html lang="sk"><head><meta charset="UTF-8"/><title>CRM</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>', action: 'create' },
+      { path: 'src/main.tsx', content: 'import React from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App";\nimport "./index.css";\ncreateRoot(document.getElementById("root")!).render(<App />);', action: 'create' },
+      { path: 'src/App.tsx', content: 'const customers = [\n  { id: 1, name: "ACME s.r.o.", status: "aktívny" },\n  { id: 2, name: "Beta Corp", status: "nový" },\n];\nconst tasks = [\n  { id: 1, title: "Pripraviť ponuku", done: false },\n  { id: 2, title: "Odoslať faktúru", done: true },\n];\nexport default function App() {\n  return (\n    <div style={{ display: "flex" }}>\n      <nav style={{ width: 200, background: "#1e293b", color: "#fff", padding: 16 }}>\n        <h2>CRM</h2>\n        <ul>\n          <li>Zákazníci</li>\n          <li>Úlohy</li>\n          <li>Nastavenia</li>\n        </ul>\n      </nav>\n      <main style={{ padding: 16 }}>\n        <h1>Zákazníci</h1>\n        {customers.map(c => <div key={c.id}><b>{c.name}</b> <span>{c.status}</span></div>)}\n        <h1>Úlohy</h1>\n        {tasks.map(t => <div key={t.id}><input type="checkbox" defaultChecked={t.done} /> {t.title}</div>)}\n      </main>\n    </div>\n  );\n}', action: 'create' },
+      { path: 'src/index.css', content: 'body { margin: 0; font-family: system-ui, sans-serif; }', action: 'create' },
+    ],
+  });
+  let call = 0;
+  return {
+    name: 'mock-mistral',
+    model: 'mock-large',
+    async complete(messages) {
+      const isFirst = call++ === 0;
+      await new Promise(r => setTimeout(r, 30)); // reálna async medzera
+      return { text: isFirst ? planJson : filesJson, usage: { promptTokens: 100, completionTokens: 500 } };
+    },
+    async *stream(messages): AsyncGenerator<CompletionChunk> {
+      const text = call++ === 0 ? planJson : filesJson;
+      for (const ch of text) yield { delta: ch };
+      yield { finishReason: 'stop' };
+    },
+  };
+}
+
 /* ---------- štart servera (keď je spustený priamo) ---------- */
 if (process.argv[1] && process.argv[1].endsWith('server/index.ts') || process.env.LOV_SERVER === '1') {
   const cfg: ServerConfig = {
@@ -100,7 +138,7 @@ if (process.argv[1] && process.argv[1].endsWith('server/index.ts') || process.en
     port: Number(process.env.PORT ?? 8787),
     bind: '127.0.0.1',
   };
-  const provider = makeProvider(cfg);
+  const provider = process.env.MOCK_AI === '1' ? makeMockProvider() : makeProvider(cfg);
   const app = createApp(cfg, provider);
   serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.bind });
   console.log(`[Forge AI] server na http://127.0.0.1:${cfg.port} · AI: ${provider ? 'mistral (' + (cfg.mistralModel ?? '') + ')' : 'NOT CONFIGURED'}`);
