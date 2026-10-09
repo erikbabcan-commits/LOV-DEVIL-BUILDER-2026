@@ -12,7 +12,13 @@ export function LandingPage() {
   const submit = () => {
     const v = inputRef.current?.value ?? '';
     if (inputRef.current) inputRef.current.value = '';
-    generate(v);
+    /* M2: AI (Mistral) model → reálny engine; inak template mód */
+    const st = useStore.getState();
+    if (st.model === 'AI (Mistral)') {
+      void st.generateWithAi(v, 'create');
+    } else {
+      generate(v);
+    }
   };
 
   return (
