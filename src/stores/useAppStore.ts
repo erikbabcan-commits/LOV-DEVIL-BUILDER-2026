@@ -410,9 +410,10 @@ export const useStore = create<AppState>((set, get) => ({
         const doneText = doneEv && doneEv.type === 'done' ? doneEv.summary : 'Súbory pripravené na review.';
         get().updateMsg(planMsg.id, { text: doneText, done: true });
         get().toast('AI: ' + stage.files.length + ' súborov aplikovaných', 'ok');
+        /* Persist AFTER files are applied to VFS and snapshot */
+        void get().persistNow();
       }
       set({ aiConnected: true });
-      void get().persistNow();
     } catch (e) {
       if (e instanceof AiNotConfiguredError) {
         set({ aiConnected: false });
@@ -458,6 +459,8 @@ export const useStore = create<AppState>((set, get) => ({
       snapshots: s2.snapshots.map(x => (x.id === snap.id ? { ...x, html } : x)),
     }));
     get().toast('Použitých ' + files.length + ' súborov z AI', 'ok');
+    /* Persist VFS files to IndexedDB after apply */
+    void get().persistNow();
   },
 
   restoreFromDb: async () => {

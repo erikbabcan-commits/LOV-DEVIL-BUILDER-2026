@@ -65,28 +65,27 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
     const vfsPlugin: import('esbuild').Plugin = {
       name: 'forge-vfs',
       setup(build) {
-        build.onResolve({ filter: /.*/, namespace: 'forge' }, args => {
-          /* esbuild pre custom namespace nerešpektuje resolveDir z onLoad —
-             relatívne importy riešime vzhľadom na importer (forge: namespace cesta) */
-          const baseDir = args.importer && args.importer.includes('/')
-            ? args.importer.slice(0, args.importer.lastIndexOf('/'))
+        /* Filter: len relatívne cesty (./ a /) v forge namespace. Bare imports (react, ...) necháme esbuild default resolver */
+        build.onResolve({ filter: /^\.\/|^\//, namespace: 'forge' }, args => {
+          const importerPath = args.importer?.replace(/^[^:]+:/, '') ?? '';
+          const baseDir = importerPath.includes('/')
+            ? importerPath.slice(0, importerPath.lastIndexOf('/'))
             : '';
-          const resolved = (args.path.startsWith('.') || args.path.startsWith('/')) && args.importer
-            ? normalizeJoin(baseDir, args.path)
-            : args.path.replace(/^\.\//, '');
+          const resolved = normalizeJoin(baseDir, args.path);
           const candidates = [resolved, resolved + '.tsx', resolved + '.ts', resolved + '.jsx', resolved + '.js', resolved + '/index.tsx'];
           for (const c of candidates) if (byPath.has(c)) return { path: c, namespace: 'forge' };
-          /* bare imports (react, react-dom, ...) → nechaj esbuild default resolve
-             na host node_modules (compile-only bundling, schválené dependencies;
-             esbuild nikdy nespúšťa generovaný kód) */
-          if (!args.path.startsWith('.') && !args.path.startsWith('/')) return undefined;
           return { errors: [{ text: `modul nenájdený: ${args.path}` }] };
         });
         build.onLoad({ filter: /.*/, namespace: 'forge' }, args => {
           const content = byPath.get(args.path) ?? '';
           const loader = args.path.endsWith('.css') ? 'css' : args.path.endsWith('.json') ? 'json' : 'tsx';
-          const resolveDir = args.path.includes('/') ? args.path.slice(0, args.path.lastIndexOf('/')) : '';
-          return { contents: content, loader, resolveDir: process.cwd() };
+          /* resolveDir: esbuild pre custom namespace ignoruje resolveDir z onLoad.
+             Používame importer path (bez namespace prefixu) ako base directory */
+          const importerPath = ((args as unknown as { importer?: string }).importer)?.replace(/^[^:]+:/, '') ?? '';
+          const resolveDir = importerPath.includes('/')
+            ? importerPath.slice(0, importerPath.lastIndexOf('/'))
+            : process.cwd();
+          return { contents: content, loader, resolveDir };
         });
       },
     };
