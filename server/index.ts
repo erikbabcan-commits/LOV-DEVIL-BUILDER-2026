@@ -7,6 +7,8 @@ import type { AIProvider, ProviderTransport } from './providers/types';
 import { runAgent } from './agent/run';
 import { AgentEventSchema } from './agent/schemas';
 import { SandboxFileSchema, buildProject } from './sandbox/builder';
+import { exportRouter } from './routes/export';
+
 /* server-side uid (neimportuje client kód) */
 const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -76,6 +78,10 @@ export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?:
     const result = await autofixLoop(provider, parsed.data);
     return c.json(result);
   });
+
+
+  // Mount export routes
+  app.route("/", exportRouter);
 
   app.post('/api/agent/generate', async c => {
     if (!rateLimit('agent')) return c.json({ error: 'rate_limit', message: 'Priveľa požiadaviek, skús o minútu.' }, 429);

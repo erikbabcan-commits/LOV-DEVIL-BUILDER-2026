@@ -6,6 +6,8 @@ import type { AgentEvent, GeneratedFile, Plan } from '../services/ai/types';
 import { streamAgentEvents, AiNotConfiguredError, NetworkError } from '../services/ai/client';
 import { restoreWorkspace, scheduleAutosave, persistProjectState, persistRun, nextRevision } from '../services/persistence/projectStore';
 import type { StoredSnapshot } from '../services/persistence/db';
+import { exportToZip as doZipExport, prepareVfsForExport, MAX_FILES, MAX_SIZE_BYTES, validateExportFiles, generateReadme, generateZipFilename } from '../services/export/zipExport';
+import { exportToGitHub as doGitHubExport, checkGitHubAuth as doCheckGitHubAuth, checkGitHubAvailable, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
 export interface Message {
@@ -124,6 +126,13 @@ export interface AppState {
   sandboxErrors: Array<{ file: string; message: string }>;
   runSandbox: () => Promise<void>;
   stopSandbox: () => void;
+
+  /* M4 export */
+  githubAuthState: { authenticated: boolean; username?: string; avatarUrl?: string };
+  githubExportInProgress: boolean;
+  exportToZip: () => Promise<void>;
+  exportToGitHub: () => Promise<void>;
+  checkGitHubAuth: () => Promise<void>;
 }
 
 const generationTimers: number[] = [];
@@ -158,6 +167,10 @@ export const useStore = create<AppState>((set, get) => ({
   publishModalOpen: false,
   historyExpanded: false,
   toasts: [],
+
+  /* M4 export state */
+  githubAuthState: { authenticated: false },
+  githubExportInProgress: false,
 
   setMode: m => {
     document.body.dataset.mode = m;
@@ -559,5 +572,90 @@ export const useStore = create<AppState>((set, get) => ({
     const s = get();
     if (s.viewing) return s.viewing;
     return s.snapshots.find(x => x.id === s.liveId) || s.snapshots[s.snapshots.length - 1] || null;
+  },
+
+  /* M4 Export actions */
+  exportToZip: async () => {
+    const st = get();
+    const snap = st.edSnap();
+    if (!snap) {
+      get().toast('Najprv vygeneruj projekt', 'warn');
+      return;
+    }
+    const files = prepareVfsForExport(st.vfs, snap.id);
+    if (files.length === 0) {
+      get().toast('Projekt nemá žiadne exportovateľné súbory', 'warn');
+      return;
+    }
+    const result = await doZipExport(files, st.projectTitle, st.model);
+    if (result.ok) {
+      get().log('✓ ZIP export: ' + result.filename, 'ok');
+      get().toast('ZIP export úspešný: ' + result.filename, 'ok');
+    } else {
+      get().toast('ZIP export zlyhal: ' + (result.error || 'Neznáma chyba'), 'err');
+    }
+  },
+
+  exportToGitHub: async () => {
+    const st = get();
+    const snap = st.edSnap();
+    if (!snap) {
+      get().toast('Najprv vygeneruj projekt', 'warn');
+      return;
+    }
+    
+    // Check GitHub availability first
+    const githubStatus = await checkGitHubAvailable();
+    if (!githubStatus.available) {
+      get().toast('GitHub export BLOCKED: ' + (githubStatus.message || 'Not configured'), 'err');
+      return;
+    }
+    
+    // Check auth
+    const authState = await doCheckGitHubAuth();
+    if (!authState.authenticated) {
+      get().toast('GitHub export BLOCKED: Nie ste prihlásený. Použite ZIP export.', 'err');
+      return;
+    }
+    
+    set({ githubExportInProgress: true });
+    try {
+      const files = prepareVfsForExport(st.vfs, snap.id);
+      if (files.length === 0) {
+        get().toast('Projekt nemá žiadne exportovateľné súbory', 'warn');
+        return;
+      }
+      
+      // For now, use a default repo name based on project title
+      const repoName = 'lov-devil-' + st.projectTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now().toString(36).slice(-6);
+      
+      const request: GitHubExportRequest = {
+        repoName,
+        description: 'Exported from LOV-DEVIL AI Builder - ' + st.projectTitle,
+        isPrivate: true,
+        files: files.map(f => ({ path: f.path, content: f.content })),
+      };
+      
+      const result = await doGitHubExport(request);
+      if (result.ok && result.repoUrl) {
+        get().log('✓ GitHub export: ' + result.repoUrl, 'ok');
+        get().toast('GitHub export úspešný! ' + result.repoUrl, 'ok');
+      } else {
+        get().toast('GitHub export zlyhal: ' + (result.error || 'Neznáma chyba'), 'err');
+      }
+    } catch (e) {
+      get().toast('GitHub export zlyhal: ' + String(e).slice(0, 100), 'err');
+    } finally {
+      set({ githubExportInProgress: false });
+    }
+  },
+
+  checkGitHubAuth: async () => {
+    try {
+      const authState = await doCheckGitHubAuth();
+      set({ githubAuthState: authState });
+    } catch {
+      set({ githubAuthState: { authenticated: false } });
+    }
   },
 }));
