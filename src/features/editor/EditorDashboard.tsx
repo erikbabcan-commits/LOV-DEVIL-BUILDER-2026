@@ -91,6 +91,14 @@ export function EditorDashboard() {
             <span className="ed-ver" id="edVer">{snap ? 'v' + snap.v : 'v0'}</span>
           </div>
           <div className="ed-actions">
+            {/* M3 sandbox: reálny build + spustenie vygenerovaného React projektu */}
+            {st.sandboxHtml ? (
+              <button className="ed-act" id="edSandboxStop" onClick={st.stopSandbox}>■ Stop Sandbox</button>
+            ) : (
+              <button className="ed-act" id="edSandboxRun" disabled={st.sandboxBuilding} onClick={() => void st.runSandbox()}>
+                {st.sandboxBuilding ? '⏳ Building…' : '▶ Run Sandbox'}
+              </button>
+            )}
             <button className="ed-act" id="edPreviewBtn" onClick={() => { st.setMode('work'); }}>▶ Preview</button>
             <button className="ed-act" id="edShareBtn"
               onClick={() => { if (!st.publishedUrl){ st.toast('Najprv publikuj projekt', 'warn'); return; } st.toast('Share link skopírovaný', 'ok'); }}>↗ Share</button>
@@ -115,7 +123,17 @@ export function EditorDashboard() {
                 <div className="ed-stat"><span>Stav</span><b id="edState">{st.viewing ? 'Read-only' : st.publishedUrl ? 'Publikované' : html ? 'Draft' : 'Prázdne'}</b></div>
               </div>
               <div className="ed-frame-wrap">
-                {html ? <iframe id="editorFrame" ref={frameRef} sandbox="allow-scripts" title="Editor live preview" /> : (
+                {st.sandboxHtml ? (
+                  <iframe id="sandboxFrame" sandbox="allow-scripts" title="M3 Sandbox — bežiaci vygenerovaný React projekt"
+                    srcDoc={st.sandboxHtml} style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }} />
+                ) : st.sandboxErrors.length > 0 ? (
+                  <div style={{ padding: 16, overflow: 'auto', width: '100%' }}>
+                    <b style={{ color: 'var(--err)' }}>Sandbox build chyby:</b>
+                    {st.sandboxErrors.map((er, i) => (
+                      <pre key={i} style={{ whiteSpace: 'pre-wrap', fontSize: 11, color: '#fca5a5', marginTop: 8 }}>{er.file}: {er.message}</pre>
+                    ))}
+                  </div>
+                ) : html ? <iframe id="editorFrame" ref={frameRef} sandbox="allow-scripts" title="Editor live preview" /> : (
                   <div className="ed-empty" id="edEmpty">
                     <div className="ed-empty-ic">▦</div>
                     <b>Zatiaľ žiadny projekt</b>

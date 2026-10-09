@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest';
 
 /* LIVE Mistral smoke test — beží IBA ak je MISTRAL_API_KEY v prostredí.

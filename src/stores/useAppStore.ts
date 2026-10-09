@@ -117,6 +117,13 @@ export interface AppState {
   applyStagedFiles: (files: GeneratedFile[]) => void;
   restoreFromDb: () => Promise<void>;
   persistNow: () => Promise<void>;
+
+  /* M3 sandbox */
+  sandboxHtml: string | null;
+  sandboxBuilding: boolean;
+  sandboxErrors: Array<{ file: string; message: string }>;
+  runSandbox: () => Promise<void>;
+  stopSandbox: () => void;
 }
 
 const generationTimers: number[] = [];
@@ -391,11 +398,22 @@ export const useStore = create<AppState>((set, get) => ({
       const doneEv = events.find(e => e.type === 'done');
       const stage = events.find(e => e.type === 'stage');
       if (stage && stage.type === 'stage') {
+        /* AI create/iterate: snapshot pred apply (immutabilita histórie) —
+           rovnaký pattern ako template generate */
+        const existing = get().snapshots.length ? get().edSnap() : null;
+        if (!existing) {
+          /* nový AI projekt: základný snapshot, apply pak pridá súbory do VFS */
+          const snap = get().createSnapshot('ai', text, '<!doctype html><html><head><meta charset="utf-8"></head><body><div id="root"></div></body></html>');
+          set({ liveId: snap.id, liveHtml: snap.html, viewing: null });
+        }
         get().applyStagedFiles(stage.files);
-        get().updateMsg(planMsg.id, { text: doneEv && doneEv.type === 'done' ? doneEv.summary : 'Súbory pripravené na review.', done: true });
+        const doneText = doneEv && doneEv.type === 'done' ? doneEv.summary : 'Súbory pripravené na review.';
+        get().updateMsg(planMsg.id, { text: doneText, done: true });
+        get().toast('AI: ' + stage.files.length + ' súborov aplikovaných', 'ok');
+        /* Persist AFTER files are applied to VFS and snapshot */
+        void get().persistNow();
       }
       set({ aiConnected: true });
-      void get().persistNow();
     } catch (e) {
       if (e instanceof AiNotConfiguredError) {
         set({ aiConnected: false });
@@ -438,9 +456,10 @@ export const useStore = create<AppState>((set, get) => ({
     set(s2 => ({
       vfs: { ...s2.vfs, [snap.id]: next },
       liveHtml: s2.liveId === snap.id ? html : s2.liveHtml,
-      snapshots: s2.snapshots.map(x => (x.id === snap.id ? { ...x, html } : x)),
     }));
     get().toast('Použitých ' + files.length + ' súborov z AI', 'ok');
+    /* Persist VFS files to IndexedDB after apply */
+    void get().persistNow();
   },
 
   restoreFromDb: async () => {
@@ -457,13 +476,59 @@ export const useStore = create<AppState>((set, get) => ({
         projectTitle: restored.project.title,
         publishedUrl: restored.project.publishedUrl,
         isPublic: restored.project.isPublic,
-        vfs: {},
+        vfs: live && restored.files.length > 0
+          ? { [live.id]: restored.files.map(f => ({ name: f.path, content: f.content, modified: false })) }
+          : {},
         projectId: restored.project.id,
       });
       dbg('restore: projekt obnovený z IndexedDB', 'snapshotov=' + snaps.length);
     } catch (e) {
       dbg('restore: zlyhal (prvý spustenie?)', String(e));
     }
+  },
+
+  /* ---------- M3 sandbox ---------- */
+  sandboxHtml: null,
+  sandboxBuilding: false,
+  sandboxErrors: [],
+
+  runSandbox: async () => {
+    const st = get();
+    const snap = st.edSnap();
+    if (!snap) { get().toast('Najprv vygeneruj projekt', 'warn'); return; }
+    /* len cesty povolené server pathGuardom — legacy VFS šablóna (styles.css, app.js) sa do buildu neposiela */
+    const files = (st.vfs[snap.id] ?? filesFor(snap))
+      .filter(f => /^(src\/|public\/)/.test(f.name) || /^(package\.json|index\.html|tsconfig\.json|vite\.config\.ts|README\.md)$/.test(f.name))
+      .map(f => ({ path: f.name, content: f.content }));
+    if (!files.some(f => f.path === 'src/main.tsx')) {
+      set({ sandboxErrors: [{ file: '-', message: 'Projekt nemá src/main.tsx — sandbox podporuje React projekty z AI generovania (M3)' }] });
+      get().toast('Sandbox: chýba src/main.tsx (React projekt)', 'warn');
+      return;
+    }
+    set({ sandboxBuilding: true, sandboxErrors: [] });
+    try {
+      const res = await fetch((import.meta.env?.VITE_AI_API_BASE ?? 'http://127.0.0.1:8787') + '/api/sandbox/build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files }),
+      });
+      const result = await res.json() as { ok: boolean; html: string | null; errors: Array<{ file: string; message: string }> };
+      if (result.ok && result.html) {
+        set({ sandboxHtml: result.html, sandboxBuilding: false });
+        get().log('✓ sandbox: projekt zabudovaný a spustený', 'ok');
+      } else {
+        set({ sandboxErrors: result.errors ?? [{ file: '-', message: 'build zlyhal' }], sandboxBuilding: false });
+        get().log('✗ sandbox build: ' + (result.errors ?? []).map(e => e.message.slice(0, 80)).join('; '), 'err');
+      }
+    } catch (e) {
+      set({ sandboxBuilding: false, sandboxErrors: [{ file: '-', message: 'Sandbox server nedostupný: ' + String(e).slice(0, 120) }] });
+      get().toast('Sandbox server nedostupný — spusti npm run server', 'warn');
+    }
+  },
+
+  stopSandbox: () => {
+    set({ sandboxHtml: null, sandboxErrors: [] });
+    get().log('⟲ sandbox zastavený', 'warn');
   },
 
   persistNow: async () => {

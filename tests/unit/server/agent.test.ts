@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { validateFiles } from '../../../server/agent/run';
