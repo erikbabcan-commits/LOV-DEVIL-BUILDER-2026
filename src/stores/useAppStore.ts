@@ -398,8 +398,18 @@ export const useStore = create<AppState>((set, get) => ({
       const doneEv = events.find(e => e.type === 'done');
       const stage = events.find(e => e.type === 'stage');
       if (stage && stage.type === 'stage') {
+        /* AI create/iterate: snapshot pred apply (immutabilita histórie) —
+           rovnaký pattern ako template generate */
+        const existing = get().snapshots.length ? get().edSnap() : null;
+        if (!existing) {
+          /* nový AI projekt: základný snapshot, apply pak pridá súbory do VFS */
+          const snap = get().createSnapshot('ai', text, '<!doctype html><html><head><meta charset="utf-8"></head><body><div id="root"></div></body></html>');
+          set({ liveId: snap.id, liveHtml: snap.html, viewing: null });
+        }
         get().applyStagedFiles(stage.files);
-        get().updateMsg(planMsg.id, { text: doneEv && doneEv.type === 'done' ? doneEv.summary : 'Súbory pripravené na review.', done: true });
+        const doneText = doneEv && doneEv.type === 'done' ? doneEv.summary : 'Súbory pripravené na review.';
+        get().updateMsg(planMsg.id, { text: doneText, done: true });
+        get().toast('AI: ' + stage.files.length + ' súborov aplikovaných', 'ok');
       }
       set({ aiConnected: true });
       void get().persistNow();
