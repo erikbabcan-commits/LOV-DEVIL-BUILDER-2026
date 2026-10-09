@@ -1,15 +1,17 @@
-/* M4 PHASE B: Real GitHub repository export
+/* M4 PHASE B: GitHub repository export - BLOCKED
    
    Security principles:
    - NEVER embed tokens in client code
    - NEVER store tokens in localStorage or IndexedDB
    - NEVER include tokens in exported ZIPs
-   - All GitHub API calls happen on the server
+   - All GitHub API calls would happen on the server (IF implemented)
    - Require explicit user confirmation
    - Handle all error cases honestly
    
-   BLOCKED state: When GITHUB_TOKEN is not available, report BLOCKED honestly.
-   ZIP export must remain functional regardless of GitHub auth status.
+   BLOCKED state: GitHub export is BLOCKED because per-user OAuth authorization
+   is NOT implemented. There is no bypass. ZIP export must remain functional.
+   
+   OAuth implementation is separate remaining work for M5+.
 */
 
 /** GitHub repository creation request */
@@ -79,82 +81,39 @@ export function validateGitHubExport(
   return { ok: true };
 }
 
-/** Checks if GitHub export is available (server-side check) */
-export async function checkGitHubAvailable(): Promise<{ available: boolean; message?: string; blocked?: boolean; blockReason?: string }> {
-  try {
-    const response = await fetch('/api/github/status');
-    if (!response.ok) {
-      return { available: false, message: 'GitHub integration not configured', blocked: true, blockReason: 'NETWORK_ERROR' };
-    }
-    const data = await response.json();
-    return { 
-      available: data.available === true, 
-      message: data.message,
-      blocked: data.blocked === true,
-      blockReason: data.blockReason,
-    };
-  } catch {
-    return { available: false, message: 'GitHub integration not available', blocked: true, blockReason: 'NETWORK_ERROR' };
-  }
+/**
+ * Checks if GitHub export is available (server-side check)
+ * 
+ * Always returns BLOCKED because per-user OAuth is not implemented.
+ */
+export async function checkGitHubAvailable(): Promise<{ available: boolean; message: string; blocked: boolean; blockReason: string }> {
+  // GitHub export is BLOCKED - per-user OAuth not implemented
+  return {
+    available: false,
+    message: 'GitHub export is BLOCKED. Per-user OAuth authorization is not implemented.',
+    blocked: true,
+    blockReason: 'NO_PER_USER_OAUTH_IMPLEMENTED',
+  };
 }
 
-/** Exports project to GitHub repository via server API */
+/**
+ * Exports project to GitHub repository via server API
+ * 
+ * Always returns BLOCKED because per-user OAuth is not implemented.
+ * This is intentional - we cannot create repositories without proper auth.
+ */
 export async function exportToGitHub(
   request: GitHubExportRequest,
   confirmed: boolean = false
-): Promise<GitHubExportResult & { blocked?: boolean; blockReason?: string; cleanupFailed?: boolean; orphanedRepo?: string }> {
-  // Validate on client first
-  const validation = validateGitHubExport(request.repoName, request.files);
-  if (!validation.ok) {
-    return { ok: false, error: validation.error, errorType: 'validation' };
-  }
-  
-  // Require explicit confirmation
-  if (!confirmed) {
-    return { 
-      ok: false, 
-      error: 'User confirmation required. Call with confirmed=true to create repository.',
-      errorType: 'validation',
-      blocked: true,
-      blockReason: 'CONFIRMATION_REQUIRED',
-    };
-  }
-  
-  try {
-    const response = await fetch('/api/github/export', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...request, confirmed: true }),
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      return {
-        ok: false,
-        error: result.error || 'GitHub export failed',
-        errorType: result.errorType || 'api',
-        blocked: result.blocked,
-        blockReason: result.blockReason,
-        cleanupFailed: result.cleanupFailed,
-        orphanedRepo: result.orphanedRepo,
-      };
-    }
-    
-    return {
-      ok: true,
-      repoUrl: result.repoUrl,
-      blocked: false,
-    };
-  } catch (e) {
-    return {
-      ok: false,
-      error: `Network error: ${String(e)}`,
-      errorType: 'api',
-      blocked: true,
-      blockReason: 'NETWORK_ERROR',
-    };
-  }
+): Promise<GitHubExportResult & { blocked: boolean; blockReason: string }> {
+  // GitHub export is BLOCKED - per-user OAuth not implemented
+  return {
+    ok: false,
+    error: 'GitHub export is BLOCKED. Per-user OAuth authorization is not implemented. Use ZIP export instead.',
+    errorType: 'auth',
+    blocked: true,
+    blockReason: 'NO_PER_USER_OAUTH_IMPLEMENTED',
+  };
 }
 
 /** GitHub authorization state */
@@ -163,39 +122,46 @@ export interface GitHubAuthState {
   username?: string;
   avatarUrl?: string;
   scopes?: string[];
-  message?: string;
-  blocked?: boolean;
-  blockReason?: string;
+  message: string;
+  blocked: boolean;
+  blockReason: string;
 }
 
-/** Checks GitHub authentication status */
+/**
+ * Checks GitHub authentication status
+ * 
+ * Always returns unauthenticated because OAuth is not implemented.
+ */
 export async function checkGitHubAuth(): Promise<GitHubAuthState> {
-  try {
-    const response = await fetch('/api/github/auth');
-    if (!response.ok) {
-      return { authenticated: false, message: 'Network error', blocked: true, blockReason: 'NETWORK_ERROR' };
-    }
-    return await response.json();
-  } catch {
-    return { authenticated: false, message: 'Network error', blocked: true, blockReason: 'NETWORK_ERROR' };
-  }
+  return {
+    authenticated: false,
+    message: 'GitHub export is BLOCKED. Authentication not available.',
+    blocked: true,
+    blockReason: 'NO_PER_USER_OAUTH_IMPLEMENTED',
+  };
 }
 
-/** Initiates GitHub OAuth flow - redirects to server for auth */
+/**
+ * Initiates GitHub OAuth flow - BLOCKED
+ * 
+ * OAuth flow is not implemented. Returns BLOCKED.
+ */
 export function initiateGitHubAuth(redirectPath?: string): void {
-  const redirect = redirectPath ? encodeURIComponent(redirectPath) : encodeURIComponent(window.location.href);
-  window.location.href = `/api/github/auth/start?redirect=${redirect}`;
+  // OAuth not implemented - cannot redirect
+  // In a real implementation, this would redirect to server for auth
+  console.warn('[GitHub Export] OAuth flow not implemented. GitHub export is BLOCKED.');
 }
 
-/** Revokes GitHub authentication */
-export async function revokeGitHubAuth(): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const response = await fetch('/api/github/auth/revoke', { method: 'POST' });
-    if (!response.ok) {
-      return { ok: false, error: 'Failed to revoke authentication' };
-    }
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
+/**
+ * Revokes GitHub authentication - BLOCKED
+ * 
+ * OAuth not implemented. Returns BLOCKED.
+ */
+export async function revokeGitHubAuth(): Promise<{ ok: boolean; error: string; blocked: boolean; blockReason: string }> {
+  return {
+    ok: false,
+    error: 'GitHub OAuth revoke not implemented. GitHub export is BLOCKED.',
+    blocked: true,
+    blockReason: 'NO_PER_USER_OAUTH_IMPLEMENTED',
+  };
 }
