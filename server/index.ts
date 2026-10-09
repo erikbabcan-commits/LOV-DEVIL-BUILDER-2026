@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { z } from 'zod';
 import { MistralProvider, makeFetchTransport } from './providers/mistral';
 import type { AIProvider, ProviderTransport } from './providers/types';
@@ -45,6 +46,8 @@ export function makeRateLimiter(maxPerMin: number) {
 
 export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?: { transport?: ProviderTransport; rateLimit?: (k: string) => boolean }) {
   const app = new Hono();
+  /* CORS: lokálny dev (5173 → 8787) — single-user pilot, loopback only */
+  app.use('*', cors({ origin: (origin) => origin && origin.startsWith('http://localhost') ? origin : 'http://localhost:5173', allowMethods: ['GET', 'POST', 'OPTIONS'], allowHeaders: ['Content-Type'] }));
   const rateLimit = opts?.rateLimit ?? makeRateLimiter(cfg.rateLimitPerMin ?? 10);
 
   app.get('/api/health', c => c.json({ ok: true, ai: provider ? 'mistral' : 'not-configured' }));
