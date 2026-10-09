@@ -81,8 +81,15 @@ function generateStateToken(): string {
 
 function getSessionIdFromCookie(c: any): string | null {
   const cookie = c.req.header('Cookie') || '';
-  const match = cookie.match(new RegExp(`(?:^|;)\s*${SESSION_COOKIE_NAME}=([^;]+)`));
-  return match ? match[1] : null;
+  // Parse cookie properly - handle multiple cookies separated by semicolons
+  const cookies: Record<string, string> = {};
+  cookie.split(';').forEach((part: string) => {
+    const [key, value] = part.trim().split('=');
+    if (key && value) {
+      cookies[key] = value;
+    }
+  });
+  return cookies[SESSION_COOKIE_NAME] || null;
 }
 
 function getSession(sessionId: string): GitHubSession | null {
@@ -118,13 +125,18 @@ function deleteSession(sessionId: string): void {
 
 function setSessionCookie(c: any, sessionId: string): void {
   const options = Object.entries(SESSION_COOKIE_OPTIONS)
-    .map(([k, v]) => `${k}=${v}`)
+    .map(([k, v]) => {
+      if (k === 'httpOnly' || k === 'secure' || k === 'sameSite') {
+        return `${k}`;
+      }
+      return `${k}=${v}`;
+    })
     .join('; ');
   c.header('Set-Cookie', `${SESSION_COOKIE_NAME}=${sessionId}; ${options}`);
 }
 
 function clearSessionCookie(c: any): void {
-  c.header('Set-Cookie', `${SESSION_COOKIE_NAME}=; Max-Age=0; path=/; httpOnly; sameSite=lax`);
+  c.header('Set-Cookie', `${SESSION_COOKIE_NAME}=; Max-Age=0; path=/; HttpOnly; SameSite=lax`);
 }
 
 /* ==================== GitHub API Helper ==================== */
@@ -238,7 +250,7 @@ githubRouter.get('/api/github/auth', (c) => {
   } as const);
 });
 
-// Start OAuth flow
+// Start OAuth flow - returns HTTP 302 redirect to GitHub
 githubRouter.get('/api/github/auth/start', (c) => {
   const config = getGitHubConfig();
   if (!config) {
@@ -271,10 +283,8 @@ githubRouter.get('/api/github/auth/start', (c) => {
   
   const githubAuthUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
   
-  return c.json({
-    ok: true,
-    redirect: githubAuthUrl,
-  } as const);
+  // HTTP 302 redirect to GitHub OAuth
+  return c.redirect(githubAuthUrl, 302);
 });
 
 // OAuth callback
@@ -580,7 +590,6 @@ githubRouter.post('/api/github/export', async (c) => {
     );
     
     if (!initialCommitResponse.ok) {
-      await githubApiRequest<any>(token, 'DELETE', `https://api.github.com/repos/${repoFullName}`).catch(() => {});
       return c.json({
         ok: false,
         error: 'Failed to get initial repository state',
@@ -598,7 +607,6 @@ githubRouter.post('/api/github/export', async (c) => {
     );
     
     if (!initialTreeResponse.ok) {
-      await githubApiRequest<any>(token, 'DELETE', `https://api.github.com/repos/${repoFullName}`).catch(() => {});
       return c.json({
         ok: false,
         error: 'Failed to get initial tree',
@@ -637,7 +645,6 @@ githubRouter.post('/api/github/export', async (c) => {
     );
     
     if (!newTreeResponse.ok) {
-      await githubApiRequest<any>(token, 'DELETE', `https://api.github.com/repos/${repoFullName}`).catch(() => {});
       return c.json({
         ok: false,
         error: newTreeResponse.error || 'Failed to create tree',
@@ -659,7 +666,6 @@ githubRouter.post('/api/github/export', async (c) => {
     );
     
     if (!commitResponse.ok) {
-      await githubApiRequest<any>(token, 'DELETE', `https://api.github.com/repos/${repoFullName}`).catch(() => {});
       return c.json({
         ok: false,
         error: commitResponse.error || 'Failed to create commit',
@@ -677,7 +683,6 @@ githubRouter.post('/api/github/export', async (c) => {
     );
     
     if (!refUpdateResponse.ok) {
-      await githubApiRequest<any>(token, 'DELETE', `https://api.github.com/repos/${repoFullName}`).catch(() => {});
       return c.json({
         ok: false,
         error: refUpdateResponse.error || 'Failed to update branch reference',

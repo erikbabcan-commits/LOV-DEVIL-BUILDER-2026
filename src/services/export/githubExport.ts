@@ -133,8 +133,11 @@ export async function checkGitHubAuth(): Promise<GitHubAuthState> {
   }
 }
 
-/** Initiates GitHub OAuth flow - redirects to server */
+/** Initiates GitHub OAuth flow - redirects to server (returns HTTP 302) */
 export function initiateGitHubAuth(): void {
+  // The server endpoint /api/github/auth/start returns HTTP 302 redirect to GitHub
+  // We can use a simple fetch that follows redirects, or just navigate directly
+  // Using window.location for simplicity - the server will redirect via HTTP 302
   window.location.href = '/api/github/auth/start';
 }
 
