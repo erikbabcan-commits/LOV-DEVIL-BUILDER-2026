@@ -141,17 +141,24 @@ export function makeMockProvider(): AIProvider {
       { path: 'src/index.css', content: 'body { margin: 0; font-family: system-ui, sans-serif; }', action: 'create' },
     ],
   });
-  let call = 0;
+  /* per-run counter: každý generate run začína plan → files (E2E determinizmus) */
+  const runCounters = new WeakMap<object, number>();
+  let lastRun: object | null = null;
   return {
     name: 'mock-mistral',
     model: 'mock-large',
     async complete(messages) {
-      const isFirst = call++ === 0;
+      const runKey = messages as object;
+      /* nový run detekovaný ak system prompt je PLAN (prvý call v run-e) */
+      const isPlanCall = messages[0]?.content.includes('plánuješ');
+      let call = isPlanCall ? 0 : 1;
+      lastRun = runKey;
       await new Promise(r => setTimeout(r, 30)); // reálna async medzera
-      return { text: isFirst ? planJson : filesJson, usage: { promptTokens: 100, completionTokens: 500 } };
+      return { text: call === 0 ? planJson : filesJson, usage: { promptTokens: 100, completionTokens: 500 } };
     },
     async *stream(messages): AsyncGenerator<CompletionChunk> {
-      const text = call++ === 0 ? planJson : filesJson;
+      const isPlanCall = messages[0]?.content.includes('plánuješ');
+      const text = isPlanCall ? planJson : filesJson;
       for (const ch of text) yield { delta: ch };
       yield { finishReason: 'stop' };
     },
