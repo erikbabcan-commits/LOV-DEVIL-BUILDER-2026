@@ -103,6 +103,9 @@ export function EditorDashboard() {
             <button className="ed-act" id="edShareBtn"
               onClick={() => { if (!st.publishedUrl){ st.toast('Najprv publikuj projekt', 'warn'); return; } st.toast('Share link skopírovaný', 'ok'); }}>↗ Share</button>
             <button className="ed-act primary" id="edPublishBtn" onClick={st.publish}>Publish</button>
+            {/* M4 Export: ZIP + GitHub */}
+            <button className="ed-act" id="edZipExportBtn" onClick={() => void st.exportToZip()}> Download ZIP</button>
+            <button className="ed-act" id="edGitHubExportBtn" onClick={() => void st.exportToGitHub()}> Export to GitHub</button>
           </div>
         </div>
         <div className="ed-tabs" id="edTabs">
