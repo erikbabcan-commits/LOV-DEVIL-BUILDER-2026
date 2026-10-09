@@ -235,6 +235,8 @@ export const useStore = create<AppState>((set, get) => ({
           window.clearInterval(iv);
           get().updateMsg(m.id, { done: true });
           get().toast('Verzia v' + snap.v + ' hotová', 'ok');
+          /* M2: perzistencia aj pre template mód (refresh restore) */
+          void get().persistNow();
         }
       }, 55);
       generationTimers.push(iv);

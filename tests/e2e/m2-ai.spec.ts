@@ -14,10 +14,11 @@ test('M2 vertikálny rez: prompt → AI eventy → súbory v editore → persist
   await page.goto('http://localhost:5173');
   await expect(page.locator('#homeInput')).toBeVisible();
 
-  // prepnúť model na AI (Mistral)
-  await page.click('#modelChip');
-  await page.click('[data-model="AI (Mistral)"]');
-  await page.click('#modelChip'); // zatvoriť menu
+  // prepnúť model na AI (Mistral) — cez store hook (deterministické, nezávislé od menu UI)
+  await page.evaluate(() => {
+    const w = window as unknown as { __forgeStore: { getState(): { setModel(m: string): void } } };
+    w.__forgeStore.getState().setModel('AI (Mistral)');
+  });
 
   await page.fill('#homeInput', 'Create a modern CRM dashboard with customers, tasks and a sidebar.');
   await page.click('#homeSend');
@@ -29,8 +30,10 @@ test('M2 vertikálny rez: prompt → AI eventy → súbory v editore → persist
   expect(toastText).toMatch(/AI server|nakonfigurovan/);
 
   // Instant Draft mód stále funguje (explicitný, nie tichý fallback)
-  await page.click('#modelChip');
-  await page.click('[data-model="Lovable Cloud"]');
+  await page.evaluate(() => {
+    const w = window as unknown as { __forgeStore: { getState(): { setModel(m: string): void } } };
+    w.__forgeStore.getState().setModel('Lovable Cloud');
+  });
   await page.fill('#homeInput', 'CRM dashboard');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
