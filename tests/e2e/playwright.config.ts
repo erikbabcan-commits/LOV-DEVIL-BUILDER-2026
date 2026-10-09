@@ -10,8 +10,9 @@ export default defineConfig({
   webServer: [
     {
       /* M2.1: reálny Hono server s MOCK providerom (deterministický, cez reálne HTTP/SSE) */
-      command: 'MOCK_AI=1 LOV_SERVER=1 PORT=8787 npx tsx server/index.ts',
+      command: 'npm run server:mock',
       port: 8787,
+      cwd: '../../',
       reuseExistingServer: false,
       timeout: 60_000,
     },

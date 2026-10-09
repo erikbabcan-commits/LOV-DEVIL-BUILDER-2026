@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test -c tests/e2e/playwright.config.ts",
     "server": "LOV_SERVER=1 tsx server/index.ts",
-    "server:dev": "LOV_SERVER=1 npx tsx server/index.ts"
+    "server:dev": "LOV_SERVER=1 npx tsx server/index.ts",
+    "server:mock": "MOCK_AI=1 LOV_SERVER=1 PORT=8787 tsx server/index.ts"
   },
   "dependencies": {
     "hono": "^4.13.13",
