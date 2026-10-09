@@ -79,6 +79,8 @@ test('M2.1 positive: AI (mock za reálnym Honom) vygeneruje súbory → UI → e
   });
 
   await page.fill('#homeInput', 'Create a modern CRM dashboard with customers, tasks and a sidebar.');
+  page.on('console', m => { if (m.type() === 'error' || m.text().includes('Forge')) console.log('[BROWSER]', m.text().slice(0, 200)); });
+  page.on('requestfailed', r => console.log('[REQFAIL]', r.url().slice(0, 100), r.failure()?.errorText));
   await page.click('#homeSend');
 
   // reálne SSE eventy z Hono servera: AI plán sa zobrazí v chate
