@@ -81,6 +81,14 @@ test('M2.1 positive: AI (mock za reálnym Honom) vygeneruje súbory → UI → e
   await page.fill('#homeInput', 'Create a modern CRM dashboard with customers, tasks and a sidebar.');
   page.on('console', m => { if (m.type() === 'error' || m.text().includes('Forge')) console.log('[BROWSER]', m.text().slice(0, 200)); });
   page.on('requestfailed', r => console.log('[REQFAIL]', r.url().slice(0, 100), r.failure()?.errorText));
+  /* DEBUG: priamy fetch na AI server z browsera pred odoslaním */
+  const probe = await page.evaluate(async () => {
+    try {
+      const r = await fetch('http://127.0.0.1:8787/api/health');
+      return { status: r.status, body: await r.text() };
+    } catch (e) { return { err: String(e) }; }
+  });
+  console.log('[HEALTH PROBE]', JSON.stringify(probe));
   await page.click('#homeSend');
 
   // reálne SSE eventy z Hono servera: AI plán sa zobrazí v chate
