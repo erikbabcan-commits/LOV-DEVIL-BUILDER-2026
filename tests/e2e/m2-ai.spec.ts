@@ -89,6 +89,19 @@ test('M2.1 positive: AI (mock za reálnym Honom) vygeneruje súbory → UI → e
     } catch (e) { return { err: String(e) }; }
   });
   console.log('[HEALTH PROBE]', JSON.stringify(probe));
+  /* DEBUG: priamy POST na generate z browsera (CORS test) */
+  const postProbe = await page.evaluate(async () => {
+    try {
+      const r = await fetch('http://127.0.0.1:8787/api/agent/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: 'probe', prompt: 'test', mode: 'create' }),
+      });
+      const text = await r.text();
+      return { status: r.status, head: text.slice(0, 200) };
+    } catch (e) { return { err: String(e) }; }
+  });
+  console.log('[POST PROBE]', JSON.stringify(postProbe));
   await page.click('#homeSend');
 
   // reálne SSE eventy z Hono servera: AI plán sa zobrazí v chate
