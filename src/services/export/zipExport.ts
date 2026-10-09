@@ -35,6 +35,9 @@ export const ALLOWED_EXTENSIONS = new Set([
 
 /** Path traversal validation - reject any path that tries to escape */
 export function isSafeExportPath(path: string): boolean {
+  // Reject empty paths
+  if (!path || path.length === 0) return false;
+  
   // Normalize path
   const normalized = path.replace(/\\/g, '/');
   

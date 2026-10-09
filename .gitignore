@@ -1,10 +1,45 @@
+# Dependencies
 node_modules/
+
+# Build outputs
+dist/
+
+# CI artifacts
 tools/ci/build/
 tools/ci/test-results/
 tools/ci/playwright-report/
 tools/ci/screenshots/
-dist/
-screenshots-react/
+
+# Test outputs
 tests/e2e/test-results/
 tests/e2e/playwright-report/
+
+# Screenshots
+screenshots/
+screenshots-react/
+
+# Lock files
 package-lock.json
+
+# Environment files (contain secrets - NEVER commit)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+tmp/
+temp/

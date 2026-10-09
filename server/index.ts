@@ -2,6 +2,10 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { z } from 'zod';
+import { config } from 'dotenv';
+
+// Load environment variables from .env file
+config();
 import { MistralProvider, makeFetchTransport } from './providers/mistral';
 import type { AIProvider, ProviderTransport } from './providers/types';
 import { runAgent } from './agent/run';
