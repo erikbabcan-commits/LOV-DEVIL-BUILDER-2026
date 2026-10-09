@@ -19,7 +19,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { execSync } from 'child_process';
 import {
   prepareVfsForExport,
   validateExportFiles,
@@ -79,7 +78,7 @@ describe('ZIP Clean-Room Build Proof', () => {
     // Clean up temporary directory
     try {
       if (tempDir && fs.existsSync(tempDir)) {
-        execSync(`rm -rf ${tempDir}`);
+        fs.rmSync(tempDir, { recursive: true, force: true });
       }
     } catch {
       // Ignore cleanup errors

@@ -17,6 +17,11 @@ export interface VfsSplitResult {
 }
 export interface VfsFile { name: string; content: string; modified: boolean }
 
+/** Static srcdoc preview must not resolve generated external scripts against the host app. */
+export function withoutExternalScripts(html: string): string {
+  return html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+}
+
 export function vfsBlockType(attrs: string | undefined): string {
   const m = (attrs || '').match(/type\s*=\s*("([^"]*)"|'([^']*)'|(\S+))/i);
   return m ? (m[2] != null ? m[2] : (m[3] != null ? m[3] : m[4] || '')) : '';

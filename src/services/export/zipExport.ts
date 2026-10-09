@@ -7,8 +7,8 @@
    Integrity: Preserves directory structure and file content.
 */
 
-import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { buildZipBlob } from './zipArchive';
 
 /** Maximum files in a single export */
 export const MAX_FILES = 200;
@@ -208,11 +208,11 @@ export function generateZipFilename(projectTitle: string): string {
 }
 
 /** Creates a ZIP archive from files and triggers download */
-export async function exportToZip(
+export async function createZipBlob(
   files: ExportFile[],
   projectTitle: string,
   model: string
-): Promise<{ ok: boolean; error?: string; filename?: string }> {
+): Promise<{ ok: boolean; error?: string; filename?: string; blob?: Blob }> {
   // Validate files
   const validation = validateExportFiles(files);
   if (!validation.ok) {
@@ -223,34 +223,31 @@ export async function exportToZip(
     return { ok: false, error: 'No files to export' };
   }
   
-  // Create ZIP archive
-  const zip = new JSZip();
   const generatedAt = new Date().toISOString();
-  
-  // Add each file to the archive
-  for (const f of files) {
-    try {
-      zip.file(f.path, f.content);
-    } catch (e) {
-      return { ok: false, error: `Failed to add file ${f.path}: ${String(e)}` };
-    }
-  }
-  
-  // Generate and add README
   const readme = generateReadme(projectTitle, model, generatedAt);
-  zip.file('README.md', readme);
   
   // Generate filename
   const filename = generateZipFilename(projectTitle);
   
   // Generate ZIP blob
   try {
-    const blob = await zip.generateAsync({ type: 'blob' });
-    saveAs(blob, filename);
-    return { ok: true, filename };
+    const blob = await buildZipBlob(files, readme);
+    return { ok: true, filename, blob };
   } catch (e) {
     return { ok: false, error: `Failed to generate ZIP: ${String(e)}` };
   }
+}
+
+/** Creates a ZIP archive from files and triggers download. */
+export async function exportToZip(
+  files: ExportFile[],
+  projectTitle: string,
+  model: string
+): Promise<{ ok: boolean; error?: string; filename?: string }> {
+  const result = await createZipBlob(files, projectTitle, model);
+  if (!result.ok || !result.blob || !result.filename) return { ok: false, error: result.error || 'Failed to generate ZIP' };
+  saveAs(result.blob, result.filename);
+  return { ok: true, filename: result.filename };
 }
 
 /**

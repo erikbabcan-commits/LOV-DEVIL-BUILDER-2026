@@ -7,4 +7,7 @@ dist/
 screenshots-react/
 tests/e2e/test-results/
 tests/e2e/playwright-report/
-package-lock.json
+.env
+.env.*
+!.env.example
+!server/.env.example

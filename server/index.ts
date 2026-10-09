@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -7,7 +8,7 @@ import type { AIProvider, ProviderTransport } from './providers/types';
 import { runAgent } from './agent/run';
 import { AgentEventSchema } from './agent/schemas';
 import { SandboxFileSchema, buildProject } from './sandbox/builder';
-import { githubRouter } from './routes/github';
+import { githubRouter } from './routes/githubSecure';
 import { exportRouter } from './routes/export';
 
 /* server-side uid (neimportuje client kód) */

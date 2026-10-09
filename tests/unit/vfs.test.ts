@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { vfsSplitBlocks, vfsJoinBlocks } from '../../src/lib/vfs';
+import { vfsSplitBlocks, vfsJoinBlocks, withoutExternalScripts } from '../../src/lib/vfs';
 
 describe('VFS D3d (M1.1) — faithful reconstruction over consolidation', () => {
+  it('odstráni externý script zo statického preview, ale zachová inline script', () => {
+    const html = '<div id="root"></div><script type="module" src="/src/main.tsx"></script><script>window.ok = true</script>';
+    expect(withoutExternalScripts(html)).toBe('<div id="root"></div><script>window.ok = true</script>');
+  });
   it('jeden klasický inline script → extrakcia (bežný prípad)', () => {
     const src = '<html><head><style>a{b:c}</style></head><body><h1>Ahoj</h1><script>let x = 1<\/script></body></html>';
     const r = vfsSplitBlocks(src);
