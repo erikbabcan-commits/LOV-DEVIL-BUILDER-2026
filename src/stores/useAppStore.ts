@@ -6,7 +6,7 @@ import type { AgentEvent, GeneratedFile, Plan } from '../services/ai/types';
 import { streamAgentEvents, AiNotConfiguredError, NetworkError } from '../services/ai/client';
 import { restoreWorkspace, scheduleAutosave, persistProjectState, persistRun, nextRevision } from '../services/persistence/projectStore';
 import type { StoredSnapshot } from '../services/persistence/db';
-import { exportToZip as doZipExport, prepareVfsForExport, MAX_FILES, MAX_SIZE_BYTES, validateExportFiles, generateReadme, generateZipFilename } from '../services/export/zipExport';
+import { exportToZip as doZipExport, prepareVfsForExport, MAX_FILES, MAX_SIZE_BYTES, validateExportFiles, generateReadme, generateZipFilename, type ExportFile } from '../services/export/zipExport';
 import { exportToGitHub as doGitHubExport, checkGitHubAuth as doCheckGitHubAuth, checkGitHubAvailable, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
@@ -582,11 +582,38 @@ export const useStore = create<AppState>((set, get) => ({
       get().toast('Najprv vygeneruj projekt', 'warn');
       return;
     }
-    const files = prepareVfsForExport(st.vfs, snap.id);
+    const { files, warnings, missingRequired } = prepareVfsForExport(st.vfs, snap.id);
+    
+    // Check for secrets
+    const hasSecretWarning = warnings.some(w => w.includes('SECRET'));
+    if (hasSecretWarning) {
+      get().toast('Export BLOCKED: Potential secrets detected. ' + warnings.join('; '), 'err');
+      return;
+    }
+    
+    // Warn about missing required files
+    if (missingRequired.length > 0) {
+      const userConfirmed = confirm(
+        `Warning: Missing required files: ${missingRequired.join(', ')}\n\n` +
+        `The exported project may not build correctly.\n` +
+        `Continue with export?`
+      );
+      if (!userConfirmed) {
+        get().toast('Export cancelled', 'warn');
+        return;
+      }
+    }
+    
     if (files.length === 0) {
       get().toast('Projekt nemá žiadne exportovateľné súbory', 'warn');
       return;
     }
+    
+    // Show other warnings
+    if (warnings.length > 0) {
+      get().toast('Export warnings: ' + warnings.join('; '), 'warn');
+    }
+    
     const result = await doZipExport(files, st.projectTitle, st.model);
     if (result.ok) {
       get().log('✓ ZIP export: ' + result.filename, 'ok');
@@ -606,21 +633,35 @@ export const useStore = create<AppState>((set, get) => ({
     
     // Check GitHub availability first
     const githubStatus = await checkGitHubAvailable();
-    if (!githubStatus.available) {
-      get().toast('GitHub export BLOCKED: ' + (githubStatus.message || 'Not configured'), 'err');
+    if (!githubStatus.available || githubStatus.blocked) {
+      const msg = githubStatus.blockReason 
+        ? `GitHub export BLOCKED: ${githubStatus.blockReason} - ${githubStatus.message || ''}`
+        : `GitHub export BLOCKED: ${githubStatus.message || 'Not configured'}`;
+      get().toast(msg, 'err');
       return;
     }
     
     // Check auth
     const authState = await doCheckGitHubAuth();
-    if (!authState.authenticated) {
-      get().toast('GitHub export BLOCKED: Nie ste prihlásený. Použite ZIP export.', 'err');
+    if (!authState.authenticated || authState.blocked) {
+      const msg = authState.blockReason
+        ? `GitHub export BLOCKED: ${authState.blockReason} - ${authState.message || ''}`
+        : 'GitHub export BLOCKED: Nie ste prihlásený. Použite ZIP export.';
+      get().toast(msg, 'err');
       return;
     }
     
     set({ githubExportInProgress: true });
     try {
-      const files = prepareVfsForExport(st.vfs, snap.id);
+      const { files, warnings, missingRequired } = prepareVfsForExport(st.vfs, snap.id);
+      
+      // Check for secrets
+      const hasSecretWarning = warnings.some(w => w.includes('SECRET'));
+      if (hasSecretWarning) {
+        get().toast('GitHub export BLOCKED: Potential secrets detected. ' + warnings.join('; '), 'err');
+        return;
+      }
+      
       if (files.length === 0) {
         get().toast('Projekt nemá žiadne exportovateľné súbory', 'warn');
         return;
@@ -629,6 +670,20 @@ export const useStore = create<AppState>((set, get) => ({
       // For now, use a default repo name based on project title
       const repoName = 'lov-devil-' + st.projectTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now().toString(36).slice(-6);
       
+      // Show confirmation dialog
+      const userConfirmed = confirm(
+        `Create GitHub repository '${repoName}'?\n\n` +
+        `This will create a new private repository under your GitHub account.\n` +
+        `Files: ${files.length} | Description: ${'Exported from LOV-DEVIL AI Builder - ' + st.projectTitle}\n\n` +
+        (missingRequired.length > 0 ? `WARNING: Missing required files: ${missingRequired.join(', ')}\n` : '') +
+        `Click OK to confirm.`
+      );
+      
+      if (!userConfirmed) {
+        get().toast('GitHub export cancelled', 'warn');
+        return;
+      }
+      
       const request: GitHubExportRequest = {
         repoName,
         description: 'Exported from LOV-DEVIL AI Builder - ' + st.projectTitle,
@@ -636,10 +691,12 @@ export const useStore = create<AppState>((set, get) => ({
         files: files.map(f => ({ path: f.path, content: f.content })),
       };
       
-      const result = await doGitHubExport(request);
+      const result = await doGitHubExport(request, true); // confirmed=true
       if (result.ok && result.repoUrl) {
         get().log('✓ GitHub export: ' + result.repoUrl, 'ok');
         get().toast('GitHub export úspešný! ' + result.repoUrl, 'ok');
+      } else if (result.blocked) {
+        get().toast('GitHub export BLOCKED: ' + (result.blockReason || result.error || 'Unknown'), 'err');
       } else {
         get().toast('GitHub export zlyhal: ' + (result.error || 'Neznáma chyba'), 'err');
       }

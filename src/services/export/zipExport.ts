@@ -253,34 +253,104 @@ export async function exportToZip(
   }
 }
 
-/** Prepares VFS files for export, filtering out non-exportable files */
+/**
+ * Prepares VFS files for export, filtering out non-exportable files
+ * 
+ * Security: Checks for secrets before including files
+ * Completeness: Ensures required files are present
+ * Integrity: Preserves all valid project files
+ */
 export function prepareVfsForExport(
   vfs: Record<string, Array<{ name: string; content: string }>>,
   snapId: string | null
-): ExportFile[] {
+): { files: ExportFile[]; warnings: string[]; missingRequired: string[] } {
   const files: ExportFile[] = [];
+  const warnings: string[] = [];
+  const missingRequired: string[] = [];
   
-  if (!snapId) return files;
+  if (!snapId) {
+    return { files, warnings: ['No snapshot ID provided'], missingRequired };
+  }
   
   const snapFiles = vfs[snapId] ?? [];
   
+  // Required files for a valid React project
+  let hasPackageJson = false;
+  let hasEntry = false;
+  
+  // Secret patterns to check - allow optional whitespace
+  const secretPatterns = [
+    /MISTRAL_API_KEY\s*[=:]/,
+    /GITHUB_TOKEN\s*[=:]/,
+    /NPM_TOKEN\s*[=:]/,
+    /aws_access_key_id\s*[=:]/,
+    /aws_secret_access_key\s*[=:]/,
+    /private[_-]?key\s*[=:]/i,
+    /password\s*[=:]/i,
+    /api[_-]?key\s*[=:]/i,
+    /secret\s*[=:]/i,
+  ];
+  
   for (const f of snapFiles) {
-    // Skip files without names or content
-    if (!f.name || !f.content) continue;
+    // Skip files without names
+    if (!f.name) {
+      warnings.push('Skipping file with empty name');
+      continue;
+    }
+    
+    // Skip if content is null/undefined, but allow empty strings (valid empty files)
+    if (f.content == null) {
+      warnings.push(`Skipping ${f.name} with null/undefined content`);
+      continue;
+    }
     
     // Skip if path is unsafe
-    if (!isSafeExportPath(f.name)) continue;
+    if (!isSafeExportPath(f.name)) {
+      warnings.push(`Skipping unsafe path: ${f.name}`);
+      continue;
+    }
     
-    // Only include files with allowed extensions (or no extension like README)
+    // Check for secrets in content
+    let hasSecret = false;
+    for (const pattern of secretPatterns) {
+      if (pattern.test(f.content)) {
+        warnings.push(`POTENTIAL SECRET in ${f.name} - export blocked`);
+        hasSecret = true;
+        break;
+      }
+    }
+    if (hasSecret) continue;
+    
+    // Only include files with allowed extensions (or no extension like README, Makefile)
     const hasExtension = f.name.includes('.');
     const extension = hasExtension ? f.name.slice(f.name.lastIndexOf('.')) : '';
     
     if (hasExtension && !ALLOWED_EXTENSIONS.has(extension)) {
-      continue; // Skip files with disallowed extensions
+      warnings.push(`Skipping disallowed extension: ${f.name} (${extension})`);
+      continue;
     }
+    
+    // Track required files
+    if (f.name === 'package.json') hasPackageJson = true;
+    if (f.name === 'index.html' || f.name === 'src/main.tsx' || f.name === 'src/main.jsx') hasEntry = true;
     
     files.push({ path: f.name, content: f.content });
   }
   
-  return files;
+  // Check for missing required files
+  if (!hasPackageJson) {
+    missingRequired.push('package.json');
+  }
+  if (!hasEntry) {
+    missingRequired.push('index.html or src/main.tsx');
+  }
+  
+  // Check for empty content in critical files
+  for (const f of files) {
+    if (f.content === '' || f.content === '\n' || f.content === '\n\n') {
+      warnings.push(`Empty content in ${f.path}`);
+    }
+  }
+  
+  return { files, warnings, missingRequired };
 }

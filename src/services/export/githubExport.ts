@@ -80,34 +80,51 @@ export function validateGitHubExport(
 }
 
 /** Checks if GitHub export is available (server-side check) */
-export async function checkGitHubAvailable(): Promise<{ available: boolean; message?: string }> {
+export async function checkGitHubAvailable(): Promise<{ available: boolean; message?: string; blocked?: boolean; blockReason?: string }> {
   try {
     const response = await fetch('/api/github/status');
     if (!response.ok) {
-      return { available: false, message: 'GitHub integration not configured' };
+      return { available: false, message: 'GitHub integration not configured', blocked: true, blockReason: 'NETWORK_ERROR' };
     }
     const data = await response.json();
-    return { available: data.available === true, message: data.message };
+    return { 
+      available: data.available === true, 
+      message: data.message,
+      blocked: data.blocked === true,
+      blockReason: data.blockReason,
+    };
   } catch {
-    return { available: false, message: 'GitHub integration not available' };
+    return { available: false, message: 'GitHub integration not available', blocked: true, blockReason: 'NETWORK_ERROR' };
   }
 }
 
 /** Exports project to GitHub repository via server API */
 export async function exportToGitHub(
-  request: GitHubExportRequest
-): Promise<GitHubExportResult> {
+  request: GitHubExportRequest,
+  confirmed: boolean = false
+): Promise<GitHubExportResult & { blocked?: boolean; blockReason?: string; cleanupFailed?: boolean; orphanedRepo?: string }> {
   // Validate on client first
   const validation = validateGitHubExport(request.repoName, request.files);
   if (!validation.ok) {
     return { ok: false, error: validation.error, errorType: 'validation' };
   }
   
+  // Require explicit confirmation
+  if (!confirmed) {
+    return { 
+      ok: false, 
+      error: 'User confirmation required. Call with confirmed=true to create repository.',
+      errorType: 'validation',
+      blocked: true,
+      blockReason: 'CONFIRMATION_REQUIRED',
+    };
+  }
+  
   try {
     const response = await fetch('/api/github/export', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
+      body: JSON.stringify({ ...request, confirmed: true }),
     });
     
     const result = await response.json();
@@ -117,18 +134,25 @@ export async function exportToGitHub(
         ok: false,
         error: result.error || 'GitHub export failed',
         errorType: result.errorType || 'api',
+        blocked: result.blocked,
+        blockReason: result.blockReason,
+        cleanupFailed: result.cleanupFailed,
+        orphanedRepo: result.orphanedRepo,
       };
     }
     
     return {
       ok: true,
       repoUrl: result.repoUrl,
+      blocked: false,
     };
   } catch (e) {
     return {
       ok: false,
       error: `Network error: ${String(e)}`,
       errorType: 'api',
+      blocked: true,
+      blockReason: 'NETWORK_ERROR',
     };
   }
 }
@@ -139,6 +163,9 @@ export interface GitHubAuthState {
   username?: string;
   avatarUrl?: string;
   scopes?: string[];
+  message?: string;
+  blocked?: boolean;
+  blockReason?: string;
 }
 
 /** Checks GitHub authentication status */
@@ -146,11 +173,11 @@ export async function checkGitHubAuth(): Promise<GitHubAuthState> {
   try {
     const response = await fetch('/api/github/auth');
     if (!response.ok) {
-      return { authenticated: false };
+      return { authenticated: false, message: 'Network error', blocked: true, blockReason: 'NETWORK_ERROR' };
     }
     return await response.json();
   } catch {
-    return { authenticated: false };
+    return { authenticated: false, message: 'Network error', blocked: true, blockReason: 'NETWORK_ERROR' };
   }
 }
 

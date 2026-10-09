@@ -148,7 +148,7 @@ describe('ZIP Export - VFS Preparation', () => {
         { name: 'src/App.tsx', content: 'valid' },
       ],
     };
-    const files = prepareVfsForExport(vfs, 'snap1');
+    const { files } = prepareVfsForExport(vfs, 'snap1');
     expect(files).toHaveLength(2);
     expect(files.map(f => f.path)).toContain('src/main.tsx');
     expect(files.map(f => f.path)).toContain('src/App.tsx');
@@ -157,17 +157,17 @@ describe('ZIP Export - VFS Preparation', () => {
 
   it('should return empty array for null snapshot', () => {
     const vfs = {};
-    const files = prepareVfsForExport(vfs, null);
+    const { files } = prepareVfsForExport(vfs, null);
     expect(files).toHaveLength(0);
   });
 
   it('should return empty array for missing snapshot', () => {
     const vfs = { 'snap1': [{ name: 'file.txt', content: 'content' }] };
-    const files = prepareVfsForExport(vfs, 'nonexistent');
+    const { files } = prepareVfsForExport(vfs, 'nonexistent');
     expect(files).toHaveLength(0);
   });
 
-  it('should skip files without names or content', () => {
+  it('should skip files without names or null content', () => {
     const vfs = {
       'snap1': [
         { name: '', content: 'no name' },
@@ -175,9 +175,13 @@ describe('ZIP Export - VFS Preparation', () => {
         { name: 'also-valid.txt', content: 'content' },
       ],
     };
-    const files = prepareVfsForExport(vfs, 'snap1');
-    expect(files).toHaveLength(1);
-    expect(files[0].path).toBe('also-valid.txt');
+    const { files, warnings } = prepareVfsForExport(vfs, 'snap1');
+    // Empty content strings are allowed (valid empty files)
+    // Only null/undefined content is skipped
+    expect(files).toHaveLength(2);
+    expect(files.map(f => f.path)).toContain('valid.txt');
+    expect(files.map(f => f.path)).toContain('also-valid.txt');
+    expect(warnings).toContain('Skipping file with empty name');
   });
 
   it('should skip unsafe paths', () => {
@@ -187,9 +191,60 @@ describe('ZIP Export - VFS Preparation', () => {
         { name: '../etc/passwd', content: 'hack' },
       ],
     };
-    const files = prepareVfsForExport(vfs, 'snap1');
+    const { files } = prepareVfsForExport(vfs, 'snap1');
     expect(files).toHaveLength(1);
     expect(files[0].path).toBe('src/main.tsx');
+  });
+
+  it('should detect secrets in file content', () => {
+    const vfs = {
+      'snap1': [
+        { name: 'src/config.ts', content: 'export const MISTRAL_API_KEY = "sk-12345"' },
+        { name: 'src/main.tsx', content: 'import React from "react"' },
+      ],
+    };
+    const { files, warnings } = prepareVfsForExport(vfs, 'snap1');
+    // File with secret should be skipped
+    expect(files).toHaveLength(1);
+    expect(files[0].path).toBe('src/main.tsx');
+    // Should have warning about secret
+    expect(warnings.some(w => w.includes('SECRET'))).toBe(true);
+    // config.ts should NOT be in files
+    expect(files.map(f => f.path)).not.toContain('src/config.ts');
+  });
+
+  it('should detect missing required files', () => {
+    const vfs = {
+      'snap1': [
+        { name: 'src/utils.ts', content: 'export const x = 1' },
+      ],
+    };
+    const { missingRequired } = prepareVfsForExport(vfs, 'snap1');
+    expect(missingRequired).toContain('package.json');
+    expect(missingRequired).toContain('index.html or src/main.tsx');
+  });
+
+  it('should not flag missing required files when they exist', () => {
+    const vfs = {
+      'snap1': [
+        { name: 'package.json', content: '{ "name": "test" }' },
+        { name: 'index.html', content: '<html></html>' },
+        { name: 'src/main.tsx', content: 'import React from "react"' },
+      ],
+    };
+    const { missingRequired } = prepareVfsForExport(vfs, 'snap1');
+    expect(missingRequired).toHaveLength(0);
+  });
+
+  it('should warn about empty content', () => {
+    const vfs = {
+      'snap1': [
+        { name: 'src/empty.tsx', content: '' },
+        { name: 'src/main.tsx', content: 'import React from "react"' },
+      ],
+    };
+    const { warnings } = prepareVfsForExport(vfs, 'snap1');
+    expect(warnings.some(w => w.includes('Empty content'))).toBe(true);
   });
 });
 
