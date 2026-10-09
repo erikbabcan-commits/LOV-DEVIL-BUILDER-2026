@@ -95,18 +95,15 @@ describe('ZIP Clean-Room Build Proof', () => {
 
   describe('README Generation', () => {
     it('should generate README with project info', () => {
-      const readme = generateReadme('Test Project', 'A test project', CRM_FILES);
+      const readme = generateReadme('Test Project', 'mock-model', new Date().toISOString());
       
       expect(readme).toContain('# Test Project');
-      expect(readme).toContain('A test project');
+      expect(readme).toContain('Generated with');
       expect(readme).toContain('npm install');
       expect(readme).toContain('npm run build');
     });
 
-    it('should generate README with project info', () => {
-      const readme = generateReadme('Test Project', 'A test project', CRM_FILES);
-      expect(readme).toBeTruthy();
-    });
+
   });
 
   describe('Filename Generation', () => {

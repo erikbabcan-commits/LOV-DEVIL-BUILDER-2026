@@ -37,7 +37,7 @@ interface GitHubConfig {
 function getGitHubConfig(): GitHubConfig | null {
   const clientId = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-  const callbackUrl = process.env.GITHUB_CALLBACK_URL || 'http://localhost:8787/api/github/auth/callback';
+  const callbackUrl = process.env.GITHUB_CALLBACK_URL || 'http://localhost:5173/api/github/auth/callback';
   
   if (!clientId || !clientSecret) {
     return null;
@@ -221,7 +221,7 @@ githubRouter.get('/api/github/status', (c) => {
       configured: false,
       message: 'GitHub integration not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.',
       requiredEnv: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
-      callbackUrl: process.env.GITHUB_CALLBACK_URL || 'http://localhost:8787/api/github/auth/callback',
+      callbackUrl: process.env.GITHUB_CALLBACK_URL || 'http://localhost:5173/api/github/auth/callback',
       blocked: true,
       blockReason: 'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET environment variables are not configured',
     } as const);
