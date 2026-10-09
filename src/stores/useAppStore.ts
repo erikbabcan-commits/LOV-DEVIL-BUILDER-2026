@@ -456,7 +456,6 @@ export const useStore = create<AppState>((set, get) => ({
     set(s2 => ({
       vfs: { ...s2.vfs, [snap.id]: next },
       liveHtml: s2.liveId === snap.id ? html : s2.liveHtml,
-      snapshots: s2.snapshots.map(x => (x.id === snap.id ? { ...x, html } : x)),
     }));
     get().toast('Použitých ' + files.length + ' súborov z AI', 'ok');
     /* Persist VFS files to IndexedDB after apply */
