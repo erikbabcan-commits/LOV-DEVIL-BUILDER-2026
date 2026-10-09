@@ -4,6 +4,8 @@ import { useStore } from '../stores/useAppStore';
 /* Port 1:1 legacy topbar — rovnaké triedy/ID, dropdowny via React state. */
 const MODELS: { name: string; sub: string }[] = [
   { name: 'Lovable Cloud', sub: 'Agent 3 · plný stack, auth & DB' },
+  { name: 'AI (Mistral)', sub: 'Reálny AI engine — M2' },
+  { name: 'Instant Draft', sub: 'Šablóny bez AI (demo)' },
   { name: 'Claude 4.5 Sonnet', sub: 'Najlepší na UI/UX' },
   { name: 'GPT-5', sub: 'Silný na logiku' },
   { name: 'Llama 4', sub: 'Open-source' },

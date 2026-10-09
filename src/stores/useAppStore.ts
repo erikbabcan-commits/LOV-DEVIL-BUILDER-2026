@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { uid, now, dbg } from '../lib/utils';
 import { buildSaas, buildKanban, buildSettings, buildDashboard, detectKind, KIND_INFO, SNIPPETS, AppKind } from '../lib/templates';
 import { filesFor, filesToHtml, VfsFile } from '../lib/vfs/filesFor';
+import type { AgentEvent, GeneratedFile, Plan } from '../services/ai/types';
+import { streamAgentEvents, AiNotConfiguredError, NetworkError } from '../services/ai/client';
+import { restoreWorkspace, scheduleAutosave, persistProjectState, persistRun, nextRevision } from '../services/persistence/projectStore';
+import type { StoredSnapshot } from '../services/persistence/db';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
 export interface Message {
@@ -102,6 +106,17 @@ export interface AppState {
   setPublishModalOpen: (v: boolean) => void;
   currentHtml: () => string | null;
   edSnap: () => Snapshot | null;
+
+  /* M2: reálny AI engine */
+  aiMode: boolean;
+  aiConnected: boolean | null;
+  projectId: string;
+  aiAbort: AbortController | null;
+  generateWithAi: (prompt: string, mode: 'create' | 'iterate' | 'fix') => Promise<void>;
+  cancelAiRun: () => void;
+  applyStagedFiles: (files: GeneratedFile[]) => void;
+  restoreFromDb: () => Promise<void>;
+  persistNow: () => Promise<void>;
 }
 
 const generationTimers: number[] = [];
@@ -220,6 +235,8 @@ export const useStore = create<AppState>((set, get) => ({
           window.clearInterval(iv);
           get().updateMsg(m.id, { done: true });
           get().toast('Verzia v' + snap.v + ' hotová', 'ok');
+          /* M2: perzistencia aj pre template mód (refresh restore) */
+          void get().persistNow();
         }
       }, 55);
       generationTimers.push(iv);
@@ -316,6 +333,158 @@ export const useStore = create<AppState>((set, get) => ({
   setModelMenuOpen: v => set({ modelMenuOpen: v }),
   setSettingsOpen: v => set({ settingsOpen: v }),
   setPublishModalOpen: v => set({ publishModalOpen: v }),
+
+  /* ---------- M2: AI engine ---------- */
+  aiMode: true,
+  aiConnected: null,
+  projectId: 'pilot-' + Math.random().toString(36).slice(2, 8),
+  aiAbort: null,
+
+  generateWithAi: async (prompt, mode) => {
+    const st = get();
+    if (st.generating) return;
+    const text = prompt.trim();
+    if (!text) return;
+    get().addMsg('user', text);
+    set({ generating: true, mode: 'work' });
+    document.body.dataset.mode = 'work';
+
+    const planMsg = get().addMsg('assistant', '', {});
+    const abort = new AbortController();
+    set({ aiAbort: abort });
+
+    const events: AgentEvent[] = [];
+    try {
+      const ctxFiles = Object.values(st.vfs).flat().map(f => ({ path: f.name, content: f.content })).slice(0, 40);
+      for await (const ev of streamAgentEvents({
+        projectId: get().projectId,
+        prompt: text,
+        mode,
+        context: {
+          projectTitle: st.projectTitle !== 'Nový projekt' ? st.projectTitle : undefined,
+          files: ctxFiles,
+          history: st.snapshots.slice(-20).map(s => ({ v: s.v, prompt: s.prompt.slice(0, 300) })),
+        },
+      }, abort.signal)) {
+        events.push(ev);
+        if (ev.type === 'run_started') set({ aiConnected: true });
+        if (ev.type === 'plan') {
+          get().updateMsg(planMsg.id, { plan: ev.plan.steps.map(x => ({ label: x.title, state: 'pending' as const })), planTitle: 'AI plán', model: ev.plan.summary });
+          get().log('› AI plán: ' + ev.plan.summary, 'info');
+        }
+        if (ev.type === 'plan_step') {
+          const cur = get().messages.find(m => m.id === planMsg.id);
+          if (cur?.plan) {
+            get().updateMsg(planMsg.id, {
+              plan: cur.plan.map((p, i) => (i === cur.plan!.findIndex(x => x.state === 'pending') ? { ...p, state: 'running' } : p)),
+            });
+          }
+        }
+        if (ev.type === 'file_started') get().log('› generujem ' + ev.path, 'info');
+        if (ev.type === 'file_done') get().log('✓ ' + ev.path + ' (' + ev.bytes + ' B)', 'ok');
+        if (ev.type === 'validation' && !ev.result.ok) {
+          get().log('⚠ validácia: ' + ev.result.errors.map(e => e.path + ': ' + e.message).join('; ').slice(0, 200), 'warn');
+        }
+        if (ev.type === 'error') get().log('✗ AI: ' + ev.message, 'err');
+      }
+
+      const doneEv = events.find(e => e.type === 'done');
+      const stage = events.find(e => e.type === 'stage');
+      if (stage && stage.type === 'stage') {
+        get().applyStagedFiles(stage.files);
+        get().updateMsg(planMsg.id, { text: doneEv && doneEv.type === 'done' ? doneEv.summary : 'Súbory pripravené na review.', done: true });
+      }
+      set({ aiConnected: true });
+      void get().persistNow();
+    } catch (e) {
+      if (e instanceof AiNotConfiguredError) {
+        set({ aiConnected: false });
+        get().toast('AI nie je nakonfigurované — použi Instant Draft mód', 'warn');
+      } else if (e instanceof NetworkError) {
+        set({ aiConnected: false });
+        get().toast('AI server nedostupný — spusti server (npm run server)', 'warn');
+      } else if (abort.signal.aborted) {
+        get().log('⟲ AI generovanie zrušené', 'warn');
+      } else {
+        get().toast('AI generovanie zlyhalo: ' + String(e).slice(0, 120), 'err');
+      }
+      get().updateMsg(planMsg.id, { done: true });
+    } finally {
+      set({ generating: false, aiAbort: null });
+    }
+  },
+
+  cancelAiRun: () => {
+    const st = get();
+    st.aiAbort?.abort(new Error('cancel'));
+    set({ generating: false, aiAbort: null });
+    get().toast('AI generovanie zrušené', 'warn');
+  },
+
+  applyStagedFiles: (files) => {
+    /* REVIEW/APPLY: súbory z AI ide do VFS projektu (snapshot pred zmenou = immutabilita) */
+    const st = get();
+    const snap = st.edSnap();
+    if (!snap) { get().toast('Najprv vytvor projekt (AI ho vytvorí automaticky pri create móde)', 'warn'); return; }
+    const current = st.vfs[snap.id] ?? filesFor(snap);
+    const next = [...current];
+    for (const f of files) {
+      const idx = next.findIndex(x => x.name === f.path);
+      if (f.action === 'delete') { if (idx !== -1) next.splice(idx, 1); }
+      else if (idx !== -1) next[idx] = { ...next[idx], content: f.content, modified: true };
+      else next.push({ name: f.path, content: f.content, modified: true });
+    }
+    const html = filesToHtml(next);
+    set(s2 => ({
+      vfs: { ...s2.vfs, [snap.id]: next },
+      liveHtml: s2.liveId === snap.id ? html : s2.liveHtml,
+      snapshots: s2.snapshots.map(x => (x.id === snap.id ? { ...x, html } : x)),
+    }));
+    get().toast('Použitých ' + files.length + ' súborov z AI', 'ok');
+  },
+
+  restoreFromDb: async () => {
+    try {
+      const restored = await restoreWorkspace();
+      if (!restored.project) return;
+      const snaps: Snapshot[] = restored.snapshots.map(s => ({ ...s }));
+      const live = snaps.find(s => s.id === restored.project?.liveSnapshotId) ?? snaps[snaps.length - 1];
+      set({
+        snapshots: snaps,
+        liveId: live?.id ?? null,
+        liveHtml: live?.html ?? null,
+        viewing: null,
+        projectTitle: restored.project.title,
+        publishedUrl: restored.project.publishedUrl,
+        isPublic: restored.project.isPublic,
+        vfs: {},
+        projectId: restored.project.id,
+      });
+      dbg('restore: projekt obnovený z IndexedDB', 'snapshotov=' + snaps.length);
+    } catch (e) {
+      dbg('restore: zlyhal (prvý spustenie?)', String(e));
+    }
+  },
+
+  persistNow: async () => {
+    const st = get();
+    if (st.snapshots.length === 0) return;
+    const now = Date.now();
+    const err = await persistProjectState({
+      project: {
+        id: st.projectId,
+        title: st.projectTitle,
+        createdAt: now,
+        updatedAt: now,
+        liveSnapshotId: st.liveId,
+        publishedUrl: st.publishedUrl,
+        isPublic: st.isPublic,
+      },
+      snapshots: st.snapshots.map(s => ({ ...s, projectId: st.projectId, pinned: !!s.pinned })),
+      files: Object.values(st.vfs).flat().map(f => ({ projectId: st.projectId, path: f.name, content: f.content, updatedAt: now, revision: nextRevision() })),
+    });
+    if (err) get().toast('Uloženie zlyhalo: ' + err.message.slice(0, 80), 'warn');
+  },
 
   currentHtml: () => {
     const s = get();

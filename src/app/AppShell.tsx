@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 import { useStore } from '../stores/useAppStore';
+
+/* E2E test hook */
+(window as unknown as { __forgeStore: typeof useStore }).__forgeStore = useStore;
 import { TopBar } from './TopBar';
 import { MobileTabs } from './MobileTabs';
 import { LandingPage } from '../features/landing/LandingPage';
@@ -10,7 +13,11 @@ import { EditorDashboard } from '../features/editor/EditorDashboard';
 export function AppShell() {
   const mode = useStore(s => s.mode);
   const manualSnapshot = useStore(s => s.manualSnapshot);
+  const restoreFromDb = useStore(s => s.restoreFromDb);
   const st = useStore();
+
+  /* M2: obnova projektu po refreshi (IndexedDB) */
+  useEffect(() => { void restoreFromDb(); }, [restoreFromDb]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -23,7 +30,12 @@ export function AppShell() {
   }, [mode, manualSnapshot, st]);
 
   useEffect(() => {
-    const onDoc = () => { st.setModelMenuOpen(false); st.setSettingsOpen(false); };
+    const onDoc = (e: MouseEvent) => {
+      /* ignoruj kliky vnútri pop-wrap (model menu / settings) — inak by sa zatvoril hneď pri otvorení */
+      if ((e.target as HTMLElement)?.closest?.('.pop-wrap')) return;
+      st.setModelMenuOpen(false);
+      st.setSettingsOpen(false);
+    };
     document.addEventListener('click', onDoc);
     return () => document.removeEventListener('click', onDoc);
   }, [st]);
