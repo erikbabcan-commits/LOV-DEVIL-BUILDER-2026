@@ -86,7 +86,13 @@ test('M2.1 positive: AI (mock za reálnym Honom) vygeneruje súbory → UI → e
   await page.fill('#homeInput', 'Create a modern CRM dashboard with customers, tasks and a sidebar.');
   page.on('console', m => { if (m.type() === 'error' || m.text().includes('Forge')) console.log('[BROWSER]', m.text().slice(0, 200)); });
   page.on('requestfailed', r => console.log('[REQFAIL]', r.url().slice(0, 100), r.failure()?.errorText));
+  const agentResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url() === `${APP_URL}/api/agent/generate`
+  );
   await page.click('#homeSend');
+  const agentResponse = await agentResponsePromise;
+  expect(agentResponse.ok()).toBe(true);
+  expect(agentResponse.headers()['content-type']).toContain('text/event-stream');
 
   // reálne SSE eventy z Hono servera: AI plán sa zobrazí v chate
   await expect(page.locator('.plan-title').first()).toBeVisible({ timeout: 20_000 });
@@ -169,7 +175,13 @@ test('M3 sandbox: AI projekt → Run Sandbox → bežiaci React v iframe → sto
     w.__forgeStore.getState().setModel('AI (Mistral)');
   });
   await page.fill('#homeInput', 'Create a modern CRM dashboard with customers, tasks and a sidebar.');
+  const agentResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url() === `${APP_URL}/api/agent/generate`
+  );
   await page.click('#homeSend');
+  const agentResponse = await agentResponsePromise;
+  expect(agentResponse.ok()).toBe(true);
+  expect(agentResponse.headers()['content-type']).toContain('text/event-stream');
 
   // počkať na AI stage (súbory aplikované)
   await expect.poll(async () => {
@@ -181,7 +193,11 @@ test('M3 sandbox: AI projekt → Run Sandbox → bežiaci React v iframe → sto
 
   // editor → Run Sandbox
   await page.click('#editorBtn');
+  const sandboxResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url() === `${APP_URL}/api/sandbox/build`
+  );
   await page.click('#edSandboxRun');
+  expect((await sandboxResponsePromise).ok()).toBe(true);
 
   // sandbox build prebehol → iframe s bežiacim projektom
   await expect(page.locator('#sandboxFrame')).toBeVisible({ timeout: 30_000 });
