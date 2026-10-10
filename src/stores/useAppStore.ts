@@ -520,7 +520,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
     set({ sandboxBuilding: true, sandboxErrors: [] });
     try {
-      const res = await fetch((import.meta.env?.VITE_AI_API_BASE ?? 'http://127.0.0.1:8787') + '/api/sandbox/build', {
+      const res = await fetch((import.meta.env?.VITE_AI_API_BASE ?? '') + '/api/sandbox/build', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ files }),
