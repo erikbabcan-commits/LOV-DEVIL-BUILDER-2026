@@ -6,20 +6,44 @@
  * Requires the server to be running with MOCK_AI=1
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 const SERVER_URL = 'http://127.0.0.1:8787';
 const FRONTEND_URL = 'http://localhost:5173';
 
-// Helper to start the server if needed
-async function ensureServerRunning(page: any) {
-  try {
-    const response = await page.request.get(`${SERVER_URL}/api/health`);
-    if (response.ok()) return true;
-  } catch {
-    // Server not running
-  }
-  return false;
+/* Playwright's page.request bypasses page.route() mocks, so mocked endpoints are called
+   via same-origin fetch from the browser page (routes are honored there). */
+function mockApi(page: Page) {
+  const call = async (method: string, url: string, opts?: { data?: unknown }) => {
+    if (!page.url().startsWith(SERVER_URL)) {
+      await page.route(`${SERVER_URL}/__mock-origin`, route =>
+        route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><body></body></html>' }));
+      await page.goto(`${SERVER_URL}/__mock-origin`);
+    }
+    const res = await page.evaluate(async ({ method, url, body }) => {
+      const r = await fetch(url, {
+        method,
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body,
+      });
+      return { status: r.status, text: await r.text() };
+    }, { method, url, body: opts?.data === undefined ? undefined : JSON.stringify(opts.data) });
+    return { status: () => res.status, json: async () => JSON.parse(res.text) };
+  };
+  return {
+    get: (url: string) => call('GET', url),
+    post: (url: string, opts?: { data?: unknown }) => call('POST', url, opts),
+  };
+}
+
+/* Navigates to a mocked redirecting endpoint and returns its (redirect) response;
+   the redirect target itself is not needed, so its load result is ignored. */
+async function getRedirect(page: Page, url: string) {
+  const [response] = await Promise.all([
+    page.waitForResponse(r => r.url() === url),
+    page.goto(url).catch(() => null),
+  ]);
+  return response;
 }
 
 test.describe('GitHub OAuth Flow', () => {
@@ -53,7 +77,7 @@ test.describe('GitHub OAuth Flow', () => {
 
     // The UI should show unauthenticated state
     // This is a basic connectivity test
-    const response = await page.request.get(`${SERVER_URL}/api/github/auth`);
+    const response = await mockApi(page).get(`${SERVER_URL}/api/github/auth`);
     expect(response.status()).toBeGreaterThanOrEqual(200);
   });
 
@@ -70,7 +94,7 @@ test.describe('GitHub OAuth Flow', () => {
     });
 
     // Navigate directly to the start endpoint
-    const response = await page.request.get(`${SERVER_URL}/api/github/auth/start`);
+    const response = await getRedirect(page, `${SERVER_URL}/api/github/auth/start`);
     expect(response.status()).toBe(302);
     const location = response.headers()['location'];
     expect(location).toContain('github.com/login/oauth/authorize');
@@ -95,7 +119,8 @@ test.describe('GitHub OAuth Flow', () => {
     });
 
     // Navigate to callback with code and state
-    const response = await page.request.get(
+    const response = await getRedirect(
+      page,
       `${SERVER_URL}/api/github/auth/callback?code=test_code&state=${stateToken}`
     );
     expect(response.status()).toBe(302);
@@ -115,7 +140,7 @@ test.describe('GitHub OAuth Flow', () => {
       });
     });
 
-    const response = await page.request.get(
+    const response = await mockApi(page).get(
       `${SERVER_URL}/api/github/auth/callback?code=test_code&state=wrong_state`
     );
     expect(response.status()).toBe(400);
@@ -136,7 +161,7 @@ test.describe('GitHub OAuth Flow', () => {
       });
     });
 
-    const response = await page.request.get(
+    const response = await mockApi(page).get(
       `${SERVER_URL}/api/github/auth/callback?state=test_state`
     );
     expect(response.status()).toBe(400);
@@ -160,7 +185,7 @@ test.describe('GitHub Export', () => {
       });
     });
 
-    const response = await page.request.post(`${SERVER_URL}/api/github/export`, {
+    const response = await mockApi(page).post(`${SERVER_URL}/api/github/export`, {
       data: {
         repoName: 'test-repo',
         description: 'Test',
@@ -189,7 +214,7 @@ test.describe('GitHub Export', () => {
       });
     });
 
-    const response = await page.request.post(`${SERVER_URL}/api/github/export`, {
+    const response = await mockApi(page).post(`${SERVER_URL}/api/github/export`, {
       data: {
         repoName: 'test-repo',
         description: 'Test',
@@ -218,7 +243,7 @@ test.describe('GitHub Export', () => {
       });
     });
 
-    const response = await page.request.post(`${SERVER_URL}/api/github/export`, {
+    const response = await mockApi(page).post(`${SERVER_URL}/api/github/export`, {
       data: {
         repoName: '.invalid',
         description: 'Test',
@@ -247,7 +272,7 @@ test.describe('GitHub Export', () => {
       });
     });
 
-    const response = await page.request.post(`${SERVER_URL}/api/github/export`, {
+    const response = await mockApi(page).post(`${SERVER_URL}/api/github/export`, {
       data: {
         repoName: 'test-repo',
         description: 'Test',
@@ -276,7 +301,7 @@ test.describe('GitHub Export', () => {
       });
     });
 
-    const response = await page.request.post(`${SERVER_URL}/api/github/export`, {
+    const response = await mockApi(page).post(`${SERVER_URL}/api/github/export`, {
       data: {
         repoName: 'test-repo',
         description: 'Test',
@@ -320,7 +345,7 @@ test.describe('CSRF Protection', () => {
     });
 
     // Send request without Origin header
-    const response = await page.request.post(`${SERVER_URL}/api/github/export`, {
+    const response = await mockApi(page).post(`${SERVER_URL}/api/github/export`, {
       data: { repoName: 'test', files: [], confirmed: true },
     });
 
@@ -351,7 +376,7 @@ test.describe('CSRF Protection', () => {
       }
     });
 
-    const response = await page.request.post(`${SERVER_URL}/api/github/auth/revoke`, {});
+    const response = await mockApi(page).post(`${SERVER_URL}/api/github/auth/revoke`, {});
     expect(response.status()).toBeGreaterThanOrEqual(400);
   });
 });
@@ -373,7 +398,7 @@ test.describe('GitHub Status', () => {
       });
     });
 
-    const response = await page.request.get(`${SERVER_URL}/api/github/status`);
+    const response = await mockApi(page).get(`${SERVER_URL}/api/github/status`);
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body.configured).toBe(true);
@@ -398,7 +423,7 @@ test.describe('GitHub Status', () => {
       });
     });
 
-    const response = await page.request.get(`${SERVER_URL}/api/github/status`);
+    const response = await mockApi(page).get(`${SERVER_URL}/api/github/status`);
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body.configured).toBe(false);
