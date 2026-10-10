@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+const APP_URL = process.env.E2E_APP_URL ?? 'http://localhost:5174';
+
 /* Workstream E: vertikálny rez — M2 AI engine so zapnutým mock serverom v CI.
    Tento test beží proti AI serveru s mock transportom (VITE_AI_API_BASE → test server).
    Reálna inferencia je v liveSmoke.test.ts (vyžaduje kľúč). */
@@ -11,7 +13,7 @@ test('M2 vertikálny rez: prompt → AI eventy → súbory v editore → persist
     if (t.includes('›') || t.includes('✓') || t.includes('AI')) events.push(t);
   });
 
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await expect(page.locator('#homeInput')).toBeVisible();
 
   // prepnúť model na AI (Mistral) — cez store hook (deterministické, nezávislé od menu UI)
@@ -48,7 +50,7 @@ test('M2 vertikálny rez: prompt → AI eventy → súbory v editore → persist
 });
 
 test('M2 persistence: refresh obnoví projekt', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'Moj test projekt');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
@@ -69,7 +71,10 @@ test('M2 persistence: refresh obnoví projekt', async ({ page }) => {
    Plný lifecycle cez reálne HTTP/SSE: prompt → server → plan + files eventy →
    súbory aplikované v UI → persist → refresh restore. */
 test('M2.1 positive: AI (mock za reálnym Honom) vygeneruje súbory → UI → editor → refresh restore', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  const runtimeErrors: string[] = [];
+  page.on('pageerror', error => runtimeErrors.push(String(error)));
+  page.on('console', message => { if (message.type() === 'error') runtimeErrors.push(message.text()); });
+  await page.goto(APP_URL);
   await expect(page.locator('#homeInput')).toBeVisible();
 
   // prepni na AI model (store hook — deterministické)
@@ -81,7 +86,13 @@ test('M2.1 positive: AI (mock za reálnym Honom) vygeneruje súbory → UI → e
   await page.fill('#homeInput', 'Create a modern CRM dashboard with customers, tasks and a sidebar.');
   page.on('console', m => { if (m.type() === 'error' || m.text().includes('Forge')) console.log('[BROWSER]', m.text().slice(0, 200)); });
   page.on('requestfailed', r => console.log('[REQFAIL]', r.url().slice(0, 100), r.failure()?.errorText));
+  const agentResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url() === `${APP_URL}/api/agent/generate`
+  );
   await page.click('#homeSend');
+  const agentResponse = await agentResponsePromise;
+  expect(agentResponse.ok()).toBe(true);
+  expect(agentResponse.headers()['content-type']).toContain('text/event-stream');
 
   // reálne SSE eventy z Hono servera: AI plán sa zobrazí v chate
   await expect(page.locator('.plan-title').first()).toBeVisible({ timeout: 20_000 });
@@ -130,11 +141,12 @@ test('M2.1 positive: AI (mock za reálnym Honom) vygeneruje súbory → UI → e
   });
   expect(restoredFiles.aiFiles).toBeGreaterThanOrEqual(3);
   expect(restoredFiles.snapshots).toBeGreaterThan(0);
+  expect(runtimeErrors).toEqual([]);
 });
 
 /* M2.1: cancel počas behu reálneho servera */
 test('M2.1 cancel: prerušenie AI bežiaceho generovania', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.evaluate(() => {
     const w = window as unknown as { __forgeStore: { getState(): { setModel(m: string): void } } };
     w.__forgeStore.getState().setModel('AI (Mistral)');
@@ -157,13 +169,19 @@ test('M2.1 cancel: prerušenie AI bežiaceho generovania', async ({ page }) => {
 
 /* ============ M3 SANDBOX E2E: vygenerovaný React projekt reálne beží ============ */
 test('M3 sandbox: AI projekt → Run Sandbox → bežiaci React v iframe → stop', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.evaluate(() => {
     const w = window as unknown as { __forgeStore: { getState(): { setModel(m: string): void } } };
     w.__forgeStore.getState().setModel('AI (Mistral)');
   });
   await page.fill('#homeInput', 'Create a modern CRM dashboard with customers, tasks and a sidebar.');
+  const agentResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url() === `${APP_URL}/api/agent/generate`
+  );
   await page.click('#homeSend');
+  const agentResponse = await agentResponsePromise;
+  expect(agentResponse.ok()).toBe(true);
+  expect(agentResponse.headers()['content-type']).toContain('text/event-stream');
 
   // počkať na AI stage (súbory aplikované)
   await expect.poll(async () => {
@@ -175,7 +193,11 @@ test('M3 sandbox: AI projekt → Run Sandbox → bežiaci React v iframe → sto
 
   // editor → Run Sandbox
   await page.click('#editorBtn');
+  const sandboxResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url() === `${APP_URL}/api/sandbox/build`
+  );
   await page.click('#edSandboxRun');
+  expect((await sandboxResponsePromise).ok()).toBe(true);
 
   // sandbox build prebehol → iframe s bežiacim projektom
   await expect(page.locator('#sandboxFrame')).toBeVisible({ timeout: 30_000 });
@@ -188,7 +210,7 @@ test('M3 sandbox: AI projekt → Run Sandbox → bežiaci React v iframe → sto
 });
 
 test('M3 sandbox: build chyba sa zobrazí (nie tichý pád)', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   // projekt bez src/main.tsx → sandbox odmietne s jasnou chybou
   await page.fill('#homeInput', 'SaaS landing');
   await page.click('#homeSend');

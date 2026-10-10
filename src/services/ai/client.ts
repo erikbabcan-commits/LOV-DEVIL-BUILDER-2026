@@ -12,7 +12,7 @@ export interface AgentRunHandle {
   finished: Promise<void>;
 }
 
-export const AI_API_BASE: string = import.meta.env?.VITE_AI_API_BASE ?? 'http://127.0.0.1:8787';
+export const AI_API_BASE: string = import.meta.env?.VITE_AI_API_BASE ?? '';
 
 export class AiNotConfiguredError extends Error {
   constructor() { super('AI engine nie je nakonfigurovaný (MISTRAL_API_KEY chýba na serveri). Použi Instant Draft mód alebo nastav kľúč.'); }

@@ -12,11 +12,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test -c tests/e2e/playwright.config.ts",
-    "server": "LOV_SERVER=1 tsx server/index.ts",
-    "server:dev": "LOV_SERVER=1 npx tsx server/index.ts",
-    "server:mock": "MOCK_AI=1 LOV_SERVER=1 PORT=8787 tsx server/index.ts"
+    "server": "cross-env LOV_SERVER=1 tsx server/index.ts",
+    "server:dev": "cross-env LOV_SERVER=1 tsx watch server/index.ts",
+    "server:mock": "cross-env LOV_SERVER=1 MOCK_AI=1 PORT=8787 tsx server/index.ts",
+    "server:e2e": "cross-env LOV_SERVER=1 MOCK_AI=1 PORT=8788 GITHUB_CLIENT_ID=e2e-client GITHUB_CLIENT_SECRET=e2e-secret GITHUB_CALLBACK_URL=http://127.0.0.1:8788/api/github/auth/callback LOV_APP_URL=http://localhost:5174/ tsx server/index.ts",
+    "dev:e2e": "cross-env VITE_API_PROXY_TARGET=http://127.0.0.1:8788 vite --port 5174 --strictPort"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "file-saver": "^2.0.5",
     "hono": "^4.13.13",
     "jszip": "^3.10.2",
@@ -37,6 +40,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "cross-env": "^10.1.0",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -47,6 +51,6 @@
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.71.1",
     "vite": "^6.0.5",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.3"
   }
 }
