@@ -37,7 +37,7 @@ interface GitHubConfig {
 function getGitHubConfig(): GitHubConfig | null {
   const clientId = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-  const callbackUrl = process.env.GITHUB_CALLBACK_URL || 'http://localhost:8787/api/github/auth/callback';
+  const callbackUrl = process.env.GITHUB_CALLBACK_URL || 'http://localhost:5173/api/github/auth/callback';
   
   if (!clientId || !clientSecret) {
     return null;
@@ -124,19 +124,42 @@ function deleteSession(sessionId: string): void {
 }
 
 function setSessionCookie(c: any, sessionId: string): void {
-  const options = Object.entries(SESSION_COOKIE_OPTIONS)
-    .map(([k, v]) => {
-      if (k === 'httpOnly' || k === 'secure' || k === 'sameSite') {
-        return `${k}`;
-      }
-      return `${k}=${v}`;
-    })
-    .join('; ');
-  c.header('Set-Cookie', `${SESSION_COOKIE_NAME}=${sessionId}; ${options}`);
+  // Build Set-Cookie header with proper serialization
+  // HttpOnly is a flag (no value), SameSite needs its value, Secure is a flag
+  const parts: string[] = [];
+  parts.push(`${SESSION_COOKIE_NAME}=${sessionId}`);
+  parts.push(`Max-Age=${SESSION_COOKIE_OPTIONS.maxAge}`);
+  parts.push(`Path=${SESSION_COOKIE_OPTIONS.path}`);
+  parts.push('HttpOnly');
+  parts.push(`SameSite=${SESSION_COOKIE_OPTIONS.sameSite}`);
+  if (SESSION_COOKIE_OPTIONS.secure) {
+    parts.push('Secure');
+  }
+  c.header('Set-Cookie', parts.join('; '));
 }
 
 function clearSessionCookie(c: any): void {
-  c.header('Set-Cookie', `${SESSION_COOKIE_NAME}=; Max-Age=0; path=/; HttpOnly; SameSite=lax`);
+  c.header('Set-Cookie', `${SESSION_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`);
+}
+
+/* ==================== CSRF Protection ==================== */
+
+function validateCsrfToken(c: any, session: GitHubSession | null): boolean {
+  // For POST requests, require Origin header to match expected origin
+  // and require session cookie to be present
+  const origin = c.req.header('Origin');
+  const expectedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
+  if (!origin || !expectedOrigins.includes(origin)) {
+    return false;
+  }
+
+  // Session must exist
+  if (!session) {
+    return false;
+  }
+
+  return true;
 }
 
 /* ==================== GitHub API Helper ==================== */
@@ -198,7 +221,7 @@ githubRouter.get('/api/github/status', (c) => {
       configured: false,
       message: 'GitHub integration not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.',
       requiredEnv: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
-      callbackUrl: process.env.GITHUB_CALLBACK_URL || 'http://localhost:8787/api/github/auth/callback',
+      callbackUrl: process.env.GITHUB_CALLBACK_URL || 'http://localhost:5173/api/github/auth/callback',
       blocked: true,
       blockReason: 'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET environment variables are not configured',
     } as const);
@@ -229,7 +252,7 @@ githubRouter.get('/api/github/auth', (c) => {
   
   const sessionId = getSessionIdFromCookie(c);
   const session = sessionId ? getSession(sessionId) : null;
-  
+
   if (!session) {
     return c.json({
       authenticated: false,
@@ -238,7 +261,7 @@ githubRouter.get('/api/github/auth', (c) => {
       blocked: false,
     } as const);
   }
-  
+
   return c.json({
     authenticated: true,
     configured: true,
@@ -260,7 +283,7 @@ githubRouter.get('/api/github/auth/start', (c) => {
       redirect: null,
     } as const);
   }
-  
+
   const stateToken = generateStateToken();
   const sessionId = generateSessionId();
   
@@ -399,14 +422,9 @@ githubRouter.get('/api/github/auth/callback', async (c) => {
     sessions.delete(sessionId);
     setSessionCookie(c, newSessionId);
     
-    return c.json({
-      ok: true,
-      authenticated: true,
-      username,
-      avatarUrl,
-      scopes: scopes.split(',').filter(Boolean),
-      message: 'Successfully authenticated with GitHub',
-    } as const);
+    // Redirect back to frontend with session cookie
+    // The frontend will detect the authenticated state via /api/github/auth
+    return c.redirect('http://localhost:5173?github_auth=success', 302);
   } catch (e) {
     console.error('[GitHub OAuth] Callback error:', e);
     return c.json({
@@ -419,6 +437,16 @@ githubRouter.get('/api/github/auth/callback', async (c) => {
 // Revoke authentication
 githubRouter.post('/api/github/auth/revoke', (c) => {
   const sessionId = getSessionIdFromCookie(c);
+  const session = sessionId ? getSession(sessionId) : null;
+
+  // CSRF protection: validate Origin header
+  if (!validateCsrfToken(c, session)) {
+    return c.json({
+      ok: false,
+      error: 'Invalid CSRF token',
+    } as const);
+  }
+
   if (!sessionId) {
     return c.json({
       ok: false,
@@ -431,7 +459,7 @@ githubRouter.post('/api/github/auth/revoke', (c) => {
   
   return c.json({
     ok: true,
-    message: 'Successfully disconnected from GitHub',
+    message: 'Successfully disconnected from GitHub (local session only)',
   } as const);
 });
 
@@ -469,6 +497,15 @@ githubRouter.post('/api/github/export', async (c) => {
     } as const);
   }
   
+  // CSRF protection: validate Origin header
+  if (!validateCsrfToken(c, session)) {
+    return c.json({
+      ok: false,
+      error: 'Invalid CSRF token',
+      errorType: 'auth',
+    } as const);
+  }
+
   let body: unknown;
   try {
     body = await c.req.json();
@@ -617,8 +654,13 @@ githubRouter.post('/api/github/export', async (c) => {
     const initialTree = initialTreeResponse.data;
     const treeEntries: Array<{ path: string; mode: string; type: string; sha?: string; content?: string }> = [];
     
+    // Track paths to detect duplicates
+    const existingPaths = new Set<string>();
+
+    // Add existing files from initial commit (README.md, etc.)
     for (const entry of initialTree.tree) {
       if (entry.type === 'blob') {
+        existingPaths.add(entry.path);
         treeEntries.push({
           path: entry.path,
           mode: entry.mode,
@@ -628,7 +670,13 @@ githubRouter.post('/api/github/export', async (c) => {
       }
     }
     
+    // Add new files, replacing any existing ones
     for (const f of files) {
+      // If file exists in initial tree, remove the old entry and add new one
+      const existingIndex = treeEntries.findIndex(e => e.path === f.path);
+      if (existingIndex >= 0) {
+        treeEntries.splice(existingIndex, 1);
+      }
       treeEntries.push({
         path: f.path,
         mode: '100644',

@@ -15,7 +15,7 @@
     "server": "cross-env LOV_SERVER=1 tsx server/index.ts",
     "server:dev": "cross-env LOV_SERVER=1 tsx watch server/index.ts",
     "server:mock": "cross-env LOV_SERVER=1 MOCK_AI=1 PORT=8787 tsx server/index.ts",
-    "server:e2e": "cross-env LOV_SERVER=1 MOCK_AI=1 PORT=8788 tsx server/index.ts",
+    "server:e2e": "cross-env LOV_SERVER=1 MOCK_AI=1 PORT=8788 GITHUB_CLIENT_ID=e2e-client GITHUB_CLIENT_SECRET=e2e-secret GITHUB_CALLBACK_URL=http://127.0.0.1:8788/api/github/auth/callback LOV_APP_URL=http://localhost:5174/ tsx server/index.ts",
     "dev:e2e": "cross-env VITE_API_PROXY_TARGET=http://127.0.0.1:8788 vite --port 5174 --strictPort"
   },
   "dependencies": {

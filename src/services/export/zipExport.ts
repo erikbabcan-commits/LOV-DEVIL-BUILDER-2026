@@ -35,6 +35,9 @@ export const ALLOWED_EXTENSIONS = new Set([
 
 /** Path traversal validation - reject any path that tries to escape */
 export function isSafeExportPath(path: string): boolean {
+  // Reject empty paths
+  if (!path || path.length === 0) return false;
+
   // Normalize path
   const normalized = path.replace(/\\/g, '/');
   
@@ -195,11 +198,15 @@ ${generatedAt}
 export function generateZipFilename(projectTitle: string): string {
   // Sanitize the project title for use in a filename
   let name = projectTitle
+    .trim()
+    .toLowerCase()
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, '-') // eslint-disable-line no-control-regex
-    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
     .substring(0, 100); // Limit length
   
-  if (!name || name === '_') {
+  if (!name) {
     name = 'lov-devil-project';
   }
   

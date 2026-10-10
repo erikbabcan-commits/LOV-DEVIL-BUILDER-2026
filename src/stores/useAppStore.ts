@@ -7,7 +7,7 @@ import { streamAgentEvents, AiNotConfiguredError, NetworkError } from '../servic
 import { restoreWorkspace, scheduleAutosave, persistProjectState, persistRun, nextRevision } from '../services/persistence/projectStore';
 import type { StoredSnapshot } from '../services/persistence/db';
 import { exportToZip as doZipExport, prepareVfsForExport, MAX_FILES, MAX_SIZE_BYTES, validateExportFiles, generateReadme, generateZipFilename, type ExportFile } from '../services/export/zipExport';
-import { exportToGitHub as doGitHubExport, checkGitHubAuth as doCheckGitHubAuth, checkGitHubAvailable, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
+import { exportToGitHub as doGitHubExport, checkGitHubAuth as doCheckGitHubAuth, checkGitHubAvailable, initiateGitHubAuth, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
 export interface Message {
@@ -646,8 +646,15 @@ export const useStore = create<AppState>((set, get) => ({
     if (!authState.authenticated || authState.blocked) {
       const msg = authState.blockReason
         ? `GitHub export BLOCKED: ${authState.blockReason} - ${authState.message || ''}`
-        : 'GitHub export BLOCKED: Nie ste prihlásený. Použite ZIP export.';
-      get().toast(msg, 'err');
+        : 'GitHub export BLOCKED: Nie ste prihlásený.';
+      get().toast(msg, 'warn');
+      // Offer to connect GitHub
+      if (!authState.authenticated && !authState.blocked) {
+        const tryConnect = confirm('Chcete sa pripojiť k GitHub?');
+        if (tryConnect) {
+          initiateGitHubAuth();
+        }
+      }
       return;
     }
     
@@ -705,6 +712,10 @@ export const useStore = create<AppState>((set, get) => ({
     } finally {
       set({ githubExportInProgress: false });
     }
+  },
+
+  connectGitHub: () => {
+    initiateGitHubAuth();
   },
 
   checkGitHubAuth: async () => {

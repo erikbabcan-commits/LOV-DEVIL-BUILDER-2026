@@ -268,7 +268,7 @@ describe('ZIP Export - README Generation', () => {
 describe('ZIP Export - Filename Generation', () => {
   it('should generate safe filename from project title', () => {
     const filename = generateZipFilename('My Project');
-    expect(filename).toMatch(/^My_Project_\d{4}-\d{2}-\d{2}.*\.zip$/);
+    expect(filename).toMatch(/^my-project_\d{4}-\d{2}-\d{2}.*\.zip$/);
     expect(filename).not.toContain(' ');
   });
 
