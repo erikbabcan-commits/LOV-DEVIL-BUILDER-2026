@@ -7,7 +7,6 @@ dist/
 screenshots-react/
 tests/e2e/test-results/
 tests/e2e/playwright-report/
-package-lock.json
 
 # Local secrets
 .env
