@@ -41,7 +41,7 @@ export function isValidRepoName(name: string): boolean {
   
   if (!name || name.length < 1 || name.length > 100) return false;
   if (name === '.' || name === '..') return false;
-  if (/^[\-.]/.test(name) || /[\-.]$/.test(name)) return false;
+  if (/^[-.]/.test(name) || /[-.]$/.test(name)) return false;
   if (/[^a-zA-Z0-9._-]/.test(name)) return false;
   if (name.includes('--')) return false;
   
