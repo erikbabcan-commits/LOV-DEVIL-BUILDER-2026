@@ -86,3 +86,22 @@ Súkromný projekt — všetky práva vyhradené. Prístup na žiadosť.
 ---
 
 *LOV-DEVIL BUILDER 2026 — postav appku ešte dnes.* 🚀
+## OAuth and build boundaries (prototype)
+
+`GITHUB_ALLOWED_ORIGINS` is a comma-separated exact-origin allowlist. Production
+origins must be HTTPS and `GITHUB_CALLBACK_URL` must match the allowlist and exact
+`/api/github/auth/callback` path (no query/fragment). OAuth state is consumed before
+exchange; no live OAuth client configuration is changed by this PR.
+
+Production requires `GITHUB_SESSION_DIR` (private, persistent, single-host
+directory) and `GITHUB_SESSION_SECRET` (owner-generated 32-byte hex encryption
+key). Files contain authenticated encryption, expire, and are bound to random
+session IDs. Do not place the directory inside the repo. Multiple hosts require
+a separately reviewed shared store; this implementation does not provide a
+distributed session service or automatic expired-file garbage collection.
+
+Generated imports are checked independently of package.json against a runtime
+allowlist. esbuild compiles and never intentionally evaluates submitted code.
+Compilation still shares the host compiler process: an isolated worker/container
+with hard CPU/RAM/time limits remains REQUIRED before untrusted multi-user hosting.
+The current backend stays a loopback pilot; do not describe it as production ready.

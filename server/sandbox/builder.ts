@@ -66,7 +66,17 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
       name: 'forge-vfs',
       setup(build) {
         /* Filter: len relatívne cesty (./ a /) v forge namespace. Bare imports (react, ...) necháme esbuild default resolver */
-        build.onResolve({ filter: /^\.\/|^\//, namespace: 'forge' }, args => {
+        build.onResolve({ filter: /.*/, namespace: 'forge' }, args => {
+          // Package.json declarations cannot authorize arbitrary source imports.
+          // Absolute paths and node: modules must never reach the host resolver.
+          if (args.path.startsWith('/')) return { errors: [{ text: 'absolute import forbidden' }] };
+          if (!args.path.startsWith('.')) {
+            if (!['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom', 'react-dom/client'].includes(args.path)) {
+              return { errors: [{ text: 'import not allowlisted' }] };
+            }
+            return build.resolve(args.path, { kind: args.kind, resolveDir: process.cwd() });
+          }
+
           const importerPath = args.importer?.replace(/^[^:]+:/, '') ?? '';
           const baseDir = importerPath.includes('/')
             ? importerPath.slice(0, importerPath.lastIndexOf('/'))

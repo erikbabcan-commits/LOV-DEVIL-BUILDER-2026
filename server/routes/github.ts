@@ -22,6 +22,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { isSafePath } from '../security/pathGuard';
+import { allowedOrigins, validCallback } from '../security/oauthPolicy';
+import { makeSessionStore } from '../security/sessionStore';
 
 const githubRouter = new Hono();
 
@@ -39,7 +41,7 @@ function getGitHubConfig(): GitHubConfig | null {
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
   const callbackUrl = process.env.GITHUB_CALLBACK_URL || 'http://localhost:5173/api/github/auth/callback';
   
-  if (!clientId || !clientSecret) {
+  if (!clientId || !clientSecret || !validCallback(callbackUrl)) {
     return null;
   }
   
@@ -60,7 +62,7 @@ interface GitHubSession {
   stateToken: string;
 }
 
-const sessions = new Map<string, GitHubSession>();
+const sessions = makeSessionStore<GitHubSession>();
 
 const SESSION_COOKIE_NAME = 'github_session_id';
 const SESSION_COOKIE_OPTIONS = {
@@ -148,9 +150,9 @@ function validateCsrfToken(c: any, session: GitHubSession | null): boolean {
   // For POST requests, require Origin header to match expected origin
   // and require session cookie to be present
   const origin = c.req.header('Origin');
-  const expectedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  const expectedOrigins = allowedOrigins();
   
-  if (!origin || !expectedOrigins.includes(origin)) {
+  if (!origin || !expectedOrigins.has(origin)) {
     return false;
   }
   
@@ -251,7 +253,8 @@ githubRouter.get('/api/github/auth', (c) => {
   }
   
   const sessionId = getSessionIdFromCookie(c);
-  const session = sessionId ? getSession(sessionId) : null;
+  const candidate = sessionId ? getSession(sessionId) : null;
+  const session = candidate?.githubToken && candidate?.userId ? candidate : null;
   
   if (!session) {
     return c.json({
@@ -363,6 +366,8 @@ githubRouter.get('/api/github/auth/callback', async (c) => {
     } as const);
   }
   
+  // Consume OAuth state before any await; failed exchange requires a fresh flow.
+  sessions.delete(sessionId);
   try {
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
@@ -424,7 +429,7 @@ githubRouter.get('/api/github/auth/callback', async (c) => {
     
     // Redirect back to frontend with session cookie
     // The frontend will detect the authenticated state via /api/github/auth
-    return c.redirect('http://localhost:5173?github_auth=success', 302);
+    return c.redirect(new URL('/?github_auth=success', config.callbackUrl).toString(), 302);
   } catch (e) {
     console.error('[GitHub OAuth] Callback error:', e);
     return c.json({
@@ -437,7 +442,8 @@ githubRouter.get('/api/github/auth/callback', async (c) => {
 // Revoke authentication
 githubRouter.post('/api/github/auth/revoke', (c) => {
   const sessionId = getSessionIdFromCookie(c);
-  const session = sessionId ? getSession(sessionId) : null;
+  const candidate = sessionId ? getSession(sessionId) : null;
+  const session = candidate?.githubToken && candidate?.userId ? candidate : null;
   
   // CSRF protection: validate Origin header
   if (!validateCsrfToken(c, session)) {
@@ -487,7 +493,8 @@ githubRouter.post('/api/github/export', async (c) => {
   }
   
   const sessionId = getSessionIdFromCookie(c);
-  const session = sessionId ? getSession(sessionId) : null;
+  const candidate = sessionId ? getSession(sessionId) : null;
+  const session = candidate?.githubToken && candidate?.userId ? candidate : null;
   
   if (!session) {
     return c.json({

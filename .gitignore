@@ -43,3 +43,7 @@ npm-debug.log*
 # Temporary files
 tmp/
 temp/
+
+# Persistent OAuth data must live outside this repository.
+.github-sessions/
+*.session.json
