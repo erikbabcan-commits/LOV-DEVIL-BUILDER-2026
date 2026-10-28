@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { z } from 'zod';
+import { bodyLimit } from 'hono/body-limit';
 import { config } from 'dotenv';
 
 // Load environment variables from .env file
@@ -13,9 +13,12 @@ import { AgentEventSchema } from './agent/schemas';
 import { SandboxFileSchema, buildProject } from './sandbox/builder';
 import { githubRouter } from './routes/github';
 import { exportRouter } from './routes/export';
+import { LocalBudgetGuard } from './security/budget';
+import { containsPotentialSecret, redactSecrets } from './security/secrets';
 
 /* server-side uid (neimportuje client kód) */
 const uid = () => Math.random().toString(36).slice(2, 9);
+const LOCAL_UI_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
 /* Hono backend — server-only Mistral integrácia.
    Trust boundary (single-user pilot): server počúva len na 127.0.0.1,
@@ -29,6 +32,10 @@ export interface ServerConfig {
   bind?: string;
   rateLimitPerMin?: number;
   requestTimeoutMs?: number;
+  aiGenerationEnabled?: boolean;
+  publicDeployment?: boolean;
+  maxConcurrentRuns?: number;
+  maxRunsPerDay?: number;
 }
 
 export function makeProvider(cfg: ServerConfig, transport?: ProviderTransport): AIProvider | null {
@@ -51,17 +58,31 @@ export function makeRateLimiter(maxPerMin: number) {
   };
 }
 
-export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?: { transport?: ProviderTransport; rateLimit?: (k: string) => boolean }) {
+export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?: { transport?: ProviderTransport; rateLimit?: (k: string) => boolean; budget?: LocalBudgetGuard }) {
   const app = new Hono();
+  // CORS headers alone do not prevent cross-origin writes. Reject a supplied,
+  // untrusted Origin before parsing a body, admitting a run or invoking AI.
+  // Requests without Origin remain available to local CLI clients, not public auth.
+  app.use('/api/*', async (c, next) => {
+    const origin = c.req.header('Origin');
+    if (origin !== undefined && !LOCAL_UI_ORIGINS.includes(origin)) {
+      return c.json({ error: 'origin_not_allowed' }, 403);
+    }
+    await next();
+  });
+  app.use('/api/*', bodyLimit({ maxSize: 3_000_000, onError: c => c.json({ error: 'request_too_large' }, 413) }));
   /* CORS: lokálny dev (5173 → 8787) — single-user pilot, loopback only */
-  app.use('*', cors({ origin: (origin) => origin && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) ? origin : 'http://localhost:5173', allowMethods: ['GET', 'POST', 'OPTIONS'], allowHeaders: ['Content-Type'], credentials: true }));
+  app.use('*', cors({ origin: LOCAL_UI_ORIGINS, allowMethods: ['GET', 'POST', 'OPTIONS'], allowHeaders: ['Content-Type'], credentials: true }));
   const rateLimit = opts?.rateLimit ?? makeRateLimiter(cfg.rateLimitPerMin ?? 10);
+  const budget = opts?.budget ?? new LocalBudgetGuard({ maxConcurrent: cfg.maxConcurrentRuns ?? 2, maxRunsPerDay: cfg.maxRunsPerDay ?? 30 });
+  const aiAllowed = () => cfg.aiGenerationEnabled !== false && cfg.publicDeployment !== true;
 
   app.get('/api/health', c => c.json({ ok: true, ai: provider ? 'mistral' : 'not-configured' }));
 
   /* M3 sandbox: izolovaný build vygenerovaného projektu (esbuild compile-only,
      kód sa NIKDY nespustí v host procese — výstup je HTML pre sandbox iframe) */
   app.post('/api/sandbox/build', async c => {
+    if (cfg.publicDeployment) return c.json({ error: 'public_runtime_not_authorized' }, 503);
     if (!rateLimit('sandbox')) return c.json({ error: 'rate_limit' }, 429);
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
@@ -73,15 +94,23 @@ export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?:
 
   /* Step 4: AUTOFIX — build → errors → AI patch → rebuild (max 2 pokusy) */
   app.post('/api/sandbox/autofix', async c => {
+    if (!aiAllowed()) return c.json({ error: 'ai_disabled' }, 503);
     if (!rateLimit('autofix')) return c.json({ error: 'rate_limit' }, 429);
     if (!provider) return c.json({ error: 'ai_not_configured' }, 503);
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
     const parsed = SandboxFileSchema.array().max(40).safeParse((body as { files?: unknown })?.files);
     if (!parsed.success) return c.json({ error: 'invalid_files' }, 400);
-    const { autofixLoop } = await import('./agent/autofix');
-    const result = await autofixLoop(provider, parsed.data);
-    return c.json(result);
+    if (parsed.data.some(f => containsPotentialSecret(f.path) || containsPotentialSecret(f.content))) return c.json({ error: 'secret_in_context' }, 400);
+    const admission = budget.acquire();
+    if (!admission.ok) return c.json({ error: 'BUDGET_EXCEEDED', reason: admission.reason }, 429);
+    try {
+      const { autofixLoop } = await import('./agent/autofix');
+      const result = await autofixLoop(provider, parsed.data);
+      return c.json(result);
+    } finally {
+      admission.release();
+    }
   });
 
 
@@ -90,6 +119,7 @@ export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?:
   app.route("/", exportRouter);
 
   app.post('/api/agent/generate', async c => {
+    if (!aiAllowed()) return c.json({ error: 'ai_disabled' }, 503);
     if (!rateLimit('agent')) return c.json({ error: 'rate_limit', message: 'Priveľa požiadaviek, skús o minútu.' }, 429);
     if (!provider) {
       return c.json({
@@ -99,6 +129,9 @@ export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?:
     }
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
+
+    const admission = budget.acquire();
+    if (!admission.ok) return c.json({ error: 'BUDGET_EXCEEDED', reason: admission.reason }, 429);
 
     const runId = uid();
     const abortController = new AbortController();
@@ -111,20 +144,21 @@ export function createApp(cfg: ServerConfig, provider: AIProvider | null, opts?:
     const stream = new ReadableStream({
       async start(controller) {
         const ctrl = controller as unknown as { enqueue(chunk: Uint8Array): void };
-        const send = (ev: unknown) => ctrl.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(ev)}\n\n`));
+        const send = (ev: unknown) => ctrl.enqueue(new TextEncoder().encode(`data: ${redactSecrets(JSON.stringify(ev))}\n\n`));
         try {
           for await (const ev of runAgent(body, { runId, provider, signal: abortController.signal, maxFiles: 40 })) {
             const check = AgentEventSchema.safeParse(ev);
             if (check.success) send(check.data);
           }
         } catch (e) {
-          send({ type: 'error', code: 'stream_error', message: String(e).slice(0, 400), retriable: true });
+          send({ type: 'error', code: 'stream_error', message: redactSecrets(String(e)).slice(0, 400), retriable: true });
         } finally {
           clearTimeout(timeout);
+          admission.release();
           (controller as unknown as { close(): void }).close();
         }
       },
-      cancel() { abortController.abort(new Error('klient zrušil stream')); },
+      cancel() { abortController.abort(new Error('klient zrušil stream')); admission.release(); },
     });
     return new Response(stream, { headers: c.res.headers });
   });
@@ -153,18 +187,14 @@ export function makeMockProvider(): AIProvider {
       { path: 'src/index.css', content: 'body { margin: 0; font-family: system-ui, sans-serif; }', action: 'create' },
     ],
   });
-  /* per-run counter: každý generate run začína plan → files (E2E determinizmus) */
-  const runCounters = new WeakMap<object, number>();
-  let lastRun: object | null = null;
+  // No cross-request state: each mock response is selected from its prompt.
   return {
     name: 'mock-mistral',
     model: 'mock-large',
     async complete(messages) {
-      const runKey = messages as object;
       /* nový run detekovaný ak system prompt je PLAN (prvý call v run-e) */
       const isPlanCall = messages[0]?.content.includes('plánuješ');
-      let call = isPlanCall ? 0 : 1;
-      lastRun = runKey;
+      const call = isPlanCall ? 0 : 1;
       await new Promise(r => setTimeout(r, 30)); // reálna async medzera
       return { text: call === 0 ? planJson : filesJson, usage: { promptTokens: 100, completionTokens: 500 } };
     },
@@ -185,7 +215,12 @@ if (process.argv[1] && process.argv[1].endsWith('server/index.ts') || process.en
     mistralBaseUrl: process.env.MISTRAL_BASE_URL,
     port: Number(process.env.PORT ?? 8787),
     bind: '127.0.0.1',
+    aiGenerationEnabled: process.env.AI_GENERATION_ENABLED !== '0',
+    publicDeployment: process.env.NODE_ENV === 'production',
   };
+  if (cfg.publicDeployment) {
+    throw new Error('Public deployment blocked: authenticated multi-user API and durable quota engine are not configured.');
+  }
   const provider = process.env.MOCK_AI === '1' ? makeMockProvider() : makeProvider(cfg);
   const app = createApp(cfg, provider);
   serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.bind });

@@ -1,14 +1,13 @@
 import { z } from 'zod';
 import { isSafePath, withinSizeLimits } from '../security/pathGuard';
+import { containsPotentialSecret, redactSecrets } from '../security/secrets';
 
-/* M3 Sandbox — izolovaný React/Vite runtime adapter (server-side build).
-   Evaluácia: WebContainers (StackBlitz) vyžadujú API kľúč + COOP/COEP + browser-only
-   — nepoužiteľné pre CI testy a self-host. Zvolený prístup: esbuild bundling
-   vygenerovaného projektu NA SERVERI (izolovaný proces, žiadne npm install
-   z nedôveryhodných zdrojov — dependencie sa resolvujú z lokálneho npm cache
-   len pre explicitne schválené balíčky) → výstup = single-bundle HTML,
-   ktorý sa spustí v sandbox iframe (allow-scripts, origin-null).
-   Nikdy sa nespúšťa vygenerovaný kód v Hono host procese. */
+/* M3 Sandbox — compile-only React adapter (server-side esbuild).
+   Vygenerovaný projekt sa iba kompiluje; dependencies sú lokálne nainštalované
+   a explicitne schválené, bez npm install zo vstupu. Výsledné single-bundle HTML
+   je určené pre sandbox iframe (allow-scripts, origin-null). Vygenerovaný kód sa
+   na serveri nespúšťa. Kompilácia však NIE JE bezpečnostne izolovaný worker/VM:
+   tento adaptér nevynucuje hard limity CPU, RAM ani času kompilácie. */
 
 export const SandboxFileSchema = z.object({
   path: z.string().min(1).max(200),
@@ -30,18 +29,38 @@ export const APPROVED_DEPS = new Set([
   '@types/react', '@types/react-dom',
 ]);
 
-/** esbuild entry transform: TSX → JS. Izolovaný build bez sieťových zápisov. */
+const APPROVED_RUNTIME_IMPORTS = new Set([
+  'react', 'react/jsx-runtime', 'react/jsx-dev-runtime',
+  'react-dom', 'react-dom/client',
+]);
+const MAX_BUNDLE_BYTES = 2_000_000;
+
+/** esbuild entry transform: TSX → JS; compile-only, bez izolovaného workera. */
 export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
   const started = Date.now();
   const errors: Array<{ file: string; message: string }> = [];
+  const failure = (moduleCount = 0): BuildResult => ({
+    ok: false,
+    html: null,
+    errors: errors.map(error => ({
+      file: redactSecrets(error.file),
+      message: redactSecrets(error.message),
+    })),
+    durationMs: Date.now() - started,
+    moduleCount,
+  });
   const byPath = new Map<string, string>();
   for (const f of files) {
+    if (containsPotentialSecret(f.path) || containsPotentialSecret(f.content)) {
+      errors.push({ file: f.path, message: 'potenciálne tajomstvo v ceste alebo obsahu zdrojového súboru' });
+      continue;
+    }
     if (!isSafePath(f.path)) { errors.push({ file: f.path, message: 'zakázaná cesta' }); continue; }
     byPath.set(f.path, f.content);
   }
   const size = withinSizeLimits(files);
   if (!size.ok) errors.push({ file: '-', message: size.reason ?? 'size limit' });
-  if (errors.length) return { ok: false, html: null, errors, durationMs: Date.now() - started, moduleCount: 0 };
+  if (errors.length) return failure();
 
   const packageJson = byPath.get('package.json');
   if (packageJson) {
@@ -52,19 +71,25 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
       if (bad.length) errors.push({ file: 'package.json', message: 'ne schválené dependencies: ' + bad.join(', ') });
     } catch { errors.push({ file: 'package.json', message: 'nevalidný JSON' }); }
   }
-  if (errors.length) return { ok: false, html: null, errors, durationMs: Date.now() - started, moduleCount: 0 };
+  if (errors.length) return failure();
 
-  /* Dynamický import esbuild — build v izolovanom workeri by bol ideálny, 
-     esbuild itself never executes the generated code (only compiles). */
+  /* esbuild iba kompiluje; tento call nemá resource-isolated worker ani timeout. */
   try {
     const esbuild = await import('esbuild');
     const entry = byPath.get('src/main.tsx');
-    if (!entry) return { ok: false, html: null, errors: [{ file: 'src/main.tsx', message: 'chýba entry súbor' }], durationMs: Date.now() - started, moduleCount: 0 };
+    if (!entry) {
+      errors.push({ file: 'src/main.tsx', message: 'chýba entry súbor' });
+      return failure();
+    }
 
     /* virtuálny FS plugin — súbory z AI priamo do bundlera */
     const vfsPlugin: import('esbuild').Plugin = {
       name: 'forge-vfs',
       setup(build) {
+        build.onResolve({ filter: /^[^./]/, namespace: 'forge' }, async args => {
+          if (!APPROVED_RUNTIME_IMPORTS.has(args.path)) return { errors: [{ text: redactSecrets(`nepovolený import: ${args.path}`) }] };
+          return build.resolve(args.path, { resolveDir: process.cwd(), kind: 'import-statement' });
+        });
         /* Filter: len relatívne cesty (./ a /) v forge namespace. Bare imports (react, ...) necháme esbuild default resolver */
         build.onResolve({ filter: /^\.\/|^\//, namespace: 'forge' }, args => {
           const importerPath = args.importer?.replace(/^[^:]+:/, '') ?? '';
@@ -74,7 +99,7 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
           const resolved = normalizeJoin(baseDir, args.path);
           const candidates = [resolved, resolved + '.tsx', resolved + '.ts', resolved + '.jsx', resolved + '.js', resolved + '/index.tsx'];
           for (const c of candidates) if (byPath.has(c)) return { path: c, namespace: 'forge' };
-          return { errors: [{ text: `modul nenájdený: ${args.path}` }] };
+          return { errors: [{ text: redactSecrets(`modul nenájdený: ${args.path}`) }] };
         });
         build.onLoad({ filter: /.*/, namespace: 'forge' }, args => {
           const content = byPath.get(args.path) ?? '';
@@ -114,8 +139,14 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
     const appJs = result.outputFiles.find(o => o.path.endsWith('.js'))?.text ?? '';
     const appCss = result.outputFiles.filter(o => o.path.endsWith('.css')).map(o => o.text).join('\n').replace(/<\/style/gi, '<\\/style');
 
+    if (Buffer.byteLength(appJs, 'utf8') + Buffer.byteLength(appCss, 'utf8') > MAX_BUNDLE_BYTES) {
+      errors.push({ file: '-', message: 'výsledný bundle prekračuje bezpečnostný limit' });
+      return failure(byPath.size);
+    }
+
     const html = `<!doctype html>
 <html lang="sk"><head><meta charset="utf-8"><title>Forge Sandbox</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <style>body{margin:0;font-family:system-ui,sans-serif}</style>
 ${appCss ? `<style>${appCss}</style>\n` : ''}</head><body><div id="root"></div>
 <script>
@@ -132,11 +163,13 @@ ${appCss ? `<style>${appCss}</style>\n` : ''}</head><body><div id="root"></div>
 </body></html>`;
     return { ok: true, html, errors: [], durationMs: Date.now() - started, moduleCount: byPath.size };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    // Redact before truncation, otherwise a credential crossing the cut survives.
+    const msg = redactSecrets(e instanceof Error ? e.message : String(e));
     /* esbuild errory obsahujú ✘ [ERROR] bloky so súborom */
+    // eslint-disable-next-line no-control-regex -- strip/match ANSI escape prefix in esbuild diagnostics
     const fileMatch = msg.match(/\x1b?\[.*?\]\s*(.+?\.(?:tsx?|jsx?|css)):/);
     errors.push({ file: fileMatch ? fileMatch[1] : '-', message: msg.slice(0, 800) });
-    return { ok: false, html: null, errors, durationMs: Date.now() - started, moduleCount: byPath.size };
+    return failure(byPath.size);
   }
 }
 

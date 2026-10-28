@@ -89,10 +89,20 @@ function tx<T>(stores: string[], mode: IDBTransactionMode, fn: (t: IDBTransactio
   return openDb().then(db => new Promise<T>((resolve, reject) => {
     const t = db.transaction(stores, mode);
     let result: T;
+    let failed = false;
+    let failure: unknown;
+    const abort = (error: unknown) => {
+      failed = true;
+      failure = error;
+      try { t.abort(); }
+      catch { reject(error); }
+    };
     t.oncomplete = () => resolve(result);
-    t.onabort = () => reject(t.error ?? new Error('transaction aborted'));
-    t.onerror = () => reject(t.error ?? new Error('transaction error'));
-    Promise.resolve(fn(t)).then(r => { result = r; }).catch(reject);
+    t.onabort = () => reject(failed ? failure : t.error ?? new Error('transaction aborted'));
+    // Callback validation/clone errors must roll back queued writes too, not only
+    // reject this Promise while IndexedDB commits a partially updated workspace.
+    try { Promise.resolve(fn(t)).then(r => { result = r; }, abort); }
+    catch (error) { abort(error); }
   }));
 }
 
@@ -125,6 +135,65 @@ export async function loadProjects(): Promise<StoredProject[]> {
   return guarded(tx(['projects'], 'readonly', t => rq(t.objectStore('projects').getAll() as IDBRequest<StoredProject[]>)));
 }
 
+/* Every persisted snapshot field is scalar. Only pinned is mutable UI metadata;
+   compare all other fields without relying on object property insertion order. */
+function sameSnapshotContent(existing: StoredSnapshot, incoming: StoredSnapshot): boolean {
+  const keys = new Set([...Object.keys(existing), ...Object.keys(incoming)]);
+  return [...keys].every(key => key === 'pinned' || Reflect.get(existing, key) === Reflect.get(incoming, key));
+}
+
+export async function saveProjectState(state: {
+  project: StoredProject;
+  snapshots: StoredSnapshot[];
+  files: StoredFile[];
+}): Promise<void> {
+  await guarded(tx(['projects', 'snapshots', 'files', 'meta'], 'readwrite', async t => {
+    const { project } = state;
+    const snapshots = t.objectStore('snapshots');
+    await rq(t.objectStore('projects').put(project));
+    await rq(t.objectStore('meta').put({ key: 'lastProject', value: project.id } as StoredMeta));
+
+    for (const snapshot of state.snapshots) {
+      if (snapshot.projectId !== project.id) throw new Error('Snapshot belongs to a different project');
+      const existing = await rq(snapshots.get(snapshot.id) as IDBRequest<StoredSnapshot | undefined>);
+      if (!existing) {
+        await rq(snapshots.add(snapshot));
+      } else {
+        if (!sameSnapshotContent(existing, snapshot)) throw new Error('Immutable snapshot conflict');
+        if (existing.pinned !== snapshot.pinned) await rq(snapshots.put({ ...existing, pinned: snapshot.pinned }));
+      }
+    }
+
+    if (project.liveSnapshotId !== null) {
+      const live = await rq(snapshots.get(project.liveSnapshotId) as IDBRequest<StoredSnapshot | undefined>);
+      if (!live || live.projectId !== project.id) throw new Error('Live snapshot is missing or belongs to a different project');
+    }
+
+    // Previously prepared batches may contain several revisions of one path.
+    // Keep the newest so retrying the same batch remains idempotent.
+    const newestFiles = new Map<string, StoredFile>();
+    for (const file of state.files) {
+      if (file.projectId !== project.id) throw new Error('File belongs to a different project');
+      const previous = newestFiles.get(file.path);
+      if (!previous || previous.revision <= file.revision) newestFiles.set(file.path, file);
+    }
+    const files = t.objectStore('files');
+    for (const file of newestFiles.values()) {
+      if (!await saveFileInTransaction(files, file)) {
+        // Do not advance the project pointer while retaining a different/newer
+        // source version from a previously committed workspace.
+        throw new Error('Stale file revision');
+      }
+    }
+    // This is the complete live file set, not a patch. Keep deletions in the
+    // same commit so a reload cannot resurrect files removed by an approval.
+    const previousFiles = await rq(files.getAll(IDBKeyRange.bound([project.id, ''], [project.id, '\uffff'])) as IDBRequest<StoredFile[]>);
+    for (const file of previousFiles) {
+      if (!newestFiles.has(file.path)) await rq(files.delete([project.id, file.path]));
+    }
+  }));
+}
+
 /* ---------- snapshots (immutable: nikdy put na existujúci id) ---------- */
 
 export async function saveSnapshot(s: StoredSnapshot): Promise<void> {
@@ -138,15 +207,15 @@ export async function loadSnapshots(projectId: string): Promise<StoredSnapshot[]
 
 /* ---------- files (revízie chránia proti stale async prepisu) ---------- */
 
+async function saveFileInTransaction(store: IDBObjectStore, file: StoredFile): Promise<boolean> {
+  const existing = await rq(store.get([file.projectId, file.path]) as IDBRequest<StoredFile | undefined>);
+  if (existing && existing.revision > file.revision) return false;
+  await rq(store.put(file));
+  return true;
+}
+
 export async function saveFile(f: StoredFile): Promise<boolean> {
-  return guarded(tx(['files'], 'readwrite', async t => {
-    const store = t.objectStore('files');
-    const existing = await rq(store.get([f.projectId, f.path]) as IDBRequest<StoredFile | undefined>);
-    /* stale-write ochrana: novší revision nesmie prepísať starší zápis */
-    if (existing && existing.revision > f.revision) return false;
-    store.put(f);
-    return true;
-  }));
+  return guarded(tx(['files'], 'readwrite', t => saveFileInTransaction(t.objectStore('files'), f)));
 }
 
 export async function loadFiles(projectId: string): Promise<StoredFile[]> {

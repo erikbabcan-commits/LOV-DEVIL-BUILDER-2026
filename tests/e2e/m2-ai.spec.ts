@@ -39,7 +39,7 @@ test('M2 vertikálny rez: prompt → AI eventy → súbory v editore → persist
   // po AI pokuse sme vo workspace, použijeme composer tam
   await page.evaluate(() => {
     const w = window as unknown as { __forgeStore: { getState(): { setModel(m: string): void } } };
-    w.__forgeStore.getState().setModel('Lovable Cloud');
+    w.__forgeStore.getState().setModel('Instant Draft');
   });
   await page.fill('#promptInput', 'CRM dashboard');
   await page.click('#sendBtn');
@@ -89,7 +89,9 @@ test('M2.1 positive: AI (mock za reálnym Honom) vygeneruje súbory → UI → e
   // plán kroky z mock providera (cez reálnu inferenčnú cestu servera)
   await expect(page.locator('.plan-step').first()).toContainText('štruktúru', { ignoreCase: true });
 
-  // pôvodná app nemá AI súbory — po stage sa aplikujú (toast + konzola)
+  // Stage čaká na výslovný súhlas; pred Approve sa projekt nesmie meniť.
+  await expect(page.getByTestId('ai-review')).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Schváliť a aplikovať' }).click();
   await expect.poll(async () => {
     return await page.evaluate(() => {
       const w = window as unknown as { __forgeStore: { getState(): { vfs: Record<string, Array<{ name: string }>>; liveId: string | null; messages: Array<{ text?: string; planTitle?: string }> } } };
@@ -165,7 +167,9 @@ test('M3 sandbox: AI projekt → Run Sandbox → bežiaci React v iframe → sto
   await page.fill('#homeInput', 'Create a modern CRM dashboard with customers, tasks and a sidebar.');
   await page.click('#homeSend');
 
-  // počkať na AI stage (súbory aplikované)
+  // počkať na stage a schváliť súbory pred sandbox buildom
+  await expect(page.getByTestId('ai-review')).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Schváliť a aplikovať' }).click();
   await expect.poll(async () => {
     return await page.evaluate(() => {
       const w = window as unknown as { __forgeStore: { getState(): { vfs: Record<string, Array<{ name: string }>> } } };

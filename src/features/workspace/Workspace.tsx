@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { useStore } from '../../stores/useAppStore';
 import { esc, hl } from '../../lib/utils';
 import { THUMBS } from '../../lib/templates';
+import { filesFor } from '../../lib/vfs/filesFor';
 
 /* Workspace: chat panel + canvas panel — port 1:1 legacy štruktúry. */
 
@@ -23,7 +24,7 @@ function ChatMessage({ m }: { m: ReturnType<typeof useStore.getState>['messages'
             ))}
           </div>
         )}
-        {m.text && <div className="content" dangerouslySetInnerHTML={{ __html: m.text }} />}
+        {m.text && <div className="content" style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>}
         {m.code && m.done && (
           <div className="code-block">
             <div className="code-head"><span>{esc(m.file || 'index.html')}</span></div>
@@ -110,6 +111,30 @@ export function Workspace() {
           )}
           {st.messages.map(m => <ChatMessage key={m.id} m={m} />)}
         </div>
+        {st.pendingReview && (
+          <section className="review-panel" aria-label="Schválenie zmien AI" data-testid="ai-review">
+            <strong>AI zmeny čakajú na schválenie</strong>
+            <p>{st.pendingReview.files.length} súborov · Run {st.pendingReview.runId}</p>
+            <div className="review-files">
+              {st.pendingReview.files.map(f => {
+                const snap = st.edSnap();
+                const original = snap ? (st.vfs[snap.id] ?? filesFor(snap)).find(x => x.name === f.path)?.content : undefined;
+                return (
+                  <details key={f.path}>
+                    <summary>{f.action.toUpperCase()} · {f.path}</summary>
+                    {original !== undefined && <><small>Pred zmenou (celý obsah)</small><pre>{original}</pre></>}
+                    <small>{f.action === 'delete' ? 'Odstránenie súboru' : 'Navrhovaný obsah'}</small>
+                    {f.action !== 'delete' && <pre>{f.content}</pre>}
+                  </details>
+                );
+              })}
+            </div>
+            <div className="review-actions">
+              <button type="button" onClick={st.rejectStagedRun}>Odmietnuť</button>
+              <button type="button" onClick={st.approveStagedRun}>Schváliť a aplikovať</button>
+            </div>
+          </section>
+        )}
         <div className="composer">
           <div className="comp-box">
             <textarea id="promptInput" ref={inputRef} rows={1} placeholder="Popíš zmenu… (Ctrl+Enter)"

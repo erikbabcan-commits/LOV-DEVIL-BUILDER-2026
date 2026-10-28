@@ -1,5 +1,7 @@
 # IndexedDB perzistencia — návrh adaptera (M0 príprava, neimplementované)
 
+> Historický plán: IndexedDB adapter bol medzičasom implementovaný v `src/services/persistence/`. Server-side PostgreSQL pre multi-user produkciu stále chýba. Pozri [P0-HARDENING](P0-HARDENING.md).
+
 Cieľ: projekt, história verzií a VFS prežijú refresh browsera. Beží popri existujúceho
 in-memory `state` systému — **neprepisuje ho**, len ho dopĺňa.
 

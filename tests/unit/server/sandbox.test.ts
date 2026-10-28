@@ -27,6 +27,7 @@ describe('M3 sandbox builder (izolovaný React build)', () => {
     /* sandbox error handler postMessage */
     expect(r.html).toContain('forge-sandbox-error');
     expect(r.html).toContain('id="root"');
+    expect(r.html).toContain("connect-src 'none'");
   });
 
   it('multi-file imports sa resolvujú (main → App → Sidebar)', async () => {
@@ -74,6 +75,12 @@ describe('M3 sandbox builder (izolovaný React build)', () => {
     ]);
     expect(good.ok).toBe(true);
     expect(APPROVED_DEPS.has('react')).toBe(true);
+  });
+
+  it('import mimo whitelistu sa zamietne aj bez package.json dependencies', async () => {
+    const r = await buildProject([{ path: 'src/main.tsx', content: 'import "node:fs"; console.log("x");' }]);
+    expect(r.ok).toBe(false);
+    expect(r.errors.some(e => e.message.includes('nepovolený import'))).toBe(true);
   });
 
   it('chýbajúci entry (src/main.tsx) → explicitná chyba', async () => {

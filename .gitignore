@@ -18,8 +18,7 @@ tests/e2e/playwright-report/
 screenshots/
 screenshots-react/
 
-# Lock files
-package-lock.json
+# Commit package-lock.json for reproducible builds and local-only test runs.
 
 # Environment files (contain secrets - NEVER commit)
 .env

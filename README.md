@@ -1,5 +1,7 @@
 # 🔥 LOV-DEVIL BUILDER 2026
 
+> **P0 bezpečnostná poznámka:** React/Hono AI builder je lokálny pilot, nie verejne pripravená multi-tenant SaaS služba. Produkčný AI backend je fail-closed a `Publish` je zatiaľ demo. Aktuálne hranice a zostávajúce blokery: [P0-HARDENING](docs/P0-HARDENING.md).
+
 > Lovable-style AI App Builder — od promptu cez Agent Mode až po publikovanú aplikáciu s mesačným predplatným.
 
 ![status](https://img.shields.io/badge/stav-prototyp%20M0-2563eb) ![tests](https://img.shields.io/badge/testy-~60-38bdf8) ![UI](https://img.shields.io/badge/UI-SK%2FEN-101b33) ![repo](https://img.shields.io/badge/prístup-súkromné-f4502a)

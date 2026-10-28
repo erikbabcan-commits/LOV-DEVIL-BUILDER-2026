@@ -34,6 +34,15 @@ export interface Snapshot {
 }
 export interface ConsoleEntry { t: string; txt: string; cls: string }
 export interface Branch { name: string; headIdx: number }
+export interface ReviewBase {
+  projectId: string;
+  snapshotId: string | null;
+  liveId: string | null;
+  viewingId: string | null;
+  branch: string;
+  fingerprint: string;
+}
+export interface PendingReview { runId: string; prompt: string; files: GeneratedFile[]; base: ReviewBase }
 
 export interface AppState {
   /* workspace */
@@ -114,8 +123,11 @@ export interface AppState {
   aiConnected: boolean | null;
   projectId: string;
   aiAbort: AbortController | null;
+  pendingReview: PendingReview | null;
   generateWithAi: (prompt: string, mode: 'create' | 'iterate' | 'fix') => Promise<void>;
   cancelAiRun: () => void;
+  approveStagedRun: () => void;
+  rejectStagedRun: () => void;
   applyStagedFiles: (files: GeneratedFile[]) => void;
   restoreFromDb: () => Promise<void>;
   persistNow: () => Promise<void>;
@@ -137,8 +149,55 @@ export interface AppState {
 
 const generationTimers: number[] = [];
 
+function reviewSnapshot(state: AppState): Snapshot | null {
+  return state.viewing ?? state.snapshots.find(item => item.id === state.liveId) ?? state.snapshots[state.snapshots.length - 1] ?? null;
+}
+
+function requestContext(state: AppState) {
+  const snapshot = reviewSnapshot(state);
+  const files = snapshot ? state.vfs[snapshot.id] ?? filesFor(snapshot) : [];
+  return {
+    projectTitle: state.projectTitle !== 'Nový projekt' ? state.projectTitle : undefined,
+    files: files.map(file => ({ path: file.name, content: file.content })).slice(0, 40),
+    history: state.snapshots.slice(-20).map(snapshot => ({ v: snapshot.v, prompt: snapshot.prompt.slice(0, 300) })),
+  };
+}
+
+/* Local compare-and-apply binding, not an authorization token or cryptographic hash.
+   Store the exact serialized content, so no async hashing window or hash collision
+   can allow a stale run to apply to a different/edited project. */
+export function captureReviewBase(state: AppState): ReviewBase {
+  const snapshot = reviewSnapshot(state);
+  return {
+    projectId: state.projectId,
+    snapshotId: snapshot?.id ?? null,
+    liveId: state.liveId,
+    viewingId: state.viewing?.id ?? null,
+    branch: state.branch,
+    fingerprint: JSON.stringify({
+      context: requestContext(state),
+      projectTitle: state.projectTitle,
+      liveHtml: state.liveHtml,
+      snapshot: snapshot ? { id: snapshot.id, v: snapshot.v, html: snapshot.html, prompt: snapshot.prompt } : null,
+      files: snapshot ? state.vfs[snapshot.id]?.map(file => ({ name: file.name, content: file.content })) ?? null : null,
+      edEditing: state.edEditing,
+    }),
+  };
+}
+
+function matchesReviewIdentity(state: AppState, base: ReviewBase): boolean {
+  return state.projectId === base.projectId && state.liveId === base.liveId &&
+    (state.viewing?.id ?? null) === base.viewingId && state.branch === base.branch;
+}
+
+function matchesReviewBase(state: AppState, base: ReviewBase): boolean {
+  if (!matchesReviewIdentity(state, base)) return false;
+  const current = captureReviewBase(state);
+  return current.snapshotId === base.snapshotId && current.fingerprint === base.fingerprint;
+}
+
 export const useStore = create<AppState>((set, get) => ({
-  model: 'Lovable Cloud',
+  model: 'Instant Draft',
   mode: 'home',
   viewport: 'desktop',
   zoomPct: 100,
@@ -205,6 +264,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   generate: (prompt, kindOverride) => {
     const s = get();
+    if (s.pendingReview) { get().toast('Najprv schváľ alebo odmietni AI zmeny', 'warn'); return; }
     if (s.generating) { dbg('generate: ignorujem — už prebieha'); return; }
     const text = prompt.trim();
     if (!text) { dbg('generate: prázdny prompt'); return; }
@@ -336,20 +396,24 @@ export const useStore = create<AppState>((set, get) => ({
   setTitleEditing: v => set({ titleEditing: v }),
 
   publish: () => {
-    const url = 'forge.app/p/' + uid() + '-' + uid().slice(0, 4);
-    set({ publishedUrl: url, publishModalOpen: true });
-    setTimeout(() => {
-      set(st => ({ publishModalOpen: st.publishModalOpen }));
-      get().log('✓ deployed: https://' + url, 'ok');
-      get().toast('Aplikácia je live: ' + url, 'ok');
-    }, 2800);
+    get().log('Publikovanie je demo — reálny deployment nie je nakonfigurovaný', 'warn');
+    get().toast('Publikovanie zatiaľ nie je pripojené k hostingu', 'warn');
   },
   toggleHistoryExpanded: () => set(s => ({ historyExpanded: !s.historyExpanded })),
-  newProject: () => set({
-    messages: [], snapshots: [], liveHtml: null, viewing: null, liveId: null,
-    publishedUrl: null, vfs: {}, edFile: null, edEditing: false,
-    projectTitle: 'Nový projekt', branches: [{ name: 'main', headIdx: Infinity }], branch: 'main',
-  }),
+  newProject: () => {
+    get().aiAbort?.abort(new Error('project changed'));
+    for (const timer of generationTimers.splice(0)) {
+      window.clearTimeout(timer);
+      window.clearInterval(timer);
+    }
+    set({
+      messages: [], snapshots: [], liveHtml: null, viewing: null, liveId: null,
+      publishedUrl: null, vfs: {}, edFile: null, edEditing: false,
+      projectTitle: 'Nový projekt', projectId: 'pilot-' + uid(),
+      branches: [{ name: 'main', headIdx: Infinity }], branch: 'main', pendingReview: null,
+      generating: false, aiAbort: null,
+    });
+  },
   setModelMenuOpen: v => set({ modelMenuOpen: v }),
   setSettingsOpen: v => set({ settingsOpen: v }),
   setPublishModalOpen: v => set({ publishModalOpen: v }),
@@ -359,12 +423,17 @@ export const useStore = create<AppState>((set, get) => ({
   aiConnected: null,
   projectId: 'pilot-' + Math.random().toString(36).slice(2, 8),
   aiAbort: null,
+  pendingReview: null,
 
   generateWithAi: async (prompt, mode) => {
     const st = get();
     if (st.generating) return;
     const text = prompt.trim();
     if (!text) return;
+    if (st.pendingReview) { get().toast('Najprv schváľ alebo odmietni pripravené zmeny', 'warn'); return; }
+    if (st.edEditing) { get().toast('Najprv ulož alebo zruš manuálnu úpravu súboru.', 'warn'); return; }
+    const base = captureReviewBase(st);
+    const context = requestContext(st);
     get().addMsg('user', text);
     set({ generating: true, mode: 'work' });
     document.body.dataset.mode = 'work';
@@ -374,18 +443,24 @@ export const useStore = create<AppState>((set, get) => ({
     set({ aiAbort: abort });
 
     const events: AgentEvent[] = [];
+    const expireRun = () => {
+      abort.abort(new Error('review base changed'));
+      get().updateMsg(planMsg.id, { text: 'Projekt sa počas generovania zmenil. AI návrh bol zahodený; spusti nový run.', done: true });
+      get().toast('AI návrh je zastaraný — projekt sa zmenil. Spusti nový run.', 'warn');
+    };
     try {
-      const ctxFiles = Object.values(st.vfs).flat().map(f => ({ path: f.name, content: f.content })).slice(0, 40);
       for await (const ev of streamAgentEvents({
-        projectId: get().projectId,
+        projectId: base.projectId,
         prompt: text,
         mode,
-        context: {
-          projectTitle: st.projectTitle !== 'Nový projekt' ? st.projectTitle : undefined,
-          files: ctxFiles,
-          history: st.snapshots.slice(-20).map(s => ({ v: s.v, prompt: s.prompt.slice(0, 300) })),
-        },
+        context,
       }, abort.signal)) {
+        // A cancelled/previous run must not mutate a newly opened project or run.
+        if (get().aiAbort !== abort || abort.signal.aborted) return;
+        if (!matchesReviewIdentity(get(), base) || (ev.type === 'stage' && !matchesReviewBase(get(), base))) {
+          expireRun();
+          return;
+        }
         events.push(ev);
         if (ev.type === 'run_started') set({ aiConnected: true });
         if (ev.type === 'plan') {
@@ -410,24 +485,20 @@ export const useStore = create<AppState>((set, get) => ({
 
       const doneEv = events.find(e => e.type === 'done');
       const stage = events.find(e => e.type === 'stage');
-      if (stage && stage.type === 'stage') {
-        /* AI create/iterate: snapshot pred apply (immutabilita histórie) —
-           rovnaký pattern ako template generate */
-        const existing = get().snapshots.length ? get().edSnap() : null;
-        if (!existing) {
-          /* nový AI projekt: základný snapshot, apply pak pridá súbory do VFS */
-          const snap = get().createSnapshot('ai', text, '<!doctype html><html><head><meta charset="utf-8"></head><body><div id="root"></div></body></html>');
-          set({ liveId: snap.id, liveHtml: snap.html, viewing: null });
-        }
-        get().applyStagedFiles(stage.files);
-        const doneText = doneEv && doneEv.type === 'done' ? doneEv.summary : 'Súbory pripravené na review.';
-        get().updateMsg(planMsg.id, { text: doneText, done: true });
-        get().toast('AI: ' + stage.files.length + ' súborov aplikovaných', 'ok');
-        /* Persist AFTER files are applied to VFS and snapshot */
-        void get().persistNow();
+      const runStarted = events.find(e => e.type === 'run_started');
+      const validation = events.find(e => e.type === 'validation');
+      if (get().aiAbort !== abort || abort.signal.aborted) return;
+      if (doneEv?.type === 'done' && stage?.type === 'stage' && runStarted?.type === 'run_started' &&
+          doneEv.runId === runStarted.runId && validation?.type === 'validation' && validation.result.ok &&
+          !events.some(event => event.type === 'error' || event.type === 'cancelled')) {
+        if (!matchesReviewBase(get(), base)) { expireRun(); return; }
+        set({ pendingReview: { runId: runStarted.runId, prompt: text, files: stage.files.map(file => ({ ...file })), base } });
+        get().updateMsg(planMsg.id, { text: `${stage.files.length} súborov čaká na schválenie. Žiadne zmeny sa zatiaľ neaplikovali.`, done: true });
+        get().toast('AI zmeny pripravené na kontrolu', 'warn');
       }
       set({ aiConnected: true });
     } catch (e) {
+      if (get().aiAbort !== abort) return;
       if (e instanceof AiNotConfiguredError) {
         set({ aiConnected: false });
         get().toast('AI nie je nakonfigurované — použi Instant Draft mód', 'warn');
@@ -441,7 +512,7 @@ export const useStore = create<AppState>((set, get) => ({
       }
       get().updateMsg(planMsg.id, { done: true });
     } finally {
-      set({ generating: false, aiAbort: null });
+      if (get().aiAbort === abort) set({ generating: false, aiAbort: null });
     }
   },
 
@@ -450,6 +521,43 @@ export const useStore = create<AppState>((set, get) => ({
     st.aiAbort?.abort(new Error('cancel'));
     set({ generating: false, aiAbort: null });
     get().toast('AI generovanie zrušené', 'warn');
+  },
+
+  approveStagedRun: () => {
+    const state = get();
+    const review = state.pendingReview;
+    if (!review) return; // idempotentný opakovaný klik
+    if (!review.base || !matchesReviewBase(state, review.base)) {
+      set({ pendingReview: null });
+      get().toast('AI návrh je zastaraný — projekt sa zmenil. Spusti nový run.', 'warn');
+      return;
+    }
+    const previous = review.base.snapshotId ? state.snapshots.find(snapshot => snapshot.id === review.base.snapshotId) : null;
+    const nextFiles = previous ? (state.vfs[previous.id] ?? filesFor(previous)).map(file => ({ ...file })) : [];
+    for (const file of review.files) {
+      const index = nextFiles.findIndex(existing => existing.name === file.path);
+      if (file.action === 'delete') { if (index !== -1) nextFiles.splice(index, 1); }
+      else if (index !== -1) nextFiles[index] = { ...nextFiles[index], content: file.content, modified: true };
+      else nextFiles.push({ name: file.path, content: file.content, modified: true });
+    }
+    const html = filesToHtml(nextFiles);
+    const snap: Snapshot = { id: uid(), v: state.snapshots.length + 1, prompt: review.prompt, kind: 'ai', time: now(), html };
+    // Consume the review and publish the new immutable snapshot in one state update.
+    set({
+      pendingReview: null, snapshots: [...state.snapshots, snap],
+      liveId: snap.id, liveHtml: html, viewing: null,
+      vfs: { ...state.vfs, [snap.id]: nextFiles },
+    });
+    get().toast('Použitých ' + review.files.length + ' súborov z AI', 'ok');
+    get().log(`✓ AI run ${review.runId}: schválených ${review.files.length} súborov`, 'ok');
+    void get().persistNow();
+  },
+
+  rejectStagedRun: () => {
+    if (!get().pendingReview) return;
+    set({ pendingReview: null });
+    get().log('⟲ AI zmeny odmietnuté bez zásahu do projektu', 'warn');
+    get().toast('Zmeny odmietnuté — projekt nezmenený', 'warn');
   },
 
   applyStagedFiles: (files) => {
@@ -468,6 +576,7 @@ export const useStore = create<AppState>((set, get) => ({
     const html = filesToHtml(next);
     set(s2 => ({
       vfs: { ...s2.vfs, [snap.id]: next },
+      snapshots: s2.snapshots.map(x => x.id === snap.id ? { ...x, html } : x),
       liveHtml: s2.liveId === snap.id ? html : s2.liveHtml,
     }));
     get().toast('Použitých ' + files.length + ' súborov z AI', 'ok');
@@ -547,6 +656,8 @@ export const useStore = create<AppState>((set, get) => ({
   persistNow: async () => {
     const st = get();
     if (st.snapshots.length === 0) return;
+    const live = st.snapshots.find(snapshot => snapshot.id === st.liveId);
+    const files = live ? st.vfs[live.id] ?? filesFor(live) : [];
     const now = Date.now();
     const err = await persistProjectState({
       project: {
@@ -559,7 +670,7 @@ export const useStore = create<AppState>((set, get) => ({
         isPublic: st.isPublic,
       },
       snapshots: st.snapshots.map(s => ({ ...s, projectId: st.projectId, pinned: !!s.pinned })),
-      files: Object.values(st.vfs).flat().map(f => ({ projectId: st.projectId, path: f.name, content: f.content, updatedAt: now, revision: nextRevision() })),
+      files: files.map(f => ({ projectId: st.projectId, path: f.name, content: f.content, updatedAt: now, revision: nextRevision() })),
     });
     if (err) get().toast('Uloženie zlyhalo: ' + err.message.slice(0, 80), 'warn');
   },
