@@ -133,7 +133,7 @@ export function EditorDashboard() {
                   <div style={{ padding: 16, overflow: 'auto', width: '100%' }}>
                     <b style={{ color: 'var(--err)' }}>Sandbox build chyby:</b>
                     {st.sandboxErrors.map((er, i) => (
-                      <pre key={i} style={{ whiteSpace: 'pre-wrap', fontSize: 11, color: '#fca5a5', marginTop: 8 }}>{er.file}: {er.message}</pre>
+                      <pre key={i} style={{ whiteSpace: 'pre-wrap', fontSize: 11, color: 'var(--err)', marginTop: 8 }}>{er.file}: {er.message}</pre>
                     ))}
                   </div>
                 ) : html ? <iframe id="editorFrame" ref={frameRef} sandbox="allow-scripts" title="Editor live preview" /> : (
@@ -173,7 +173,7 @@ export function EditorDashboard() {
                   {st.edEditing ? (
                     <textarea id="edCodeTa" defaultValue={activeFile?.content || ''}
                       onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); edSave(); } }}
-                      style={{ flex: 1, width: '100%', background: 'var(--panel-2)', color: 'var(--text)', border: 'none', outline: 'none', padding: '12px', fontFamily: 'var(--mono)', fontSize: '12px', resize: 'none' }} />
+                      style={{ flex: 1, width: '100%', background: 'var(--bg-app)', color: 'var(--text)', border: 'none', padding: '12px', fontFamily: 'var(--mono)', fontSize: '12px', resize: 'none' }} />
                   ) : (
                     <div className="ed-code-view" id="edCodeView" style={{ overflow: 'auto', flex: 1, padding: '10px 0' }}>
                       {(activeFile?.content || '').split('\n').slice(0, 800).map((l, i) => (

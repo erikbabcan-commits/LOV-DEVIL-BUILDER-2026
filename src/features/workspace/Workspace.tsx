@@ -290,7 +290,9 @@ export function Workspace() {
                   className={'snap' + (s.pinned ? ' pinned' : '') + (!st.viewing && s.id === st.liveId ? ' current' : '')} data-snap={s.id}
                   onClick={() => st.viewSnapshot(s.id)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); st.viewSnapshot(s.id); } }}>
-                  <div className="snap-thumb" style={{ background: (THUMBS as Record<string, string>)[s.kind] || THUMBS.dashboard }}>v{s.v}</div>
+                  <div className="snap-thumb" style={{ background: (THUMBS as Record<string, string>)[s.kind] || THUMBS.dashboard }}>
+                    <span className="snap-thumb-label">v{s.v}</span>
+                  </div>
                   <div className="snap-row"><span className="snap-ver">v{s.v}</span><span className="snap-time">{s.time}</span></div>
                   <div className="snap-prompt">{s.prompt}</div>
                   <div className="snap-btns">
