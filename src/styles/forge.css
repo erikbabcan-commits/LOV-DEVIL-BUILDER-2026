@@ -1,10 +1,10 @@
 
   /* ============ Design tokens (Lovable: teplá svetlá téma) ============ */
   :root{
-    --bg:#000000; --panel:#191512; --panel-2:#221b15; --panel-3:#2b221a;
-    --border:#2c241c; --border-2:#3c3025;
-    --text:#f2ece2; --text-dim:#d3c8b8; --muted:#918475;
-    --accent:#2563eb; --accent-2:#38bdf8; --accent-soft:#101b33;
+    --bg:#181818; --panel:#202020; --panel-2:#262321; --panel-3:#302720;
+    --border:#3A3430; --border-2:#493328;
+    --text:#F2F0ED; --text-dim:#B5ADA5; --muted:#8B8078;
+    --accent:#A87852; --accent-2:#C89971; --accent-soft:#101b33;
     --ok:#4ade80; --warn:#fbbf24; --err:#f87171;
     --radius:14px; --radius-sm:9px;
     --font:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;

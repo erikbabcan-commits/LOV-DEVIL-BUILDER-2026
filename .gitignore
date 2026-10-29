@@ -18,9 +18,6 @@ tests/e2e/playwright-report/
 screenshots/
 screenshots-react/
 
-# Lock files
-package-lock.json
-
 # Environment files (contain secrets - NEVER commit)
 .env
 .env.local

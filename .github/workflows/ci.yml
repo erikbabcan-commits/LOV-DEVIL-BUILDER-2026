@@ -18,7 +18,7 @@ jobs:
           node-version: "22"
 
       - name: Install deps (React app)
-        run: npm install
+        run: npm ci
 
       - name: Install Playwright Chromium (shared)
         run: |
