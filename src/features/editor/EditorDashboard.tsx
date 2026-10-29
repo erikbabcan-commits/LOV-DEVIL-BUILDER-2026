@@ -3,6 +3,8 @@ import { useStore } from '../../stores/useAppStore';
 import { filesFor, VfsFile } from '../../lib/vfs/filesFor';
 import { hl } from '../../lib/utils';
 import { BLUEPRINTS, PROMPT_LIB } from '../../lib/templates/editorData';
+import { initiateGitHubAuth, revokeGitHubAuth } from '../../services/export/githubExport';
+import { withoutExternalScripts } from '../../lib/vfs';
 
 /* /editor dashboard — port 1:1 štruktúry; core flow: preview, súbory, história (M1 rozsah);
    blueprints/prompts/backend/team sú v legacy mock panely — pre M1 sú zachované ako
@@ -34,9 +36,27 @@ export function EditorDashboard() {
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame || !html) return;
-    const doc = '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">' + html + '</body></html>';
+    const doc = '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">' + withoutExternalScripts(html) + '</body></html>';
     if (frame.getAttribute('srcdoc') !== doc) frame.setAttribute('srcdoc', doc);
   }, [html, localTab]);
+
+  useEffect(() => {
+    void useStore.getState().checkGitHubAuth();
+  }, []);
+
+  const toggleGitHubConnection = async () => {
+    if (!st.githubAuthState.authenticated) {
+      initiateGitHubAuth();
+      return;
+    }
+    const result = await revokeGitHubAuth();
+    if (!result.ok) {
+      st.toast('GitHub disconnect failed: ' + (result.error || 'Unknown error'), 'err');
+      return;
+    }
+    await st.checkGitHubAuth();
+    st.toast('GitHub disconnected', 'ok');
+  };
 
   const activeFile = files.find(f => f.name === st.edFile) || files[0];
   const filteredProjects = st.snapshots.filter(s => s.prompt.toLowerCase().includes(search.toLowerCase()));
@@ -73,7 +93,9 @@ export function EditorDashboard() {
         <div>
           <div className="ed-nav-title">Connectors</div>
           <div className="ed-conn-list">
-            <button className="ed-conn" onClick={() => st.toast('GitHub connector — demo', 'warn')}>🖧 GitHub</button>
+            <button className="ed-conn" id="edGitHubConnect" onClick={() => void toggleGitHubConnection()}>
+              🖧 {st.githubAuthState.authenticated ? `GitHub: ${st.githubAuthState.username || 'Connected'} (Disconnect)` : 'Connect GitHub'}
+            </button>
             <button className="ed-conn" onClick={() => st.toast('Figma connector — demo', 'warn')}>🎨 Figma</button>
             <button className="ed-conn" onClick={() => st.toast('Notion connector — demo', 'warn')}>📓 Notion</button>
           </div>

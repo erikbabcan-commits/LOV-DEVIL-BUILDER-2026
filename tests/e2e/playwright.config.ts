@@ -10,16 +10,16 @@ export default defineConfig({
   webServer: [
     {
       /* M2.1: reálny Hono server s MOCK providerom (deterministický, cez reálne HTTP/SSE) */
-      command: 'npm run server:mock',
-      port: 8787,
+      command: 'npm run server:e2e',
+      port: 8788,
       cwd: '../../',
       reuseExistingServer: false,
       timeout: 60_000,
     },
     {
-      command: 'npm run dev',
-      port: 5173,
-      reuseExistingServer: !process.env.CI,
+      command: 'npm run dev:e2e',
+      port: 5174,
+      reuseExistingServer: false,
       timeout: 60_000,
     },
   ],

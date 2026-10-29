@@ -41,6 +41,7 @@ export interface GitHubAuthState {
   username?: string;
   avatarUrl?: string;
   scopes?: string[];
+  csrfToken?: string;
   message?: string;
   blocked?: boolean;
   blockReason?: string;
@@ -144,9 +145,11 @@ export function initiateGitHubAuth(): void {
 /** Revokes GitHub authentication */
 export async function revokeGitHubAuth(): Promise<{ ok: boolean; error?: string }> {
   try {
+    const auth = await checkGitHubAuth();
+    if (!auth.authenticated || !auth.csrfToken) return { ok: false, error: 'Not authenticated' };
     const response = await fetch('/api/github/auth/revoke', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': auth.csrfToken },
     });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
@@ -179,9 +182,13 @@ export async function exportToGitHub(
   }
   
   try {
+    const auth = await checkGitHubAuth();
+    if (!auth.authenticated || !auth.csrfToken) {
+      return { ok: false, error: 'Not authenticated', errorType: 'auth' };
+    }
     const response = await fetch('/api/github/export', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': auth.csrfToken },
       body: JSON.stringify({ ...request, confirmed: true }),
     });
     
