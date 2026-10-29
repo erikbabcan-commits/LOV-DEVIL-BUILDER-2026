@@ -1,12 +1,46 @@
+# Dependencies
 node_modules/
+
+# Build outputs
+dist/
+
+# CI artifacts
 tools/ci/build/
 tools/ci/test-results/
 tools/ci/playwright-report/
 tools/ci/screenshots/
-dist/
-screenshots-react/
+
+# Test outputs
 tests/e2e/test-results/
 tests/e2e/playwright-report/
 
-# Local secrets
+# Screenshots
+screenshots/
+screenshots-react/
+
+# Environment files (contain secrets - NEVER commit)
 .env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+tmp/
+temp/
+
+# Persistent OAuth data must live outside this repository.
+.github-sessions/
+*.session.json
