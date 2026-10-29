@@ -4,13 +4,14 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SHOTS = resolve(dirname(fileURLToPath(import.meta.url)), '../../screenshots-react');
+const APP_URL = process.env.E2E_APP_URL ?? 'http://localhost:5174';
 
 test.beforeAll(() => mkdirSync(SHOTS, { recursive: true }));
 
 test('landing: načíta sa bez JS chýb, vizuálna baseline desktop', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await expect(page.locator('#homeInput')).toBeVisible();
   await expect(page.locator('h1')).toContainText('Čo chceš');
   expect(errors).toEqual([]);
@@ -18,7 +19,7 @@ test('landing: načíta sa bez JS chýb, vizuálna baseline desktop', async ({ p
 });
 
 test('generovanie: SaaS template → workspace + preview iframe + agent plán', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'vygeneruj mi SaaS landing page');
   await page.click('#homeSend');
   await expect(page.locator('#previewFrame')).toBeVisible({ timeout: 10_000 });
@@ -33,7 +34,7 @@ test('generovanie: SaaS template → workspace + preview iframe + agent plán', 
 });
 
 test('kanban template: prompt → kanban generátor', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'vytvor kanban board');
   await page.click('#homeSend');
   await expect(page.locator('#previewFrame')).toBeVisible({ timeout: 10_000 });
@@ -42,7 +43,7 @@ test('kanban template: prompt → kanban generátor', async ({ page }) => {
 });
 
 test('editor: dashboard + VFS súbory + história', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'SaaS landing');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
@@ -61,7 +62,7 @@ test('editor: dashboard + VFS súbory + história', async ({ page }) => {
 });
 
 test('zoom + viewport segment', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'SaaS');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
@@ -76,7 +77,7 @@ test('zoom + viewport segment', async ({ page }) => {
 
 test('mobile: mtabs navigácia', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await expect(page.locator('.home')).toBeVisible();
   await page.fill('#homeInput', 'SaaS');
   await page.click('#homeSend');
@@ -90,7 +91,7 @@ test('mobile: mtabs navigácia', async ({ page }) => {
 });
 
 test('história: snapshot restore funguje (immutability parita)', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'SaaS landing');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
@@ -109,7 +110,7 @@ test('história: snapshot restore funguje (immutability parita)', async ({ page 
 });
 
 test('M1.1 resizer: pointer drag zmení šírku chat panelu (constraints 340-560)', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'SaaS');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
@@ -135,7 +136,7 @@ test('M1.1 resizer: pointer drag zmení šírku chat panelu (constraints 340-560
 });
 
 test('M1.1 editor: všetkých 8 tabov prístupných (blueprints/prompts/team/gallery vrátane)', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'SaaS landing');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
@@ -155,7 +156,7 @@ test('M1.1 editor: všetkých 8 tabov prístupných (blueprints/prompts/team/gal
 });
 
 test('M1.1 blueprints: klik spustí generovanie (template mód)', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'SaaS landing');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
@@ -172,7 +173,7 @@ test('M1.1 blueprints: klik spustí generovanie (template mód)', async ({ page 
 /* M1.1 Priority 2: deterministické vizuálne checkpointy — identický stav ako legacy procedúra:
    streaming dokončený (msg done), preview tab, history expanded, scroll top. */
 test('M1.1 vizuálny checkpoint: workspace po dokončení streamovania (deterministický)', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto(APP_URL);
   await page.fill('#homeInput', 'vygeneruj mi SaaS landing page');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });

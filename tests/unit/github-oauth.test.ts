@@ -1,5 +1,5 @@
 /* M4.G: GitHub OAuth Integration Tests
-   
+
    Tests for:
    - OAuth state validation
    - Session cookie behavior

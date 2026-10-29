@@ -13,15 +13,17 @@ tools/ci/screenshots/
 # Test outputs
 tests/e2e/test-results/
 tests/e2e/playwright-report/
-
 # Screenshots
 screenshots/
 screenshots-react/
 
 # Environment files (contain secrets - NEVER commit)
 .env
+.env.*
 .env.local
 .env.*.local
+!.env.example
+!server/.env.example
 
 # IDE
 .idea/

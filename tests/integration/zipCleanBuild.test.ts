@@ -11,12 +11,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
-import { exportToZip, prepareVfsForExport } from '../../src/services/export/zipExport';
+import os from 'os';
+import { createZipBlob, prepareVfsForExport } from '../../src/services/export/zipExport';
 import type { VfsFile } from '../../src/lib/vfs/filesFor';
 
 // Use a temp directory outside the LOV-DEVIL repo
-const TEMP_DIR = path.join('/tmp', 'lov-devil-zip-test-' + Date.now());
+const TEMP_DIR = path.join(os.tmpdir(), 'lov-devil-zip-test-' + Date.now());
 
 // CRM fixture files (same as mock provider output)
 const CRM_FILES: VfsFile[] = [
@@ -158,7 +158,7 @@ export default defineConfig({
 function cleanupTempDir() {
   try {
     if (fs.existsSync(TEMP_DIR)) {
-      execSync(`rm -rf ${TEMP_DIR}`);
+      fs.rmSync(TEMP_DIR, { recursive: true, force: true });
     }
   } catch {
     // Ignore cleanup errors
@@ -200,7 +200,7 @@ describe('ZIP Clean-Room Build Proof', () => {
       'snap-1'
     );
 
-    const result = await exportToZip(files, 'CRM Test Project', 'mock-mistral');
+    const result = await createZipBlob(files, 'CRM Test Project', 'mock-mistral');
 
     expect(result.ok).toBe(true);
     expect(result.filename).toBeTruthy();
@@ -214,7 +214,7 @@ describe('ZIP Clean-Room Build Proof', () => {
       'snap-1'
     );
 
-    const result = await exportToZip(files, 'CRM Test Project', 'mock-mistral');
+    const result = await createZipBlob(files, 'CRM Test Project', 'mock-mistral');
     expect(result.ok).toBe(true);
 
     // For this integration test, we verify the ZIP was created
@@ -234,7 +234,7 @@ describe('ZIP Clean-Room NPM Build', () => {
       'snap-1'
     );
 
-    const result = await exportToZip(files, 'CRM Test Project', 'mock-mistral');
+    const result = await createZipBlob(files, 'CRM Test Project', 'mock-mistral');
     expect(result.ok).toBe(true);
 
     // Extract ZIP to temp directory
@@ -247,7 +247,7 @@ describe('ZIP Clean-Room NPM Build', () => {
     // 2. Node.js child_process execution
     // 3. npm installation which may fail in CI
     // 4. Cleanup of temporary files
-    
+
     // The implementation would be:
     // 1. Write ZIP bytes to temp file
     // 2. Extract using JSZip or similar
@@ -255,7 +255,7 @@ describe('ZIP Clean-Room NPM Build', () => {
     // 4. Run npm run build in extractDir
     // 5. Verify dist/ directory exists
     // 6. Clean up
-    
+
     // For now, we verify the ZIP was created with correct content
     expect(result.filename).toContain('.zip');
   });

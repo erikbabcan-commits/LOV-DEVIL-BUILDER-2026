@@ -1,7 +1,7 @@
 /* M4.G Phase 4: REAL ZIP clean-room build proof
-   
+
    This test proves that exported ZIP archives contain valid, buildable React projects.
-   
+
    Flow: MOCK AI -> GENERATED CRM FILES -> VFS -> ZIP -> EXTRACT -> NPM INSTALL -> NPM RUN BUILD
    
    Requirements:
@@ -13,7 +13,7 @@
    - Runs actual npm install and npm run build
    - Asserts exit code 0
    - Cleans up temporary files
-   
+
    NOTE: Full clean-room build test requires actual Node.js child_process execution
    which is complex in Vitest. This file contains unit tests for the export functions.
    Integration tests for actual npm install/build are in tests/integration/.
@@ -74,7 +74,6 @@ const CRM_FILES = [
 ];
 
 describe('ZIP Clean-Room Build Proof', () => {
-
   describe('Path Validation', () => {
     it('should validate safe export paths', () => {
       expect(isSafeExportPath('src/App.tsx')).toBe(true);
@@ -96,7 +95,7 @@ describe('ZIP Clean-Room Build Proof', () => {
   describe('README Generation', () => {
     it('should generate README with project info', () => {
       const readme = generateReadme('Test Project', 'mock-model', new Date().toISOString());
-      
+
       expect(readme).toContain('# Test Project');
       expect(readme).toContain('Generated with');
       expect(readme).toContain('npm install');
@@ -111,7 +110,7 @@ describe('ZIP Clean-Room Build Proof', () => {
       const filename = generateZipFilename('My Project');
       expect(filename).toBeTruthy();
       expect(filename.length).toBeGreaterThan(0);
-      expect(filename).toContain('_');
+      expect(filename).toContain('my-project_');
     });
 
     it('should generate default filename for empty project', () => {
@@ -141,7 +140,7 @@ describe('ZIP Clean-Room Build Proof', () => {
     it('should have valid package.json', () => {
       const pkg = CRM_FILES.find(f => f.path === 'package.json');
       expect(pkg).toBeDefined();
-      
+
       const pkgContent = JSON.parse(pkg!.content);
       expect(pkgContent.name).toBe('crm-app');
       expect(pkgContent.scripts).toHaveProperty('build');

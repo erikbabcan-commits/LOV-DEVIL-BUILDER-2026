@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { useStore } from '../../stores/useAppStore';
 import { esc, hl } from '../../lib/utils';
 import { THUMBS } from '../../lib/templates';
+import { withoutExternalScripts } from '../../lib/vfs';
 
 /* Workspace: chat panel + canvas panel — port 1:1 legacy štruktúry. */
 
@@ -56,7 +57,7 @@ export function Workspace() {
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame || !html) return;
-    const doc = '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">' + html + '</body></html>';
+    const doc = '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">' + withoutExternalScripts(html) + '</body></html>';
     if (frame.getAttribute('srcdoc') !== doc) frame.setAttribute('srcdoc', doc);
   }, [html]);
 
