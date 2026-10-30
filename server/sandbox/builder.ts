@@ -1,14 +1,17 @@
 import { z } from 'zod';
 import { isSafePath, withinSizeLimits } from '../security/pathGuard';
 
-/* M3 Sandbox — izolovaný React/Vite runtime adapter (server-side build).
+/* M3 compile-only React/Vite build adapter (server-side build).
    Evaluácia: WebContainers (StackBlitz) vyžadujú API kľúč + COOP/COEP + browser-only
    — nepoužiteľné pre CI testy a self-host. Zvolený prístup: esbuild bundling
-   vygenerovaného projektu NA SERVERI (izolovaný proces, žiadne npm install
-   z nedôveryhodných zdrojov — dependencie sa resolvujú z lokálneho npm cache
+   vygenerovaného projektu NA SERVERI (v host procese, žiadne npm install
+   z nedôveryhodných zdrojov — povolené dependencie sa resolvujú z už
+   nainštalovaných `node_modules` hostiteľa
    len pre explicitne schválené balíčky) → výstup = single-bundle HTML,
    ktorý sa spustí v sandbox iframe (allow-scripts, origin-null).
-   Nikdy sa nespúšťa vygenerovaný kód v Hono host procese. */
+   Vygenerované moduly sa zámerne nespúšťajú v Hono host procese. Samotný
+   esbuild NIE JE bezpečnostná izolácia; multi-user hosting vyžaduje worker
+   alebo kontajner s pevnými resource/time limitmi. */
 
 export const SandboxFileSchema = z.object({
   path: z.string().min(1).max(200),
@@ -30,7 +33,7 @@ export const APPROVED_DEPS = new Set([
   '@types/react', '@types/react-dom',
 ]);
 
-/** esbuild entry transform: TSX → JS. Izolovaný build bez sieťových zápisov. */
+/** esbuild entry transform: TSX → JS; nie je to bezpečnostne izolovaný build. */
 export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
   const started = Date.now();
   const errors: Array<{ file: string; message: string }> = [];
@@ -54,7 +57,7 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
   }
   if (errors.length) return { ok: false, html: null, errors, durationMs: Date.now() - started, moduleCount: 0 };
 
-  /* Dynamický import esbuild — build v izolovanom workeri by bol ideálny, 
+  /* Dynamický import esbuild — build v izolovanom workeri by bol ideálny,
      esbuild itself never executes the generated code (only compiles). */
   try {
     const esbuild = await import('esbuild');

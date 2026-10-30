@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildProject, APPROVED_DEPS } from '../../../server/sandbox/builder';
 
-/* M3 sandbox: izolovaný build vygenerovaného projektu (compile-only; kód beží len v iframe). */
+/* M3: compile-only bundling v host procese; runtime izolácia nie je zaručená. */
 
 const crmFiles = [
   { path: 'package.json', content: JSON.stringify({ name: 'crm', private: true, dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1' } }) },
@@ -12,7 +12,7 @@ const crmFiles = [
   { path: 'src/components/Sidebar.tsx', content: 'export default function Sidebar(){ return <nav>CRM menu</nav>; }' },
 ];
 
-describe('M3 sandbox builder (izolovaný React build)', () => {
+describe('M3 compile-only builder (bez runtime izolácie)', () => {
   it('vygenerovaný React projekt sa reálne zbundluje do spustiteľného HTML', async () => {
     const r = await buildProject(crmFiles);
     expect(r.ok).toBe(true);
@@ -87,5 +87,24 @@ describe('M3 sandbox builder (izolovaný React build)', () => {
       { path: 'src/main.tsx', content: 'x'.repeat(300_000) },
     ]);
     expect(r.ok).toBe(false);
+  });
+
+  it('import node:fs je zamietnutý aj bez package.json dependencies', async () => {
+    const r = await buildProject([
+      { path: 'src/main.tsx', content: 'import { readFileSync } from "node:fs"; console.log(readFileSync);' },
+    ]);
+    expect(r.ok).toBe(false);
+    expect(r.errors.some(e => /not allowlisted|forbidden/.test(e.message))).toBe(true);
+  });
+
+  it('build nespúšťa top-level kód generovaného modulu na hostiteľovi', async () => {
+    const marker = '__forge_phase10_untrusted_code_executed';
+    expect((globalThis as Record<string, unknown>)[marker]).toBeUndefined();
+    const r = await buildProject([
+      { path: 'src/main.tsx', content: `globalThis.${marker} = true; console.log('compile only');` },
+    ]);
+    expect(r.ok).toBe(true);
+    expect((globalThis as Record<string, unknown>)[marker]).toBeUndefined();
+    expect(r.html).toContain(marker);
   });
 });
