@@ -81,8 +81,8 @@ export function createApp(
 
   app.get('/api/health', (c) => c.json({ ok: true, ai: provider ? 'mistral' : 'not-configured' }));
 
-  /* M3 sandbox: izolovaný build vygenerovaného projektu (esbuild compile-only,
-     kód sa NIKDY nespustí v host procese — výstup je HTML pre sandbox iframe) */
+  /* M3 compile-only build vygenerovaného projektu (esbuild v host procese,
+     bez runtime izolácie; výstup je HTML pre sandbox iframe). */
   app.post('/api/sandbox/build', async (c) => {
     if (!rateLimit('sandbox')) return c.json({ error: 'rate_limit' }, 429);
     let body: unknown;
