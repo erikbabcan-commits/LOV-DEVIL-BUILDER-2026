@@ -3,12 +3,8 @@ import { useStore } from '../stores/useAppStore';
 
 /* Port 1:1 legacy topbar — rovnaké triedy/ID, dropdowny via React state. */
 const MODELS: { name: string; sub: string }[] = [
-  { name: 'Lovable Cloud', sub: 'Agent 3 · plný stack, auth & DB' },
   { name: 'AI (Mistral)', sub: 'Reálny AI engine — M2' },
   { name: 'Instant Draft', sub: 'Šablóny bez AI (demo)' },
-  { name: 'Claude 4.5 Sonnet', sub: 'Najlepší na UI/UX' },
-  { name: 'GPT-5', sub: 'Silný na logiku' },
-  { name: 'Llama 4', sub: 'Open-source' },
 ];
 
 export function TopBar() {
@@ -72,13 +68,13 @@ export function TopBar() {
           Remix
         </button>
         <button className="btn-ghost hide-s" id="exportBtn"
-          onClick={() => { if (!st.liveHtml) { st.toast('Najprv vygeneruj appku na export', 'warn'); return; } st.toast('Export ZIP: index.html + assets (demo)', 'ok'); }}>
+          onClick={() => { void st.exportToZip(); }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           Export ZIP
         </button>
         <button className="btn-primary" id="publishBtn" onClick={st.publish}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2 0-2.8-.8-.7-2-.8-3 0Zm7-5.5 2 2c5-5 7-11 7-11s-6 2-11 7l2 2Zm-5 1c-2 1-3 3-3 5 1 0 3.5-.5 5-2"/></svg>
-          <span id="publishBtnTxt">{st.publishedUrl ? 'Publikované ✓' : 'Publish'}</span>
+          <span id="publishBtnTxt">{st.publishedUrl ? 'Publikované ✓' : 'Publish (demo)'}</span>
         </button>
         <div className="pop-wrap">
           <button className="icon-btn" id="settingsBtn" title="Nastavenia" style={{ padding: '0 7px' }}

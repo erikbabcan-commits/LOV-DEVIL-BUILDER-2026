@@ -1,4 +1,4 @@
-import { openDb, saveProject, loadProjects, saveSnapshot, loadSnapshots, saveFile, loadFiles, saveRun, loadRuns, saveMeta, loadMeta, StoredProject, StoredSnapshot, StoredFile, StoredRun, QuotaError, DB_VERSION } from './db';
+import { openDb, saveProjectState, loadProjects, loadSnapshots, loadFiles, saveRun, loadRuns, saveMeta, loadMeta, StoredProject, StoredSnapshot, StoredFile, StoredRun, QuotaError } from './db';
 
 /* Projekťový persistence servis: debounced autosave, restore, obnova po prerušení.
    Stale async zápisy nemôžu prepísať novšiu revíziu (revision guard v db.saveFile). */
@@ -37,10 +37,7 @@ export interface ProjectState {
 
 export async function persistProjectState(state: ProjectState): Promise<PersistError | null> {
   try {
-    await saveProject(state.project);
-    for (const s of state.snapshots) await saveSnapshot(s);
-    for (const f of state.files) await saveFile(f);
-    await saveMeta('lastProject', state.project.id);
+    await saveProjectState(state);
     return null;
   } catch (e) {
     if (e instanceof QuotaError) return { message: e.message, kind: 'quota' };
@@ -74,6 +71,9 @@ export async function restoreWorkspace(): Promise<RestoredWorkspace> {
     loadFiles(project.id),
     loadRuns(project.id),
   ]);
+  // The module-local counter starts over after reload; resume beyond persisted
+  // revisions so the first edit is not rejected as an older file write.
+  for (const file of files) currentRevision = Math.max(currentRevision, file.revision);
   return { project, snapshots, files, runs };
 }
 

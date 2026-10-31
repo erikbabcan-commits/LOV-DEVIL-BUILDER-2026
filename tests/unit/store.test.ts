@@ -13,9 +13,12 @@ describe('Zustand store (state transitions, D1/D2 parita)', () => {
     const snap = st.createSnapshot('saas', 'test', '<html><head><style>x{y:z}</style></head><body><h1>D1</h1></body></html>');
     useStore.setState({ liveId: snap.id, liveHtml: snap.html, edFile: null });
     useStore.getState().saveEdFile('<html><body><h1>D1-SAVED</h1></body></html>');
-    const after = useStore.getState().snapshots.find(s => s.id === snap.id)!;
-    expect(after.html).toContain('D1-SAVED');
-    expect(useStore.getState().edFile).not.toBeNull();
+    const state = useStore.getState();
+    const after = state.snapshots.find(s => s.id === snap.id)!;
+    expect(after.html).toBe(snap.html);
+    expect(state.snapshots).toHaveLength(2);
+    expect(state.snapshots[1].html).toContain('D1-SAVED');
+    expect(state.edFile).not.toBeNull();
   });
 
   it('D2 parita: saveEdFile počas viewing NEmutuje historický snapshot', () => {
