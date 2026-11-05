@@ -13,6 +13,11 @@ import { githubRouter } from './routes/githubSecure';
 import { exportRouter } from './routes/export';
 import { LocalBudgetGuard } from './security/budget';
 import { containsPotentialSecret, redactSecrets } from './security/secrets';
+import { authRouter } from './auth/routes';
+import { makeAuthMiddleware, getUserFromContext } from './auth/middleware';
+import type { DbLike } from './db/pool';
+import type { QuotaStore } from './security/quotaStore';
+import { makeInMemoryRateLimiter, type AsyncRateLimiter } from './security/rateLimit';
 
 /* server-side uid (neimportuje client kód) */
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -70,7 +75,15 @@ export function makeRateLimiter(maxPerMin: number) {
 export function createApp(
   cfg: ServerConfig,
   provider: AIProvider | null,
-  opts?: { transport?: ProviderTransport; rateLimit?: (k: string) => boolean; budget?: LocalBudgetGuard }
+  opts?: {
+    transport?: ProviderTransport;
+    rateLimit?: (k: string) => boolean;
+    budget?: LocalBudgetGuard;
+    /** WS-1: ak je zadané, auth je zapnutý — všetko okrem /api/health a /api/auth/* vyžaduje prihlásenie. */
+    auth?: { db: DbLike; jwtSecret: string; quota: QuotaStore };
+    /** Async limiter pre agent/autofix (Redis keď je REDIS_URL; inak per-user memory). */
+    agentRateLimit?: AsyncRateLimiter;
+  }
 ) {
   const app = new Hono();
   const trustedOrigins = new Set([...allowedOrigins(), 'http://localhost:5173', 'http://127.0.0.1:5173']);
@@ -90,8 +103,17 @@ export function createApp(
     })
   );
   const rateLimit = opts?.rateLimit ?? makeRateLimiter(cfg.rateLimitPerMin ?? 10);
+  const agentRateLimit: AsyncRateLimiter =
+    opts?.agentRateLimit ??
+    (opts?.rateLimit ? async (k: string) => opts.rateLimit!(k) : makeInMemoryRateLimiter(cfg.rateLimitPerMin ?? 10));
   const budget = opts?.budget ?? new LocalBudgetGuard({ maxConcurrent: cfg.maxConcurrentRuns ?? 2, maxRunsPerDay: cfg.maxRunsPerDay ?? 30 });
   const aiAllowed = () => cfg.aiGenerationEnabled !== false && cfg.publicDeployment !== true;
+
+  /* WS-1: auth middleware (iba keď je opts.auth zapnuté — inak pilot mód bez zmien) */
+  if (opts?.auth) {
+    app.use('/api/*', makeAuthMiddleware(opts.auth.jwtSecret));
+    app.route('/', authRouter(opts.auth));
+  }
 
   app.get('/api/health', (c) => c.json({ ok: true, ai: provider ? 'mistral' : 'not-configured' }));
 
@@ -118,7 +140,8 @@ export function createApp(
   /* Step 4: AUTOFIX — build → errors → AI patch → rebuild (max 2 pokusy) */
   app.post('/api/sandbox/autofix', async (c) => {
     if (!aiAllowed()) return c.json({ error: 'ai_disabled' }, 503);
-    if (!rateLimit('autofix')) return c.json({ error: 'rate_limit' }, 429);
+    const autoUser = opts?.auth ? getUserFromContext(c) : null;
+    if (!(await agentRateLimit(autoUser ? `autofix:${autoUser.id}` : 'autofix'))) return c.json({ error: 'rate_limit' }, 429);
     if (!provider) return c.json({ error: 'ai_not_configured' }, 503);
     let body: unknown;
     try {
@@ -146,8 +169,24 @@ export function createApp(
 
   app.post('/api/agent/generate', async (c) => {
     if (!aiAllowed()) return c.json({ error: 'ai_disabled' }, 503);
-    if (!rateLimit('agent'))
+    /* WS-1: per-user rate limit + trvalá kvóta; bez auth fallback na pilot mód */
+    const authUser = opts?.auth ? getUserFromContext(c) : null;
+    const limiterKey = authUser ? `agent:${authUser.id}` : 'agent';
+    if (!(await agentRateLimit(limiterKey)))
       return c.json({ error: 'rate_limit', message: 'Priveľa požiadaviek, skús o minútu.' }, 429);
+    if (opts?.auth && authUser) {
+      const consumed = await opts.auth.quota.consume(authUser.id);
+      if (!consumed.ok) {
+        return c.json(
+          {
+            error: 'quota_exceeded',
+            quota: consumed.snapshot,
+            message: 'Vyčerpal si mesačnú kvótu generácií. Plán Pro ti ju zvýši na 200.'
+          },
+          429
+        );
+      }
+    }
     if (!provider) {
       return c.json(
         {
@@ -323,7 +362,31 @@ if (
   };
   if (cfg.publicDeployment) throw new Error('Public deployment blocked: auth and durable quotas not configured.');
   const provider = process.env.MOCK_AI === '1' ? makeMockProvider() : makeProvider(cfg);
-  const app = createApp(cfg, provider);
+
+  /* WS-1: AUTH_ENABLED=1 → Postgres + JWT + trvalé kvóty + Redis limiter (fail-fast). */
+  let authWiring: { db: DbLike; jwtSecret: string; quota: QuotaStore } | undefined;
+  let agentLimiter: AsyncRateLimiter | undefined;
+  if (process.env.AUTH_ENABLED === '1') {
+    const databaseUrl = process.env.DATABASE_URL;
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!databaseUrl || !jwtSecret || jwtSecret.length < 32)
+      throw new Error('AUTH_ENABLED=1 vyžaduje DATABASE_URL a JWT_SECRET (min 32 znakov).');
+    const { makeDb } = await import('./db/pool');
+    const { applyMigrations } = await import('./db/migrate');
+    const { PostgresQuotaStore } = await import('./security/quotaStore');
+    const { loadRedis, makeRedisRateLimiter, makeInMemoryRateLimiter } = await import('./security/rateLimit');
+    const db = makeDb(databaseUrl);
+    const applied = await applyMigrations(db);
+    console.log(`[Forge AI] auth: ON · migrácie: ${applied.join(', ') || '(žiadne)'}`);
+    authWiring = { db, jwtSecret, quota: new PostgresQuotaStore(db) };
+    const redis = await loadRedis(process.env.REDIS_URL);
+    agentLimiter = redis
+      ? makeRedisRateLimiter(redis, cfg.rateLimitPerMin ?? 10)
+      : makeInMemoryRateLimiter(cfg.rateLimitPerMin ?? 10);
+    console.log(`[Forge AI] rate limiter: ${redis ? 'redis' : 'memory'} · kvóty: postgres (free 10/pro 200 mesačne)`);
+  }
+
+  const app = createApp(cfg, provider, { auth: authWiring, agentRateLimit: agentLimiter });
   serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.bind });
   console.log(
     `[Forge AI] server na http://127.0.0.1:${cfg.port} · AI: ${provider ? 'mistral (' + (cfg.mistralModel ?? '') + ')' : 'NOT CONFIGURED'}`

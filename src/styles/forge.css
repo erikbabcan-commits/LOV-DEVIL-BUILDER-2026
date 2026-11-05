@@ -683,3 +683,19 @@ button[aria-busy="true"]{cursor:progress}
   }
   .save-dot,.typing i{opacity:1}
 }
+
+/* ===== WS-1 LoginScreen (auth gate) ===== */
+.auth-gate{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#0b1020,#101b33);padding:24px}
+.auth-card{width:100%;max-width:380px;background:#fff;border-radius:16px;padding:32px 28px;box-shadow:0 24px 60px rgba(2,6,23,.5);display:flex;flex-direction:column;gap:9px}
+.auth-brand{font-size:22px;color:#0f172a;letter-spacing:-.5px}
+.auth-brand i{color:#7c3aed;font-style:normal}
+.auth-card h1{font-size:24px;margin:-2px 0 2px;color:#0f172a}
+.auth-sub{font-size:13.5px;color:#64748b;margin-bottom:8px;line-height:1.5}
+.auth-card label{font-size:12.5px;font-weight:600;color:#334155;margin-top:6px}
+.auth-card input{border:1px solid #e2e8f0;border-radius:9px;padding:10px 12px;font-size:14.5px;width:100%}
+.auth-card input:focus{outline:2px solid #7c3aed;outline-offset:1px;border-color:#7c3aed}
+.auth-card button[type=submit]{margin-top:14px;background:#7c3aed;color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer}
+.auth-card button[type=submit]:disabled{opacity:.6;cursor:wait}
+.auth-switch{background:none;border:0;color:#7c3aed;font-size:13.5px;margin-top:10px;cursor:pointer;text-align:center}
+.auth-error{color:#dc2626;font-size:13px;margin:4px 0 0}
+@media (max-width:480px){.auth-gate{align-items:flex-start;padding-top:10vh}}

@@ -1,4 +1,5 @@
 import type { AgentEvent, Plan, GeneratedFile } from './types';
+import { apiHeaders } from '../../lib/csrf';
 
 /* AI klient: volá Hono backend, parsuje SSE eventy, podporuje cancel.
    Ak backend nie je dostupný / AI nie je nakonfigurovaná, UI to jasne hlási —
@@ -37,7 +38,7 @@ export async function* streamAgentEvents(input: GenerateInput, signal: AbortSign
   try {
     res = await fetch(AI_API_BASE + '/api/agent/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: apiHeaders(),
       body: JSON.stringify(input),
       signal,
     });

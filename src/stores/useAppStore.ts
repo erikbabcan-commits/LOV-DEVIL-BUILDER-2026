@@ -1,3 +1,4 @@
+import { apiHeaders } from '../lib/csrf';
 import { create } from 'zustand';
 import { uid, now, dbg } from '../lib/utils';
 import { buildSaas, buildKanban, buildSettings, buildDashboard, detectKind, KIND_INFO, SNIPPETS, AppKind } from '../lib/templates';
@@ -636,7 +637,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const res = await fetch((import.meta.env?.VITE_AI_API_BASE ?? '') + '/api/sandbox/build', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders(),
         body: JSON.stringify({ files }),
       });
       const result = await res.json() as { ok: boolean; html: string | null; errors: Array<{ file: string; message: string }> };

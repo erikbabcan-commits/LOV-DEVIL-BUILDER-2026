@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../stores/useAppStore';
+import { LoginScreen } from '../components/LoginScreen';
+import { fetchAuthStatus, type AuthStatus } from '../services/auth';
 
 /* E2E test hook */
 (window as unknown as { __forgeStore: typeof useStore }).__forgeStore = useStore;
@@ -15,6 +17,11 @@ export function AppShell() {
   const manualSnapshot = useStore(s => s.manualSnapshot);
   const restoreFromDb = useStore(s => s.restoreFromDb);
   const st = useStore();
+
+  /* WS-1: auth gate — ak server vyžaduje login a užívateľ je anonymný, zobraz LoginScreen */
+  const [authState, setAuthState] = useState<AuthStatus>({ state: 'disabled' });
+  const checkAuth = () => { void fetchAuthStatus().then(setAuthState); };
+  useEffect(() => { checkAuth(); }, []);
 
   /* M2: obnova projektu po refreshi (IndexedDB) */
   useEffect(() => { void restoreFromDb(); }, [restoreFromDb]);
@@ -39,6 +46,10 @@ export function AppShell() {
     document.addEventListener('click', onDoc);
     return () => document.removeEventListener('click', onDoc);
   }, [st]);
+
+  if (authState.state === 'anonymous') {
+    return <LoginScreen onAuthenticated={checkAuth} />;
+  }
 
   return (
     <>
