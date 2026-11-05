@@ -45,6 +45,7 @@ Pravidlá:
   - Každý zoznam/tabuľka má loading, empty a error stav; čísla a dátumy formátované (Intl).
   - Custom hooky pre opakujúcu sa logiku; komponenty pod 200 riadkov, single responsibility.
 - Konzistencia: importy musia sedieť PRESNE na cesty z plánu; props/typy musia súhlasiť s už vygenerovanými súbormi v kontexte.
+- Kompaktnosť: bez zbytočných komentárov, CSS bez duplicít; každý súbor max ~150 riadkov, ale kompletný a funkčný.
 - Žiadne secrets/API kľúče v kóde. Obsah generuj podľa plánu a používateľského promptu.`;
 
 function contextBlock(req: GenerateRequest): string {
@@ -143,7 +144,7 @@ export async function requestFilesBatched(
 ): Promise<GeneratedFile[]> {
   const signal = opts?.signal;
   const maxFiles = opts?.maxFiles ?? 40;
-  const maxBatchFiles = opts?.maxBatchFiles ?? 6;
+  const maxBatchFiles = opts?.maxBatchFiles ?? 4;
   const maxTokensPerBatch = opts?.maxTokensPerBatch ?? 24_000;
   const batches = plan.filesPlanned.length ? planBatches(plan.filesPlanned, maxBatchFiles, maxFiles) : [[]];
   const all: GeneratedFile[] = [];
@@ -167,13 +168,30 @@ export async function requestFilesBatched(
       { role: 'system', content: `${SYSTEM_GENERATE}\n${UNTRUSTED_CONTEXT_RULE}` },
       { role: 'user', content: `<untrusted_project_context>\n${userContent}\n</untrusted_project_context>` },
     ];
-    const { text } = await provider.complete(messages, { maxTokens: maxTokensPerBatch, temperature: 0.2, signal });
-    const raw = extractJson(text) as { files?: unknown };
-    const parsed = GeneratedFileSchema.array().safeParse(Array.isArray(raw) ? raw : raw.files);
-    if (!parsed.success || parsed.data.length === 0) {
+
+    /* Prvý pokus; ak bol výstup useknutý (nevalidné JSON), jeden retry s compactness nápoveďou. */
+    let parsedFiles: GeneratedFile[] | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { text } = await provider.complete(messages, { maxTokens: maxTokensPerBatch, temperature: attempt === 0 ? 0.2 : 0.1, signal });
+      try {
+        const raw = extractJson(text) as { files?: unknown };
+        const parsed = GeneratedFileSchema.array().safeParse(Array.isArray(raw) ? raw : raw.files);
+        if (parsed.success && parsed.data.length > 0) {
+          parsedFiles = parsed.data;
+          break;
+        }
+      } catch {
+        /* useknutý JSON — retry s compactness nápoveďou */
+      }
+      messages[messages.length - 1] = {
+        role: 'user',
+        content: `Predchádzajúci výstup bol useknutý / nevalidný JSON. Skús ZNOVU, výhradne kompaktnejšie: bez komentárov, kratšie ale úplné implementácie, JSON musí byť kompletný až po uzatváraciu }.\n${messages[messages.length - 1].content}`
+      };
+    }
+    if (!parsedFiles) {
       throw new Error(`files: model nevrátil validné súbory pre batch (${allow.join(', ')})`);
     }
-    for (const f of parsed.data) {
+    for (const f of parsedFiles) {
       if (!seen.has(f.path)) {
         seen.add(f.path);
         all.push(f);
