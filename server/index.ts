@@ -315,7 +315,8 @@ if (
     mistralModel: process.env.MISTRAL_MODEL ?? 'mistral-large-latest',
     mistralBaseUrl: process.env.MISTRAL_BASE_URL,
     port: Number(process.env.PORT ?? 8787),
-    bind: '127.0.0.1',
+    // BIND=0.0.0.0 pre behind-proxy (Docker/VPS); default ostáva loopback.
+    bind: process.env.BIND ?? '127.0.0.1',
     aiGenerationEnabled: process.env.AI_GENERATION_ENABLED !== '0',
     publicDeployment: process.env.NODE_ENV === 'production'
   };

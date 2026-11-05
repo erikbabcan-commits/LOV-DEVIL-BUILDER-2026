@@ -1,0 +1,18 @@
+# VPS variant — Caddy na hostiteľovi terminuje TLS (auto Let's Encrypt).
+# SITE_ADDRESS nastav v deploy/.env (napr. app.lov-devil.sk) — bez www.
+{$SITE_ADDRESS}
+
+encode zstd gzip
+
+root * /srv
+
+/* API proxy na backend kontajner */
+handle /api/* {
+	reverse_proxy app:8787
+}
+
+/* SPA fallback pre React Router bez deep 404 */
+handle {
+	try_files {path} /index.html
+	file_server
+}
