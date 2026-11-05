@@ -314,6 +314,7 @@ if (
     mistralApiKey: process.env.MISTRAL_API_KEY,
     mistralModel: process.env.MISTRAL_MODEL ?? 'mistral-large-latest',
     mistralBaseUrl: process.env.MISTRAL_BASE_URL,
+    requestTimeoutMs: process.env.REQUEST_TIMEOUT_MS ? Number(process.env.REQUEST_TIMEOUT_MS) : undefined,
     port: Number(process.env.PORT ?? 8787),
     // BIND=0.0.0.0 pre behind-proxy (Docker/VPS); default ostáva loopback.
     bind: process.env.BIND ?? '127.0.0.1',

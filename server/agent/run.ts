@@ -1,7 +1,7 @@
 import { GenerateRequestSchema, GeneratedFileSchema, ValidationResultSchema } from './schemas';
 import type { AgentEvent, GeneratedFile, ValidationResult } from './schemas';
 import type { AIProvider } from '../providers/types';
-import { requestPlan, requestFiles } from './prompts';
+import { requestPlan, requestFilesBatched } from './prompts';
 import { isSafePath, withinSizeLimits } from '../security/pathGuard';
 import { containsPotentialSecret, redactSecrets } from '../security/secrets';
 
@@ -57,8 +57,12 @@ export async function* runAgent(req: unknown, opts: RunOptions): AsyncGenerator<
 
     if (opts.signal?.aborted) { yield { type: 'cancelled', runId: opts.runId }; return; }
 
-    /* GENERATE — reálna inference, súbory z modelu */
-    const rawFiles = await requestFiles(opts.provider, request, plan, opts.signal);
+    /* GENERATE — reálna inference po batchoch; súbory z modelu,
+       konzistencia cez accumulated context medzi batchmi. */
+    const rawFiles = await requestFilesBatched(opts.provider, request, plan, {
+      maxFiles: opts.maxFiles,
+      signal: opts.signal
+    });
 
     /* VALIDATE — cesty, veľkosti, schéma */
     const validation = validateFiles(rawFiles, opts.maxFiles);
