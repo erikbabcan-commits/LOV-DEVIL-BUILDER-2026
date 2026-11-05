@@ -3,6 +3,7 @@ import { useStore } from '../../stores/useAppStore';
 import { esc, hl } from '../../lib/utils';
 import { THUMBS } from '../../lib/templates';
 import { withoutExternalScripts } from '../../lib/vfs';
+import { CodePane } from './CodePane';
 
 /* Workspace: chat panel + canvas panel — port 1:1 legacy štruktúry. */
 
@@ -236,7 +237,7 @@ export function Workspace() {
           </div>
           <div className={'pane' + (st.tab === 'code' ? ' active' : '')} data-pane="raw">
             <div className="pane-inner">
-              {html ? <pre className="raw-pre" id="rawPre" dangerouslySetInnerHTML={{ __html: hl(html) }} /> : <div className="pane-empty">Žiadny kód — vygeneruj appku.</div>}
+              <CodePane />
             </div>
           </div>
           <div className={'pane' + (st.tab === 'console' ? ' active' : '')} data-pane="console">
