@@ -29,7 +29,7 @@ export const PlanStepSchema = z.object({
 export const PlanSchema = z.object({
   summary: z.string().max(800),
   steps: z.array(PlanStepSchema).min(1).max(10),
-  filesPlanned: z.array(z.string().max(200)).max(20),
+  filesPlanned: z.array(z.string().max(200)).max(24),
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
