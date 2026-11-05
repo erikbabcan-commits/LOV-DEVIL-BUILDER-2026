@@ -24,12 +24,13 @@ echo "==> 3/5 docker build"
 ssh "$SSH_HOST" "docker build -q -t lov-devil-api -f $REMOTE_DIR/deploy/Dockerfile $REMOTE_DIR/ >/dev/null"
 
 echo "==> 4/5 restart kontajnera"
+# --network lov-net: pripojenie na lov-postgres (AUTH_ENABLED=1 vyžaduje DATABASE_URL)
 ssh "$SSH_HOST" "docker rm -f lov-devil-api >/dev/null 2>&1 || true
-docker run -d --name lov-devil-api --restart unless-stopped \
-  --env-file $REMOTE_DIR/.env \
-  -v lov-devil-sessions:/data/sessions \
-  -p 127.0.0.1:8787:8787 \
-  --memory 700m \
+docker run -d --name lov-devil-api --restart unless-stopped --network lov-net \\
+  --env-file $REMOTE_DIR/.env \\
+  -v lov-devil-sessions:/data/sessions \\
+  -p 127.0.0.1:8787:8787 \\
+  --memory 700m \\
   lov-devil-api >/dev/null"
 
 echo "==> 5/5 health check"
