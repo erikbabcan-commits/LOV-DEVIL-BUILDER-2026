@@ -63,10 +63,13 @@ function contextBlock(req: GenerateRequest): string {
   return parts.join('\n');
 }
 
-/** Extrahuje JSON z odpovede modelu (toleruje obalenie markdownom). */
+/** Extrahuje JSON z odpovede modelu (toleruje obalenie markdownom).
+    Kotvený fence regex: vnútorné ``` (napr. README kódbloky v JSON stringoch)
+    sú zapísané s \n ako dva znaky, takže nie sú na začiatku riadku — bez
+    kotvenia by ne-greedy regex orezal JSON na prvom vnútornom ```. */
 export function extractJson<T>(text: string): unknown {
   let t = text.trim();
-  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const fence = t.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
   if (fence) t = fence[1].trim();
   const start = t.indexOf('{');
   const end = t.lastIndexOf('}');
