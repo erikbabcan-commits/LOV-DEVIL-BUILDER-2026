@@ -15,7 +15,7 @@ Odpovedaj VÝHRADNE JSON objektom (žiadny markdown, žiadne markdown bloky):
 {"summary": string, "steps": [{"id": string, "title": string, "detail": string}], "filesPlanned": string[]}
 Pravidlá pre mode "create":
 - 6-10 krokov, každý id krátky (napr. "scaffold", "types", "data", "hooks", "components", "features", "styles", "polish").
-- filesPlanned: 12-18 súborov, zoradené od základov k vrchu. VŽDY obsahuje:
+- filesPlanned: PRESNE 12-18 súborov (nikdy menej ako 12, nikdy viac ako 18), zoradené od základov k vrchu. VŽDY obsahuje:
   package.json, index.html, src/main.tsx, src/App.tsx, src/index.css, README.md a navyše:
   - src/types.ts — doménové typy a rozhrania pre celú appku,
   - src/data/*.ts — bohatá mock dátová vrstva (15+ realistických položiek),
