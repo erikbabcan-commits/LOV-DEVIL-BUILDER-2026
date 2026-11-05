@@ -134,6 +134,32 @@ function generatedContext(files: GeneratedFile[], maxFiles = 24, perFileChars = 
   return files.slice(-maxFiles).map(f => `--- ${f.path} ---\n${f.content.slice(0, perFileChars)}`).join('\n');
 }
 
+/** Completion s automatickým pokračovaním: ak model usekol na max_tokens ('length'),
+ *  pošle follow-up "pokračuj" a zlepí texty — tak batch neprepadne kvôli truncate. */
+async function completeWithContinuation(
+  provider: AIProvider,
+  messages: ChatMessage[],
+  opts: { maxTokens: number; temperature: number; signal?: AbortSignal; maxRounds?: number }
+): Promise<{ text: string; usage: { promptTokens: number; completionTokens: number } }> {
+  const conversation: ChatMessage[] = [...messages];
+  let text = '';
+  let promptTokens = 0;
+  let completionTokens = 0;
+  const maxRounds = opts.maxRounds ?? 4;
+  for (let round = 0; round < maxRounds; round++) {
+    if (opts.signal?.aborted) break;
+    const res = await provider.complete(conversation, { maxTokens: opts.maxTokens, temperature: opts.temperature, signal: opts.signal });
+    text += res.text;
+    promptTokens += res.usage.promptTokens;
+    completionTokens += res.usage.completionTokens;
+    if (res.finishReason !== 'length') break;
+    /* useknuté JSON — model pokračuje presne tam, kde skončil */
+    conversation.push({ role: 'assistant', content: res.text });
+    conversation.push({ role: 'user', content: 'Pokračuj PRESNE tam, kde si skončil — vypíš len zvyšok JSON (bez opakovania už vypísaného, bez úvodu). Ak si práve v polovici stringu, dokonč ho normálne.' });
+  }
+  return { text, usage: { promptTokens, completionTokens } };
+}
+
 /** Sekvenčne generuje súbory po batchoch; accumulated context zaručuje, že
     neskoršie komponenty importujú presne to, čo skôr vzniklo. */
 export async function requestFilesBatched(
@@ -171,8 +197,15 @@ export async function requestFilesBatched(
 
     /* Prvý pokus; ak bol výstup useknutý (nevalidné JSON), jeden retry s compactness nápoveďou. */
     let parsedFiles: GeneratedFile[] | null = null;
+    let lastTail = '';
     for (let attempt = 0; attempt < 2; attempt++) {
-      const { text } = await provider.complete(messages, { maxTokens: maxTokensPerBatch, temperature: attempt === 0 ? 0.2 : 0.1, signal });
+      const { text } = await completeWithContinuation(provider, messages, {
+        maxTokens: maxTokensPerBatch,
+        temperature: attempt === 0 ? 0.2 : 0.1,
+        signal,
+        maxRounds: attempt === 0 ? 4 : 2
+      });
+      lastTail = text.slice(-120);
       try {
         const raw = extractJson(text) as { files?: unknown };
         const parsed = GeneratedFileSchema.array().safeParse(Array.isArray(raw) ? raw : raw.files);
@@ -189,7 +222,7 @@ export async function requestFilesBatched(
       };
     }
     if (!parsedFiles) {
-      throw new Error(`files: model nevrátil validné súbory pre batch (${allow.join(', ')})`);
+      throw new Error(`files: model nevrátil validné súbory pre batch (${allow.join(', ')}); koniec výstupu: ${lastTail}`);
     }
     for (const f of parsedFiles) {
       if (!seen.has(f.path)) {

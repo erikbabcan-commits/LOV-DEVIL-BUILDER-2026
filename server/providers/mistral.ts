@@ -38,13 +38,14 @@ export class MistralProvider implements AIProvider {
     const res = await this.transport.postChat(this.body(messages, { ...opts, stream: false }), opts?.signal);
     if (!res.ok) throw new Error(`mistral: HTTP ${res.status}`);
     const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
       usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
     const text = data.choices?.[0]?.message?.content ?? '';
     if (!text) throw new Error('mistral: prázdna odpoveď');
     return {
       text,
+      finishReason: data.choices?.[0]?.finish_reason === 'length' ? 'length' : 'stop',
       usage: { promptTokens: data.usage?.prompt_tokens ?? 0, completionTokens: data.usage?.completion_tokens ?? 0 },
     };
   }

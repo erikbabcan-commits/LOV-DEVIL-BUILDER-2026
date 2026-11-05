@@ -7,6 +7,8 @@ export interface CompletionChunk { delta?: string; finishReason?: 'stop' | 'leng
 
 export interface CompletionResult {
   text: string;
+  /** 'length' = output useknutý na max_tokens (volajúci môže požiadať o pokračovanie). */
+  finishReason?: 'stop' | 'length';
   usage: { promptTokens: number; completionTokens: number };
 }
 
