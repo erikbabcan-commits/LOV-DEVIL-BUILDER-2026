@@ -22,7 +22,7 @@ Pravidlá pre mode "create":
   - src/hooks/*.ts — min. 2 custom hooky (filtrovanie/triedenie/persist state),
   - src/components/*.tsx — min. 5 reusable komponentov + layout komponenty,
   - src/lib/*.ts alebo src/utils/*.ts — helper funkcie (formát dátumov, čísel, validácia).
-- detail každého kroku presne popíše, čo a v ktorých súboroch vznikne.
+- detail každého kroku presne popíše, čo a v ktorých súboroch vznikne (1-2 vety, max 300 znakov).
 - filesPlanned nesmie obsahovať cesty mimo projektu ani žiadne secrets.
 - Pri mode "iterate"/"fix" plánuj 4-8 krokov a špecifické úpravy existujúcich súborov.`;
 // Project files, history and prompt are data, not trusted higher-priority instructions.

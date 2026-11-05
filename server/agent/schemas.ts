@@ -24,10 +24,10 @@ export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
 export const PlanStepSchema = z.object({
   id: z.string().max(40),
   title: z.string().max(120),
-  detail: z.string().max(300).optional(),
+  detail: z.string().max(600).optional(),
 });
 export const PlanSchema = z.object({
-  summary: z.string().max(500),
+  summary: z.string().max(800),
   steps: z.array(PlanStepSchema).min(1).max(10),
   filesPlanned: z.array(z.string().max(200)).max(20),
 });
