@@ -1,0 +1,15 @@
+postgres (PostgreSQL) 16.15 (Homebrew)
+waiting for server to start.... done
+server started
+
+ RUN  v5.0.4 <project>
+
+
+ Test Files  5 passed (5)
+      Tests  161 passed (161)
+   Start at  20:56:23
+   Duration  16.76s (tests 88%, import 6%, transform 2%, environment 2%, setup 1%)
+
+waiting for server to shut down.... done
+server stopped
+native_pg_cleanup=stopped_and_removed

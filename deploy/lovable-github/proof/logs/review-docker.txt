@@ -1,0 +1,9 @@
+
+ RUN  v5.0.4 <project>
+
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  20:57:29
+   Duration  48.93s (tests 99%, import 1%)
+

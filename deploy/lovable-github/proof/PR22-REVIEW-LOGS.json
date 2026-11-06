@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "runtimeCommit": "9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2",
+  "note": "New review logs only; historical release logs and pre-review receipts are preserved. SHA256 values cover logs/source code, not identity data.",
+  "logs": {
+    "deploy/lovable-github/proof/logs/review-main.txt": {
+      "sourceLogSha256": "6c0f01fd388f1ca61bb048e883b5eafe6ca1167ae538ea76f2badc144d44c2f0",
+      "sha256": "a7ed5bc9d9cf57be92f70503c326e798a1c5fb99cd6e5dca7f6e0b3085da27dd",
+      "bytes": 432,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/review-pg16.txt": {
+      "sourceLogSha256": "a335f5c1930e34ff05261617740d091677357026f4ec1cb130d350567aa2cd9d",
+      "sha256": "5f94b2eb826a3be3e8cfd4c4c3aff08227c43565d595e010a1c855931d40ae76",
+      "bytes": 373,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/review-pg18.txt": {
+      "sourceLogSha256": "cfa1c813409235665811c964b156a2c314baf2255ce69bd2e177bec1d1c707e8",
+      "sha256": "af360311932f4a3d6cfbed8869510ab3dd85afa48b0388c3bda0c04790e8b042",
+      "bytes": 373,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/review-types.txt": {
+      "sourceLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/review-lint.txt": {
+      "sourceLogSha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645",
+      "sha256": "6986d4b22a8e8e8d516f1136423c9e22564479aea4002bb8885f374a410ba9bb",
+      "bytes": 4171,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/review-build.txt": {
+      "sourceLogSha256": "6190405f878aabf0d0e4c74b4c1a74257ed06ddb061b0cacebb7c8581384ea8f",
+      "sha256": "9d44e133ea10b8abfbceb191ab7318909f4a965998779e68d05785997667ea43",
+      "bytes": 2182,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/review-docker.txt": {
+      "sourceLogSha256": "7b147d939daae0de951c637dda88a14fb24b87f636c62c18ec91f67f62a685be",
+      "sha256": "1f061e777430196f3b8f25d253b0273977258b7b0b293833ae1e8f682c8e3705",
+      "bytes": 146,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/review-modern-tests.txt": {
+      "sourceLogSha256": "0ff5705b05e452e7cb1e9135d1c7a7809d7a9a70f9572480c965ba6b04cd72ad",
+      "sha256": "4124029189ace24abc8235303c8f3c78e177bec57cbf614c9d2964bdac51f6e7",
+      "bytes": 212,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/review-modern-types.txt": {
+      "sourceLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/review-modern-build.txt": {
+      "sourceLogSha256": "cf34c57b81f0e0a7b774064270be24c56f1ffba383bf22064170f5d27cc879a1",
+      "sha256": "1f57a6dc27488aa54dfdeb48abe69a000908bbdb092ec0ee98d39431f9ca62d4",
+      "bytes": 12491,
+      "redactions": [
+        "local home/workspace prefixes replaced; email/credential/token patterns excluded; trailing whitespace normalized"
+      ]
+    }
+  }
+}
