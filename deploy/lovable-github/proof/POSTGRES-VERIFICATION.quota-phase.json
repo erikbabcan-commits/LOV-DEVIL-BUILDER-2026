@@ -1,0 +1,17 @@
+{
+  "runner": "deploy/test-projects-native.py",
+  "platform": "Darwin arm64",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 48,
+  "migrations": "001-007; migration replay and populated v005 upgrade covered by dedicated scenarios; storage quotas require no new migration",
+  "githubProvider": "simulated",
+  "clusters": "loopback, SCRAM, private temporary data; stopped and removed",
+  "logs": {
+    "postgres16-tests.log": "fe5a548248de8aa76196ae2e15ae06bbe0bfa9624312ef8e1e5c2001becdb115",
+    "postgres18-tests.log": "096a3160fbda9be51e66059dc858df0e232cb2694bab354cee91f7d5bf7386cb"
+  },
+  "coverage": "OAuth state/finish races; owner projects and identities; export/recovery concurrency; runtime factory with signed JWT/BFF/OAuth-only/export enablement; schema probe; read-only operator CLI refusing missing index without migrations or bindings. Account storage UTF-8 JSONB measurement, trash accounting, over-limit shrink, pinned READ COMMITTED owner locks with repeatable-read connection defaults, concurrent count/byte/growth limits, rollback and UI refusal preserving local work. AI quota owner transactions, current UTC month, exactly 10/64 concurrent admissions, month rollover race, missing owner/transaction adapter and rollback. Signed Cloud JWT with hostile user_metadata → generic BFF → real Hono → PostgresQuotaStore → synthetic provider/SSE → quota 429; immediate identity-link revocation prevents inference."
+}

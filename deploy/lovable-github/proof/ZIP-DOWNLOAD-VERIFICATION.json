@@ -1,0 +1,62 @@
+{
+  "historical": {
+    "version": 1,
+    "sha256": "8b181eb97b0b84b0b63c6c0b5a43db40f7131d828b7f6f04aa6f80d69ce5b698",
+    "bytes": 1180,
+    "files": {
+      "package.json": {
+        "bytes": 112,
+        "sha256": "935e88a6f5f73e07b2d0febfffd314df2c540923261b82d2cc3406a1d23e9d6f"
+      },
+      "index.html": {
+        "bytes": 154,
+        "sha256": "4537f7327061f7fd370d75817e4a69d9e7abd1b5b59a6ded515a98c41b3a32a8"
+      },
+      "src/main.tsx": {
+        "bytes": 172,
+        "sha256": "0c20706162f5ed70df0946928dcd01615b479446d4e9bf2343a04b6162c3e5ac"
+      },
+      "src/App.tsx": {
+        "bytes": 239,
+        "sha256": "ceec5f144a38af0654914468e939063c87ea902ffe2cec18af6a9c337ceeedd8"
+      },
+      "src/index.css": {
+        "bytes": 262,
+        "sha256": "8eeb9117f166093c3ff8b8f996b744019adfe14e8ef9904c0743b83c6a31bcd7"
+      }
+    },
+    "crc": "all entries valid",
+    "primaryColor": "#2563eb",
+    "secondaryColor": "#64748b"
+  },
+  "current": {
+    "version": 2,
+    "sha256": "d0b1d33ce2e7d13ab18d788fccedd21aee4b2b01f769cc6339be36a1f1b70beb",
+    "bytes": 1180,
+    "files": {
+      "package.json": {
+        "bytes": 112,
+        "sha256": "935e88a6f5f73e07b2d0febfffd314df2c540923261b82d2cc3406a1d23e9d6f"
+      },
+      "index.html": {
+        "bytes": 154,
+        "sha256": "4537f7327061f7fd370d75817e4a69d9e7abd1b5b59a6ded515a98c41b3a32a8"
+      },
+      "src/main.tsx": {
+        "bytes": 172,
+        "sha256": "0c20706162f5ed70df0946928dcd01615b479446d4e9bf2343a04b6162c3e5ac"
+      },
+      "src/App.tsx": {
+        "bytes": 239,
+        "sha256": "ceec5f144a38af0654914468e939063c87ea902ffe2cec18af6a9c337ceeedd8"
+      },
+      "src/index.css": {
+        "bytes": 262,
+        "sha256": "c22f6a5dff6e436726a87cd077a758a720f9a47acbdcdb2cd87f2c29dfd572ca"
+      }
+    },
+    "crc": "all entries valid",
+    "primaryColor": "#dc2626",
+    "secondaryColor": "#64748b"
+  }
+}

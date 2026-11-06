@@ -1,0 +1,137 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-13 partial FORGE-104/202/503/106/1103; source-bound build repair with explicit review UI",
+  "previousGoalTurn": "progress: WS-12 precise edits, immutable preapproval diff, native/browser verification and receipts; Stripe CLI sandbox read verified separately",
+  "main": {
+    "passed": 851,
+    "skipped": 106,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "all three empty"
+  },
+  "ui": {
+    "passed": 68,
+    "verification": "Unchanged local Lovable UI; prior WS-9 tests/build not rerun;27 overlay/mirror and10 pristine hashes revalidated"
+  },
+  "checks": [
+    "main and strict native/CLI TypeScript with JSX integration graph",
+    "production build",
+    "ESLint 0 errors/40 existing warnings; prior unused autofix test arg now used",
+    "React checklist on changed main components",
+    "infra/context-window/price markers absent in public assets; existing key-name secret-detection regexes remain",
+    "git diff --check"
+  ],
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "logs": {
+    "main": {
+      "localLog": "/tmp/lov-build-patch-main-final.log",
+      "sha256": "312458decdb1b302e2070f9a2079f23a03cd9c2f0d9e696ada9748f2ac4e5f2b"
+    },
+    "types": {
+      "localLog": "/tmp/lov-build-patch-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-types": {
+      "localLog": "/tmp/lov-build-patch-native-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lint": {
+      "localLog": "/tmp/lov-build-patch-lint-final.log",
+      "sha256": "9913dc6871c039bd8281c3a5125c739af1caef9f474345ee77848f94349a79e2"
+    },
+    "build": {
+      "localLog": "/tmp/lov-build-patch-build-final.log",
+      "sha256": "3dcc3df79a520d12318555d23fdc15a81727ad6476bf9763c733ec2c65e44d19"
+    },
+    "pg16": {
+      "localLog": "/tmp/lov-build-patch-pg16-final.log",
+      "sha256": "be2711e36df5139c597368cca77651525185add92b4be8b0b34bd4c08949af9a"
+    },
+    "pg18": {
+      "localLog": "/tmp/lov-build-patch-pg18-final.log",
+      "sha256": "e44245cee9edef898f5bbc8b9b5ac5c53be17f7d9a87cb0bfde439757a6f7ffd"
+    }
+  },
+  "screenshots": {
+    "build-repair-after-desktop.jpg": {
+      "sha256": "b063031e1260302a1afd5c631b744e847c93d3200da74b9bf8f9f24f8174cfb8",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "build-repair-after-mobile.jpg": {
+      "sha256": "f31628279440ae89438891e6eea4acecabcc678ad05a32e0ca02f1f2fed65392",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "build-repair-diff-mobile.jpg": {
+      "sha256": "67b5a8758676023d1aa5b4220c6004be1891319bf612afa7ac849ca795ee8089",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "build-repair-error-desktop.jpg": {
+      "sha256": "1c2dd5fa48818d03b45c3777d2b0752b32d6a3c916f46c8e7fcc81dd3a9d7256",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "build-repair-error-mobile.jpg": {
+      "sha256": "217a47fd4898d151b9764059e972faf73ab57c521a9bb7199e9aa2ce34c20c2d",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "build-repair-reopened-mobile.jpg": {
+      "sha256": "b5c29081d3a6672391b04256003b197060119477cd5326181318e01205c5dd0a",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "build-repair-review-mobile.jpg": {
+      "sha256": "d675d66427075e6487a419b70e75edd29e007acefa71924a0403345015ab8c1b",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "build-repair-usage-mobile.jpg": {
+      "sha256": "382f8e201a01f722780cc072a96f29fd6dc5db9a684d08baf0aa349509566215",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    }
+  },
+  "sourceHashes": {
+    "server/agent/autofix.ts": "5bb281c99b764cb5f94995d49c0f7089479250f6bbc773b3e29ccfeec2060ccc",
+    "server/agent/patches.ts": "835f9d2490e6aaf6de9f7ed102a44645eaf784a8b0db9f61a10c3218de097ba5",
+    "server/index.ts": "b27dff28e093f39e6412cd372a7882fe15efc517c4724c13cd05ae7aa4785cc6",
+    "src/services/ai/buildRepair.ts": "b750e410dd326e86c05290ab2024e6f3e641989339810d3207647b7d8da42c1a",
+    "src/stores/useAppStore.ts": "4ce9661cfa3aff01c0884bdeabbeece9af0bb1a9ad710d874fe61bf05698b145",
+    "src/features/workspace/BuildRepairAction.tsx": "414be9e6101fd4f37d477b5af279105a31212e2a9cb47ff78a09eee3568548eb",
+    "src/features/workspace/Workspace.tsx": "2b647786f722f82e508931808ea44c9104bc2e874c16167a49a9835444df57ba",
+    "src/features/editor/EditorDashboard.tsx": "0e82a48c67ba58fb663172e05a68dffb555ee7dbf339d692be73dcd1b2becc23",
+    "src/styles/forge.css": "aa45f948a68bc996e488519e3d3b5e0a95ff6bc6d1aea42ac1d819060c1b3ea3",
+    "tests/unit/server/autofix.test.ts": "7cdcfd136916080b3b8c3c4e8834af183ef91036f86799aaad6fc1d209ab767b",
+    "tests/unit/server/sandbox-wiring.test.ts": "96be778c813349e8144a60b8c6325096939010cbb3ccd8f793d370a68587b09a",
+    "tests/unit/server/ai-admission.test.ts": "1c2db2c47d7d6ce9d7b669745f290ce4f04e4de038eefed4528ef17d845d86a2",
+    "tests/unit/build-repair.test.tsx": "87e100bffa0ed23821496c59ef0126a1c7ca0f6fae9136d456f70e23b135a6eb",
+    "tests/helpers/providerResilienceContract.ts": "c328b776ac9fb1b0f137783506dcb1d4deb3bd7288945f8f5ddf3c1ff1e47397",
+    "tests/fixtures/buildRepairProject.ts": "107cb6e03a8156fa0a55cbe46cfb746eefebb726db7e6adc7aa5ab1dff82de07",
+    "tests/fixtures/projectsUiServer.ts": "99e587daf3dab18e9053a6bd127966bda9a5ac2ac4e3eb0955db774574b99f99"
+  },
+  "protocol": {
+    "version": "forge-build-patch-v1 using forge-patch-v1 exact validator",
+    "input": "full current source and SHA256 with redacted diagnostics; no4000char cut; at most20 diagnostics with explicit omitted count",
+    "bounded": "max2 repair steps,3compiles; existing HTTP retry/fallback may add separately metered physical attempts",
+    "atomic": "validate complete candidate/path/deps/size before replacing working copy; no project write",
+    "admission": "context preflight before monthly hook; clean/infra-invalid builds no AI usage; admitted task charged once",
+    "failure": "invalid/truncated/conflicted patch stops without hidden regeneration; cancelled late result unused"
+  },
+  "browser": {
+    "data": "synthetic Alice pg-mem with explicit deterministic repair fixture, no inference",
+    "flow": "real syntax error -> explicit repair -> real candidate compile -> automatic mobile Diff (1App,+0/-1) -> back to Chat review -> approval v2 -> real preview -> save revision2 -> reopen and real recompile",
+    "source": "oldv1 retained until approval; no automatic project write from backend repair",
+    "colors": {
+      "primaryAfterAndReopened": "rgb(37, 99, 235)",
+      "secondaryAfterAndReopened": "rgb(100, 116, 139)"
+    },
+    "quota": "8seeded->9,1new task,1reported call,60input25output85total synthetic tokens in final restarted fixture",
+    "mobile": "390x844/document390; selected tab/CSS/state synced through setMview; desktop1280x720/document1280",
+    "errors": "no browser warn/error entries",
+    "cleanup": "temporary viewport reset; owned tabs14 and15 closed; owned5176/8788 servers stopped and listeners absent",
+    "limitation": "trusted host-mode test compile, not model-quality or production-isolation proof"
+  },
+  "scope": "No commit/deployment/production schema or env changes, paid inference, hosted Lovable edits or credit spend. No new libraries.",
+  "open": [
+    "live model patch/root-cause quality and golden regression evals",
+    "generated-app regression test generation",
+    "production Vite publish pipeline and fullstack runtime",
+    "hosted Lovable AI wiring",
+    "remaining M1 and M2-M6 backlog"
+  ]
+}

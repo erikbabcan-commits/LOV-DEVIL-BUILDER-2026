@@ -18,17 +18,25 @@ Ak sa rotácia vykoná neskôr:
 
 Cesty: Mac `/Users/vorkei/Documents/projects/LOV-DEVIL-RELEASE/source/.env`, VPS `/opt/lov-devil/.env`. Serverové tajomstvá patria len na server, nie do frontend premenných.
 
-### 1.2 GitHub OAuth — používateľ nastavenie preskočil
+### 1.2 GitHub OAuth — overené prepojenie verejných repozitárov
 
-Export cez OAuth zostáva nenakonfigurovaný. Chýbajú `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` a `GITHUB_SESSION_SECRET`. `GITHUB_SESSION_DIR=/data/sessions` je už nastavený a trvalý volume je pripojený. Práva session adresára boli opravené z `0755` na `0700`; tieto práva treba zachovať. Budúci postup je v bode 3.2.
+Používateľ vytvoril produkčnú aplikáciu **LOV-DEVIL Forge**. Client ID a Secret sú uložené v súkromnom `/opt/lov-devil/.env` a načítané v bežiacom API. GitHub ich prijal pri kontrole tokenu: zámerne neplatný testovací token dal 404, kontrolný nesprávny client secret dal 401. Tieto kontroly nevytvorili používateľský token ani repozitár.
+
+Nastavený je obmedzený rozsah `public_repo`; širší `repo` vyžaduje výslovnú voľbu používateľa a OAuth súhlas. Doplnený je náhodný `GITHUB_SESSION_SECRET` (64 hex znakov), `GITHUB_SESSION_DIR=/data/sessions` používa trvalý volume s právami `0700`. Šifrovaný testovací session záznam sa úspešne načítal aj v novom procese a potom bol odstránený. API kontajner bol vytvorený z rovnakého aktuálneho image; porty, limity, siete, volumes a ostatné env zostali zachované. Health je zelený a externá Basic Auth ochrana naďalej vracia 401 bez prihlásenia.
+
+Používateľ schválil **iba `public_repo`**. Reálny browser flow prešiel výberom účtu, GitHub súhlasom aj callbackom. Editor zobrazuje `GitHub: erikbabcan-commits`; prepojenie zostalo aktívne aj po reštarte API kontajnera a obnovení stránky.
+
+Opravený a nasadený je aj export: pri oprávnení iba `public_repo` vyberá verejný repozitár a pred publikovaním výslovne upozorní, že repozitár aj zdrojové súbory budú verejné. Pri širšom `repo` zostáva predvolený súkromný export. V produkcii sa overilo potvrdenie `PUBLIC repository` a jeho zrušenie; súbory sa neodoslali a nový repozitár nevznikol. Skutočné vytvorenie a naplnenie repozitára preto tento test nepotvrdzuje.
+
+Prešlo **395 testov**, jeden bol preskočený; platený `liveSmoke.test.ts` bol výslovne vylúčený. `npm run build` vrátane TypeScript kontroly prešiel. Päť nových testov pokrýva viditeľnosť repozitára podľa scope a zákaz odoslania pri zrušení potvrdenia.
 
 ### 1.3 Disk VPS a pravidelné zálohy
 
 - Disk je obsadený na **86 %**, voľných je približne **5,2 GB z 38 GB** dostupného súborového systému. Na serveri beží **14 kontajnerov**.
-- Prečistenie build cache staršej než 168 hodín uvoľnilo **0 B**. `docker image prune` sa nevykonal. Pred odstránením ďalších dát treba posúdiť ich použitie ostatnými projektmi.
+- Prvý prune cache staršej než 168 hodín uvoľnil 0 B. Následné čistenie nepoužívanej build cache odstránilo **786,9 MB**. Obrazy ani dáta projektov sa nemazali. Súbežne prebehlo ďalšie nasadenie a posledné meranie disku bolo **87 %, približne 4,9 GB voľných**; odstránená cache preto neznamená vyriešenie kapacity.
 - Hetzner konzola uvádza server **CPX12, 1 vCPU, 2 GB RAM, 40 GB disk** a aktuálnu zobrazenú cenu **14,13 €/mes.**
 - **Hetzner Backups: používateľ platené zálohy teraz odmietol.** Zostávajú vypnuté. Zobrazený príplatok je 20 %, približne **2,83 €/mes.**, bez aktivácie nového plateného záväzku.
-- Jednorazová overená záloha databázy už existuje; nenahrádza pravidelnú zálohu ani zálohu celého VPS. Podrobnosti sú v bode 4.2.
+- Pravidelné PostgreSQL zálohy sú zapnuté: denne 04:00–04:05 Europe/Bratislava, overenie reálnou obnovou a retencia 14 snapshotov na VPS. Mac ich preberá automaticky každú hodinu v 15. minúte a uchováva 30 kópií. Podrobnosti sú v bode 4.2; nejde o zálohu celého VPS.
 
 ### 1.4 Heslá, MFA a osobné zálohy
 
@@ -37,7 +45,7 @@ Basic Auth heslo sa nesmie ukladať do dokumentácie ani posielať do chatu. Jeh
 - Appka: [https://lov.2.29.52.59.sslip.io](https://lov.2.29.52.59.sslip.io), Basic Auth používateľ `vorkei`.
 - SSH: `ssh hetzner-vps`, identita `~/.ssh/hetzner_ed25519`. Súkromný kľúč zálohovať do chráneného úložiska, nie do repozitára.
 - GitHub účet `erikbabcan-commits`: v UI overené zapnuté 2FA, nakonfigurovaný passkey aj authenticator. Starý GitHub účet nebol overený.
-- Hetzner účet: UI ponúka `Enable 2FA`, teda 2FA nie je zapnutá. Aktivácia sa nevykonala; vyžaduje používateľa a podľa UI odhlási existujúce sessions.
+- Hetzner účet: UI ponúka `Enable 2FA`, teda 2FA nie je zapnutá. Používateľ aktiváciu aj v nadväzujúcom kroku ponechal na neskôr; podľa UI by odhlásila existujúce sessions.
 - Uloženie údajov do správcu hesiel a záloha Macu neboli overené. Existujúce MFA nastavenia sa nemenili.
 - Účty: [GitHub security](https://github.com/settings/security), [Hetzner konzola](https://console.hetzner.cloud), [Mistral konzola](https://console.mistral.ai).
 
@@ -45,7 +53,7 @@ Basic Auth heslo sa nesmie ukladať do dokumentácie ani posielať do chatu. Jeh
 
 Prihlásenie cez MFA, biometriku či obnovovacie kódy vykonáva používateľ vo vlastnom rozhraní. Tajomstvá zadáva priamo na príslušnom mieste. Pri prístupe do prihlásenej konzoly možno vykonať autorizované technické kroky vrátane nastavenia OAuth; nie sú automaticky obmedzené len na ručné vykonanie človekom.
 
-Používateľ platené Hetzner Backups v tomto kole výslovne odmietol; zostávajú vypnuté. Zmeny DNS, serverového plánu, platieb, starých prihlasovacích údajov a právne alebo obchodné dokumenty nie sú výsledkom tohto overenia. GitHub OAuth aj Mistral rotácia sú výslovne preskočené, nie dokončené.
+Používateľ platené Hetzner Backups v tomto kole výslovne odmietol; zostávajú vypnuté. Zmeny DNS, serverového plánu, platieb, starých prihlasovacích údajov a právne alebo obchodné dokumenty nie sú výsledkom tohto overenia. Mistral rotácia a Hetzner 2FA zostávajú na výslovné želanie používateľa odložené. GitHub OAuth je prepojený s účtom `erikbabcan-commits` v schválenom rozsahu `public_repo`; súkromné repozitáre nie sú v schválenom rozsahu.
 
 ## 3. Technický postup pre budúce úpravy
 
@@ -61,11 +69,11 @@ npm run dev
 
 Backend používa port 8787 a UI port 5173. Existujúci `.env` neprepisovať šablónou; pri novom prostredí vychádzať zo `server/.env.example` a doplniť údaje priamo do súkromného súboru.
 
-Na overenie kódu sú dostupné `npm run typecheck`, `npm test`, `npm run build` a `npm run test:e2e`. **V tomto kole sa testy, typecheck ani build nespúšťali.** Test `tests/unit/server/liveSmoke.test.ts` môže pri prítomnom `MISTRAL_API_KEY` vykonať platenú inferenciu; pri overovaní bez generácie ho treba vylúčiť a testom neposkytnúť živý kľúč. Staršie počty úspešných testov nedokazujú stav aktuálneho HEAD.
+Na overenie kódu sú dostupné `npm run typecheck`, `npm test`, `npm run build` a `npm run test:e2e`. Pri nadväzujúcej oprave verejného exportu prešlo 395 testov a jeden bol preskočený; platený live smoke bol vylúčený. Build vrátane TypeScript kontroly prešiel. Test `tests/unit/server/liveSmoke.test.ts` môže pri prítomnom `MISTRAL_API_KEY` vykonať platenú inferenciu; pri overovaní bez generácie ho treba vylúčiť a testom neposkytnúť živý kľúč. Staršie počty úspešných testov nedokazujú stav aktuálneho HEAD.
 
 ### 3.2 Budúce nastavenie GitHub OAuth
 
-Tento krok je teraz preskočený. Pri neskoršom nastavení použiť [GitHub Developer settings](https://github.com/settings/developers) a OAuth App s údajmi:
+Produkčná aplikácia je už vytvorená a konfigurácia nasadená. Pri obnove nastavenia použiť [GitHub Developer settings](https://github.com/settings/developers) a OAuth App s údajmi:
 
 - Application name: `LOV-DEVIL Forge`
 - Homepage URL: `https://lov.2.29.52.59.sslip.io/`
@@ -126,11 +134,11 @@ Obnova VPS musí zahŕňať aj PostgreSQL dáta, pripojené volumes, sieť `lov-
 | Mistral | `/v1/models` odpovedal HTTP 200 pre Mac aj VPS; 64 modelov, nakonfigurovaný model dostupný. Inferencia sa nevykonala. |
 | Používateľské auth | V produkcii je `AUTH_ENABLED=1`, beží `lov-postgres`, `DATABASE_URL` a `JWT_SECRET` sú nastavené; `/api/auth/me` bez prihlásenia vracia HTTP 401. |
 | Kvóty | Pri zapnutom auth používa backend Postgres kvóty. Projekty a snapshots zostávajú v IndexedDB. |
-| GitHub OAuth | Client ID, client secret a session secret chýbajú; integrácia je nenakonfigurovaná a používateľ ju preskočil. |
+| GitHub OAuth | Účet `erikbabcan-commits` je pripojený so schváleným `public_repo`; prihlásenie prežilo reštart API. Verejné potvrdenie exportu aj zrušenie prešli; nový repozitár sa pri teste nevytvoril. |
 | Session volume | `/data/sessions` je pripojený; opravené práva adresára sú `0700`. |
 | Disk a kontajnery | 86 % obsadených, približne 5,2 GB voľných z 38 GB; 14 bežiacich kontajnerov. |
 | Git | Lokálny branch `release/p0-five-blockers-20261031`, HEAD `dc6b102`, čistý strom pred úpravou tohto manuálu. Je 4 commity pred lokálne uloženou upstream referenciou; bez `fetch` nejde o potvrdenie aktuálneho vzdialeného stavu. |
-| Testy a sandbox | Testy, typecheck, build ani sandbox kompilácia sa v tomto kole nespúšťali. |
+| Testy a build | 395 testov prešlo, jeden preskočený; platený live smoke vylúčený. TypeScript a Vite build prešli. Nový produkčný sandbox build sa v tomto kroku nespúšťal. |
 
 ### 4.2 Jednorazová databázová záloha
 
@@ -142,7 +150,16 @@ Vytvorená PostgreSQL záloha `database.dump`:
 - `pg_restore --list` načítal **14 položiek**.
 - Skutočná obnova do samostatnej dočasnej databázy prešla; overené boli **3 tabuľky**. Dočasná databáza bola následne odstránená.
 
-Ide o **jednorazovú zálohu databázy**, nie celého VPS, pravidelnú zálohu ani zálohu projektov uložených v prehliadači v IndexedDB. Pravidelnosť, retencia a zálohy ostatných projektov zostávajú otvorené.
+Ide o **jednorazovú zálohu databázy**, nie celého VPS, pravidelnú zálohu ani zálohu projektov uložených v prehliadači v IndexedDB. Na túto jednorazovú kópiu nadväzuje pravidelné zálohovanie nižšie. Zálohy ostatných projektov a celého VPS zostávajú mimo tohto nastavenia.
+
+### 4.2a Pravidelné zálohovanie — dokončené v nadväzujúcom kroku
+
+- VPS: `lov-devil-backup.timer`, denne 04:00–04:05 Europe/Bratislava, `Persistent=true`; uchováva 14 overených snapshotov v `/root/lov-devil-backups/`.
+- Každý nový dump prejde `pg_restore --list` aj skutočnou obnovou do oddelenej dočasnej databázy. Overená databáza sa potom odstráni; posledná úspešná záloha sa pri chybe neprepíše.
+- Mac: LaunchAgent `local.lov-devil.backup-fetch`, pri načítaní a každú hodinu v 15. minúte; preberá overený dump cez existujúce SSH a overí veľkosť/SHA-256. Retencia je 30 kópií. Vynechaný kalendárny termín dobehne po prebudení.
+- Obe služby prešli reálnym spustením; obnovené boli 3 tabuľky. LaunchAgent skončil s kódom 0, stav v `/Users/vorkei/.local/share/lov-devil/backup-status.json` je `ok: true`.
+- Výsledky a postup správy/obnovy: `source/deploy/ops/README.md` vzhľadom na koreň release balíka (v samotnom repozitári `deploy/ops/README.md`).
+- Mac musí byť zapnutý, prihlásený a pripojený. Tieto zálohy pokrývajú PostgreSQL, nie celé VPS, IndexedDB ani tajomstvá v `.env`. Automatické upozornenia na výpadok nie sú nastavené.
 
 ### 4.3 Zostávajúce obmedzenia
 
@@ -168,8 +185,8 @@ Cena servera je zobrazená hodnota z konzoly, nie nový odhad ceny iného server
 
 ## 5. Ďalší vývoj
 
-Mistral rotácia a GitHub OAuth zostávajú preskočené podľa rozhodnutia používateľa. Platené Hetzner Backups používateľ v tomto kole odmietol. Pravidelné zálohovanie preto zostáva nevyriešené; jednorazový DB dump nie je náhradou. Ďalšie prevádzkové kroky sú zapnutie Hetzner 2FA používateľom a riešenie miesta na zdieľanom VPS podľa skutočnej spotreby.
+Mistral rotácia a Hetzner 2FA zostávajú odložené podľa rozhodnutia používateľa. GitHub OAuth prepojenie v rozsahu `public_repo` je overené vrátane zachovania po reštarte API. Verejný export má správne potvrdenie a zrušenie; reálne vytvorenie repozitára sa pri teste nevykonalo. Platené Hetzner Backups používateľ v tomto kole odmietol. Pravidelné PostgreSQL zálohy sú už nastavené: denne 04:00–04:05 Europe/Bratislava, 14 overených snapshotov na VPS; Mac automaticky preberá posledný úspešný snapshot každú hodinu v 15. minúte a uchováva 30 kópií. Mac musí byť zapnutý, prihlásený a pripojený k sieti. Nejde o zálohu celého VPS. Ďalšie prevádzkové kroky sú zapnutie Hetzner 2FA používateľom a riešenie miesta na zdieľanom VPS podľa skutočnej spotreby.
 
 WS-1 auth a trvalé kvóty sú už implementované a v produkcii zapnuté. Ďalšie vývojové oblasti sú uložené v `source/docs/MEGA-PROMPT-LOVABLE.md`, `source/docs/WS-1-AUTH.md` a `source/docs/BACKLOG.md` vzhľadom na koreň release balíka. V samotnom repozitári začínajú tieto cesty adresárom `docs/`.
 
-PR, merge, push a nasadenie ďalších commitov sa v tomto kole nevykonali. Po zmene domény, auth, záloh alebo konfigurácie tento manuál znovu aktualizovať podľa merania.
+Pri oprave verejného exportu sa nasadil overený frontendový build. Súbory prechádzajúceho frontendového buildu ostali ako záloha na VPS; API image a jeho env sa pri tomto frontendovom nasadení nemenili. PR, merge ani push neboli súčasťou tohto kroku. Po zmene domény, auth, záloh alebo konfigurácie tento manuál znovu aktualizovať podľa merania.

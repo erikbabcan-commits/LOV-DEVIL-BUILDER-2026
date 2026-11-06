@@ -1,0 +1,16 @@
+{
+  "phase": "WS-18 default-off sandbox Stripe subscription foundation + fresh database entitlements",
+  "runner": "deploy/test-projects-native.py",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "passedEach": 135,
+  "coverage": "Previous88 plus47 billing canonicalwebhook/auth/quotas/crossowner/idempotency/rollback/concurrency scenarios",
+  "migrations": "001-010;010 new and replay-safe",
+  "cleanup": "both private loopback SCRAM clusters stopped and removed",
+  "logs": {
+    "billing-pg16.log": "2f3a0c4b19dda767226a89d9412672540d085b9764a344986ba2ad93da0be5a0",
+    "billing-pg18.log": "7400cf9b836dac2f4aff1e2585a1065e6b5750ae532ae7fefbbc5173184574b5"
+  }
+}

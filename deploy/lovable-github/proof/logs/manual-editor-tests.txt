@@ -1,0 +1,8 @@
+
+ RUN  v4.1.11 <project>/lovable-github-local
+
+
+ Test Files  15 passed (15)
+      Tests  146 passed (146)
+   Start at  08:21:05
+   Duration  9.97s (transform 418ms, setup 1.06s, import 1.74s, tests 2.73s, environment 2.94s)

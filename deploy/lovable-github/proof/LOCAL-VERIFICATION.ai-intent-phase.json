@@ -1,0 +1,124 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-11 partial FORGE-105/102/504/509/1103; intent routing and read-only streamed answers",
+  "previousGoalTurn": "progress: WS-10 context/code, persistence, native/browser verification and receipts",
+  "main": {
+    "passed": 816,
+    "skipped": 100,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "all three empty",
+    "finalUiTextChecks": 17
+  },
+  "ui": {
+    "passed": 68,
+    "verification": "Unchanged local Lovable UI, prior WS-9 tests/build;27 local/overlay and10 pristine fingerprints revalidated, not rerun in this main/backend phase"
+  },
+  "checks": [
+    "main and strict native/CLI TypeScript, including eval CLI",
+    "production build",
+    "ESLint 0 errors/41 baseline warnings",
+    "React checklist on changed main components",
+    "infra/context-window/price markers absent in public assets; existing key-name secret-detection regexes remain",
+    "git diff --check"
+  ],
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "logs": {
+    "main": {
+      "localLog": "/tmp/lov-intent-main-final.log",
+      "sha256": "7d05e631603042375b0f2d84817c73808e823959ded7b595e9a5a28776ee53da"
+    },
+    "types": {
+      "localLog": "/tmp/lov-intent-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-types": {
+      "localLog": "/tmp/lov-intent-native-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lint": {
+      "localLog": "/tmp/lov-intent-lint-final.log",
+      "sha256": "9fd5c494aa6c21190d5880c068d058ad8e8c0ef3370daedd7d59fcc251c9383e"
+    },
+    "build": {
+      "localLog": "/tmp/lov-intent-build-final.log",
+      "sha256": "f91ff63eaa4900c7cf6919b1bd1c8e0c1b9dd50c62ea4439d1acc4d5e009d98d"
+    },
+    "pg16": {
+      "localLog": "/tmp/lov-intent-pg16-final.log",
+      "sha256": "737dffa08f7dfb098e4607c2dde989dd61621abf9ab0da6d8b445cb8cd0c7a95"
+    },
+    "pg18": {
+      "localLog": "/tmp/lov-intent-pg18-final.log",
+      "sha256": "c10235b1d8eed9ce10c2f4fb3e88c202198862d5db66185c70391d8955b8a6bb"
+    },
+    "finalUiText": {
+      "localLog": "/tmp/lov-intent-final-ui-text-tests.log",
+      "sha256": "cc14f711a79804126a1a65f8d6394ae4a660527beecc00a2973e79f9de804e8f"
+    }
+  },
+  "screenshots": {
+    "intent-console-desktop.jpg": {
+      "sha256": "ada6302f2f1425e083342dedfbe15364c797b6e17ea59acf28707426a892aa4a",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "intent-answer-mobile.jpg": {
+      "sha256": "8e5eea433bac8e703f371ab1c8b2e02f1af4fb9d532b7667d4ed8075bb85f4e1",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "intent-usage-mobile.jpg": {
+      "sha256": "669d32de9f1f8bf687a3a3aeeca4fe8df22283c4ee09a88c01ad02d98c853c3e",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "intent-answer-desktop.jpg": {
+      "sha256": "ad46ce7406aef60a9682751f724f9a44f5645fa13bd12cc682753ef675e5897f",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    }
+  },
+  "evaluation": {
+    "dataset": "server/evals/intent-cases.json",
+    "datasetFileSha256": "e693be3e282250ba3d06ace722a71e0aabbeea47461e5f5ff6dd02b8e3f25562",
+    "datasetHash": "936ae9b2e9f69547475a5ddd01fd9238323760525c430b947e048a5b8946b4f6",
+    "promptHash": "c41ea2bec342f59c0dd948e0b96efc616aeffec7edd445ae6588a0a34f1e1621",
+    "promptVersion": "forge-intent-v1",
+    "cases": 150,
+    "locales": {
+      "sk": 75,
+      "en": 75
+    },
+    "labelReview": "initial manually-authored labels, independent human review pending",
+    "actualModelAccuracy": "not measured",
+    "latency": "not measured",
+    "nightlyCi": "not configured",
+    "fixtureReport": "intent-eval-fixture-report.json",
+    "fixtureCorrect": 135,
+    "fixtureMissing": 15,
+    "fixtureAccuracyGatePassed": false,
+    "fixturePurpose": "synthetic offline scorer proof only, not model quality",
+    "requestExport": "intent-eval-requests.json",
+    "inferencePerformed": false,
+    "artifacts": {
+      "intent-eval-fixture-report.json": "637b53fc1f0202600394a0ded9d9d4b4c356cc8501f7da92bb73171a35e6d655",
+      "intent-eval-fixture-predictions.json": "417e4dd740ea9a0ee11ce71a97ddfcd1ff3e1ea068b10ceb9467b1b66862ad46",
+      "intent-eval-requests.json": "7bf3267f2ceebbc5e94b6362f1fe77b7b9f932d1c7ee8fad107fba114bb42244"
+    }
+  },
+  "browser": {
+    "data": "synthetic Alice, pg-mem, explicitly mocked classifier/answer",
+    "flow": "open server Kanban -> auto question -> answer without review -> actual Clipboard Promise success -> rerun same question through selected AI, still no review",
+    "sources": "version v1 unchanged visually; full source state invariant proved in UI unit and native PG row equality tests",
+    "quota": "8seeded->10,2new tasks,4reported calls,120input70output190totaltokens",
+    "console": "two answer-without-changes intent entries",
+    "mobile": "CSS390x844/document390,no page overflow; updated question/usage wording",
+    "errors": "no browser warn/error entries",
+    "cleanup": "viewport reset,owned tab12 closed,owned8788/5176 processes stopped and listeners absent"
+  },
+  "scope": "no commits/deployment/production changes, real inference, external writes, hosted Lovable edits or credit spend",
+  "open": [
+    "real-model >90% classifier gate and independent label review",
+    "live quality/latency/memory evals",
+    "nightly eval collection/dashboard and A/B flags",
+    "Lovable hosted AI wiring",
+    "remaining M1 and M2-M6 backlog"
+  ]
+}

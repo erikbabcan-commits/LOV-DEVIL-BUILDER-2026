@@ -1,5 +1,10 @@
 # 🚢 DEPLOYMENT BLUEPRINT — VPS / Railway / Render
 
+> WS-4 (5. 11. 2026): pre izolovanú kompiláciu platí aktuálny postup v
+> `docs/WS-4-SANDBOX.md` a voliteľný `deploy/compose.sandbox.yaml`.
+> Tento starší blueprint nepopisuje aktuálne produkčné nginx/`lov-net` zapojenie.
+> Produkcia sa pri WS-4 nemenila; existujúci `vps-redeploy.sh` nové zapojenie nerieši.
+
 > Kompletný návrh hostingu full backendu pre LOV-DEVIL BUILDER 2026.
 > Vygenerované súbory: `deploy/Dockerfile`, `deploy/Dockerfile.web`,
 > `deploy/Caddyfile`, `deploy/Caddyfile.managed`, `deploy/compose.yaml`,
@@ -75,7 +80,7 @@
 | `GITHUB_CLIENT_SECRET` | ✅ pre OAuth | – | platform secrets | |
 | `GITHUB_CALLBACK_URL` | ✅ pre OAuth | `http://localhost:8787/...` | `https://<doména>/api/github/auth/callback` | |
 | `LOV_APP_URL` | ✅ pre OAuth | `http://localhost:5173/` | `https://<doména>/` | redirect po login |
-| `GITHUB_OAUTH_SCOPE` | – | `repo` | `repo` / `public_repo` | |
+| `GITHUB_OAUTH_SCOPE` | – | `public_repo` | `public_repo` | `repo` iba po výslovnom schválení širších práv |
 | `GITHUB_ALLOWED_ORIGINS` | ✅ prod | `http://localhost:5173` | `https://<doména>` (bez lomky!) | CORS/CSRF allowlist |
 | `GITHUB_SESSION_SECRET` | ✅ prod | – | 32+ B random | AES-256-GCM šifrovanie sessions |
 | `GITHUB_SESSION_DIR` | – | `.sessions` | `/data/sessions` (volume) | |

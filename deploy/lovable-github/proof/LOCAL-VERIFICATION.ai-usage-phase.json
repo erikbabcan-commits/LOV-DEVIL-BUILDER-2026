@@ -1,0 +1,127 @@
+{
+  "date": "2026-11-06",
+  "main": {
+    "passed": 687,
+    "skipped": 77,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "mistralKey": "empty"
+  },
+  "ui": {
+    "passed": 67,
+    "source": "../lovable-github-local"
+  },
+  "checks": [
+    "TypeScript both repos and strict native graphs",
+    "main ESLint 0 errors / 41 existing warnings",
+    "targeted new code and UI lint clean",
+    "main production build",
+    "Lovable client/SSR/Workers build",
+    "27 overlay hashes match local UI",
+    "10 recorded pristine export fingerprints unchanged",
+    "public assets checked for server bridge/infra marker names",
+    "git diff --check"
+  ],
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "scope": "Local only; no commits, deployment, production migrations, hosted edits, Lovable credit spending or live API writes",
+  "logs": {
+    "mainTests": {
+      "localLog": "/tmp/lov-ai-ledger-main-tests-final.log",
+      "sha256": "fbe1805807ff946278306f01349f71fc1d3f1189128727abca3cf8b1fb904a3e"
+    },
+    "mainTypecheck": {
+      "localLog": "/tmp/lov-ai-ledger-main-typecheck-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "mainBuild": {
+      "localLog": "/tmp/lov-ai-ledger-main-build.log",
+      "sha256": "49114c6299acaa1fe0bf2afd8606fcb3a50739f025eeca100925f3758ae00859"
+    },
+    "mainLint": {
+      "localLog": "/tmp/lov-ai-ledger-main-lint.log",
+      "sha256": "63c8624ea6d14bd1ec55be89061122679fe2286136228a051d7691f534a693da"
+    },
+    "uiTests": {
+      "localLog": "/tmp/lov-ai-ledger-ui-tests.log",
+      "sha256": "0b6afa221cfc882317507f6423666ce489d13b4f6a07ce967bf3829d2270c760"
+    },
+    "uiTypecheck": {
+      "localLog": "/tmp/lov-ai-ledger-ui-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "uiBuild": {
+      "localLog": "/tmp/lov-ai-ledger-ui-build.log",
+      "sha256": "9c9b1796a9d9b61bb1719249783ac24075d964d43bc2c75e6b5fad0be077a4d4"
+    },
+    "uiLint": {
+      "localLog": "/tmp/lov-ai-ledger-ui-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "nativeTypecheck": {
+      "localLog": "/tmp/lov-ai-ledger-native-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "nativeAndNewCodeLint": {
+      "localLog": "/tmp/lov-ai-ledger-focused-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "finalFocused": {
+      "localLog": "/tmp/lov-ai-ledger-final-focused.log",
+      "sha256": "ddc0d1d7e81eaa2bbf0f3011398dfbd064c775820f16423dc2a68e0a6fe0d15f"
+    }
+  },
+  "screenshots": {
+    "ai-usage-lovable-bob-mobile.png": {
+      "sha256": "625e1d33f997c77c15adfeb2b96b1c0a883007e32783b5be34ec9742853ba4e3",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-lovable-desktop.png": {
+      "sha256": "014d450c8fe14212a4f36db54eee343082bd111e9d73aaca9f7eb3f68cb22a2b",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-lovable-mobile.png": {
+      "sha256": "20f5aa3ed5403880d20abe0ee50103063cf7bc178a136feecd17de9396efbef8",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-main-bob-mobile.png": {
+      "sha256": "8cddcc1a758736d48f0eb59730b09fe28d22a2af4327240f58d040f528b6beb1",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-main-desktop.png": {
+      "sha256": "390052594913d717d457f54b8521f21cbd202c72cb1261ec0150d791323ab17c",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-main-mobile.png": {
+      "sha256": "8d01007169c68f8e3e4e430d160cb0723f6abc77f31d6beba666664a2de8fcbb",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    }
+  },
+  "browser": {
+    "main": "Real loopback Hono HTTP/SSE + pg-mem + synthetic provider: Alice 8 to 9 tasks, 2 calls, input200/output1000; proposed changes discarded, project unchanged. Bob sees separate zero usage and no Alice projects.",
+    "lovable": "Real panel with deterministic synthetic fixture: 4/5 known calls, 16600 reported tokens, unknown notice, Bob 0 tasks/tokens. Not a live Cloud bridge.",
+    "mobileCssViewport": [
+      390,
+      844
+    ],
+    "horizontalOverflow": false,
+    "temporaryServers": "stopped; ports 5176,8788,5189 no longer listening"
+  }
+}

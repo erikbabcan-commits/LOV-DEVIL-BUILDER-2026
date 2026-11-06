@@ -1,0 +1,589 @@
+{
+  "note": "Original .log files remain local/ignored. Public UTF-8 copies remove local home/workspace paths and normalize trailing whitespace; historical receipts retain original hashes and this map links each redacted artifact.",
+  "logs": {
+    "ai-build-repair-postgres16-tests.log": {
+      "originalSha256": "be2711e36df5139c597368cca77651525185add92b4be8b0b34bd4c08949af9a",
+      "publicFile": "logs/ai-build-repair-postgres16-tests.txt",
+      "publicSha256": "e491c61877ed75aac58a32f63e7b2c124baee15686b14fb87a9d7ebf9563b288",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-build-repair-postgres18-tests.log": {
+      "originalSha256": "e44245cee9edef898f5bbc8b9b5ac5c53be17f7d9a87cb0bfde439757a6f7ffd",
+      "publicFile": "logs/ai-build-repair-postgres18-tests.txt",
+      "publicSha256": "029f9afe462028b20f5628950832a089deae7390537a8eb1a2d48f0475bca143",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-context-postgres16-tests.log": {
+      "originalSha256": "430de9ba2cd9dc7de9ec59d2bf2d7266bc4a863e7f3386547a12a956077f19d0",
+      "publicFile": "logs/ai-context-postgres16-tests.txt",
+      "publicSha256": "2828653da08a04b1e33f2d85f0788d2b47e6bdadc072e19f47b7930c3c8b361e",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-context-postgres18-tests.log": {
+      "originalSha256": "95c974af49feda23ec263674cd60280002e841d82249ec7859ebf01a0a174b57",
+      "publicFile": "logs/ai-context-postgres18-tests.txt",
+      "publicSha256": "b89fbc7f803255ae492545ec4445dba285ab7f3fc77e04251f7adac2cb5bb0f0",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-cost-postgres16-tests.log": {
+      "originalSha256": "cba5a71027e7ebcf102dab6d8c92c28a70b5ccb9408471226921f871ba6c7a79",
+      "publicFile": "logs/ai-cost-postgres16-tests.txt",
+      "publicSha256": "1670bdd4ed04b61e44f4adcdf336d4044ab358c64ff62add8b7e9bf6e0e71a1c",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-cost-postgres18-tests.log": {
+      "originalSha256": "6372bcedc007ab65a4caa50c0f5e0dbf5fd9c8204488df0c9b2e526e15ff8b71",
+      "publicFile": "logs/ai-cost-postgres18-tests.txt",
+      "publicSha256": "99effd6eb2d11df1a212fd797d672740f869ae631259bbe8e307a7544113caca",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-intent-postgres16-tests.log": {
+      "originalSha256": "737dffa08f7dfb098e4607c2dde989dd61621abf9ab0da6d8b445cb8cd0c7a95",
+      "publicFile": "logs/ai-intent-postgres16-tests.txt",
+      "publicSha256": "87f62a423535e0cfe5ed9341d76c57464cbf92924bc8d60fcbe2e0a8dd1bbcb9",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-intent-postgres18-tests.log": {
+      "originalSha256": "c10235b1d8eed9ce10c2f4fb3e88c202198862d5db66185c70391d8955b8a6bb",
+      "publicFile": "logs/ai-intent-postgres18-tests.txt",
+      "publicSha256": "6654c830bc2cbb952302487e3546296a7574f6a848ce61d977cb16aea4d8158b",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-patches-postgres16-tests.log": {
+      "originalSha256": "2273e9a41eb8243828d3af633535f757f1d5e02f3060a2700b05827bd4c56a85",
+      "publicFile": "logs/ai-patches-postgres16-tests.txt",
+      "publicSha256": "e95f4ea37d6e01d6521c26ef04af2a58e6bc6db65d10145653ed5c24534cd3b4",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-patches-postgres18-tests.log": {
+      "originalSha256": "ec0290f1af913de400909ba96ae2e1262b13c8c8c254741ae16399f7cc12ce9e",
+      "publicFile": "logs/ai-patches-postgres18-tests.txt",
+      "publicSha256": "93dacd797e9887198db17d8e61d8c6e0565d025b52dc02cbd420412d074ea64c",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-providers-postgres16-tests.log": {
+      "originalSha256": "d5fead20f91e419917631efad7e052ebc7b1235a0af638b753da948191ef940b",
+      "publicFile": "logs/ai-providers-postgres16-tests.txt",
+      "publicSha256": "8b8ec8f965801b324c4a9f6c4d8b926583048e8d2581d078638d1b01b355fc53",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-providers-postgres18-tests.log": {
+      "originalSha256": "5f78f38a263b1ac905e6de49e31b376e2d5a8a489f3d544a7f5266fbd321e44c",
+      "publicFile": "logs/ai-providers-postgres18-tests.txt",
+      "publicSha256": "859fd712ed1d1ccb32f870c890ab1242f1b67efbc0ec09c645cd9f12d63f76ee",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-usage-postgres16-tests.log": {
+      "originalSha256": "270c98c0dceca7195a576d39a8f744998de22420f54efa35bc94aa971fcb77fb",
+      "publicFile": "logs/ai-usage-postgres16-tests.txt",
+      "publicSha256": "3c44bebe0c24c24a36b6da104d2fe278a675ca7b45dda13a8b3f5ee623b30aed",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "ai-usage-postgres18-tests.log": {
+      "originalSha256": "c61946d573c356a26fe1c993a04fa7d7eb33eb07f80a845d4b570741bf94c760",
+      "publicFile": "logs/ai-usage-postgres18-tests.txt",
+      "publicSha256": "5b02ef2ce4a63f21370349c3e9495190af94d03b4f8d8c2326eddd044255d932",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "billing-build.log": {
+      "originalSha256": "f367e80c6c37db7d76164ab75fde325c5732480f5207090ff9a81f383919fa6e",
+      "publicFile": "logs/billing-build.txt",
+      "publicSha256": "f367e80c6c37db7d76164ab75fde325c5732480f5207090ff9a81f383919fa6e",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "billing-lint.log": {
+      "originalSha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645",
+      "publicFile": "logs/billing-lint.txt",
+      "publicSha256": "2ab7833ce9e223b29434b2184ef0acbbbfa0f1c1e181d989657efcb2aee4ac13",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "billing-main.log": {
+      "originalSha256": "4e62f612418a101845fcefe4199506008099b812c9ba310b599dfd6246153fb0",
+      "publicFile": "logs/billing-main.txt",
+      "publicSha256": "e36c8f81a3f3c270c6a556c4111f61f2bec973b2d4df0d0a369e298d950ae11a",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "billing-native-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/billing-native-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "billing-pg16.log": {
+      "originalSha256": "2f3a0c4b19dda767226a89d9412672540d085b9764a344986ba2ad93da0be5a0",
+      "publicFile": "logs/billing-pg16.txt",
+      "publicSha256": "9cd02bf1d44cf362604389929326e6ca987af5b0945283228a554ddd4349aee3",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "billing-pg18.log": {
+      "originalSha256": "7400cf9b836dac2f4aff1e2585a1065e6b5750ae532ae7fefbbc5173184574b5",
+      "publicFile": "logs/billing-pg18.txt",
+      "publicSha256": "ee037b6437e88d7d493d099c61dd6188059f215a9d065b3e55b45d0ddab79e77",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "billing-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/billing-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-build.log": {
+      "originalSha256": "c45add3f9da68b8e2c70562c5f011101090b376ae4a2937196646ef81f79c6c5",
+      "publicFile": "logs/cleanup-build.txt",
+      "publicSha256": "c45add3f9da68b8e2c70562c5f011101090b376ae4a2937196646ef81f79c6c5",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-docker.log": {
+      "originalSha256": "7cd6baf9a377bfc1d064f3a25bca9322aa499043fbaf1405b31d420629e7c840",
+      "publicFile": "logs/cleanup-docker.txt",
+      "publicSha256": "97102662e13ebea9c3b7375e43897e041084c64eee6836b2b436afe4a051cc34",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-harness-lint.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/cleanup-harness-lint.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-harness-units.log": {
+      "originalSha256": "05f6575af0bbe5194a6263c3fbcd7cf8a59f912a437c387fcf782834cd1381ee",
+      "publicFile": "logs/cleanup-harness-units.txt",
+      "publicSha256": "39f4c574615415459069df692a3cf9b798f89fb4eb8137840c80cdd227070743",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-legacy-e2e.log": {
+      "originalSha256": "559599ec91b2a33216e75cbd85c1de6525da74f58647b6836239183cf8d6aeb6",
+      "publicFile": "logs/cleanup-legacy-e2e.txt",
+      "publicSha256": "559599ec91b2a33216e75cbd85c1de6525da74f58647b6836239183cf8d6aeb6",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-lint.log": {
+      "originalSha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645",
+      "publicFile": "logs/cleanup-lint.txt",
+      "publicSha256": "2ab7833ce9e223b29434b2184ef0acbbbfa0f1c1e181d989657efcb2aee4ac13",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-lovable-build.log": {
+      "originalSha256": "bff86187b52e322e3bfa21f5614c6959cc69b1ffa22e63d25d9b88920b46abbe",
+      "publicFile": "logs/cleanup-lovable-build.txt",
+      "publicSha256": "4f7f1e055428e2a4f035e6d4ab5838ee61ee88463a293d080cb361e25f617bd1",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-lovable-tests.log": {
+      "originalSha256": "ebefa267018e59b17a9597b2052a03ff0f868939c4f9e438591a0795189634a0",
+      "publicFile": "logs/cleanup-lovable-tests.txt",
+      "publicSha256": "2a643aaa318c4c02553091717b728c12d023244afe20f433a7db0479f9c829d9",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-lovable-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/cleanup-lovable-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-main.log": {
+      "originalSha256": "d636fcf45e76f9c7774832abcca82bd03b58697ed9690477239d8c1d9af9d749",
+      "publicFile": "logs/cleanup-main.txt",
+      "publicSha256": "d7dadf0ae1fa17117ec1beda68a5cc01c1b989dcd676446bca5c247ce22e0e87",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-native-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/cleanup-native-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-pg16.log": {
+      "originalSha256": "6abdbd6b15e224f11c1ce81c40ec617e1a33d28ec66c867c2dd40361b210a374",
+      "publicFile": "logs/cleanup-pg16.txt",
+      "publicSha256": "feee82df6ef5061fc3cc6b179de8f078b673d047f3936bf0c5ec4dcdd47f446b",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-pg18.log": {
+      "originalSha256": "0f2477aa8e6f0fc0ac8a807555d1af04c0a3596b2c8645e89a843f0bbad52893",
+      "publicFile": "logs/cleanup-pg18.txt",
+      "publicSha256": "f636a8c95444fba74e154cc5aef33751301d95bcc9f01fb65bbd53ab3ee436b4",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-preflight-serial.log": {
+      "originalSha256": "0c708fb79f9ecaeb5a28203472fee3e2210776d76aad90d2934fe2eee7891ee3",
+      "publicFile": "logs/cleanup-preflight-serial.txt",
+      "publicSha256": "4249902732bf151f8e6e7346b5d42cf660cb810e95242dfdf75d01a546f7e239",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-react-e2e-lint.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/cleanup-react-e2e-lint.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-react-e2e-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/cleanup-react-e2e-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-react-e2e.log": {
+      "originalSha256": "b2411874445d2066abc682c374b1206ff66f21aecfaff60e4663b80133fac0d9",
+      "publicFile": "logs/cleanup-react-e2e.txt",
+      "publicSha256": "b2411874445d2066abc682c374b1206ff66f21aecfaff60e4663b80133fac0d9",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "cleanup-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/cleanup-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "lovable-ai-postgres16-tests.log": {
+      "originalSha256": "f5d17c223ff5a2f23d1048f39e9c456a26e8120be3bc0768a6ac95e907b7c9bd",
+      "publicFile": "logs/lovable-ai-postgres16-tests.txt",
+      "publicSha256": "49a3b1708bb564dc81fc8213e90e33235c580eb0bc2ead03e4ba2996b3a57a42",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "lovable-ai-postgres18-tests.log": {
+      "originalSha256": "b363803ae65c31a82897d1b270e2d2ad7523c91958b34db5184374381e354de8",
+      "publicFile": "logs/lovable-ai-postgres18-tests.txt",
+      "publicSha256": "c067e715513027bf5fe1d10efe49e96204ae24056197d61ed29436e711922763",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "main-code-build.log": {
+      "originalSha256": "db7ad1c2bea9f6f54d371569b4e31b2002b6d62f0eb1f0ba7543e4a903b9e8e5",
+      "publicFile": "logs/main-code-build.txt",
+      "publicSha256": "db7ad1c2bea9f6f54d371569b4e31b2002b6d62f0eb1f0ba7543e4a903b9e8e5",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "main-code-lint.log": {
+      "originalSha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645",
+      "publicFile": "logs/main-code-lint.txt",
+      "publicSha256": "2ab7833ce9e223b29434b2184ef0acbbbfa0f1c1e181d989657efcb2aee4ac13",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "main-code-main.log": {
+      "originalSha256": "dd2525632892b1ca4c0fdd250d918b3d14fed41a63fae151c08262729ae0e202",
+      "publicFile": "logs/main-code-main.txt",
+      "publicSha256": "ef6c15bd5a27c09e0b4e9fe4edc037fa9090245196983e6554f1d706395305f8",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "main-code-native-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/main-code-native-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "main-code-pg16-initial-timeout.log": {
+      "originalSha256": "53672d0bb1ecedf61679f52420dd93dc594b9554eb23219b72adbae1e6fc43dd",
+      "publicFile": "logs/main-code-pg16-initial-timeout.txt",
+      "publicSha256": "f094ed2c589b3351085e6c9ab3fce3da4d7d158be9ed0e55df0ea59cb17a2c4e",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "main-code-pg16.log": {
+      "originalSha256": "4d185a85be0edd3bdf2156e895828abcac96638d74a9fb83e7f10175ccb4b79a",
+      "publicFile": "logs/main-code-pg16.txt",
+      "publicSha256": "19aed4267b8807cae4070df1273f3e61b0b26e0a6a3e99d6c7fd4482f4ac2ab0",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "main-code-pg18.log": {
+      "originalSha256": "ddfde684ff41611556901ee51ed81d7aad8801a92c7ff4f9cb813b2ea238cd28",
+      "publicFile": "logs/main-code-pg18.txt",
+      "publicSha256": "2ea5a8d1ad22507d2de3fb5a9ccef188532137297fe30fd2971e347b81ba0ea2",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "main-code-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/main-code-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-main-build.log": {
+      "originalSha256": "dc7c33bac1cc777306b40b57b4143c5645e4f0190d31a2c4f77e87b940af44be",
+      "publicFile": "logs/manual-editor-main-build.txt",
+      "publicSha256": "dc7c33bac1cc777306b40b57b4143c5645e4f0190d31a2c4f77e87b940af44be",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-main-lint.log": {
+      "originalSha256": "52025db2fdaff4195a10e7d1577dc4e9d24ef2bfa5529825e334d313d572fb2f",
+      "publicFile": "logs/manual-editor-main-lint.txt",
+      "publicSha256": "b61f926c83b718d2723ee40671c62c126ced3d3fdf0cbd73945129090c8005ed",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-main-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/manual-editor-main-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-main.log": {
+      "originalSha256": "ebe49b2bfaed2e43f1c9f9ff17ea7049b784caefa06edbabeb31ca4f8141995f",
+      "publicFile": "logs/manual-editor-main.txt",
+      "publicSha256": "9fb3f8071cfac6468db5fed0d2ce27f7605f1fbb141ad6a7dab9a7a5708827cd",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-native-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/manual-editor-native-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-pg16.log": {
+      "originalSha256": "07f5b66ff54aa66181a503d84537b14722b3f7066907d3e8cadc903dc2470191",
+      "publicFile": "logs/manual-editor-pg16.txt",
+      "publicSha256": "4a9ae0df6256e6a1e79d94ca88a12f3d2ce581a33fc06cebeb32dcd6d1c29ab3",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-pg18.log": {
+      "originalSha256": "d8053555bab72174f722f847ab8d8fddea0017181d013c1a6d939f0d82a74d81",
+      "publicFile": "logs/manual-editor-pg18.txt",
+      "publicSha256": "0245232fccd8f06667affb23774216cf1d441823d4a0ca0cd77c82d7df156f85",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-tests.log": {
+      "originalSha256": "eae1e404a7175036d613dac738601eaabcc3b4c35e4561e6306d9761713870b0",
+      "publicFile": "logs/manual-editor-tests.txt",
+      "publicSha256": "68bab6bc6e8eaf6f5960e418ec9722db9f4f2050a493b56782daf257048e4d29",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/manual-editor-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-ui-build.log": {
+      "originalSha256": "5eec6f8cc0fc8e53ba03ab02a34d536185720c04ee6b6afa2298a757f3488333",
+      "publicFile": "logs/manual-editor-ui-build.txt",
+      "publicSha256": "c2249f5b846e530e8a4a0bcaa29ffa35b766a7268eab38f813669ba6e2fa4856",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "manual-editor-ui-lint.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/manual-editor-ui-lint.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "postgres16-tests.log": {
+      "originalSha256": "fe5a548248de8aa76196ae2e15ae06bbe0bfa9624312ef8e1e5c2001becdb115",
+      "publicFile": "logs/postgres16-tests.txt",
+      "publicSha256": "3a4fc0d9a42ecbe031bc8cc3af88e363793e7c75dbec4d22fdebc528a0248c53",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "postgres18-tests.log": {
+      "originalSha256": "096a3160fbda9be51e66059dc858df0e232cb2694bab354cee91f7d5bf7386cb",
+      "publicFile": "logs/postgres18-tests.txt",
+      "publicSha256": "44f3edddeaa05dab607ca40a555f39971bec088f812914ac0c687de97ce5f0c7",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-clean-build.log": {
+      "originalSha256": "222c91c0003fcb8168477c4c1a4f59ce48171d37a4517e78eb93371149cfd7eb",
+      "publicFile": "logs/zip-clean-build.txt",
+      "publicSha256": "222c91c0003fcb8168477c4c1a4f59ce48171d37a4517e78eb93371149cfd7eb",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-main-build.log": {
+      "originalSha256": "66a10b3d0cae070f44f824881585f0f4b7abb83681242b23f98bc532bc546cd1",
+      "publicFile": "logs/zip-main-build.txt",
+      "publicSha256": "66a10b3d0cae070f44f824881585f0f4b7abb83681242b23f98bc532bc546cd1",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-main-lint.log": {
+      "originalSha256": "52025db2fdaff4195a10e7d1577dc4e9d24ef2bfa5529825e334d313d572fb2f",
+      "publicFile": "logs/zip-main-lint.txt",
+      "publicSha256": "b61f926c83b718d2723ee40671c62c126ced3d3fdf0cbd73945129090c8005ed",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-main-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/zip-main-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-main-zip.log": {
+      "originalSha256": "c29784e227f6d72b858d34b1e5f412db3172d2165833dd63e83eb81722261643",
+      "publicFile": "logs/zip-main-zip.txt",
+      "publicSha256": "17a1b399faaa041f7b4506181e794bf94ba19d60e7cffe461b8ba1dd5d7f5a57",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-main.log": {
+      "originalSha256": "8260e71d530ac87e5ce874e2f5aaffd37d4875f51af390042bdc4a13fb248e0a",
+      "publicFile": "logs/zip-main.txt",
+      "publicSha256": "a3e94605d85ad01cbffefa1a985d6834d9f8e87aa6404630e4e84a4c4f853692",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-native-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/zip-native-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-ui-build.log": {
+      "originalSha256": "5a4409d056e5cdccb9c6dcbc91f0f695b6cd9f5968f7366ce2e4f1bc989ac510",
+      "publicFile": "logs/zip-ui-build.txt",
+      "publicSha256": "4a223fbea18079306cbb76d8420722d910ff693ee0ba0eb54d1c76286ca439de",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-ui-lint.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/zip-ui-lint.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-ui-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/zip-ui-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    },
+    "zip-ui.log": {
+      "originalSha256": "cd15ec893a0974a8b4b8d972d4f66f0dc98ceeac2f3c651b1b45ab1c71ad407d",
+      "publicFile": "logs/zip-ui.txt",
+      "publicSha256": "98b748e48016e4aadffde568c6aeeba564e1489388f73c607d49a08a727f391f",
+      "redactions": [
+        "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
+      ]
+    }
+  }
+}

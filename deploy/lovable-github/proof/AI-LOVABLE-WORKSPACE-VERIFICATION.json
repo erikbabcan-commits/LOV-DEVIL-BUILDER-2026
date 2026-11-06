@@ -1,0 +1,235 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-14 partial FORGE-101/102/103/104/107/303/1103; local Lovable real AI and Hono project UI",
+  "previousGoalTurn": "progress: WS-13 precise build repair and immutable review; this phase advances local Lovable wiring",
+  "main": {
+    "passed": 851,
+    "skipped": 108,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "all three empty"
+  },
+  "ui": {
+    "passed": 86,
+    "files": 11,
+    "verification": "strict TypeScript, clean targeted ESLint, client/SSR/Workers build; no new dependency"
+  },
+  "checks": [
+    "main and strict native/CLI TypeScript with hybrid fixture and portable controller graph",
+    "main production build and Lovable client/SSR/Workers build",
+    "main ESLint0errors40existingwarnings; new Lovable source/test ESLint0errors0warnings",
+    "React StrictMode/account-change/actual review tests",
+    "git diff --check"
+  ],
+  "logs": {
+    "main": {
+      "localLog": "/tmp/lov-hybrid-ai-main-final.log",
+      "sha256": "aa94866cfcec67d2caa887e8c34fa44f7f7b0eff12920cd1df265526500defdc"
+    },
+    "main-types": {
+      "localLog": "/tmp/lov-hybrid-ai-main-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-types": {
+      "localLog": "/tmp/lov-hybrid-ai-native-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "main-lint": {
+      "localLog": "/tmp/lov-hybrid-ai-main-lint-final.log",
+      "sha256": "9913dc6871c039bd8281c3a5125c739af1caef9f474345ee77848f94349a79e2"
+    },
+    "main-build": {
+      "localLog": "/tmp/lov-hybrid-ai-main-build-final.log",
+      "sha256": "c7995cbb6fa6b0df2513e9fa46fe47fb1b4a0748e35d79e678b9a00bd6911848"
+    },
+    "ui": {
+      "localLog": "/tmp/lov-hybrid-ai-ui-final.log",
+      "sha256": "529cf71c65ea966313e20b55833ca559881a58f58766e2fd180250926824118d"
+    },
+    "types": {
+      "localLog": "/tmp/lov-hybrid-ai-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lint": {
+      "localLog": "/tmp/lov-hybrid-ai-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build": {
+      "localLog": "/tmp/lov-hybrid-ai-build-final.log",
+      "sha256": "9179f68c989ce9888bfbaf609f5d78e334731ee28ccfb17dd70062d0db904aca"
+    },
+    "pg16": {
+      "localLog": "/tmp/lov-hybrid-ai-pg16-final.log",
+      "sha256": "f5d17c223ff5a2f23d1048f39e9c456a26e8120be3bc0768a6ac95e907b7c9bd"
+    },
+    "pg18": {
+      "localLog": "/tmp/lov-hybrid-ai-pg18-final.log",
+      "sha256": "b363803ae65c31a82897d1b270e2d2ad7523c91958b34db5184374381e354de8"
+    }
+  },
+  "assetScan": [
+    {
+      "directory": "dist/assets",
+      "files": 4,
+      "searchedMarkers": [
+        "HONO_BASIC_AUTH",
+        "HONO_BASE_URL",
+        "GITHUB_BRIDGE_SECRET",
+        "GITHUB_CLOUD_CLIENT_ID",
+        "GITHUB_CLOUD_CALLBACK_URL",
+        "CLOUD_AUTH_ISSUER",
+        "AI_PROVIDER_PRICES_JSON",
+        "makeCloudAuth",
+        "makeHonoProxy"
+      ],
+      "matches": []
+    },
+    {
+      "directory": "../lovable-github-local/.output/public",
+      "files": 17,
+      "searchedMarkers": [
+        "HONO_BASIC_AUTH",
+        "HONO_BASE_URL",
+        "GITHUB_BRIDGE_SECRET",
+        "GITHUB_CLOUD_CLIENT_ID",
+        "GITHUB_CLOUD_CALLBACK_URL",
+        "CLOUD_AUTH_ISSUER",
+        "AI_PROVIDER_PRICES_JSON",
+        "makeCloudAuth",
+        "makeHonoProxy"
+      ],
+      "matches": []
+    }
+  ],
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "screenshots": {
+    "hybrid-ai-after-desktop.jpg": {
+      "sha256": "8e87220ab6bde8cb999a60f0edb7796ae55f3e44acb2aea5e96bd21fa87913d9",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "hybrid-ai-after-mobile.jpg": {
+      "sha256": "2b71a760e7080183a82e3afbf1a929976a1a07dc8e8783d3a1dcd568a3570bd5",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "hybrid-ai-before-desktop.jpg": {
+      "sha256": "fcc797bde427ba0c881212ce8ea4268794e028644b6b3a2b0b4fdda30e8fb591",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "hybrid-ai-bob-mobile.jpg": {
+      "sha256": "de3c49eed5ed3dfc298c8820005232cd3b6821d5f9ba67fd430077d1e4ffc7c9",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "hybrid-ai-cold-desktop.jpg": {
+      "sha256": "889f5713cd8d5e2d77c2a384076b1103fd310edc24bd7f01051df73164f9ceca",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "hybrid-ai-cold-mobile.jpg": {
+      "sha256": "3390be1fea11b4bbd3a70473f2e38e9d1f9e5de305740a9d4981aa82f2a7f167",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "hybrid-ai-diff-mobile.jpg": {
+      "sha256": "f22e62c4bd4a3a4f7d0ac3b53f05b5766de22b5e7892bcc9f02134f4910456cc",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "hybrid-ai-history-desktop.jpg": {
+      "sha256": "b4896742819abc20d7c3cdcd5cb9fc4c073c7fd86d3ec49cdcddcf32f2938ef8",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "hybrid-ai-question-desktop.jpg": {
+      "sha256": "aa6e1c0c19556101393c46def88c9c6461016861ca28dc462439dc1d9f6fd522",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "hybrid-ai-question-mobile.jpg": {
+      "sha256": "e0c7e96d3299c726c3b6b08884f83480658934032eba356d79373442d270dfb3",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "hybrid-ai-recovery-mobile.jpg": {
+      "sha256": "4adfe8ae8b62096aeb8089203b0894af6637a4131a4235d39ab8f6520b89c179",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "hybrid-ai-rejected-mobile.jpg": {
+      "sha256": "e4b7c484d02e20f7b8321a93331b183b8c10ffaf6d152afa818c044645d8573a",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "hybrid-ai-reloaded-mobile.jpg": {
+      "sha256": "f819ff18d0544ef4fe9f070680723c21672f0fcf3f718f37cb60e7065f741a49",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "hybrid-ai-usage-mobile.jpg": {
+      "sha256": "4bb32802df56e58a254251bec7c88b88371feddd0ea499e072098b5a023ee165",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    }
+  },
+  "overlay": {
+    "manifest": "../MANIFEST.json",
+    "manifestSha256": "19ba279256d098e51a6f04d3d85b4768f02f37bdc6899203e6cad24890eea111",
+    "files": 58,
+    "sourceAndUnitFiles": 41,
+    "visualFixtureFiles": 17,
+    "mirrorHashes": "all58 match",
+    "pristineExport": "10 original hashes verified unchanged",
+    "status": "local-only; not uploaded to Lovable"
+  },
+  "sourceHashes": {
+    "tests/fixtures/hybridAiBackend.ts": "3a2eab75da95a64d5330e24e2c5247ac78430db459eeaa4808e11da78345c361",
+    "tests/fixtures/hybridAiUiServer.ts": "9a619776ca629827ece23c335c32f7231ffb59aa221b082c116bba6c88864f63",
+    "tests/integration/cloudBridgePostgres.test.ts": "81589de88451cb992a01a8e5d45730e34113ccd3e877623e04cc358e2c18999f"
+  },
+  "behavior": [
+    "selected catalog model and exact opt-in fallback reset",
+    "bounded validated SSE with matching run terminal, questions without mutation",
+    "separate source-bound proposal and actual diff, immutable approval once",
+    "real compile and sandboxed preview without same-origin",
+    "Hono create/open/save/copy and CAS conflict preserves local work",
+    "owner-scoped native IndexedDB and explicit recoverable local copies",
+    "synchronous owner remount, stale response cancellation and expected session owner guard",
+    "local stash failure blocks destructive navigation"
+  ],
+  "browser": {
+    "data": "ephemeral synthetic ES256 Alice/Bob Cloud session, actual proxy/Hono, pg-mem, deterministic provider; real trusted host compiler",
+    "primaryFlow": "open5files -> compile blue -> auto question ->1CSSline diff without mutation -> approve v2 -> compile red -> save rev2 -> reload/reopen red and chat",
+    "additional": "Bob sees no Alice project/preview/drafts; Alice restored; dirty same-ID open preserves separate local copy which reopens/compiles; historyv1blue -> another patch -> reject leavesblue and2versions -> historyv2red",
+    "colors": {
+      "primaryBefore": "rgb(37, 99, 235)",
+      "primaryAfterAndReopened": "rgb(220, 38, 38)",
+      "secondaryUnchanged": "rgb(100, 116, 139)"
+    },
+    "usageBeforeRepeat": {
+      "tasks": 2,
+      "reportedCalls": 5,
+      "inputTokens": 150,
+      "outputTokens": 100,
+      "totalTokens": 250
+    },
+    "usageAfterHistoryRejectRepeat": {
+      "tasks": 3,
+      "reportedCalls": 8,
+      "inputTokens": 240,
+      "outputTokens": 165,
+      "totalTokens": 405
+    },
+    "viewports": [
+      "1280x720 desktop",
+      "390x844 mobile,document390"
+    ],
+    "errors": "Final cold desktop18/mobile19 had no warnings/errors. Earlier fixture/HMR issues corrected: QueryClient, Node Request init, context/lifecycle.",
+    "cleanup": "owned tabs16-19 closed, viewport reset; owned5191/8789 servers stopped; listeners absent",
+    "limitation": "No live LLM inference, model-quality/latency or production-isolation claim"
+  },
+  "stripeAgent": {
+    "oauthLoginVerified": true,
+    "authStatus": "o_auth",
+    "account": "Eab-EU s.r.o. sandbox",
+    "permission": "Read",
+    "callableToolsInCurrentChat": false,
+    "mcpApiToolCallVerified": false,
+    "appBillingImplemented": false
+  },
+  "scope": "No commit/deployment/production env/schema changes, paid inference, hosted Lovable edits or credit spend. No generated file edits or new libraries.",
+  "open": [
+    "hosted upload/build and actual Cloud identity binding/Secrets/Hono deployment within30credit floor",
+    "live model quality/latency/evals",
+    "actual ZIP/publish and generated-app fullstack runtime",
+    "app billing/attachments/vision and remainingM1-M6 backlog"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "phase": "WS-14 local Lovable AI workspace through verified Cloud proxy/Hono",
+  "runner": "deploy/test-projects-native.py",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 86,
+  "migrations": "001-009 unchanged",
+  "provider": "synthetic HTTP with all provider keys empty; actual adapter, local trusted HostExecutor compile, real PostgreSQL",
+  "clusters": "private loopback SCRAM; stopped and removed",
+  "logs": {
+    "lovable-ai-postgres16-tests.log": "f5d17c223ff5a2f23d1048f39e9c456a26e8120be3bc0768a6ac95e907b7c9bd",
+    "lovable-ai-postgres18-tests.log": "b363803ae65c31a82897d1b270e2d2ad7523c91958b34db5184374381e354de8"
+  },
+  "coverage": "Previous84 plus portable ForgeController question/patch/review/compile/CAS save/reopen and durable2tasks5calls, two-client conflict/copy/owner denial/identity revocation with no AI charge."
+}

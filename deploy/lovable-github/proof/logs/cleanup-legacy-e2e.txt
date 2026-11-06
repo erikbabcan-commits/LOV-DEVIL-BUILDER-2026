@@ -1,0 +1,17 @@
+
+Running 6 tests using 1 worker
+
+(node:56075) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/6] tools/ci/app.spec.ts:24:1 › app sa načíta bez JS chýb (home)
+[2/6] tools/ci/app.spec.ts:30:1 › vnútorná test suite: všetky testy zelené
+tools/ci/app.spec.ts:30:1 › vnútorná test suite: všetky testy zelené
+SUITE: 112/112 zelených
+
+[3/6] tools/ci/app.spec.ts:38:1 › D1 regresia: editor uloží zobrazený súbor aj bez predchádzajúceho výberu
+[4/6] tools/ci/app.spec.ts:56:1 › D2 regresia: read-only história sa nedá prepísať cez editor
+[5/6] tools/ci/app.spec.ts:72:1 › D3 regresia: multi-block roundtrip zachová obsah, poradie a sémantiku
+[6/6] tools/ci/app.spec.ts:99:1 › smoke + vizuálna baseline: workspace po generovaní (desktop aj mobile)
+  6 passed (1.0m)

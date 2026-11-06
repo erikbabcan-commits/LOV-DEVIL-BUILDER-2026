@@ -1,0 +1,17 @@
+{
+  "phase": "WS-11 intent/read-only streaming",
+  "runner": "deploy/test-projects-native.py",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 78,
+  "migrations": "001-009, unchanged",
+  "provider": "actual Mistral adapter with synthetic HTTP/SSE, no live requests; all keys empty",
+  "clusters": "private loopback SCRAM; stopped and removed",
+  "logs": {
+    "ai-intent-postgres16-tests.log": "737dffa08f7dfb098e4607c2dde989dd61621abf9ab0da6d8b445cb8cd0c7a95",
+    "ai-intent-postgres18-tests.log": "c10235b1d8eed9ce10c2f4fb3e88c202198862d5db66185c70391d8955b8a6bb"
+  },
+  "coverage": "Previous76 plus auto classifier/streamed read-only answer with unchanged project JSONB/revision,55input32output/2calls/one monthly task, and failed run retaining one spent classifier call without generation or raw output leak."
+}

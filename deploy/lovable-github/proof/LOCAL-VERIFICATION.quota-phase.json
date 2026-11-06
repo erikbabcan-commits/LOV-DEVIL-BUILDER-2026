@@ -1,0 +1,128 @@
+{
+  "date": "2026-11-06",
+  "main": {
+    "passed": 667,
+    "skipped": 70,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "mistralKey": "empty"
+  },
+  "ui": {
+    "passed": 63,
+    "source": "../lovable-github-local"
+  },
+  "checks": [
+    "TypeScript both repos",
+    "targeted ESLint both repos",
+    "main Vite production build",
+    "UI client/SSR/Workers build",
+    "git diff --check",
+    "public assets checked for server bridge/infra markers"
+  ],
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "scope": "local only; no commits, hosted edits, deployment or live GitHub writes",
+  "logs": {
+    "mainTests": {
+      "localLog": "/tmp/lov-ai-quota-main-tests-final.log",
+      "sha256": "03bc689ac886f9302d385fbe873dfb045575db377950a5adbf5fb329401d960a"
+    },
+    "mainBuild": {
+      "localLog": "/tmp/lov-ai-quota-main-build-final.log",
+      "sha256": "3debc3f47c430674319a2b62db2298428785788b6683e06b48aa0e8c1b002a09"
+    },
+    "mainLint": {
+      "localLog": "/tmp/lov-ai-quota-main-lint-final.log",
+      "sha256": "8e00a07f06f9831795b39e265e79f6549089cff62e90614b4b0377d00aa0ef13"
+    },
+    "uiTests": {
+      "localLog": "/tmp/lov-ai-quota-lovable-tests.log",
+      "sha256": "70196039bc7aadaed9c66630adc929911807f7fef764f9e7a637f6930f36d543"
+    },
+    "uiBuild": {
+      "localLog": "/tmp/lov-ai-quota-lovable-build.log",
+      "sha256": "6e0e941bf5803c6ee001163a32cae82699479ee7cdb11194c862b2ddfa4d1c04"
+    },
+    "uiTypecheck": {
+      "localLog": "/tmp/lov-ai-quota-lovable-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "uiLint": {
+      "localLog": "/tmp/lov-ai-quota-lovable-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "nativeTypecheck": {
+      "localLog": "/tmp/lov-ai-quota-native-typecheck-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "nativeTestLint": {
+      "localLog": "/tmp/lov-ai-quota-native-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "visualFixtureLint": {
+      "localLog": "/tmp/lov-ai-quota-fixture-lint.log",
+      "sha256": "a4b2e84569a8e8a43f794d6ed9ad39440995480fb682f77b2c6d825276129b3c"
+    }
+  },
+  "runtime": {
+    "configuration": "default-off OAuth and export switches; fail-fast before DB",
+    "preflight": "configuration only by default; optional READ ONLY schema probe",
+    "operatorCliStrictTypecheck": "passed",
+    "newUnitAndCliTests": 25,
+    "newPostgresTests": 3,
+    "notes": "Interrupted parallel suite was incomplete and showed load-related timeouts; final serial suite passed. CLI scenario budget matches two bounded 15s subprocesses; application/provider/UI timeouts unchanged.",
+    "lint": {
+      "errors": 0,
+      "existingWarnings": 3
+    },
+    "docker": "COPY for CLI/helpers prepared; new image not built"
+  },
+  "storage": {
+    "defaultBytes": 67108864,
+    "defaultRetainedProjects": 100,
+    "billing": "pilot operator policy, not plan entitlements",
+    "accounting": "UTF-8 PostgreSQL workspace JSONB text including trash; not physical disk",
+    "writes": "pinned connection, READ COMMITTED, owner row lock, CAS, rollback",
+    "migration": "none",
+    "visual": "synthetic loopback desktop and 390px mobile; no horizontal overflow; quota denial preserves local project",
+    "lint": {
+      "errors": 0,
+      "warnings": 46
+    },
+    "testHarness": "Earlier loaded runs hit 5s test budgets. Pagination now seeds fixtures directly; save/trash and restore are independent UI scenarios. Final whole suite passed with unchanged application and test timeouts.",
+    "sandbox": "cleanup quarantine moved to catch, cleanup remains in finally; 16 regressions passed; no fresh Docker run"
+  },
+  "aiQuota": {
+    "durableAdmission": "pinned READ COMMITTED transaction; owner row lock; conditional monthly update; no provider in transaction",
+    "countedUnit": "one admitted generation or first-AI autofix run, including failed/cancelled admitted work; not tokens or monetary cost",
+    "newMigration": false,
+    "localBudget": "pre-inference discard is idempotent and UTC-day safe; cancelled provider retains concurrency until actually stopped",
+    "http": "validated input before consume; no schema/body/secret/provider/rate/concurrency preflight charges; generic quota failure responses",
+    "ui": "main badge/library meter and typed errors; existing Lovable connection panel meter with owner binding and validated data",
+    "verification": "667 main tests passed; 63 UI tests; 48 native PG tests per version; no timeout increase",
+    "intermediateAttempt": "One combined focus run timed out an existing long project-sync scenario under load. Final focused and full serial runs passed with original budgets.",
+    "mainLint": {
+      "errors": 0,
+      "warnings": 41
+    },
+    "uiSourceLint": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "visualFixtureLint": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "baseExport": "10 recorded source fingerprints unchanged",
+    "hosted": "unchanged, 30-credit reserve retained",
+    "open": "token/cost ledger, distributed budget, provider retry/failover, billing and live Cloud/Hono activation"
+  },
+  "screenshots": {
+    "ai-quota-lovable-bob-mobile.png": "24167d02ba0f249808d1ccfcf07f8cb3d08a30dafb2f5b66ba884603feb4f69e",
+    "ai-quota-lovable-desktop.png": "d83d9904d23793beb6ca1d3e28d3a7f2f9c2b0d60d510e3b017f4629f51a69fc",
+    "ai-quota-lovable-full-mobile.png": "1355821fb41dd9bc5e01b6b2352e7e30212f2795a99580d66ee334827ed4fd88",
+    "ai-quota-lovable-mobile.png": "92e88edc38f24889953842e4d4530bac130de2ebd048825adbd304439b4873dd",
+    "ai-quota-main-bob-mobile.png": "05918f139be7ade8a3e382dccf6a40186c83d2e7b3b6e645f61c991b81fc7456",
+    "ai-quota-main-mobile.png": "851a687f8ec5af817fd740dffd826dd4aec2fc25e1bd97bb1f5a4e029a484388",
+    "ai-quota-rejected-desktop.png": "c3d259a9cd60871637710dbbee5b507aef2f83caa482e64199416591141e5714"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-9 providers / exact backup consent / bounded retries; partial FORGE-101/106/1103",
+  "main": {
+    "passed": 766,
+    "skipped": 95,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "Mistral/OpenAI/Anthropic empty"
+  },
+  "ui": {
+    "passed": 68,
+    "typecheck": true,
+    "targetedLint": "clean",
+    "clientSsrWorkersBuild": true
+  },
+  "checks": [
+    "main and strict native/CLI TypeScript",
+    "main production build",
+    "main ESLint 0 errors / 41 baseline warnings",
+    "27 overlay fingerprints match local UI",
+    "10 pristine fingerprints unchanged",
+    "infra/price markers absent in public assets; four provider key-name occurrences are existing secret-detector regex patterns, no runtime credentials",
+    "git diff --check"
+  ],
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "logs": {
+    "main-tests": {
+      "localLog": "/tmp/lov-ai-providers-main-tests-final.log",
+      "sha256": "926b5fbf9d875f4f28db3867ff5681987c0f734eb8ad66e3589fe6e364f53c0c"
+    },
+    "types": {
+      "localLog": "/tmp/lov-ai-providers-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-types": {
+      "localLog": "/tmp/lov-ai-providers-native-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build": {
+      "localLog": "/tmp/lov-ai-providers-build-final.log",
+      "sha256": "1f87ff60ea503185084a3b3a2d6dec73254f09b2a55721a9c4fad931daccdd94"
+    },
+    "lint": {
+      "localLog": "/tmp/lov-ai-providers-lint-final.log",
+      "sha256": "0e711139ca964b57294a357c01ee5e18e1ea8f94405d9df9cab3a3fedb884013"
+    },
+    "ui-tests": {
+      "localLog": "/tmp/lov-ai-providers-ui-tests-final.log",
+      "sha256": "c0255e2a99f728050cf239d099824d5ea17297252d7a23d05c433661b4481f9b"
+    },
+    "ui-types": {
+      "localLog": "/tmp/lov-ai-providers-ui-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ui-lint": {
+      "localLog": "/tmp/lov-ai-providers-ui-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ui-build": {
+      "localLog": "/tmp/lov-ai-providers-ui-build-final.log",
+      "sha256": "a29694bbbd6b2105b9ef9581524c470c5b849c544ecd668d011e9f921cda3198"
+    }
+  },
+  "screenshots": {
+    "ai-models-direct-usage-mobile.jpg": {
+      "sha256": "d5749f584c01d5f4a601bc80d709ae841262512218c0bf2b9bf4c496006e7760",
+      "file": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "ai-models-menu-mobile.jpg": {
+      "sha256": "b1882ce33a8835159a94fd46455f818aebbe6bd6eef472d7b44f3c6b13404249",
+      "file": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "ai-models-menu-desktop.jpg": {
+      "sha256": "9d1cee215905ba2a7ddb68c4321affb65a7c1d458c49adba1a5d2cc4322b4c7d",
+      "file": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "ai-failover-usage-desktop.jpg": {
+      "sha256": "d7cce4234b1b1e51169394247c71b9ab10afc116ecd775a51abf7195ccacf6c9",
+      "file": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "ai-failover-console-desktop.jpg": {
+      "sha256": "21387096d65712ef7d5cc8d835fddd664f72792d191702c43b922f52e60d643b",
+      "file": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    }
+  },
+  "browser": {
+    "fixture": "local synthetic Alice, Hono SSE and durable in-memory meter; mock completions, actual adapter protocols tested in unit/native suite",
+    "desktop": "Mistral503, retry, explicit OpenAI fallback, Console and 4calls/2unknown/one task",
+    "direct": "OpenAI selection adds2calls/one task; final total6calls/4reported/2unknown/2400tokens; proposals rejected, workspace unchanged",
+    "mobile": "CSS390x844; menu rect left12/right342; document390; backup unchecked after model change; Escape focus=modelChip",
+    "cleanup": "viewport reset, local tab closed; owned ports8788 and5176 stopped"
+  },
+  "scope": "local only; no commits/deployment/production migration, live inference, real price configuration, hosted edits or Lovable credits",
+  "open": [
+    "live latency and inference eval",
+    "hosted Lovable AI generation wiring, secrets and identity binding",
+    "full M1 billing/auth/publish/runtime",
+    "full backlog M2-M6"
+  ]
+}

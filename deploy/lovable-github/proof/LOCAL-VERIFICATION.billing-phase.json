@@ -1,0 +1,179 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-18 default-off sandbox Stripe subscription foundation + fresh database entitlements",
+  "previousGoalTurn": "progress: WS-17 immutable main editor and verification completed",
+  "main": {
+    "passed": 1001,
+    "skipped": 157,
+    "filesPassed": 78,
+    "filesSkipped": 5,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "all three empty"
+  },
+  "billing": {
+    "backendUnitPassed": 61,
+    "uiUnitPassed": 19,
+    "nativeCases": 47,
+    "providerBoundary": "synthetic, official SDK signatures/normalization, no external Stripe HTTP"
+  },
+  "postgres": {
+    "versions": [
+      "16.15",
+      "18.6"
+    ],
+    "passedEach": 135,
+    "coverage": "Previous88 plus47 billing canonicalwebhook/auth/quotas/crossowner/idempotency/rollback/concurrency scenarios",
+    "migrations": "001-010;010 new and replay-safe",
+    "cleanup": "both private loopback SCRAM clusters stopped and removed"
+  },
+  "checks": [
+    "main TypeScript",
+    "strict native/CLI/fixture TypeScript",
+    "ESLint0errors33baselinewarnings",
+    "production build",
+    "git diff --check"
+  ],
+  "browser": {
+    "origin": "http://localhost:5177/",
+    "backend": "loopback8789, syntheticgateway,Hono,SDKsignedevents,pg-mem",
+    "verified": [
+      "Free plan monthly/year prices and interval selection",
+      "signed syntheticcanonicalevent activatesPro/limit200",
+      "scheduledcancellation retainsPrountilend",
+      "BobaccountremainsFree",
+      "Alice downgrade returnsFree/limit10",
+      "disabledconfiguration showsoverifedFree with no checkout/portal actions",
+      "finalnavigationwarn/errorlogs empty"
+    ],
+    "notVerified": [
+      "actual Stripe Checkout/Portal visit or payment",
+      "live/hosted/LovableCloudbillingflow"
+    ],
+    "newAiCalls": 0,
+    "existingProjectHistory": "nativecontract checks unaffected;browserfixtureemptyproject",
+    "tab": "24 ephemeral, automatic turncleanup",
+    "viewport": "reset",
+    "atOriginalCuaSessionNotVerified": [
+      "actual Stripe Checkout/Portal visit or payment",
+      "live/hosted/LovableCloudbillingflow",
+      "exact390CSSpx: requestedviewportoverride returned866/1195 logicalwidth, so compactcapturesnotclaimedas390gate"
+    ],
+    "resolvedByCleanup": {
+      "gate": "headless390CSSpx",
+      "width": 390,
+      "height": 844,
+      "screenshot": "billing-mobile-headless.png",
+      "sha256": "4ac579bedbf13903b5f8d4e3683bcc744ee1804dca8da3d70ef3b946641b41c7",
+      "evidence": "CLEANUP-VERIFICATION.json",
+      "note": "Later real UI test: document width390, no dialog overflow, focused visible CTA and selected year; controlled GET-only API, no payment."
+    }
+  },
+  "uiLovable": {
+    "phaseUnchanged": "WS-16",
+    "historicalUnitPassed": 146,
+    "rerunThisPhase": false,
+    "overlayEntries": 68,
+    "allMirrorAndOverlayHashesMatch": true,
+    "pristineHashesUnchanged": 10
+  },
+  "limitations": [
+    "sandboxonly;runtime rejects livekey/events andConnect",
+    "actual products/prices/portal/webhook configuration pending",
+    "FORGE801/803/804partial;805806/billingCloudbridge/M1-M6open",
+    "manual operatorreconciliation CLI missing for irreversibleunknown results",
+    "Stripe customer/checkout/portal runtime operations defaultdisabled",
+    "SourceEditor deferredchunk remains aboveVite500k warning"
+  ],
+  "userSteering": "AfterfinishingWS18,stopnewfeaturecoding,organizeGitlocal/publicGitHubcommitsmerge,verifylocallyinsteadCI/CD,thenpausecoding",
+  "externalChanges": {
+    "productionOrDeploy": false,
+    "StripeAccountWrites": false,
+    "hostedLovableBuildOrEdit": false,
+    "lovableCreditsSpent": 0
+  },
+  "logs": {
+    "main": {
+      "file": "billing-main.log",
+      "sha256": "4e62f612418a101845fcefe4199506008099b812c9ba310b599dfd6246153fb0",
+      "publicFile": "logs/billing-main.txt",
+      "publicSha256": "e36c8f81a3f3c270c6a556c4111f61f2bec973b2d4df0d0a369e298d950ae11a"
+    },
+    "types": {
+      "file": "billing-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/billing-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-types": {
+      "file": "billing-native-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/billing-native-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lint": {
+      "file": "billing-lint.log",
+      "sha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645",
+      "publicFile": "logs/billing-lint.txt",
+      "publicSha256": "2ab7833ce9e223b29434b2184ef0acbbbfa0f1c1e181d989657efcb2aee4ac13"
+    },
+    "build": {
+      "file": "billing-build.log",
+      "sha256": "f367e80c6c37db7d76164ab75fde325c5732480f5207090ff9a81f383919fa6e",
+      "publicFile": "logs/billing-build.txt",
+      "publicSha256": "f367e80c6c37db7d76164ab75fde325c5732480f5207090ff9a81f383919fa6e"
+    },
+    "pg16": {
+      "file": "billing-pg16.log",
+      "sha256": "2f3a0c4b19dda767226a89d9412672540d085b9764a344986ba2ad93da0be5a0",
+      "publicFile": "logs/billing-pg16.txt",
+      "publicSha256": "9cd02bf1d44cf362604389929326e6ca987af5b0945283228a554ddd4349aee3"
+    },
+    "pg18": {
+      "file": "billing-pg18.log",
+      "sha256": "7400cf9b836dac2f4aff1e2585a1065e6b5750ae532ae7fefbbc5173184574b5",
+      "publicFile": "logs/billing-pg18.txt",
+      "publicSha256": "ee037b6437e88d7d493d099c61dd6188059f215a9d065b3e55b45d0ddab79e77"
+    }
+  },
+  "screenshots": {
+    "billing-cancel-mobile.png": {
+      "sha256": "6990bf09c2b91cec41629ac68fc8839609199af6c91aed23900d026deb715480",
+      "pixelWidth": 2657,
+      "pixelHeight": 4168,
+      "format": "JPEG"
+    },
+    "billing-disabled-desktop.png": {
+      "sha256": "00771d43ec9cf86a77c9c1f883eba1b595d4c9b120f99c3240300c1d9461b1d4",
+      "pixelWidth": 2765,
+      "pixelHeight": 4202,
+      "format": "JPEG"
+    },
+    "billing-free-mobile.png": {
+      "sha256": "fec733821682c92d745d401860ad380401539e36ecf86cabbf75e80b106e98d8",
+      "pixelWidth": 1926,
+      "pixelHeight": 4168,
+      "format": "JPEG"
+    },
+    "billing-free-year-desktop.png": {
+      "sha256": "0ce61a9d537bbee934e80268b17b4ffc3381e6ab24a3d5cf4c3ce99021055e3c",
+      "pixelWidth": 1280,
+      "pixelHeight": 720,
+      "format": "JPEG"
+    },
+    "billing-owner-bob.png": {
+      "sha256": "cbaefb329cb607f48c53a88cddcfa69d101bcad6c97a5f37c07c3fdcb7b8d537",
+      "pixelWidth": 2657,
+      "pixelHeight": 4168,
+      "format": "JPEG"
+    },
+    "billing-pro-desktop.png": {
+      "sha256": "fa95b1aa834a5abc4eaa2b78d34c680a374935169196d4eead6a013cc2e7f2e1",
+      "pixelWidth": 1280,
+      "pixelHeight": 720,
+      "format": "JPEG"
+    }
+  },
+  "detailReceipt": "BILLING-VERIFICATION.json",
+  "historicalReceiptNote": "Original WS-18 test counts/source hashes describe that phase. Screenshot format/dimensions corrected during cleanup; later 390px evidence linked separately. Current final-tree gates belong to CLEANUP-VERIFICATION.json."
+}

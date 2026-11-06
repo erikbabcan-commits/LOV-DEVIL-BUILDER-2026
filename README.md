@@ -1,7 +1,7 @@
 # 🔥 LOV-DEVIL BUILDER 2026
 
 > Verejný zdrojový repozitár pre AI builder pilot: React/Vite UI, lokálny Hono
-> backend, generovanie s Mistral a GitHub OAuth integrácia. **Nie je to
+> backend, Mistral/OpenAI/Anthropic providery a GitHub OAuth integrácia. **Nie je to
 > produkčne izolovaná multi-user platforma ani hotová predplatiteľská služba.**
 
 ![status](https://img.shields.io/badge/stav-loopback%20pilot-2563eb) ![UI](https://img.shields.io/badge/UI-SK%2FEN-101b33) ![repo](https://img.shields.io/badge/repozitár-verejný-64748b)
@@ -15,6 +15,16 @@ LOV-DEVIL BUILDER 2026 vyvíja AI editor aplikácií v štýle Lovable.
 `tests/` Vitest/Playwright overenia a `demo/index.html` historickú single-file
 referenciu. Niektoré UI flows sú ukážky alebo používajú mock dáta; produkčné
 nasadenie, billing ani izolácia nedôveryhodných buildov nie sú potvrdené.
+
+Lokálne prírastky WS-3 až WS-18 zahŕňajú immutable projekty, kvóty a metering,
+review AI patchov, obnoviteľný CodeMirror editor, skutočný ZIP a predvolene vypnuté
+sandbox predplatné. Aktuálne výsledky a produkčné limity sú v
+[backlogu](docs/BACKLOG.md), [overení WS-18](docs/WS-18-BILLING.md) a
+[záverečnom lokálnom overení](docs/LOCAL-VERIFICATION-2026-11-06.md).
+
+`src/` je pôvodný hlavný frontend. Novšie Lovable UI sa pripravuje samostatne;
+prenosný overlay a presný postup sú v [Lovable hybrid](docs/LOVABLE-HYBRID.md).
+Spustenie tohto koreňového Vite projektu samo neotvára Lovable frontend.
 
 ## ✨ Demonštrované UI a pilotné funkcie (nie produkčné garancie)
 
@@ -40,7 +50,7 @@ Aktuálny React pilot potrebuje Node.js a lokálnu inštaláciu závislostí:
 ```bash
 npm ci
 npm run typecheck
-npm test
+MISTRAL_API_KEY= OPENAI_API_KEY= ANTHROPIC_API_KEY= npm test -- --exclude '**/liveSmoke.test.ts'
 npm run build
 ```
 
@@ -79,15 +89,19 @@ V historickom deme: **Ctrl+Enter** odoslať · **Ctrl+K** zamerať prompt ·
 
 História `demo/index.html` obsahuje vlastné browserové kontroly. Aktuálny
 React/server kód má samostatné Vitest unit/integration testy a Playwright E2E.
-Použi vyššie uvedené príkazy a [CI workflow](.github/workflows/ci.yml);
-úspech v minulom CI nie je automaticky výsledkom testovania aktuálneho HEAD.
+Použi vyššie uvedené príkazy. [CI workflow](.github/workflows/ci.yml) je iba
+manuálny; aktuálne overovanie prebieha lokálne v testovacích sandboxoch.
+Úspech v minulom CI nie je automaticky výsledkom testovania aktuálneho HEAD.
+Konkrétne výsledky, odtlačky zdrojov a rozsah sandboxov uvádza
+[lokálne overenie z 6. 11. 2026](docs/LOCAL-VERIFICATION-2026-11-06.md).
 
 ## 🏗️ Architektúra prototypu
 
 - **React 18 + Vite + TypeScript + Zustand** — `src/`, `package.json`
-- **Hono server s Mistral providerom a GitHub OAuth pilotom** — `server/`
-- **esbuild bundling na hostiteľovi** — `server/sandbox/builder.ts`; build iba
-  kompiluje vygenerovaný kód, ale **nie je izolovaný proces/kontajner**.
+- **Hono server, providery, Postgres projekty/kvóty a voliteľný Stripe sandbox** — `server/`
+- **Compile-only sandbox** — hostiteľský pilot alebo výslovne nakonfigurovaný
+  súkromný runner s jednorazovými Docker workermi; [rozsah WS-4](docs/WS-4-SANDBOX.md).
+  Toto ešte nie je fullstack runtime s ľubovoľnými npm balíčkami a HMR.
 - **Historická single-file HTML referencia** — `demo/index.html`
 - Design tokens (čierna + modrý akcent), responzívne od iPhone 14
 - Historické demo má stav v objekte `state` a render funkcie (`renderChat`, `renderPreview`, `renderEditor`…)
