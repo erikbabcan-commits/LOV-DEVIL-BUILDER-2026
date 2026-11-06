@@ -294,7 +294,7 @@ describe("real static publication from owned saved snapshot", () => {
     smallService(1000 + Buffer.byteLength(smallHtml) - 1, broken); execute.mockResolvedValue(compiled);
     await service.start("alice", selection); await service.settled();
     const orphan = (await db.query("SELECT artifact_id,state,artifact_bytes FROM publish_jobs WHERE request_id=$1", [selection.requestId])).rows[0];
-    expect(orphan).toMatchObject({ state: "failed", artifact_bytes: null });
+    expect(orphan).toMatchObject({ state: "failed", artifact_bytes: Buffer.byteLength(smallHtml) });
     expect(await readFile(path.join(directory, orphan.artifact_id + ".html"), "utf8")).toBe(smallHtml);
     expect(await service.status("alice", selection.requestId)).toMatchObject({ state: "failed", url: null });
     await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
@@ -303,29 +303,34 @@ describe("real static publication from owned saved snapshot", () => {
     await service.start("alice", next); await service.settled();
     expect((await service.status("alice", next.requestId)).state).toBe("published");
   });
-  it("charges retained temporary bytes and counts hardlinked final/temp storage once", async () => {
-    smallService(1079); execute.mockResolvedValueOnce(failed);
+  it("keeps uncertain temp/final writes conservatively charged without admission inventory", async () => {
+    smallService(1999); execute.mockResolvedValueOnce(failed);
     await service.start("alice", selection); await service.settled();
     const id = (await db.query("SELECT artifact_id FROM publish_jobs WHERE request_id=$1", [selection.requestId])).rows[0].artifact_id;
     const temporary = path.join(directory, "." + id + "." + randomUUID() + ".tmp");
     await writeFile(temporary, Buffer.alloc(80));
     await link(temporary, path.join(directory, id + ".html"));
     expect((await service.artifacts.retainedBytes([id])).get(id)).toBe(80);
+    await db.query("UPDATE publish_jobs SET storage_phase='writing',artifact_bytes=1000 WHERE request_id=$1", [selection.requestId]);
+    const inventory = vi.spyOn(service.artifacts, "retainedBytes");
     await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
-    smallService(1080); execute.mockResolvedValue(compiled);
+    expect(inventory).not.toHaveBeenCalled();
+    smallService(2000); execute.mockResolvedValue(compiled);
     const next = { ...selection, requestId: randomUUID() };
     await service.start("alice", next); await service.settled();
     expect((await service.status("alice", next.requestId)).state).toBe("published");
     expect(await readFile(temporary)).toHaveLength(80); // No orphan cleanup/deletion.
   });
-  it.each(["symlink", "directory"])("fails capacity inspection closed for an owned %s", async kind => {
+  it.each(["symlink", "directory"])("keeps diagnostics and legacy recovery fail-closed for an owned %s", async kind => {
     smallService(); execute.mockResolvedValueOnce(failed);
     await service.start("alice", selection); await service.settled();
     const id = (await db.query("SELECT artifact_id FROM publish_jobs WHERE request_id=$1", [selection.requestId])).rows[0].artifact_id;
     const target = path.join(directory, id + ".html");
     if (kind === "directory") await mkdir(target);
     else { const file = path.join(directory, "unrelated"); await writeFile(file, "private"); await symlink(file, target); }
-    await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_storage_unavailable" });
+    await expect(service.artifacts.retainedBytes([id])).rejects.toMatchObject({ code: "publish_storage_unavailable" });
+    await db.query("UPDATE publish_jobs SET storage_phase='legacy_unknown' WHERE request_id=$1", [selection.requestId]);
+    await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_storage_recovery_required" });
     expect(execute).toHaveBeenCalledTimes(1);
   });
   it("does not inspect a different owner's unknown or symlinked UUID", async () => {

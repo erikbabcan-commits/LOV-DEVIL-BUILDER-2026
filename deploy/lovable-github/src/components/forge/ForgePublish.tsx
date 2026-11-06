@@ -18,20 +18,62 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Btn } from "./ui";
+const rejectedInput: Record<string, number> = {
+  publish_project_conflict: 409,
+  publish_project_not_found: 404,
+  publish_project_invalid: 409,
+  publish_snapshot_sources_required: 409,
+  publish_sources_unsupported: 400,
+  publish_invalid_request: 400,
+  publish_input_limit: 413,
+};
+class PublishCallError extends Error {
+  constructor(
+    readonly status: number,
+    readonly noJobCreated: boolean,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+function sameSelection(left: PublishSelection | null, right: PublishSelection) {
+  return (
+    left?.requestId === right.requestId &&
+    left.projectId === right.projectId &&
+    left.expectedRevision === right.expectedRevision &&
+    left.snapshotId === right.snapshotId &&
+    left.publicConsent === right.publicConsent
+  );
+}
 function PublishDialog() {
   const { state, controller } = useForge(),
     [ready, setReady] = useState<ReturnType<typeof PublishReady.parse> | null>(null),
     [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [job, setJob] = useState<PublishedJob | null>(null);
+    [job, setJob] = useState<PublishedJob | null>(null),
+    [pendingSelection, setPendingSelection] = useState<PublishSelection | null>(null);
   const lifetime = useRef(new AbortController()),
     running = useRef(false),
     workspace = state.workspace,
-    jobWorkspace = useRef<typeof workspace | null>(null),
+    jobScope = useRef<{
+      workspace: typeof workspace;
+      revision: number;
+      previousSources: boolean;
+      controller: typeof controller;
+    } | null>(null),
     owner = controller.owner,
     key = "forge-publish:v1:" + encodeURIComponent(owner) + ":" + encodeURIComponent(state.id);
+  const activeController = useRef(controller);
+  activeController.current = controller;
   useEffect(() => {
+    setReady(null);
+    setJob(null);
+    setError("");
+    setConsent(false);
+    setBusy(false);
+    running.current = false;
+    setPendingSelection(readPendingPublish(key));
     const abort = new AbortController();
     lifetime.current = abort;
     void honoFetch("publish", { signal: abort.signal, expectedUserId: owner })
@@ -45,56 +87,111 @@ function PublishDialog() {
           setError(e instanceof Error ? e.message : "Publikovanie sa nepodarilo overiť.");
       });
     return () => abort.abort();
-  }, [owner]);
+  }, [owner, controller, key]);
   const snapshot = workspace.snapshots.find((s) => s.id === workspace.liveId),
     supported = !!snapshot?.sourceFiles && workspace.files.some((f) => f.name === "src/main.tsx");
-  async function call(path: string, body?: unknown) {
+  async function call(path: string, body?: unknown, signal = lifetime.current.signal) {
+    const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(15000)]);
     const response = await honoFetch(path, {
-      signal: AbortSignal.any([lifetime.current.signal, AbortSignal.timeout(15000)]),
+      signal: requestSignal,
       expectedUserId: owner,
       ...(body === undefined ? {} : { method: "POST", body }),
     });
-    if (!response.ok)
-      throw new Error(
-        response.status === 409
-          ? "Serverová verzia sa zmenila alebo publikovanie vyžaduje opätovnú kontrolu."
-          : response.status === 413
-            ? "Kapacita publikácií je vyčerpaná."
-            : "Publikovanie teraz nie je dostupné. Rozpracovaný projekt zostal zachovaný.",
+    if (requestSignal.aborted || !current()) throw new Error("aborted");
+    if (!response.ok) {
+      const data: unknown = await response.json().catch(() => null);
+      const code =
+        data && typeof data === "object" && "error" in data && typeof data.error === "string"
+          ? data.error
+          : "";
+      const noJobCreated =
+        path === "publish" && body !== undefined && rejectedInput[code] === response.status;
+      throw new PublishCallError(
+        response.status,
+        noJobCreated,
+        noJobCreated
+          ? "Uložená verzia sa zmenila alebo jej zdroje nie sú platné. Obnov a skontroluj projekt; novú publikáciu potvrď samostatne."
+          : response.status === 409
+            ? "Serverová verzia sa zmenila alebo publikovanie vyžaduje opätovnú kontrolu."
+            : response.status === 413
+              ? "Kapacita publikácií je vyčerpaná."
+              : "Publikovanie teraz nie je dostupné. Rozpracovaná požiadavka zostala zachovaná.",
       );
-    return PublishJob.parse(await response.json());
+    }
+    const value = PublishJob.parse(await response.json());
+    if (requestSignal.aborted || !current()) throw new Error("aborted");
+    return value;
   }
   function current() {
     return (
       !lifetime.current.signal.aborted &&
+      activeController.current === controller &&
       controller.owner === owner &&
       controller.get().id === state.id
     );
   }
-  function selectionCurrent(selection: PublishSelection, captured: typeof workspace) {
-    const live = controller.get();
-    return (
-      current() &&
-      live.id === selection.projectId &&
-      live.revision === selection.expectedRevision &&
-      live.workspace === captured &&
-      live.workspace.liveId === selection.snapshotId &&
-      !live.dirty &&
-      !live.editor &&
-      !live.pending
-    );
-  }
-  async function observe(selection: PublishSelection, create: boolean, retryBuilding = false) {
-    const captured = controller.get().workspace;
+  async function observe(selection: PublishSelection, recovery: boolean) {
+    const captured = controller.get(),
+      signal = lifetime.current.signal;
+    const receiptText = sessionStorage.getItem(key);
+    const previousSources =
+      captured.dirty ||
+      captured.revision !== selection.expectedRevision ||
+      captured.workspace.liveId !== selection.snapshotId;
     function requireSelection() {
-      if (!selectionCurrent(selection, captured))
+      const live = controller.get();
+      if (
+        signal.aborted ||
+        !current() ||
+        live.id !== selection.projectId ||
+        live.workspace !== captured.workspace ||
+        live.revision !== captured.revision ||
+        live.busy ||
+        live.editor ||
+        live.pending ||
+        (!recovery &&
+          (live.dirty ||
+            live.revision !== selection.expectedRevision ||
+            live.workspace.liveId !== selection.snapshotId))
+      )
         throw new Error("Pracovná verzia sa zmenila. Publikácia patrí pôvodnej uloženej verzii.");
     }
+    function clearMatchingReceipt() {
+      if (
+        receiptText !== null &&
+        sessionStorage.getItem(key) === receiptText &&
+        sameSelection(readPendingPublish(key), selection)
+      )
+        sessionStorage.removeItem(key);
+      setPendingSelection(readPendingPublish(key));
+    }
+    async function submitOriginal() {
+      requireSelection();
+      try {
+        return await call("publish", selection, signal);
+      } catch (error) {
+        requireSelection();
+        if (error instanceof PublishCallError && error.noJobCreated) {
+          clearMatchingReceipt();
+          setConsent(false);
+        }
+        throw error;
+      }
+    }
     requireSelection();
-    let value = await call(
-      create ? "publish" : "publish/" + selection.requestId,
-      create ? selection : undefined,
-    );
+    let value: PublishedJob,
+      resumeBuilding = recovery;
+    if (recovery) {
+      try {
+        value = await call("publish/" + selection.requestId, undefined, signal);
+      } catch (error) {
+        requireSelection();
+        // A missing GET is uncertain: only this explicit action can retry the original POST/UUID.
+        if (!(error instanceof PublishCallError) || error.status !== 404) throw error;
+        resumeBuilding = false;
+        value = await submitOriginal();
+      }
+    } else value = await submitOriginal();
     const start = Date.now();
     while (current()) {
       requireSelection();
@@ -105,24 +202,27 @@ function PublishDialog() {
         value.revision !== selection.expectedRevision
       )
         throw new Error("Výsledok patrí inej verzii projektu.");
-      if (retryBuilding && value.state === "building") {
-        // A confirmed existing job may need to reclaim an expired server build lease.
-        // The stored selection and UUID remain unchanged; never create a replacement job here.
-        retryBuilding = false;
-        value = await call("publish", selection);
+      if (resumeBuilding && value.state === "building") {
+        resumeBuilding = false;
+        value = await submitOriginal();
         continue;
       }
       if (value.state === "published") publicationUrl(value, ready!.publicOrigin!);
-      // A verified terminal failure is safe to replace. Keep uncertain/building attempts recoverable.
-      if (value.state === "failed" && readPendingPublish(key)?.requestId === selection.requestId)
-        sessionStorage.removeItem(key);
-      jobWorkspace.current = captured;
+      if (value.state !== "building") {
+        clearMatchingReceipt();
+        setConsent(false);
+      }
+      jobScope.current = {
+        workspace: captured.workspace,
+        revision: captured.revision,
+        previousSources,
+        controller,
+      };
       setJob(value);
       if (value.state !== "building") break;
       if (Date.now() - start > 120000)
         throw new Error("Publikovanie pokračuje na serveri. Výsledok over tlačidlom Overiť stav.");
       await new Promise<void>((resolve, reject) => {
-        const signal = lifetime.current.signal;
         const abort = () => {
           clearTimeout(timer);
           reject(new Error("aborted"));
@@ -134,7 +234,7 @@ function PublishDialog() {
         signal.addEventListener("abort", abort, { once: true });
         if (signal.aborted) abort();
       });
-      value = await call("publish/" + selection.requestId);
+      value = await call("publish/" + selection.requestId, undefined, signal);
     }
   }
   async function publish() {
@@ -151,9 +251,18 @@ function PublishDialog() {
     running.current = true;
     setBusy(true);
     setError("");
+    setJob(null);
     const initial = controller.get(),
-      selected = initial.workspace;
+      selected = initial.workspace,
+      operation = lifetime.current;
     try {
+      // Never save over or replace an earlier uncertain request, even for another local revision.
+      const pending = readPendingPublish(key);
+      if (pending) {
+        setPendingSelection(pending);
+        await observe(pending, true);
+        return;
+      }
       const needsSave = initial.dirty || !initial.revision;
       if (needsSave) await controller.save();
       if (!current()) return;
@@ -167,29 +276,30 @@ function PublishDialog() {
         !saved.revision
       )
         throw new Error("Najprv úspešne ulož schválené zdroje na server a skontroluj verziu.");
-      const stored = readPendingPublish(key),
-        selection: PublishSelection =
-          stored &&
-          stored.projectId === saved.id &&
-          stored.expectedRevision === saved.revision &&
-          stored.snapshotId === saved.workspace.liveId &&
-          job?.state !== "failed"
-            ? stored
-            : {
-                requestId: crypto.randomUUID(),
-                projectId: saved.id,
-                expectedRevision: saved.revision,
-                snapshotId: saved.workspace.liveId!,
-                publicConsent: true,
-              };
+      const raced = readPendingPublish(key);
+      if (raced) {
+        setPendingSelection(raced);
+        await observe(raced, true);
+        return;
+      }
+      const selection: PublishSelection = {
+        requestId: crypto.randomUUID(),
+        projectId: saved.id,
+        expectedRevision: saved.revision,
+        snapshotId: saved.workspace.liveId!,
+        publicConsent: true,
+      };
       sessionStorage.setItem(key, JSON.stringify(selection));
-      await observe(selection, true);
+      setPendingSelection(selection);
+      await observe(selection, false);
     } catch (e) {
       if (current())
         setError(e instanceof Error ? e.message : "Publikovanie sa nepodarilo dokončiť.");
     } finally {
-      running.current = false;
-      if (current()) setBusy(false);
+      if (lifetime.current === operation) {
+        running.current = false;
+        if (current()) setBusy(false);
+      }
     }
   }
   async function recover() {
@@ -202,31 +312,36 @@ function PublishDialog() {
     running.current = true;
     setBusy(true);
     setError("");
+    setJob(null);
+    const operation = lifetime.current;
     try {
-      await observe(stored, false, true);
+      await observe(stored, true);
     } catch (e) {
       if (current()) setError(e instanceof Error ? e.message : "Stav sa nepodarilo načítať.");
     } finally {
-      running.current = false;
-      if (current()) setBusy(false);
+      if (lifetime.current === operation) {
+        running.current = false;
+        if (current()) setBusy(false);
+      }
     }
   }
   let url: string | null = null;
+  const context = jobScope.current,
+    previousSources = context?.previousSources ?? false;
   try {
     if (
       job &&
       ready?.publicOrigin &&
-      jobWorkspace.current &&
-      selectionCurrent(
-        {
-          requestId: job.requestId,
-          projectId: job.projectId,
-          expectedRevision: job.revision,
-          snapshotId: job.snapshotId,
-          publicConsent: true,
-        },
-        jobWorkspace.current,
-      )
+      context &&
+      current() &&
+      context.controller === controller &&
+      state.id === job.projectId &&
+      state.workspace === context.workspace &&
+      state.revision === context.revision &&
+      !state.editor &&
+      !state.pending &&
+      (previousSources ||
+        (!state.dirty && state.revision === job.revision && workspace.liveId === job.snapshotId))
     )
       url = publicationUrl(job, ready.publicOrigin);
   } catch {
@@ -269,6 +384,11 @@ function PublishDialog() {
       {ready?.publicOrigin && (
         <p className="break-all text-xs">Verejný hosting: {ready.publicOrigin}</p>
       )}
+      {pendingSelection && (
+        <p role="status" className="text-xs">
+          Najprv overíme pôvodnú uloženú požiadavku. Nové zdroje sa tým ešte nepublikujú.
+        </p>
+      )}
       <label className="flex items-start gap-2 text-sm">
         <input
           type="checkbox"
@@ -302,9 +422,16 @@ function PublishDialog() {
       )}
       {url && job && (
         <div role="status" className="rounded-lg border border-border p-3 text-sm">
-          <p>Verzia bola publikovaná · serverová revízia {job.revision}.</p>
+          <p>
+            {previousSources
+              ? "Publikovaná bola predchádzajúca uložená verzia. Aktuálne zdroje tým nie sú publikované."
+              : "Verzia bola publikovaná"}{" "}
+            · serverová revízia {job.revision}.
+          </p>
           <a className="break-all underline" href={url} target="_blank" rel="noopener noreferrer">
-            Otvoriť publikovanú aplikáciu
+            {previousSources
+              ? "Otvoriť publikáciu predchádzajúcej verzie"
+              : "Otvoriť publikovanú aplikáciu"}
           </a>
           <p className="break-all text-xs">{url}</p>
         </div>

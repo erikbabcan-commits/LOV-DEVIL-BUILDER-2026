@@ -12,6 +12,7 @@ import {
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { PublishError } from "./config";
+import { FilesystemGate, publishFilesystemGate, type StorageOperation } from "./storageGate";
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export class ArtifactStore {
@@ -19,6 +20,7 @@ export class ArtifactStore {
     private readonly directory: string,
     private readonly maxBytes: number,
     private readonly minFreeBytes = 0,
+    readonly gate: FilesystemGate = publishFilesystemGate,
   ) {}
   private async root() {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
@@ -34,6 +36,12 @@ export class ArtifactStore {
     return root;
   }
   async ready() {
+    try { return await this.gate.submit(async lease => {
+      if (!lease.beginIO()) throw new PublishError("publish_storage_timeout");
+      return this.physicalReady();
+    }).result; } catch { return false; }
+  }
+  private async physicalReady() {
     try {
       const info = await statfs(await this.root());
       return (
@@ -44,7 +52,23 @@ export class ArtifactStore {
       return false;
     }
   }
-  async put(
+  writeOperation(
+    id: string,
+    html: string,
+    prepare: () => Promise<boolean>,
+  ): StorageOperation<{ sha256: string; bytes: number }> {
+    return this.gate.submit(async lease => {
+      // Acquire the real slot first. The callback commits a short claim CAS;
+      // the following filesystem work never owns a database connection.
+      if (!(await prepare()) || !lease.beginIO())
+        throw new PublishError("publish_storage_cancelled");
+      return this.physicalPut(id, html);
+    });
+  }
+  async put(id: string, html: string): Promise<{ sha256: string; bytes: number }> {
+    return this.writeOperation(id, html, async () => true).result;
+  }
+  private async physicalPut(
     id: string,
     html: string,
   ): Promise<{ sha256: string; bytes: number }> {
@@ -53,7 +77,7 @@ export class ArtifactStore {
       sha256 = createHash("sha256").update(data).digest("hex");
     if (data.length > this.maxBytes)
       throw new PublishError("publish_artifact_limit", 413);
-    if (!(await this.ready()))
+    if (!(await this.physicalReady()))
       throw new PublishError("publish_storage_unavailable");
     const root = await this.root(),
       target = path.join(root, id + ".html"),
@@ -84,7 +108,7 @@ export class ArtifactStore {
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "EEXIST")
           throw new PublishError("publish_storage_unavailable");
-        const current = await this.read(id, sha256, data.length);
+        const current = await this.physicalRead(id, sha256, data.length);
         if (!current.equals(data))
           throw new PublishError("publish_storage_unavailable");
       }
@@ -95,8 +119,14 @@ export class ArtifactStore {
     }
     return { sha256, bytes: data.length };
   }
-  /** Read-only capacity inventory. Caller holds the matching owner lock. */
+  /** Diagnostic only: never run in a DB transaction or free an unsettled writer. */
   async retainedBytes(ids: readonly string[]): Promise<Map<string, number>> {
+    return this.gate.submit(async lease => {
+      if (!lease.beginIO()) throw new PublishError("publish_storage_timeout");
+      return this.physicalRetainedBytes(ids);
+    }).result;
+  }
+  private async physicalRetainedBytes(ids: readonly string[]): Promise<Map<string, number>> {
     if (ids.length > 100 || ids.some(id => !uuid.test(id)))
       throw new PublishError("publish_storage_unavailable");
     const bytes = new Map(ids.map(id => [id.toLowerCase(), 0]));
@@ -129,6 +159,12 @@ export class ArtifactStore {
     } catch { throw new PublishError("publish_storage_unavailable"); }
   }
   async read(id: string, sha256: string, size: number): Promise<Buffer> {
+    return this.gate.submit(async lease => {
+      if (!lease.beginIO()) throw new PublishError("publish_storage_timeout");
+      return this.physicalRead(id, sha256, size);
+    }).result;
+  }
+  private async physicalRead(id: string, sha256: string, size: number): Promise<Buffer> {
     if (
       !uuid.test(id) ||
       !Number.isSafeInteger(size) ||

@@ -26,7 +26,69 @@ beforeEach(()=>{
 });
 afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.restoreAllMocks();useStore.setState({persistNow:originalPersist});selectDatabaseScope({kind:'pilot'});});
 async function approve(){await screen.findByText(/Súhlasím so zverejnením/);await waitFor(()=>expect(screen.queryByText('Overujem hosting…')).not.toBeInTheDocument());fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:'Publikovať zvolenú verziu'}));}
+function changedSources(version=2){
+  const state=useStore.getState(),snapshot=state.snapshots[0];
+  useStore.setState({liveId:'version-'+version,remoteRevision:version+5,snapshots:[...state.snapshots,{...snapshot,id:'version-'+version,v:version,sourceFiles:JSON.stringify([{name:'src/main.tsx',content:'export const version='+version+';',modified:false}])}]});
+}
 describe('publish dialog with exact server selection',()=>{
+  it('recovers an older uncertain publication after source edits without saving a new selection, then requires fresh consent for the current sources',async()=>{
+    const fetch=mockFetch();let first=true;
+    vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>{const response=await fetch(path,init);if(init?.method==='POST'&&first){first=false;throw new TypeError('lost response');}return response;}));
+    mocks.save.mockResolvedValueOnce({id:'project-publish',revision:1}).mockResolvedValueOnce({id:'project-publish',revision:8});
+    render(<PublishDialog userId="alice" onClose={()=>{}}/>);await approve();await screen.findByRole('alert');
+    const original={...posts[0]},oldUrl=responseUrl,uuid=vi.spyOn(crypto,'randomUUID');
+    act(()=>changedSources());
+    fireEvent.click(screen.getByRole('button',{name:'Overiť rovnakú požiadavku'}));
+    const oldLink=await screen.findByRole('link',{name:'Otvoriť publikáciu predchádzajúcej verzie'});
+    expect(oldLink).toHaveAttribute('href',oldUrl);expect(screen.getByText(/Aktuálne zdroje tým nie sú publikované/)).toBeInTheDocument();
+    expect(posts).toEqual([original]);expect(mocks.save).toHaveBeenCalledTimes(1);expect(uuid).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.some(([path])=>path==='/api/publish/'+original.requestId)).toBe(true);
+    expect(useStore.getState().publishedUrl).toBeNull();expect(useStore.getState().persistNow).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('forge-publish:alice:project-publish')).toBeNull();
+    expect(screen.getByRole('checkbox')).not.toBeChecked();expect(screen.getByRole('button',{name:'Publikovať zvolenú verziu'})).toBeDisabled();
+    responseUrl='https://published.example.test/p/22222222-2222-4222-8222-222222222222/';
+    fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:'Publikovať zvolenú verziu'}));
+    const currentLink=await screen.findByRole('link',{name:'Otvoriť verejnú aplikáciu'});
+    expect(currentLink).toHaveAttribute('href',responseUrl);expect(posts).toHaveLength(2);expect(posts[1]).toMatchObject({projectId:'project-publish',expectedRevision:8,snapshotId:'version-2'});
+    expect(posts[1].requestId).not.toBe(original.requestId);expect(uuid).toHaveBeenCalledTimes(1);expect(mocks.save).toHaveBeenCalledTimes(2);expect(useStore.getState().publishedUrl).toBe(responseUrl);
+  });
+  it.each(['published','network','definitive-rejection'] as const)('retains the original edited-source receipt through GET404 and exact-UUID POST until %s',async(outcome)=>{
+    const fetch=mockFetch();let first=true,observedReceipt:string|null=null;
+    vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>{
+      if(path.startsWith('/api/publish/'))return Response.json({error:'publish_not_found'},{status:404});
+      const response=await fetch(path,init);
+      if(init?.method==='POST'){
+        if(first){first=false;throw new TypeError('lost response');}
+        observedReceipt=sessionStorage.getItem('forge-publish:alice:project-publish');
+        if(outcome==='network')throw new TypeError('lost retry');
+        if(outcome==='definitive-rejection')return Response.json({error:'publish_project_conflict'},{status:409});
+      }
+      return response;
+    }));
+    render(<PublishDialog userId="alice" onClose={()=>{}}/>);await approve();await screen.findByRole('alert');
+    const receipt=sessionStorage.getItem('forge-publish:alice:project-publish'),original={...posts[0]},uuid=vi.spyOn(crypto,'randomUUID');
+    act(()=>changedSources());fireEvent.click(screen.getByRole('button',{name:'Overiť rovnakú požiadavku'}));
+    if(outcome==='published')await screen.findByRole('link',{name:'Otvoriť publikáciu predchádzajúcej verzie'});
+    else await waitFor(()=>expect(posts).toHaveLength(2));
+    if(outcome!=='published')await screen.findByRole('alert');
+    expect(observedReceipt).toBe(receipt);expect(posts).toEqual([original,original]);expect(mocks.save).toHaveBeenCalledTimes(1);expect(uuid).not.toHaveBeenCalled();
+    expect(useStore.getState().publishedUrl).toBeNull();
+    if(outcome==='network')expect(sessionStorage.getItem('forge-publish:alice:project-publish')).toBe(receipt);
+    else{expect(sessionStorage.getItem('forge-publish:alice:project-publish')).toBeNull();expect(screen.getByRole('checkbox')).not.toBeChecked();}
+  });
+  it.each(['account','project','source'] as const)('ignores delayed old-source recovery after a further %s change',async(change)=>{
+    const fetch=mockFetch();let finish!:(response:Response)=>void,first=true;
+    vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>{
+      if(path.startsWith('/api/publish/'))return new Promise<Response>(resolve=>{finish=resolve;});
+      const response=await fetch(path,init);if(init?.method==='POST'&&first){first=false;throw new TypeError('lost response');}return response;
+    }));
+    render(<PublishDialog userId="alice" onClose={()=>{}}/>);await approve();await screen.findByRole('alert');
+    const receipt=sessionStorage.getItem('forge-publish:alice:project-publish'),original={...posts[0]};
+    act(()=>changedSources());fireEvent.click(screen.getByRole('button',{name:'Overiť rovnakú požiadavku'}));await waitFor(()=>expect(finish).toBeTypeOf('function'));
+    act(()=>{if(change==='account')selectDatabaseScope({kind:'account',userId:'bob'});else if(change==='project')useStore.setState({projectId:'new-project'});else changedSources(3);});
+    await act(async()=>finish(await fetch('/api/publish/'+original.requestId,{method:'GET'})));
+    expect(sessionStorage.getItem('forge-publish:alice:project-publish')).toBe(receipt);expect(screen.queryByRole('link')).not.toBeInTheDocument();expect(useStore.getState().publishedUrl).toBeNull();expect(posts).toHaveLength(1);expect(mocks.save).toHaveBeenCalledTimes(1);
+  });
   it('reconciles a definitive revision conflict and creates a fresh saved selection on the next explicit retry',async()=>{
     const fetch=mockFetch();let first=true;
     vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>{

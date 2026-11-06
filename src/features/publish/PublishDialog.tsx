@@ -51,7 +51,7 @@ async function digest(text:string) { return Array.from(new Uint8Array(await cryp
 export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}) {
   const state=useStore(),dialog=useRef<HTMLDialogElement>(null),controller=useRef<AbortController|null>(null),alive=useRef(false);
   const [ready,setReady]=useState<PublishReady|null>(null),[busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[error,setError]=useState(''),[result,setResult]=useState<PublishResult|null>(null);
-  const [uncertain,setUncertain]=useState(false);
+  const [uncertain,setUncertain]=useState(false),[historicalResult,setHistoricalResult]=useState(false);
   const scope=persistenceScope(),epoch=useRef(scope.epoch).current,projectId=useRef(state.projectId).current;
   const snapshot=state.viewing??state.snapshots.find(s=>s.id===state.liveId);
   const blocked=state.generating||state.sandboxBuilding||!!state.pendingReview||state.codeDraftDirty||state.edEditing||!snapshot;
@@ -60,20 +60,23 @@ export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}
     alive.current=true;const node=dialog.current,previous=document.activeElement as HTMLElement|null;
     if(node){if(node.showModal)node.showModal();else node.setAttribute('open','');}
     const pending=new AbortController();controller.current=pending;
+    try{const receipt=Receipt.safeParse(JSON.parse(sessionStorage.getItem(key)??'null'));setUncertain(receipt.success&&receipt.data.selection.projectId===projectId);}catch{setUncertain(false);}
     if(userId)void call('',pending.signal).then(data=>{if(alive.current&&!pending.signal.aborted)setReady(PublishReadiness.parse(data));}).catch(()=>{if(alive.current&&!pending.signal.aborted)setError('Stav publikovania sa nepodarilo overiť.');});
     return()=>{alive.current=false;controller.current?.abort();node?.close?.();previous?.focus();};
-  },[userId]);
+  },[userId,key,projectId]);
   const current=()=>alive.current&&persistenceScope().epoch===epoch&&useStore.getState().projectId===projectId;
   async function publish() {
     if(busy||blocked||!consent||!ready?.ready||!userId||!current()||!snapshot)return;
-    const pending=new AbortController();controller.current?.abort();controller.current=pending;setBusy(true);setError('');setResult(null);
+    const pending=new AbortController();controller.current?.abort();controller.current=pending;setBusy(true);setError('');setResult(null);setHistoricalResult(false);
     const binding=sourceBinding(),unchanged=()=>current()&&!pending.signal.aborted&&!useStore.getState().codeDraftDirty&&!useStore.getState().edEditing&&sourceBinding()===binding;
-    let ownedReceipt:string|null=null;
+    let ownedReceipt:string|null=null,recoveringOldSources=false;
     const clearOwnedReceipt=()=>{if(ownedReceipt!==null&&sessionStorage.getItem(key)===ownedReceipt)sessionStorage.removeItem(key);};
     try {
       const fingerprint=await digest(binding);if(!unchanged())throw new Error('stale');
       const stored=sessionStorage.getItem(key),receipt=stored?Receipt.parse(JSON.parse(stored)):null;
-      let selection=receipt?.fingerprint===fingerprint?receipt.selection:null;
+      // An uncertain immutable job remains recoverable even after the local source changes.
+      let selection=receipt?.selection??null;
+      recoveringOldSources=receipt!==null&&receipt.fingerprint!==fingerprint;
       if(selection&&selection.projectId!==projectId)throw new Error('publish_protocol');
       if(selection)ownedReceipt=stored;
       let data:unknown;
@@ -98,14 +101,13 @@ export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}
       if(job.state==='published') {
         const url=new URL(job.url??'');
         if(url.origin!==ready.publicOrigin||url.username||url.password||url.search||url.hash||!/^\/p\/[a-f0-9-]{36}\/$/i.test(url.pathname))throw new Error('publish_protocol');
-        useStore.setState({publishedUrl:url.href});await useStore.getState().persistNow();
-        if(!unchanged())return;
-        clearOwnedReceipt();setUncertain(false);
-      }else if(job.state==='failed'){clearOwnedReceipt();setUncertain(false);}else setUncertain(true);
-      setResult(job);
+        if(!recoveringOldSources){useStore.setState({publishedUrl:url.href});await useStore.getState().persistNow();if(!unchanged())return;}
+        clearOwnedReceipt();setUncertain(false);setConsent(false);
+      }else if(job.state==='failed'){clearOwnedReceipt();setUncertain(false);setConsent(false);}else setUncertain(true);
+      setHistoricalResult(recoveringOldSources);setResult(job);
     }catch(reason){if(current()&&!pending.signal.aborted){
       if(reason instanceof PublishHttpError&&reason.noJobCreated){
-        try{clearOwnedReceipt();setUncertain(false);}catch{setUncertain(true);setError(copy['publish_receipt_storage']!);return;}
+        try{clearOwnedReceipt();setUncertain(false);if(recoveringOldSources)setConsent(false);}catch{setUncertain(true);setError(copy['publish_receipt_storage']!);return;}
       }
       else setUncertain(ownedReceipt!==null);
       setError(copy[reason instanceof Error?reason.message:'']??'Výsledok sa nepodarilo potvrdiť. Over rovnakú požiadavku; nová publikácia sa nezačne naslepo.');
@@ -118,11 +120,12 @@ export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}
     <p>Verejná statická aplikácia bude zostavená z uloženej verzie projektu. Chat ani čakajúci AI návrh sa nepublikujú. Táto verzia hostingu nepodporuje vlastný backend ani externé sieťové API.</p>
     {!userId?<p role="status">Publikovanie vyžaduje prihlásený účet.</p>:!ready&&!error?<p role="status">Overujem hosting…</p>:ready&&!ready.ready?<p role="status">{ready.enabled?'Izolovaný hosting teraz nie je pripravený.':'Publikovanie nie je na serveri zapnuté.'}</p>:null}
     {blocked&&<p role="status">Najprv dokonči kontrolu návrhu, úpravy a zostavenie projektu.</p>}
+    {uncertain&&<p role="status">Najprv overíme uloženú požiadavku a pôvodne schválenú verziu. Zmenené zdroje sa tým ešte nepublikujú.</p>}
     <label><input type="checkbox" checked={consent} disabled={busy} onChange={e=>setConsent(e.target.checked)}/> Súhlasím so zverejnením tejto aplikácie a jej zostavených zdrojov pre každého s odkazom.</label>
     <button disabled={busy||blocked||!consent||!ready?.ready||!userId} onClick={()=>void publish()}>{busy?'Zostavujem a publikujem…':uncertain?'Overiť rovnakú požiadavku':'Publikovať zvolenú verziu'}</button>
     {error&&<p role="alert">{error}</p>}
     {result?.state==='building'&&<p role="status">Server ešte pracuje. Over výsledok rovnakou požiadavkou.</p>}
     {result?.state==='failed'&&<div role="alert"><p>{copy[result.error??'']??'Zostavenie alebo uloženie zlyhalo.'}</p>{result.errors.map((e,i)=><p key={i}>{e.file}: {e.message}</p>)}</div>}
-    {result?.state==='published'&&<p role="status">Publikované · revízia {result.revision} · <a href={result.url!} target="_blank" rel="noopener noreferrer">Otvoriť verejnú aplikáciu</a></p>}
+    {result?.state==='published'&&<p role="status">{historicalResult?'Publikovaná bola predchádzajúca uložená verzia. Aktuálne zdroje tým nie sú publikované.':'Publikované'} · revízia {result.revision} · <a href={result.url!} target="_blank" rel="noopener noreferrer">{historicalResult?'Otvoriť publikáciu predchádzajúcej verzie':'Otvoriť verejnú aplikáciu'}</a></p>}
   </dialog>;
 }

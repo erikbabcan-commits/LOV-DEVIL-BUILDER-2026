@@ -137,28 +137,30 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect((await db.query("SELECT DISTINCT owner_id FROM publish_jobs")).rows).toEqual([{ owner_id: "alice" }]);
   });
 
-  it("reclaims a stale build only once and fences the original worker before exposing any artifact", async () => {
+  it("expires a lost-receipt compile before new admission and fences the original worker before disk I/O", async () => {
     const originalCompiler = deferredCompiler(), replacementCompiler = deferredCompiler();
     const original = service(originalCompiler), replacement = service(replacementCompiler), competitor = service(replacementCompiler);
-    const staleWrite = vi.spyOn(original.artifacts, "put");
+    const staleWrite = vi.spyOn(Object.getPrototypeOf(original.artifacts), "physicalPut");
     await original.start("alice", selection);
     const previous = (await db.query("SELECT claim_id,artifact_id FROM publish_jobs WHERE owner_id=$1 AND request_id=$2", ["alice", selection.requestId])).rows[0];
     await db.query("UPDATE publish_jobs SET updated_at=$3 WHERE owner_id=$1 AND request_id=$2", ["alice", selection.requestId, new Date(Date.now() - 180000).toISOString()]);
-    await Promise.all([replacement.start("alice", selection), competitor.start("alice", selection)]);
+    const fresh = { ...selection, requestId: randomUUID() };
+    await replacement.start("alice", fresh);
+    await competitor.start("alice", fresh);
     const claimed = (await db.query("SELECT claim_id,state FROM publish_jobs WHERE owner_id=$1 AND request_id=$2", ["alice", selection.requestId])).rows[0];
-    expect(claimed.claim_id).not.toBe(previous.claim_id);
+    expect(claimed).toEqual({ claim_id: previous.claim_id, state: "failed" });
     expect(replacementCompiler.execute).toHaveBeenCalledTimes(1);
     originalCompiler.release();
     await original.settled();
     expect(staleWrite).not.toHaveBeenCalled();
     await expect(readFile(path.join(directory, previous.artifact_id + ".html"))).rejects.toMatchObject({ code: "ENOENT" });
-    expect((await db.query("SELECT claim_id,state FROM publish_jobs WHERE owner_id=$1 AND request_id=$2", ["alice", selection.requestId])).rows[0]).toEqual({ claim_id: claimed.claim_id, state: "building" });
+    expect((await db.query("SELECT claim_id,state FROM publish_jobs WHERE owner_id=$1 AND request_id=$2", ["alice", selection.requestId])).rows[0]).toEqual({ claim_id: claimed.claim_id, state: "failed" });
     const publicApp = publicPublishApp(config, db, original.artifacts);
     expect((await publicApp.request(config.baseUrl + "p/" + previous.artifact_id + "/", { headers: { Host: "127.0.0.1:8791" } })).status).toBe(404);
     replacementCompiler.release();
     await Promise.all([replacement.settled(), competitor.settled()]);
-    expect((await replacement.status("alice", selection.requestId)).state).toBe("published");
-    expect((await db.query("SELECT COUNT(*)::int AS n FROM publish_jobs")).rows[0].n).toBe(1);
+    expect((await replacement.status("alice", fresh.requestId)).state).toBe("published");
+    expect((await db.query("SELECT COUNT(*)::int AS n FROM publish_jobs")).rows[0].n).toBe(2);
   });
 
   it("releases failed compiler byte reservations but keeps the durable attempt cap", async () => {
@@ -182,7 +184,7 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     services.push(value);
     await value.start("alice", selection); await value.settled();
     const row = (await db.query("SELECT artifact_id,artifact_bytes,state FROM publish_jobs WHERE request_id=$1", [selection.requestId])).rows[0];
-    expect(row).toMatchObject({ state: "failed", artifact_bytes: null });
+    expect(row).toMatchObject({ state: "failed", artifact_bytes: Buffer.byteLength(output.html!) });
     expect(await readFile(path.join(directory, row.artifact_id + ".html"), "utf8")).toBe(output.html);
     await expect(value.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
     expect(compiler.execute).toHaveBeenCalledTimes(1);
@@ -199,4 +201,17 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect(compiler.execute).toHaveBeenCalledTimes(1);
     expect((await db.query("SELECT COUNT(*)::int AS n FROM publish_jobs WHERE owner_id='alice'")).rows[0].n).toBe(1);
   });
+});
+
+// Shared real-pool contracts: filesystem deadlines must release every DB client.
+import { publishStorageContract } from "../helpers/publishStorageContract";
+describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("native publish storage deadlines",()=>{
+ publishStorageContract("PostgreSQL max5 pool stays responsive",async()=>{
+  const connectionString=process.env.PROJECTS_TEST_DATABASE_URL;
+  if(!connectionString||!["127.0.0.1","localhost"].includes(new URL(connectionString).hostname))throw new Error("Dedicated loopback database required");
+  const schema="lov_publish_storage_"+randomUUID().replaceAll("-","");
+  const admin=new Pool({connectionString,max:1,connectionTimeoutMillis:5000});await admin.query("CREATE SCHEMA "+schema);
+  const pool=new Pool({connectionString,max:5,options:"-c search_path="+schema,statement_timeout:10000,connectionTimeoutMillis:5000});
+  return {db:dbFromPool(pool),poolState:()=>({total:pool.totalCount,idle:pool.idleCount,waiting:pool.waitingCount}),close:async()=>{await pool.end();try{await admin.query("DROP SCHEMA "+schema+" CASCADE");}finally{await admin.end();}}};
+ },true);
 });
