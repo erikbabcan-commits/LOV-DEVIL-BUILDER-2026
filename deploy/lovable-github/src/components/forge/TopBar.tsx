@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Check, Globe, Hammer, Pencil, Settings, Menu } from "lucide-react";
+import { Check, Hammer, Pencil, Settings, Menu } from "lucide-react";
 import { Btn } from "./ui";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import { AccountMenu } from "./AccountMenu";
 import { ConnectionPanel } from "./ConnectionPanel";
 import { useForge } from "@/lib/forge-context";
 import { ForgeZipExport } from "./ForgeZipExport";
+import { ForgePublish } from "./ForgePublish";
 
 export type View = "Domov" | "Workspace" | "Editor";
 const VIEWS: View[] = ["Domov", "Workspace", "Editor"];
@@ -122,14 +122,7 @@ export function TopBar({
           ))}
         </select>
         <ForgeZipExport className="hidden md:inline-flex" />
-        <Btn
-          size="sm"
-          variant="primary"
-          className="hidden sm:inline-flex"
-          onClick={() => toast("Ukážka: publikovanie nie je napojené.")}
-        >
-          <Globe className="h-3.5 w-3.5" /> Publikovať
-        </Btn>
+        <ForgePublish key={controller.owner + ":" + state.id} />
         <Btn
           size="icon"
           variant="ghost"

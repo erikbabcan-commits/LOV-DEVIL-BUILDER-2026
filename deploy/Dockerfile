@@ -16,7 +16,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
 COPY server ./server
 COPY shared ./shared
-COPY scripts/check-cloud-github.ts scripts/link-cloud-identity.ts scripts/ai-usage-report.ts ./scripts/
+COPY scripts/check-cloud-github.ts scripts/link-cloud-identity.ts scripts/ai-usage-report.ts scripts/billing-preflight.ts ./scripts/
 COPY deploy/ops/ai-cost-dashboard.template.html ./deploy/ops/
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

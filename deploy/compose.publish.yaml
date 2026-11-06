@@ -1,0 +1,17 @@
+# OPTIONAL overlay for compose.yaml. Review the actual VPS lov-net/nginx topology first.
+# Never run the example base compose over the existing VPS stack automatically.
+services:
+  app:
+    environment:
+      PUBLICPUBLISH_ENABLED: ${PUBLICPUBLISH_ENABLED:-0}
+      PUBLICPUBLISH_BASE_URL: ${PUBLICPUBLISH_BASE_URL:-}
+      PUBLICPUBLISH_APP_URL: ${PUBLICPUBLISH_APP_URL:-}
+      PUBLICPUBLISH_ARTIFACT_DIR: /data/published
+      PUBLICPUBLISH_BIND: 0.0.0.0
+      PUBLICPUBLISH_PORT: "8791"
+    ports:
+      - "127.0.0.1:8791:8791"
+    volumes:
+      - published-data:/data/published
+volumes:
+  published-data:

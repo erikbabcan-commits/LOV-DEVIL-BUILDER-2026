@@ -7,6 +7,22 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 describe("workspace transport owner binding", () => {
+  it("does not prepare billing under a refreshed or switched token", async () => {
+    auth.getSession.mockResolvedValue({
+      data: { session: { access_token: "new-alice", user: { id: "alice" } } },
+    });
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const response = await honoFetch("billing/checkout", {
+      expectedUserId: "alice",
+      expectedAccessToken: "old-alice",
+      method: "POST",
+      body: { requestId: "fixture" },
+    });
+    expect(response.status).toBe(401);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("does not send a previous account source under a newer account token", async () => {
     auth.getSession.mockResolvedValue({
       data: { session: { access_token: "synthetic-bob", user: { id: "bob" } } },

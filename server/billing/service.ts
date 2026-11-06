@@ -6,7 +6,17 @@ import {
 } from "../../shared/billing";
 import { effectivePlan } from "../auth/plans";
 import type { DbLike } from "../db/pool";
-import { validateBillingConfig } from "./config";
+import {
+  validateBillingConfig,
+  billingMode,
+  billingLivemode,
+  type BillingMode,
+} from "./config";
+import { initializeBillingEnvironment } from "./environment";
+export {
+  initializeBillingEnvironment,
+  assertBillingEnvironment,
+} from "./environment";
 import {
   BillingError,
   type BillingConfig,
@@ -80,6 +90,8 @@ function unwrap<T>(value: Result<T>): T {
 /** Durable provider operations and canonical reconciliation serialize with AI admission on users. */
 export class BillingService {
   private readonly fingerprint: string;
+  private readonly mode: BillingMode;
+  private readonly expectedLivemode: boolean;
   constructor(
     private readonly db: DbLike,
     private readonly config: BillingConfig,
@@ -87,9 +99,17 @@ export class BillingService {
     private readonly now: () => Date = () => new Date(),
   ) {
     validateBillingConfig(config, process.env.NODE_ENV === "test");
+    this.mode = billingMode(config);
+    this.expectedLivemode = billingLivemode(config);
     if (!db.transaction) throw new BillingError("billing_storage_unavailable");
     this.fingerprint = createHash("sha256")
-      .update(JSON.stringify({ appUrl: config.appUrl, prices: config.prices }))
+      .update(
+        JSON.stringify({
+          mode: this.mode,
+          appUrl: config.appUrl,
+          prices: config.prices,
+        }),
+      )
       .digest("hex");
   }
   private async locked<T>(
@@ -118,6 +138,7 @@ export class BillingService {
     );
   }
   async status(userId: string): Promise<BillingStatus> {
+    await initializeBillingEnvironment(this.db, this.mode);
     const user = (
       await this.db.query(
         "SELECT id,plan,plan_expires_at FROM users WHERE id=$1",
@@ -134,7 +155,7 @@ export class BillingService {
     return BillingStatusSchema.parse({
       userId,
       enabled: true,
-      mode: "sandbox",
+      mode: this.expectedLivemode ? "live" : "sandbox",
       plan,
       subscription: account?.subscription_status
         ? {
@@ -172,7 +193,7 @@ export class BillingService {
       price.interval !== interval ||
       price.intervalCount !== 1 ||
       (requireActive && !price.active) ||
-      price.livemode !== false
+      price.livemode !== this.expectedLivemode
     )
       throw new BillingError("billing_price_unavailable");
   }
@@ -197,9 +218,12 @@ export class BillingService {
         try {
           const customer = await this.gateway.createCustomer(
             userId,
-            "forge-customer:" + account.customer_key,
+            "forge-" + this.mode + "-customer:" + account.customer_key,
           );
-          if (!id(customer.id, "cus") || customer.livemode !== false)
+          if (
+            !id(customer.id, "cus") ||
+            customer.livemode !== this.expectedLivemode
+          )
             return new BillingError("billing_provider_unavailable");
           await tx.query(
             "UPDATE billing_accounts SET customer_id=$2 WHERE user_id=$1",
@@ -244,7 +268,7 @@ export class BillingService {
       list.data.some(
         (sub) =>
           sub.customerId !== customerId ||
-          sub.livemode !== false ||
+          sub.livemode !== this.expectedLivemode ||
           !id(sub.id, "sub") ||
           !statuses.includes(sub.status) ||
           !Number.isSafeInteger(sub.itemsCount) ||
@@ -331,6 +355,7 @@ export class BillingService {
   ): Promise<{ url: string }> {
     if (!uuid(requestId) || !["month", "year"].includes(interval))
       throw new BillingError("billing_invalid_request", 400);
+    await initializeBillingEnvironment(this.db, this.mode);
     await this.verifyPrice(interval);
     const customer = await this.ensureCustomer(userId);
     const prepared = unwrap(
@@ -446,7 +471,7 @@ export class BillingService {
                     cancelUrl: returnUrl(this.config),
                     expiresAt: Number(attempt.requested_expires_at),
                   },
-                  "forge-checkout:" + attempt.request_id,
+                  "forge-" + this.mode + "-checkout:" + attempt.request_id,
                 );
             this.validateSession(value, customer);
             if (
@@ -491,7 +516,7 @@ export class BillingService {
     if (
       !id(value.id, "cs") ||
       value.customerId !== customer ||
-      value.livemode !== false ||
+      value.livemode !== this.expectedLivemode ||
       !["open", "complete", "expired"].includes(value.status) ||
       !Number.isSafeInteger(value.expiresAt)
     )
@@ -500,6 +525,7 @@ export class BillingService {
   async portal(userId: string, requestId: string): Promise<{ url: string }> {
     if (!uuid(requestId))
       throw new BillingError("billing_invalid_request", 400);
+    await initializeBillingEnvironment(this.db, this.mode);
     const prepared = unwrap(
       await this.locked(userId, async (tx: DbLike): Promise<Result<string>> => {
         const account = await this.account(tx, userId);
@@ -544,7 +570,7 @@ export class BillingService {
           try {
             const result = await this.gateway.createPortal(
               { customerId: prepared, returnUrl: returnUrl(this.config) },
-              "forge-portal:" + requestId,
+              "forge-" + this.mode + "-portal:" + requestId,
             );
             const url = trustedUrl(result.url, "billing.stripe.com");
             await tx.query(
@@ -563,7 +589,11 @@ export class BillingService {
     if (raw.byteLength > 256 * 1024)
       throw new BillingError("billing_webhook_size", 413);
     const event = this.gateway.verifyEvent(raw, signature);
-    if (!id(event.id, "evt") || event.livemode !== false || event.account)
+    if (
+      !id(event.id, "evt") ||
+      event.livemode !== this.expectedLivemode ||
+      event.account
+    )
       throw new BillingError("billing_webhook_environment", 400);
     if (
       ![
@@ -581,6 +611,7 @@ export class BillingService {
     )
       return;
     if (!event.customerId || !id(event.customerId, "cus")) return;
+    await initializeBillingEnvironment(this.db, this.mode);
     const account = (
       await this.db.query(
         "SELECT user_id FROM billing_accounts WHERE customer_id=$1",
@@ -632,10 +663,12 @@ export class BillingService {
 
 export async function probeBillingSchema(
   db: DbLike,
+  expectedMode?: BillingMode,
 ): Promise<{ ready: boolean }> {
   if (!db.transaction) return { ready: false };
   try {
     await db.query("SELECT plan_expires_at FROM users LIMIT 0");
+    await db.query("SELECT id,mode FROM billing_environment LIMIT 0");
     await db.query(
       "SELECT user_id,customer_id,customer_key,created_at,trial_attempted,has_open_subscription,subscription_id,subscription_status,subscription_interval,period_end,cancel_at_period_end FROM billing_accounts LIMIT 0",
     );
@@ -648,6 +681,19 @@ export async function probeBillingSchema(
     await db.query(
       "SELECT event_id,user_id,event_type,processed_at FROM billing_events LIMIT 0",
     );
+    if (expectedMode) {
+      const pin = (
+        await db.query("SELECT mode FROM billing_environment WHERE id='stripe'")
+      ).rows[0]?.mode;
+      if (pin && pin !== expectedMode) return { ready: false };
+      if (
+        !pin &&
+        expectedMode === "live" &&
+        (await db.query("SELECT user_id FROM billing_accounts LIMIT 1")).rows
+          .length
+      )
+        return { ready: false };
+    }
     return { ready: true };
   } catch {
     return { ready: false };

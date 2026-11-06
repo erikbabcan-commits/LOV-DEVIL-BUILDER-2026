@@ -5,6 +5,8 @@ export interface BillingPrice {
   amount: number;
 }
 export interface BillingConfig {
+  /** Missing mode preserves the original sandbox-only fixture/configuration contract. */
+  mode?: "test" | "live";
   secretKey: string;
   webhookSecret: string;
   appUrl: string;
@@ -49,9 +51,7 @@ export interface BillingSession {
 }
 export interface BillingGateway {
   verifyEvent(raw: Buffer, signature: string): BillingEvent;
-  price(
-    id: string,
-  ): Promise<{
+  price(id: string): Promise<{
     id: string;
     amount: number | null;
     currency: string;

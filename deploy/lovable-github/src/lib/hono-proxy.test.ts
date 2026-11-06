@@ -35,6 +35,71 @@ const run = (r: Request, d = deps()) =>
 afterEach(() => vi.useRealTimers());
 
 describe("routing", () => {
+  it("allows authenticated publish preparation and UUID status without proxying public artifacts", async () => {
+    const d = deps(),
+      id = "dd4ec3fc-a77b-4af7-baa5-f25ac7228221";
+    for (const request of [req("publish"), post("publish", "{}"), req("publish/" + id)]) {
+      expect((await run(request, d)).status).toBe(200);
+      expect(d.fetch.mock.calls.at(-1)![0]).toBe(
+        BASE + new URL(request.url).pathname.replace("/api/hono/", "/api/"),
+      );
+    }
+    d.fetch.mockClear();
+    expect((await run(req("publish?url=https://evil.test"), d)).status).toBe(400);
+    for (const path of [
+      "publish/not-a-uuid",
+      "publish/" + id + "/artifact",
+      "published/" + id + "/index.html",
+    ])
+      expect((await run(req(path), d)).status).toBe(404);
+    expect((await run(post("publish/" + id), d)).status).toBe(405);
+    expect((await run(post("publish", " ".repeat(4097)), d)).status).toBe(413);
+    expect(d.fetch).not.toHaveBeenCalled();
+  });
+  it("maps only the three fixed billing routes and strips caller ownership/credentials", async () => {
+    const d = deps();
+    for (const [path, method] of [
+      ["billing", "GET"],
+      ["billing/checkout", "POST"],
+      ["billing/portal", "POST"],
+    ]) {
+      const response = await run(
+        method === "GET"
+          ? req(path!)
+          : post(path!, JSON.stringify({ requestId: "fixture" }), { cookie: "private=secret" }),
+        d,
+      );
+      expect(response.status).toBe(200);
+      const [url, init] = d.fetch.mock.calls.at(-1)!;
+      expect(url).toBe(BASE + "/api/" + path);
+      expect(new Headers(init.headers).get("cookie")).toBeNull();
+      expect(new Headers(init.headers).get("authorization")).toBe("Bearer tok.en.x");
+    }
+    d.fetch.mockClear();
+    expect((await run(req("billing?owner=bob"), d)).status).toBe(400);
+    expect((await run(post("billing"), d)).status).toBe(405);
+    expect((await run(req("billing/portal"), d)).status).toBe(405);
+    for (const path of [
+      "billing/webhook",
+      "billing/customers",
+      "billing/invoices",
+      "billing/checkout/session",
+    ])
+      expect((await run(post(path), d)).status).toBe(404);
+    expect(d.fetch).not.toHaveBeenCalled();
+  });
+  it("bounds billing JSON to 8KiB and requires the same-origin verified session", async () => {
+    const d = deps();
+    expect((await run(post("billing/checkout", " ".repeat(8193)), d)).status).toBe(413);
+    expect(
+      (await run(post("billing/portal", "{}", { origin: "https://evil.test" }), d)).status,
+    ).toBe(403);
+    expect(
+      (await run(post("billing/portal"), deps({ verifyToken: async () => false }))).status,
+    ).toBe(401);
+    expect(d.fetch).not.toHaveBeenCalled();
+  });
+
   it("maps only fixed GET model catalog without query or write overrides", async () => {
     const d = deps();
     expect((await run(req("ai-models"), d)).status).toBe(200);

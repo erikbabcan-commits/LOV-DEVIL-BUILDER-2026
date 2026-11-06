@@ -49,6 +49,7 @@ export function billingSubscription(
 }
 /** Synthetic boundary only. Signatures still use the real Stripe SDK and every HTTP request goes through real Hono. */
 export class BillingContractGateway implements BillingGateway {
+  constructor(readonly livemode = false) {}
   data: BillingSubscription[] = [];
   hasMore = false;
   sessions = new Map<string, BillingSession>();
@@ -65,12 +66,12 @@ export class BillingContractGateway implements BillingGateway {
       interval,
       intervalCount: 1,
       active: true,
-      livemode: false,
+      livemode: this.livemode,
     };
   });
   createCustomer = vi.fn(async (_userId: string, _key: string) => ({
     id: "cus_contract_" + ++this.customerSerial,
-    livemode: false,
+    livemode: this.livemode,
   }));
   subscriptions = vi.fn(async (customerId: string) => ({
     data: this.data.filter((sub) => sub.customerId === customerId),
@@ -82,12 +83,12 @@ export class BillingContractGateway implements BillingGateway {
       _key: string,
     ): Promise<BillingSession> => {
       const session: BillingSession = {
-        id: "cs_test_" + this.sessions.size,
+        id: (this.livemode ? "cs_live_" : "cs_test_") + this.sessions.size,
         customerId: input.customerId,
         url: "https://checkout.stripe.com/c/pay/cs_test_contract",
         expiresAt: input.expiresAt,
         status: "open",
-        livemode: false,
+        livemode: this.livemode,
       };
       this.sessions.set(session.id, session);
       return session;
@@ -207,36 +208,39 @@ export function billingContract(
       return customerId;
     };
     // Native cluster/schema/crypto cold start is fixture setup, separate from API deadlines.
-    beforeEach(async () => {
-      ({ db, close } = await connect());
-      await applyMigrations(db);
-      tokens = {};
-      for (const id of ["alice", "bob"]) {
-        await db.query(
-          "INSERT INTO users (id,email,password_hash) VALUES ($1,$2,$3)",
-          [id, id + "@billing.example.test", "not-an-authentication-hash"],
-        );
-        tokens[id] = await signToken(
-          { sub: id, email: id + "@billing.example.test", plan: "free" },
-          jwtSecret,
-        );
-      }
-      gateway = new BillingContractGateway();
-      service = new BillingService(db, BILLING_TEST_CONFIG, gateway);
-      quota = new PostgresQuotaStore(db);
-      app = createApp({}, null, {
-        rateLimit: () => true,
-        auth: { db, jwtSecret, quota, billing: service },
-      });
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => {
-          throw new Error(
-            "External HTTP forbidden in the local billing contract",
+    beforeEach(
+      async () => {
+        ({ db, close } = await connect());
+        await applyMigrations(db);
+        tokens = {};
+        for (const id of ["alice", "bob"]) {
+          await db.query(
+            "INSERT INTO users (id,email,password_hash) VALUES ($1,$2,$3)",
+            [id, id + "@billing.example.test", "not-an-authentication-hash"],
           );
-        }),
-      );
-    }, native ? 60_000 : 10_000);
+          tokens[id] = await signToken(
+            { sub: id, email: id + "@billing.example.test", plan: "free" },
+            jwtSecret,
+          );
+        }
+        gateway = new BillingContractGateway();
+        service = new BillingService(db, BILLING_TEST_CONFIG, gateway);
+        quota = new PostgresQuotaStore(db);
+        app = createApp({}, null, {
+          rateLimit: () => true,
+          auth: { db, jwtSecret, quota, billing: service },
+        });
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async () => {
+            throw new Error(
+              "External HTTP forbidden in the local billing contract",
+            );
+          }),
+        );
+      },
+      native ? 60_000 : 10_000,
+    );
     afterEach(async () => {
       try {
         expect(fetch).not.toHaveBeenCalled();

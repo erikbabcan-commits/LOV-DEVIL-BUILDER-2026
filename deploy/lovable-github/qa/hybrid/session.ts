@@ -12,6 +12,7 @@ export async function setFixtureUser(user: "alice" | "bob" | null) {
   if (!user) {
     state = { status: "signed-out", session: null };
     for (const listener of listeners) listener();
+    window.dispatchEvent(new Event("fixture-auth-change"));
     return;
   }
   const response = await fetch("/__test/session/" + user);
@@ -20,6 +21,7 @@ export async function setFixtureUser(user: "alice" | "bob" | null) {
   if (version !== revision) return;
   state = { status: "signed-in", session };
   for (const listener of listeners) listener();
+  window.dispatchEvent(new Event("fixture-auth-change"));
 }
 export function fixtureSession() {
   return state.session;

@@ -38,6 +38,7 @@ describe("panel mapping", () => {
   it("me", async () => {
     expect(await mapMe(j({ user: { id: "1", email: "x", plan: "pro" }, quota: {} }))).toEqual({
       state: "linked",
+      userId: "1",
       plan: "pro",
     });
     expect((await mapMe(j({ error: "unlinked" }, 401))).state).toBe("auth-incomplete");

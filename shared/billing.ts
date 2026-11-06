@@ -5,7 +5,7 @@ export const BillingStatusSchema = z
   .object({
     userId: z.string().min(1).max(128),
     enabled: z.boolean(),
-    mode: z.enum(["disabled", "sandbox"]),
+    mode: z.enum(["disabled", "sandbox", "live"]),
     plan: z.enum(["free", "pro"]),
     subscription: z
       .object({

@@ -141,6 +141,7 @@ function BillingSession({
     pending: null as AbortController | null,
     operation: null as AbortController | null,
   });
+  const verifiedModeRef = useRef<"sandbox" | "live" | null>(null);
   const quotaCallback = useRef(onRefreshQuota);
   useEffect(() => {
     quotaCallback.current = onRefreshQuota;
@@ -164,10 +165,15 @@ function BillingSession({
       )
         return;
       setStatus(result);
+      const verifiedMode = result.mode === "live" ? "live" : "sandbox";
+      const scopedAttempt = readCheckoutAttempt(identity, verifiedMode);
+      setAttempt(scopedAttempt);
+      if (scopedAttempt || verifiedModeRef.current !== verifiedMode) setInterval(scopedAttempt?.interval ?? "month");
+      verifiedModeRef.current = verifiedMode;
       // A verified active entitlement without a pending checkout ends the old retry receipt.
       if (result.plan === "pro" && !result.pendingCheckout) {
         try {
-          clearCheckoutAttempt(identity);
+          clearCheckoutAttempt(identity, result.mode === "live" ? "live" : "sandbox");
           setAttempt(null);
         } catch {
           /* Existing receipt is harmless and remains owner scoped. */
@@ -230,6 +236,7 @@ function BillingSession({
         const receipt = prepareCheckoutAttempt(
           identity,
           attempt?.interval ?? interval,
+          status.mode === "live" ? "live" : "sandbox",
         );
         setAttempt(receipt);
         setInterval(receipt.interval);
@@ -255,7 +262,7 @@ function BillingSession({
         const code = reason instanceof BillingApiError ? reason.code : "";
         if (code === "billing_checkout_expired") {
           try {
-            clearCheckoutAttempt(identity);
+            clearCheckoutAttempt(identity, status.mode === "live" ? "live" : "sandbox");
             setAttempt(null);
             setStatus(null);
           } catch {
@@ -283,7 +290,7 @@ function BillingSession({
       <div className="billing-card-head">
         <h3>Predplatné</h3>
         {status?.enabled && (
-          <span className="billing-sandbox">Testovací režim Stripe</span>
+          <span className="billing-sandbox">{status.mode === "live" ? "Platby cez Stripe" : "Testovací režim Stripe"}</span>
         )}
       </div>
       {loading ? (
@@ -316,8 +323,9 @@ function BillingSession({
           ) : (
             <>
               <p className="billing-note">
-                Testovacie platby nemenia živý účet. Aktivácia sa zobrazí až po
-                overení predplatného.
+                {status.mode === "live"
+                  ? "Predplatné sa aktivuje až po overení platby serverom. Návrat z Checkoutu sám nemení plán."
+                  : "Testovacie platby nemenia živý účet. Aktivácia sa zobrazí až po overení predplatného."}
               </p>
               {status.pendingCheckout && (
                 <p role="status">
@@ -375,13 +383,13 @@ function BillingSession({
                       ? "Pripravujem Stripe…"
                       : attempt || status.pendingCheckout
                         ? "Pokračovať v Checkoute"
-                        : "Pokračovať do testovacieho Checkoutu"}
+                        : status.mode === "live" ? "Pokračovať do Checkoutu" : "Pokračovať do testovacieho Checkoutu"}
                   </button>
                 </>
               )}
               {status.portalAvailable && (
                 <button disabled={busy} onClick={() => void act("portal")}>
-                  Spravovať testovacie predplatné
+                  {status.mode === "live" ? "Spravovať predplatné" : "Spravovať testovacie predplatné"}
                 </button>
               )}
               {!status.checkoutAvailable &&

@@ -123,7 +123,7 @@ export async function loadBillingStatus(
   if (
     !parsed.success ||
     parsed.data.userId !== identity.userId ||
-    parsed.data.enabled !== (parsed.data.mode === "sandbox") ||
+    parsed.data.enabled !== (parsed.data.mode !== "disabled") ||
     (!parsed.data.enabled &&
       (parsed.data.checkoutAvailable || parsed.data.portalAvailable))
   )
@@ -134,15 +134,16 @@ const AttemptSchema = BillingCheckoutSchema.extend({
   version: z.literal(1),
 }).strict();
 export type CheckoutAttempt = z.infer<typeof AttemptSchema>;
-const attemptKey = (identity: BillingIdentity) =>
-  "billing-checkout:v1:" + encodeURIComponent(identity.userId);
+const attemptKey = (identity: BillingIdentity, mode: "sandbox" | "live" = "sandbox") =>
+  (mode === "live" ? "billing-checkout:live:v1:" : "billing-checkout:v1:") + encodeURIComponent(identity.userId);
 export function readCheckoutAttempt(
   identity: BillingIdentity,
+  mode: "sandbox" | "live" = "sandbox",
 ): CheckoutAttempt | null {
   assertIdentity(identity);
   let raw: string | null;
   try {
-    raw = sessionStorage.getItem(attemptKey(identity));
+    raw = sessionStorage.getItem(attemptKey(identity, mode));
   } catch {
     throw new BillingApiError("storage");
   }
@@ -157,9 +158,10 @@ export function readCheckoutAttempt(
 export function prepareCheckoutAttempt(
   identity: BillingIdentity,
   interval: BillingInterval,
+  mode: "sandbox" | "live" = "sandbox",
 ): CheckoutAttempt {
   assertIdentity(identity);
-  const previous = readCheckoutAttempt(identity);
+  const previous = readCheckoutAttempt(identity, mode);
   if (previous) {
     if (previous.interval !== interval)
       throw new BillingApiError("interval_locked");
@@ -171,18 +173,18 @@ export function prepareCheckoutAttempt(
     interval,
   };
   try {
-    sessionStorage.setItem(attemptKey(identity), JSON.stringify(record));
-    if (sessionStorage.getItem(attemptKey(identity)) !== JSON.stringify(record))
+    sessionStorage.setItem(attemptKey(identity, mode), JSON.stringify(record));
+    if (sessionStorage.getItem(attemptKey(identity, mode)) !== JSON.stringify(record))
       throw new Error("storage");
   } catch {
     throw new BillingApiError("storage");
   }
   return record;
 }
-export function clearCheckoutAttempt(identity: BillingIdentity) {
+export function clearCheckoutAttempt(identity: BillingIdentity, mode: "sandbox" | "live" = "sandbox") {
   assertIdentity(identity);
   try {
-    sessionStorage.removeItem(attemptKey(identity));
+    sessionStorage.removeItem(attemptKey(identity, mode));
   } catch {
     throw new BillingApiError("storage");
   }

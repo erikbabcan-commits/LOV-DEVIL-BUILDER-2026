@@ -27,11 +27,11 @@ function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
     promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
   });
 }
-async function boundedBody(request: Request, signal: AbortSignal): Promise<Uint8Array> {
+async function boundedBody(request: Request, signal: AbortSignal, limit = MAX_BODY): Promise<Uint8Array> {
   const contentLength = request.headers.get('Content-Length');
   if (contentLength !== null) {
     if (!/^\d+$/.test(contentLength)) throw new ProxyFailure('invalid_content_length', 400);
-    if (Number(contentLength) > MAX_BODY) throw new ProxyFailure('request_too_large', 413);
+    if (Number(contentLength) > limit) throw new ProxyFailure('request_too_large', 413);
   }
   if (!request.body) return new Uint8Array();
   const reader = request.body.getReader();
@@ -42,7 +42,7 @@ async function boundedBody(request: Request, signal: AbortSignal): Promise<Uint8
       const result = await abortable(reader.read(), signal);
       if (result.done) { done = true; break; }
       bytes += result.value.byteLength;
-      if (bytes > MAX_BODY) throw new ProxyFailure('request_too_large', 413);
+      if (bytes > limit) throw new ProxyFailure('request_too_large', 413);
       chunks.push(result.value);
     }
     const body = new Uint8Array(bytes);
@@ -77,7 +77,9 @@ export function makeHonoProxy(options: HonoProxyOptions): (request: Request) => 
       if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') ?? '')) return jsonError('json_required', 415);
     }
 
-    const timeoutMs = path === '/api/agent/generate' || path === '/api/sandbox/autofix' ? 130_000 : path === '/api/sandbox/build' ? 35_000 : 20_000;
+    const billing = path === '/api/billing' || path === '/api/billing/checkout' || path === '/api/billing/portal';
+    const publishing = path === '/api/publish' || path.startsWith('/api/publish/');
+    const timeoutMs = path === '/api/agent/generate' || path === '/api/sandbox/autofix' ? 130_000 : path === '/api/sandbox/build' ? 35_000 : billing ? 60_000 : 20_000;
     const controller = new AbortController();
     const onClientAbort = () => controller.abort(new DOMException('Client disconnected', 'AbortError'));
     request.signal.addEventListener('abort', onClientAbort, { once: true });
@@ -98,7 +100,7 @@ export function makeHonoProxy(options: HonoProxyOptions): (request: Request) => 
       }
       if (!session) return jsonError('unauthenticated', 401);
       if (!session.accessToken || session.accessToken.length > 16_384 || !/^[A-Za-z0-9_.-]+$/.test(session.accessToken)) return jsonError('cloud_auth_unavailable', 503);
-      const body = request.method === 'POST' ? await boundedBody(request, controller.signal) : undefined;
+      const body = request.method === 'POST' ? await boundedBody(request, controller.signal, billing ? 8192 : publishing ? 4096 : MAX_BODY) : undefined;
       const headers = new Headers({ Authorization: 'Bearer ' + session.accessToken, Accept: path === '/api/agent/generate' ? 'text/event-stream' : 'application/json' });
       if (options.basicAuth !== undefined) {
         headers.set('Authorization', 'Basic ' + btoa(options.basicAuth));
