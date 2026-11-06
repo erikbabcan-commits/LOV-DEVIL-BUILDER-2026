@@ -122,6 +122,8 @@ Postup sa teraz na VPS nevykonal.
    ```python
    import hashlib, json, os, re, stat, uuid
    from pathlib import Path
+   if not __debug__:
+       raise SystemExit('inventory requires Python without optimization')
    job = json.loads(Path(os.environ['CASE_DIR'], 'row.json').read_text())
    assert job['state'] in ('building', 'failed'), 'published row requires separate review'
    artifact = str(uuid.UUID(job['artifact_id']))
@@ -250,7 +252,7 @@ zostávajú trvalými záznamami a všetky pokusy sa naďalej počítajú; prech
 `empty` uvoľní iba bajty. Bez tombstone protokolu by zmazanie dovolilo starému
 klientovi po GET 404 zopakovať POST s rovnakým UUID.
 
-`loadPublishConfig` má aktuálne pevné `PublishConfig.maxArtifacts=20`.
+`readPublishConfig` má aktuálne pevné `PublishConfig.maxArtifacts=20`.
 **Premenná `PUBLICPUBLISH_MAX_ARTIFACTS` neexistuje**. Pri dosiahnutí limitu
 publikovanie odmietni a odovzdaj prípad podpore; neobchádzaj ho mazaním riadkov.
 Po audite zneužitia, počtu pokusov, skutočných bajtov a voľného disku možno
@@ -335,7 +337,7 @@ MCP prístup k Stripe sandboxu ostáva iba na čítanie; táto práca ho nerozš
 Aktuálny read-isolation addendum pre runtime `d9b279b` má **1 117 passed /
 189 skipped main**, **21/21 Docker**, typy, build a lint PASS (0 chýb / 33
 existujúcich upozornení). Všetkých 301 source witnesses zostalo počas siedmich
-brán nezmenených. Offline inventár runbooku prešiel **8/8** syntetických
+brán nezmenených. Offline inventár runbooku prešiel **10/10** syntetických
 filesystem prípadov; jeho SQL prešlo **20/20** CAS/flag prípadov na dočasných
 natívnych PG16/18 so schémou 001–013 a odstránením oboch clustrov. Ide o lokálne
 fixture dôkazy, žiadne produkčné SQL. Anonymné reads sú oddelené od publishing

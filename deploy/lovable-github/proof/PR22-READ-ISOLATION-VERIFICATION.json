@@ -101,7 +101,16 @@
   "runbook": {
     "path": "docs/WS-19-PUBLISH-BILLING.md#publish-storage-recovery",
     "filesystemInventory": {
-      "syntheticLocalCasesPassed": 8
+      "syntheticLocalCasesPassed": 10,
+      "existingCases": 8,
+      "optimizedRefusalCases": 2,
+      "modes": [
+        "python -O",
+        "PYTHONOPTIMIZE=1"
+      ],
+      "refusedBeforeRowJsonOrVolumeRead": true,
+      "verifiedAt": "2026-11-06T21:25:59.335473+00:00",
+      "snippetSha256": "56eae8cf0fb4153975162b6e5c444e9ab479bc91790f2b4f028fdbb917b7accf"
     },
     "sql": {
       "nativePostgresMajors": [
