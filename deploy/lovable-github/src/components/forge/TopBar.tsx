@@ -29,7 +29,7 @@ export function TopBar({
   const { state, controller, authenticated } = useForge();
 
   return (
-    <header className="relative flex h-[52px] shrink-0 items-center gap-2 border-b border-border bg-background px-2 sm:px-3">
+    <header className="relative flex min-h-[52px] shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-2 py-2 sm:h-[52px] sm:flex-nowrap sm:px-3 sm:py-0">
       <Btn
         variant="ghost"
         size="icon"
@@ -41,7 +41,7 @@ export function TopBar({
       </Btn>
       <button
         onClick={() => setView("Domov")}
-        className="flex items-center gap-1.5 rounded-lg px-1"
+        className="flex shrink-0 items-center gap-1.5 rounded-lg px-1"
         aria-label="Forge – domov"
       >
         <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
@@ -50,7 +50,7 @@ export function TopBar({
         <span className="hidden font-semibold sm:inline">Forge</span>
       </button>
       <span className="hidden h-5 w-px bg-border sm:block" />
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="flex min-w-0 flex-1 items-center gap-1 sm:flex-none">
         {editing ? (
           <input
             autoFocus
@@ -64,7 +64,7 @@ export function TopBar({
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
               if (e.key === "Escape") setEditing(false);
             }}
-            className="h-8 w-36 rounded-md border border-input bg-card px-2 text-[13px] outline-none focus:border-ring"
+            className="h-8 w-36 max-w-full rounded-md border border-input bg-card px-2 text-[13px] outline-none focus:border-ring"
           />
         ) : (
           <button
@@ -88,7 +88,7 @@ export function TopBar({
         </span>
       </div>
 
-      <nav aria-label="Zobrazenie" className="mx-auto flex rounded-lg bg-muted p-0.5">
+      <nav aria-label="Zobrazenie" className="order-last flex w-full shrink-0 justify-center rounded-lg bg-muted p-0.5 sm:order-none sm:mx-auto sm:w-auto">
         {VIEWS.map((v) => (
           <button
             key={v}
@@ -106,7 +106,7 @@ export function TopBar({
         ))}
       </nav>
 
-      <div className="flex items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1 sm:ml-0">
         <select
           aria-label="Režim generovania"
           value={state.modelId}

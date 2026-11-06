@@ -1,0 +1,33 @@
+{
+  "verifiedAt": "2026-11-06T21:49:44.954908+00:00",
+  "component": "src/components/forge/TopBar.tsx",
+  "sha256": "4c10de128b834fb460c87263c4e45b874d7b41204345a41d5f8798ea669c8d0c",
+  "beforeHosted393": {
+    "signInRight": 402.875,
+    "projectTitleWidth": 12,
+    "expiredStandaloneProxy404": true,
+    "editorEmbeddedPreviewRendered": true
+  },
+  "afterLocalCssWidths": [
+    320,
+    390,
+    767,
+    1280
+  ],
+  "clippedHeaderControlsAtEachWidth": 0,
+  "horizontalDocumentOverflowAtEachWidth": false,
+  "renameInputAt390": {
+    "width": 143.993,
+    "right": 235.92,
+    "fits": true
+  },
+  "desktopHeaderHeight": 52,
+  "mobileHeaderHeight": 89,
+  "testsPassed": 188,
+  "localProductionBuild": "PASS",
+  "hostedAiPrompts": 0,
+  "hostedDeploymentVerified": false,
+  "cloudOrAuthWrites": false,
+  "frontendGitMain": "f5d6628ccd0ee9a18da97e7e15a5155fd7be84b1",
+  "typescript": "PASS"
+}
