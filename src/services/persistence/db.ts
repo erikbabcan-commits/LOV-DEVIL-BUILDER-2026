@@ -1,3 +1,4 @@
+import type {ConversationTurn} from '../../../shared/conversation';
 /* Workstream B: IndexedDB perzistencia — verzovaná schéma, atómické zápisy,
    obnova po refreshi, migrácie, quota reporting, immutabilné snapshoty.
    Podľa docs/PERSISTENCE-PLAN.md (M0 návrh, M2 implementácia). */
@@ -13,6 +14,9 @@ export interface StoredProject {
   liveSnapshotId: string | null;
   publishedUrl: string | null;
   isPublic: boolean;
+  remoteRevision?: number;
+  remoteSnapshotIds?: Record<string,string>;
+  conversation?: ConversationTurn[];
 }
 
 export interface StoredSnapshot {
@@ -27,6 +31,9 @@ export interface StoredSnapshot {
   /* AI run metadata (M2): ktorý run snapshot vytvoril */
   runId?: string;
   model?: string;
+  /** Optional scalar payload; no object-store/index migration needed for v2. */
+  sourceFiles?: string;
+  parentId?: string | null;
 }
 
 export interface StoredFile {
@@ -51,12 +58,32 @@ export interface StoredRun {
 
 export interface StoredMeta { key: string; value: unknown }
 
-let dbPromise: Promise<IDBDatabase> | null = null;
+const connections = new Map<string, Promise<IDBDatabase>>();
+let databaseName: string | null = DB_NAME;
+let scopeEpoch = 0;
+const scopeListeners = new Set<() => void>();
+export function subscribePersistenceScope(listener: () => void) {
+  scopeListeners.add(listener);
+  return () => { scopeListeners.delete(listener); };
+}
+export type PersistenceScope = { kind: 'pilot' } | { kind: 'account'; userId: string } | { kind: 'locked' };
 
-export function openDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+export function persistenceScope() { return { databaseName, epoch: scopeEpoch }; }
+export function selectDatabaseScope(scope: PersistenceScope): boolean {
+  if (scope.kind === 'account' && !scope.userId.trim()) throw new Error('Missing account identity');
+  const name = scope.kind === 'locked' ? null : scope.kind === 'pilot' ? DB_NAME : DB_NAME + ':account:' + encodeURIComponent(scope.userId);
+  if (name === databaseName) return false;
+  databaseName = name; scopeEpoch++;
+  for (const listener of scopeListeners) listener();
+  return true;
+}
+
+export function openDb(name: string | null = databaseName): Promise<IDBDatabase> {
+  if (name === null) return Promise.reject(new Error('Persistence is locked until authentication is verified'));
+  const existing = connections.get(name);
+  if (existing) return existing;
+  const promise = new Promise<IDBDatabase>((resolve, reject) => {
+    const req = indexedDB.open(name, DB_VERSION);
     req.onupgradeneeded = e => {
       const db = req.result;
       const oldVersion = e.oldVersion;
@@ -82,11 +109,13 @@ export function openDb(): Promise<IDBDatabase> {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error('IndexedDB open failed'));
   });
-  return dbPromise;
+  connections.set(name, promise);
+  void promise.catch(() => { if (connections.get(name) === promise) connections.delete(name); });
+  return promise;
 }
 
-function tx<T>(stores: string[], mode: IDBTransactionMode, fn: (t: IDBTransaction) => Promise<T> | T): Promise<T> {
-  return openDb().then(db => new Promise<T>((resolve, reject) => {
+function tx<T>(stores: string[], mode: IDBTransactionMode, fn: (t: IDBTransaction) => Promise<T> | T, name = databaseName): Promise<T> {
+  return openDb(name).then(db => new Promise<T>((resolve, reject) => {
     const t = db.transaction(stores, mode);
     let result: T;
     let failed = false;
@@ -131,8 +160,8 @@ export async function saveProject(p: StoredProject): Promise<void> {
   await guarded(tx(['projects'], 'readwrite', t => { t.objectStore('projects').put(p); }));
 }
 
-export async function loadProjects(): Promise<StoredProject[]> {
-  return guarded(tx(['projects'], 'readonly', t => rq(t.objectStore('projects').getAll() as IDBRequest<StoredProject[]>)));
+export async function loadProjects(name = databaseName): Promise<StoredProject[]> {
+  return guarded(tx(['projects'], 'readonly', t => rq(t.objectStore('projects').getAll() as IDBRequest<StoredProject[]>), name));
 }
 
 /* Every persisted snapshot field is scalar. Only pinned is mutable UI metadata;
@@ -200,9 +229,9 @@ export async function saveSnapshot(s: StoredSnapshot): Promise<void> {
   await guarded(tx(['snapshots'], 'readwrite', t => rq(t.objectStore('snapshots').add(s))));
 }
 
-export async function loadSnapshots(projectId: string): Promise<StoredSnapshot[]> {
+export async function loadSnapshots(projectId: string, name = databaseName): Promise<StoredSnapshot[]> {
   return guarded(tx(['snapshots'], 'readonly', t =>
-    rq(t.objectStore('snapshots').index('byProject').getAll(projectId) as IDBRequest<StoredSnapshot[]>)));
+    rq(t.objectStore('snapshots').index('byProject').getAll(projectId) as IDBRequest<StoredSnapshot[]>), name));
 }
 
 /* ---------- files (revízie chránia proti stale async prepisu) ---------- */
@@ -218,9 +247,9 @@ export async function saveFile(f: StoredFile): Promise<boolean> {
   return guarded(tx(['files'], 'readwrite', t => saveFileInTransaction(t.objectStore('files'), f)));
 }
 
-export async function loadFiles(projectId: string): Promise<StoredFile[]> {
+export async function loadFiles(projectId: string, name = databaseName): Promise<StoredFile[]> {
   return guarded(tx(['files'], 'readonly', t =>
-    rq((t.objectStore('files') as IDBObjectStore & { getAllByPrefix?: unknown }).getAll(IDBKeyRange.bound([projectId, ''], [projectId, '\uffff'])) as IDBRequest<StoredFile[]>)));
+    rq((t.objectStore('files') as IDBObjectStore & { getAllByPrefix?: unknown }).getAll(IDBKeyRange.bound([projectId, ''], [projectId, '\uffff'])) as IDBRequest<StoredFile[]>), name));
 }
 
 /* ---------- runs ---------- */
@@ -229,18 +258,48 @@ export async function saveRun(r: StoredRun): Promise<void> {
   await guarded(tx(['runs'], 'readwrite', t => { t.objectStore('runs').put(r); }));
 }
 
-export async function loadRuns(projectId: string): Promise<StoredRun[]> {
-  const all = await guarded(tx(['runs'], 'readonly', t => rq(t.objectStore('runs').getAll() as IDBRequest<StoredRun[]>)));
+export async function loadRuns(projectId: string, name = databaseName): Promise<StoredRun[]> {
+  const all = await guarded(tx(['runs'], 'readonly', t => rq(t.objectStore('runs').getAll() as IDBRequest<StoredRun[]>), name));
   return all.filter(r => r.projectId === projectId);
 }
 
 /* ---------- meta ---------- */
 
-export async function saveMeta(key: string, value: unknown): Promise<void> {
-  await guarded(tx(['meta'], 'readwrite', t => { t.objectStore('meta').put({ key, value } as StoredMeta); }));
+export async function saveMeta(key: string, value: unknown, name = databaseName): Promise<void> {
+  await guarded(tx(['meta'], 'readwrite', t => { t.objectStore('meta').put({ key, value } as StoredMeta); }, name));
 }
 
-export async function loadMeta<T>(key: string): Promise<T | null> {
-  const m = await guarded(tx(['meta'], 'readonly', t => rq(t.objectStore('meta').get(key) as IDBRequest<StoredMeta | undefined>)));
+export async function loadMeta<T>(key: string, name = databaseName): Promise<T | null> {
+  const m = await guarded(tx(['meta'], 'readonly', t => rq(t.objectStore('meta').get(key) as IDBRequest<StoredMeta | undefined>), name));
   return m ? (m.value as T) : null;
+}
+
+/** Import an authoritative remote document. Preserve an existing local project atomically first. */
+export async function importRemoteProject(state: {project:StoredProject;snapshots:StoredSnapshot[];files:StoredFile[]}): Promise<string | null> {
+  return guarded(tx(['projects','snapshots','files','runs','meta'],'readwrite',async t=>{
+    const projects=t.objectStore('projects'), snapshots=t.objectStore('snapshots'), files=t.objectStore('files'), runs=t.objectStore('runs');
+    const id=state.project.id;
+    const existing=await rq(projects.get(id) as IDBRequest<StoredProject|undefined>);
+    const oldSnapshots=await rq(snapshots.index('byProject').getAll(id) as IDBRequest<StoredSnapshot[]>);
+    const oldFiles=await rq(files.getAll(IDBKeyRange.bound([id,''],[id,'\uffff'])) as IDBRequest<StoredFile[]>);
+    const oldRuns=(await rq(runs.getAll() as IDBRequest<StoredRun[]>)).filter(run=>run.projectId===id);
+    let backupId:string|null=null;
+    if(existing){
+      backupId='local-'+crypto.randomUUID();
+      const ids=new Map(oldSnapshots.map(snapshot=>[snapshot.id,crypto.randomUUID()]));
+      await rq(projects.add({...existing,id:backupId,title:existing.title.slice(0,100)+' (lokálna kópia)',remoteRevision:0,remoteSnapshotIds:{},liveSnapshotId:existing.liveSnapshotId?ids.get(existing.liveSnapshotId)??null:null}));
+      for(const snapshot of oldSnapshots)await rq(snapshots.add({...snapshot,id:ids.get(snapshot.id)!,projectId:backupId,...(snapshot.parentId?{parentId:ids.get(snapshot.parentId)??null}:{})}));
+      for(const file of oldFiles)await rq(files.put({...file,projectId:backupId}));
+      for(const run of oldRuns)await rq(runs.put({...run,id:crypto.randomUUID(),projectId:backupId}));
+    }
+    for(const snapshot of oldSnapshots)await rq(snapshots.delete(snapshot.id));
+    for(const file of oldFiles)await rq(files.delete([id,file.path]));
+    for(const run of oldRuns)await rq(runs.delete(run.id));
+    const revision=Math.max(0,...oldFiles.map(file=>file.revision),...state.files.map(file=>file.revision))+1;
+    for(const snapshot of state.snapshots){if(snapshot.projectId!==id)throw new Error('Invalid import snapshot');await rq(snapshots.add(snapshot));}
+    for(const file of state.files){if(file.projectId!==id)throw new Error('Invalid import file');await rq(files.put({...file,revision}));}
+    await rq(projects.put(state.project));
+    await rq(t.objectStore('meta').put({key:'lastProject',value:id}));
+    return backupId;
+  }));
 }

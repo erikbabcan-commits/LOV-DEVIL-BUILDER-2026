@@ -1,26 +1,49 @@
+import {preflightContext} from './agent/context';
+import {ContextBudgetError,contextWindow} from './providers/contextBudget';
+import { ProviderError } from './providers/errors';
+import { ModelSelectionSchema } from '../shared/aiModels';
+import { ProviderRegistry, type ModelEntry } from './providers/registry';
+import { configuredProviders } from './providers/runtime';
+import { createProviderRun } from './providers/run';
+import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
+import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
 import 'dotenv/config';
+import { randomUUID } from 'node:crypto';
+import { PostgresAiUsageStore, UsageLedgerError, type AiUsageStore, type RunStatus } from './usage/store';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
+import { projectRouter } from './projects/routes';
+import { readProjectStoragePolicy, type ProjectStoragePolicy } from './projects/storage';
 import { MistralProvider, makeFetchTransport } from './providers/mistral';
 import type { AIProvider, ProviderTransport } from './providers/types';
-import { runAgent } from './agent/run';
+import { runAgent, parseAgentRequest } from './agent/run';
+import { consumeGenerationQuota, QuotaAdmissionError } from './security/generationQuota';
 import { AgentEventSchema } from './agent/schemas';
-import { SandboxFileSchema, buildProject } from './sandbox/builder';
+import { SandboxFileSchema } from './sandbox/builder';
+import { createSandboxExecutor, getSandboxExecutor, type SandboxExecutor } from './sandbox/executor';
+import { asSandboxError } from './sandbox/errors';
+import { MAX_INPUT_JSON_BYTES, validationFailure } from './sandbox/policy';
 import { allowedOrigins } from './security/oauthPolicy';
 import { githubRouter } from './routes/githubSecure';
+import { githubCloudRouter, isCloudGitHubRoute, type CloudGitHubWiring } from './routes/githubCloud';
 import { exportRouter } from './routes/export';
 import { LocalBudgetGuard } from './security/budget';
 import { containsPotentialSecret, redactSecrets } from './security/secrets';
 import { authRouter } from './auth/routes';
 import { makeAuthMiddleware, getUserFromContext } from './auth/middleware';
+import { makeCloudAuth, validateCloudIssuer, type CloudAuth } from './auth/cloud';
+import { readCloudGitHubConfig, makeCloudGitHubWiring } from './integrations/githubRuntime';
+import { probeCloudGitHubSchema } from './integrations/githubSchema';
 import type { DbLike } from './db/pool';
-import type { QuotaStore } from './security/quotaStore';
+import type { QuotaStore, QuotaSnapshot } from './security/quotaStore';
 import { makeInMemoryRateLimiter, type AsyncRateLimiter } from './security/rateLimit';
-
-/* server-side uid (neimportuje client kód) */
-const uid = () => Math.random().toString(36).slice(2, 9);
+import { billingRouter, billingWebhook } from './billing/routes';
+import { BillingService, probeBillingSchema } from './billing/service';
+import { readBillingConfig } from './billing/config';
+import { makeStripeBillingGateway } from './billing/gateway';
 
 /* Hono backend — server-only Mistral integrácia.
    Trust boundary (single-user pilot): server počúva len na 127.0.0.1,
@@ -38,6 +61,9 @@ export interface ServerConfig {
   publicDeployment?: boolean;
   maxConcurrentRuns?: number;
   maxRunsPerDay?: number;
+  sandboxMode?: 'host' | 'isolated';
+  projectStorage?: ProjectStoragePolicy;
+  aiPricing?: PricePolicy | null;
 }
 
 export function makeProvider(cfg: ServerConfig, transport?: ProviderTransport): AIProvider | null {
@@ -77,14 +103,19 @@ export function createApp(
   provider: AIProvider | null,
   opts?: {
     transport?: ProviderTransport;
+    providers?: ProviderRegistry;
+    resilience?: Pick<ResilienceOptions, 'sleep' | 'random'>;
     rateLimit?: (k: string) => boolean;
     budget?: LocalBudgetGuard;
     /** WS-1: ak je zadané, auth je zapnutý — všetko okrem /api/health a /api/auth/* vyžaduje prihlásenie. */
-    auth?: { db: DbLike; jwtSecret: string; quota: QuotaStore };
+    auth?: { db: DbLike; jwtSecret: string; quota: QuotaStore; usage?: AiUsageStore; cloudAuth?: CloudAuth; cloudGitHub?: CloudGitHubWiring; billing?: BillingService };
     /** Async limiter pre agent/autofix (Redis keď je REDIS_URL; inak per-user memory). */
     agentRateLimit?: AsyncRateLimiter;
+    sandbox?: SandboxExecutor;
   }
 ) {
+  if (cfg.aiPricing) parsePricePolicy(JSON.stringify(cfg.aiPricing.document));
+  const providers = opts?.providers ?? new ProviderRegistry(provider ? [{id:'default',label:'AI ('+provider.name+')',provider}] : []);
   const app = new Hono();
   const trustedOrigins = new Set([...allowedOrigins(), 'http://localhost:5173', 'http://127.0.0.1:5173']);
   app.use('*', async (c, next) => {
@@ -98,7 +129,7 @@ export function createApp(
     cors({
       origin: (origin) => (trustedOrigins.has(origin) ? origin : undefined),
       allowMethods: ['GET', 'POST', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'X-CSRF-Token'],
+      allowHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization'],
       credentials: true
     })
   );
@@ -107,18 +138,50 @@ export function createApp(
     opts?.agentRateLimit ??
     (opts?.rateLimit ? async (k: string) => opts.rateLimit!(k) : makeInMemoryRateLimiter(cfg.rateLimitPerMin ?? 10));
   const budget = opts?.budget ?? new LocalBudgetGuard({ maxConcurrent: cfg.maxConcurrentRuns ?? 2, maxRunsPerDay: cfg.maxRunsPerDay ?? 30 });
+  const usageStore = opts?.auth ? opts.auth.usage ?? new PostgresAiUsageStore(opts.auth.db, undefined, cfg.aiPricing ?? null) : null;
   const aiAllowed = () => cfg.aiGenerationEnabled !== false && cfg.publicDeployment !== true;
+  const sandbox = opts?.sandbox ?? (cfg.sandboxMode
+    ? createSandboxExecutor({ ...process.env, SANDBOX_MODE: cfg.sandboxMode }) : getSandboxExecutor());
 
+  app.use('/api/billing/webhook', bodyLimit({ maxSize: 512 * 1024, onError: c => c.json({ error: 'billing_input_limit' }, 413) }));
+  app.post('/api/billing/webhook', billingWebhook(opts?.auth?.billing ?? null));
+  app.use('/api/billing/*', bodyLimit({ maxSize: 8192, onError: c => c.json({ error: 'billing_input_limit' }, 413) }));
   /* WS-1: auth middleware (iba keď je opts.auth zapnuté — inak pilot mód bez zmien) */
   if (opts?.auth) {
-    app.use('/api/*', makeAuthMiddleware(opts.auth.jwtSecret));
+    if (opts.auth.cloudGitHub && !opts.auth.cloudAuth) throw new Error('Cloud GitHub requires Cloud authentication');
+    app.use('/api/*', makeAuthMiddleware(opts.auth.jwtSecret, opts.auth.cloudAuth, opts.auth.cloudGitHub ? isCloudGitHubRoute : undefined, opts.auth.db));
     app.route('/', authRouter(opts.auth));
+    app.route('/', projectRouter(opts.auth.db, rateLimit, cfg.projectStorage));
+    if (opts.auth.cloudGitHub) app.route('/', githubCloudRouter(opts.auth.cloudGitHub, rateLimit));
   }
+  app.route('/', billingRouter(opts?.auth?.billing ?? null, rateLimit));
 
-  app.get('/api/health', (c) => c.json({ ok: true, ai: provider ? 'mistral' : 'not-configured' }));
+  app.get('/api/ai-usage', async c => {
+    c.header('Cache-Control', 'no-store');
+    const user = opts?.auth ? getUserFromContext(c) : null;
+    if (!user || !usageStore) return c.json({ error: 'usage_unavailable' }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: 'invalid_query' }, 400);
+    if (!rateLimit('ai-usage:' + user.id)) return c.json({ error: 'rate_limit' }, 429);
+    try { return c.json(await usageStore.report(user.id)); }
+    catch { return c.json({ error: 'usage_unavailable' }, 503); }
+  });
 
-  /* M3 compile-only build vygenerovaného projektu (esbuild v host procese,
-     bez runtime izolácie; výstup je HTML pre sandbox iframe). */
+  app.get('/api/ai-models', c => {
+    c.header('Cache-Control','no-store');
+    if (new URL(c.req.url).search) return c.json({error:'invalid_query'},400);
+    const user = opts?.auth ? getUserFromContext(c) : null;
+    if (!rateLimit('ai-models:'+(user?.id??'pilot'))) return c.json({error:'rate_limit'},429);
+    return c.json(aiAllowed()?providers.catalog():{defaultId:null,models:[]});
+  });
+  app.get('/api/health', (c) => c.json({ ok: true, ai: providers.defaultProvider?.name ?? 'not-configured', auth: opts?.auth ? 'enabled' : 'disabled' }));
+  app.use('/api/sandbox/*', bodyLimit({ maxSize: MAX_INPUT_JSON_BYTES,
+    onError: c => c.json({ error: 'sandbox_input_limit' }, 413) }));
+  app.get('/api/sandbox/ready', async c => {
+    const status = await sandbox.ready();
+    return c.json(status, status.ready ? 200 : 503);
+  });
+
+  /* Compile-only build cez spoločný executor; výsledné HTML je pre sandbox iframe. */
   app.post('/api/sandbox/build', async (c) => {
     if (cfg.publicDeployment) return c.json({ error: 'public_runtime_not_authorized' }, 503);
     if (!rateLimit('sandbox')) return c.json({ error: 'rate_limit' }, 429);
@@ -132,9 +195,15 @@ export function createApp(
       .max(40)
       .safeParse((body as { files?: unknown })?.files);
     if (!parsed.success)
-      return c.json({ error: 'invalid_files', issues: parsed.error.issues.slice(0, 5) }, 400);
-    const result = await buildProject(parsed.data);
-    return c.json(result);
+      return c.json({ error: 'invalid_files', issues: JSON.parse(redactSecrets(JSON.stringify(parsed.error.issues.slice(0, 5)))) }, 400);
+    const invalid = validationFailure(parsed.data);
+    if (invalid) return c.json(invalid);
+    try { return c.json(await sandbox.execute(parsed.data, c.req.raw.signal)); }
+    catch (error) {
+      const safe = asSandboxError(error);
+      // Existing preview clients display errors[]; keep the human-readable infra message there too.
+      return c.json({ error: safe.code, message: safe.message, errors: [{ file: '-', message: safe.message }] }, safe.status);
+    }
   });
 
   /* Step 4: AUTOFIX — build → errors → AI patch → rebuild (max 2 pokusy) */
@@ -142,7 +211,7 @@ export function createApp(
     if (!aiAllowed()) return c.json({ error: 'ai_disabled' }, 503);
     const autoUser = opts?.auth ? getUserFromContext(c) : null;
     if (!(await agentRateLimit(autoUser ? `autofix:${autoUser.id}` : 'autofix'))) return c.json({ error: 'rate_limit' }, 429);
-    if (!provider) return c.json({ error: 'ai_not_configured' }, 503);
+    if (!providers.defaultProvider) return c.json({ error: 'ai_not_configured' }, 503);
     let body: unknown;
     try {
       body = await c.req.json();
@@ -153,103 +222,116 @@ export function createApp(
       .max(40)
       .safeParse((body as { files?: unknown })?.files);
     if (!parsed.success) return c.json({ error: 'invalid_files' }, 400);
+    const selection = ModelSelectionSchema.safeParse(body);
+    let autoRoute: ModelEntry[];
+    try { if (!selection.success) throw new Error('invalid_model'); autoRoute=providers.route(selection.data.modelId,selection.data.allowFallback,selection.data.fallbackIds); }
+    catch { return c.json({error:'invalid_model'},400); }
     if (parsed.data.some(f => containsPotentialSecret(f.path) || containsPotentialSecret(f.content))) return c.json({ error: 'secret_in_context' }, 400);
     const admission = budget.acquire();
     if (!admission.ok) return c.json({ error: 'BUDGET_EXCEEDED', reason: admission.reason }, 429);
+    let autoQuota: QuotaSnapshot | undefined;
+    const autoRun = { userId: autoUser?.id ?? '', id: randomUUID(), kind: 'autofix' as const };
+    const autoUpdates: ProviderUpdate[] = [];
+    const autoMeter = createProviderRun(autoRoute,usageStore,autoRun,{...opts?.resilience,onUpdate:event=>autoUpdates.push(event)});
+    let autoFinished = false;
     try {
       const { autofixLoop } = await import('./agent/autofix');
-      const result = await autofixLoop(provider, parsed.data);
-      return c.json(JSON.parse(redactSecrets(JSON.stringify(result))));
-    } finally { admission.release(); }
+      const result = await autofixLoop(autoMeter.provider, parsed.data, { executor: sandbox, signal: c.req.raw.signal,
+        beforeAi: async () => {
+          if (opts?.auth && autoUser && !autoQuota) autoQuota = await consumeGenerationQuota(opts.auth.quota, autoUser.id, () => usageStore!.admit(autoRun, opts.auth!.quota));
+        },
+      });
+      if (autoQuota && autoMeter) { await autoMeter.finish(c.req.raw.signal.aborted ? 'cancelled' : result.ok ? 'succeeded' : 'failed'); autoFinished = true; }
+      return c.json(JSON.parse(redactSecrets(JSON.stringify({ ...result, ...(autoUpdates.length ? {providerUpdates:autoUpdates} : {}), ...(autoQuota && autoUser ? { quotaUpdate: { userId: autoUser.id, quota: autoQuota } } : {}) }))));
+    } catch (error) {
+      if (error instanceof ContextBudgetError) return c.json({error:'context_limit',message:error.message},413);
+      if (error instanceof UsageLedgerError) return c.json({ error: 'quota_unavailable', message: error.message }, 503);
+      if (error instanceof QuotaAdmissionError) return c.json({ error: error.code, message: error.message, ...(error.quota && autoUser ? { quota: error.quota, userId: autoUser.id } : {}) }, error.status);
+      const safe = asSandboxError(error);
+      return c.json({ error: safe.code, message: safe.message }, safe.status);
+    } finally {
+      if (autoQuota && autoMeter && !autoFinished) { try { await autoMeter.finish('incomplete'); } catch { /* retained as unknown */ } }
+      admission.release();
+    }
   });
 
   // Mount routes
   app.route('/', githubRouter);
   app.route('/', exportRouter);
 
+  app.use('/api/agent/generate', bodyLimit({ maxSize: 8_000_000, onError: c => c.json({ error: 'agent_input_limit' }, 413) }));
   app.post('/api/agent/generate', async (c) => {
     if (!aiAllowed()) return c.json({ error: 'ai_disabled' }, 503);
-    /* WS-1: per-user rate limit + trvalá kvóta; bez auth fallback na pilot mód */
     const authUser = opts?.auth ? getUserFromContext(c) : null;
-    const limiterKey = authUser ? `agent:${authUser.id}` : 'agent';
-    if (!(await agentRateLimit(limiterKey)))
+    if (!(await agentRateLimit(authUser ? `agent:${authUser.id}` : 'agent')))
       return c.json({ error: 'rate_limit', message: 'Priveľa požiadaviek, skús o minútu.' }, 429);
-    if (opts?.auth && authUser) {
-      const consumed = await opts.auth.quota.consume(authUser.id);
-      if (!consumed.ok) {
-        return c.json(
-          {
-            error: 'quota_exceeded',
-            quota: consumed.snapshot,
-            message: 'Vyčerpal si mesačnú kvótu generácií. Plán Pro ti ju zvýši na 200.'
-          },
-          429
-        );
-      }
-    }
-    if (!provider) {
-      return c.json(
-        {
-          error: 'ai_not_configured',
-          message:
-            'MISTRAL_API_KEY nie je nastavený na serveri. Exportuj MISTRAL_API_KEY a reštartuj server. Instant Draft mód funguje aj bez neho.'
-        },
-        503
-      );
-    }
+    if (!providers.defaultProvider) return c.json({ error: 'ai_not_configured', message: 'AI engine teraz nie je dostupný. Použi Instant Draft alebo skús neskôr.' }, 503);
     let body: unknown;
-    try {
-      body = await c.req.json();
-    } catch {
-      return c.json({ error: 'bad_json' }, 400);
-    }
-
-    if (containsPotentialSecret(JSON.stringify(body))) return c.json({ error: 'secret_in_context' }, 400);
+    try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
+    const input = parseAgentRequest(body);
+    if (!input.ok) return c.json({ error: input.error.code, message: input.error.message }, 400);
+    let route: ModelEntry[];
+    try { route=providers.route(input.request.modelId,input.request.allowFallback,input.request.fallbackIds); }
+    catch { return c.json({error:'invalid_model'},400); }
+    try{preflightContext(input.request,{contextWindowTokens:Math.min(...route.map(entry=>contextWindow(entry.provider)))});}
+    catch(error){if(error instanceof ContextBudgetError)return c.json({error:'context_limit'},413);throw error;}
+    if (c.req.raw.signal.aborted) return c.json({ error: 'request_cancelled' }, 400);
     const admission = budget.acquire();
     if (!admission.ok) return c.json({ error: 'BUDGET_EXCEEDED', reason: admission.reason }, 429);
-    const runId = uid();
+    const runId = randomUUID();
+    const run = { userId: authUser?.id ?? '', id: runId, kind: 'generation' as const };
+    let providerUpdate: (event: ProviderUpdate) => void = () => {};
+    const meter = createProviderRun(route,usageStore,run,{...opts?.resilience,onUpdate:event=>providerUpdate(event)});
+    try {
+      if (opts?.auth && authUser) await consumeGenerationQuota(opts.auth.quota, authUser.id, () => usageStore!.admit(run, opts.auth!.quota));
+    } catch (error) {
+      admission.discard();
+      if (error instanceof QuotaAdmissionError) return c.json({ error: error.code, message: error.message, ...(error.quota && authUser ? { quota: error.quota, userId: authUser.id } : {}) }, error.status);
+      return c.json({ error: 'quota_unavailable' }, 503);
+    }
     const abortController = new AbortController();
-    const timeout = setTimeout(
-      () => abortController.abort(new Error('timeout: generovanie prekročilo limit')),
-      cfg.requestTimeoutMs ?? 120_000
-    );
-
+    const clientSignal = c.req.raw.signal;
+    const onAbort = () => abortController.abort(new Error('klient zrušil požiadavku'));
+    clientSignal.addEventListener('abort', onAbort, { once: true });
+    if (clientSignal.aborted) onAbort();
+    const timeout = setTimeout(() => abortController.abort(new ProviderError('timeout')), cfg.requestTimeoutMs ?? 120_000);
+    const cleanup = () => { clearTimeout(timeout); clientSignal.removeEventListener('abort', onAbort); };
+    let outputClosed = false;
     c.header('Content-Type', 'text/event-stream');
-    c.header('Cache-Control', 'no-cache');
+    c.header('Cache-Control', 'no-store');
     c.header('X-Accel-Buffering', 'no');
-
-    const stream = new ReadableStream({
+    const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
-        const ctrl = controller as unknown as { enqueue(chunk: Uint8Array): void };
-        const send = (ev: unknown) =>
-          ctrl.enqueue(new TextEncoder().encode(`data: ${redactSecrets(JSON.stringify(ev))}\n\n`));
+        let finished = false;
+        const send = (event: unknown) => {
+          if (!outputClosed) controller.enqueue(new TextEncoder().encode(`data: ${redactSecrets(JSON.stringify(event))}\n\n`));
+        };
+        providerUpdate = event => { const checked=AgentEventSchema.safeParse(event); if(checked.success) send(checked.data); };
         try {
-          for await (const ev of runAgent(body, {
-            runId,
-            provider,
-            signal: abortController.signal,
-            maxFiles: 40
-          })) {
-            const check = AgentEventSchema.safeParse(ev);
-            if (check.success) send(check.data);
+          for await (const event of runAgent(input.request, { runId, provider: meter.provider, signal: abortController.signal, maxFiles: 40 })) {
+            if (['done', 'error', 'cancelled'].includes(event.type) && meter) {
+              const status: RunStatus = event.type === 'done' ? 'succeeded' : event.type === 'cancelled' ? 'cancelled' : 'failed';
+              await meter.finish(status); finished = true;
+            }
+            const checked = AgentEventSchema.safeParse(event);
+            if (checked.success) send(checked.data);
           }
-        } catch (e) {
-          send({
-            type: 'error',
-            code: 'stream_error',
-            message: redactSecrets(String(e)).slice(0, 400),
-            retriable: true
-          });
+        } catch (error) {
+          send({ type: 'error', code: 'stream_error', message: error instanceof UsageLedgerError ? error.message : 'Generovanie sa prerušilo. Projekt zostal zachovaný.', retriable: true });
         } finally {
-          clearTimeout(timeout);
+          if (meter && !finished) { try { await meter.finish('incomplete'); } catch { /* unknown remains visible */ } }
+          cleanup();
+          // Hold concurrency until the provider has actually stopped, including
+          // providers that do not immediately honour cancellation.
           admission.release();
-          (controller as unknown as { close(): void }).close();
+          if (!outputClosed) { outputClosed = true; controller.close(); }
         }
       },
       cancel() {
+        outputClosed = true;
         abortController.abort(new Error('klient zrušil stream'));
-        admission.release();
-      }
+        cleanup();
+      },
     });
     return new Response(stream, { headers: c.res.headers });
   });
@@ -317,18 +399,35 @@ export function makeMockProvider(): AIProvider {
       }
     ]
   });
-  /* per-run counter: každý generate run začína plan → files (E2E determinizmus) */
-  const runCounters = new WeakMap<object, number>();
-  let lastRun: object | null = null;
   return {
     name: 'mock-mistral',
     model: 'mock-large',
     async complete(messages) {
-      const runKey = messages as object;
-      /* nový run detekovaný ak system prompt je PLAN (prvý call v run-e) */
-      const isPlanCall = messages[0]?.content.includes('plánuješ');
+      // Detect the explicit plan response contract, not an obsolete prompt phrase.
+      if(messages[0]?.content.includes('Forge Intent Router')){
+        // Deterministic development fixture only, not a model-quality evaluator.
+        const input=JSON.parse(messages[1].content) as {prompt:string;hasProject:boolean};
+        const question=/^(prečo|ako|čo|kde|vysvetli|why|how|what|where|explain)\b/i.test(input.prompt);
+        const fix=/oprav|chybu|fix|repair|crash/i.test(input.prompt);
+        return{text:JSON.stringify({intent:question?'explain':fix?'fix':input.hasProject?'iterate':'create'}),usage:{promptTokens:10,completionTokens:5}};
+      }
+      if(messages[0]?.content.includes('Forge Edit Planner')){
+        const input=JSON.parse(messages[1].content) as {context:{files:Array<{path:string;content:string}>}};
+        const target=input.context.files.find(f=>f.path.endsWith('.css'))??input.context.files[0];
+        return{text:JSON.stringify({summary:'Cielená testovacia úprava jedného súboru',steps:[{id:'edit',title:'Uprav vybraný súbor'}],filesPlanned:target?[target.path]:[]}),usage:{promptTokens:40,completionTokens:30}};
+      }
+      if(messages[0]?.content.includes('Forge Build Repair')){
+        const input=JSON.parse(messages[1].content) as {files:Array<{path:string;content:string;sha256:string}>},file=input.files.find(file=>file.content.includes('const x = {'));
+        return{text:JSON.stringify({version:1,summary:'Syntetická oprava známej testovacej syntax chyby.',changes:file?[{path:file.path,action:'modify',beforeSha256:file.sha256,edits:[{search:'const x = {',replace:'const x = {};'}]}]:[]}),usage:{promptTokens:40,completionTokens:30}};
+      }
+      if(messages[0]?.content.includes('Forge Patch Editor')){
+        const input=JSON.parse(messages[1].content) as {plannedFiles:string[];files:Array<{path:string;content:string;sha256:string}>};
+        return{text:JSON.stringify({version:1,summary:'Lokálny testovací patch bez zásahu do ostatných súborov.',changes:input.plannedFiles.map(path=>{const file=input.files.find(f=>f.path===path)!;return{path,action:'modify',beforeSha256:file.sha256,edits:[{search:file.content.slice(-120),replace:file.content.slice(-120)+'\n/* Testovacia zmena. */\n'}]};})}),usage:{promptTokens:40,completionTokens:30}};
+      }
+      const isMemoryCall=messages[0]?.content.includes('Forge Conversation Memory');
+      if(isMemoryCall)return{text:JSON.stringify({summary:'Syntetické zhrnutie pre lokálne UI overenie.',decisions:[],openQuestions:[]}),usage:{promptTokens:30,completionTokens:20}};
+      const isPlanCall = messages[0]?.content.includes('"filesPlanned"');
       const call = isPlanCall ? 0 : 1;
-      lastRun = runKey;
       await new Promise((r) => setTimeout(r, 30)); // reálna async medzera
       return {
         text: call === 0 ? planJson : filesJson,
@@ -336,7 +435,8 @@ export function makeMockProvider(): AIProvider {
       };
     },
     async *stream(messages): AsyncGenerator<CompletionChunk> {
-      const isPlanCall = messages[0]?.content.includes('plánuješ');
+      if(messages[0]?.content.includes('Forge Explain')){yield{delta:'Toto je lokálna testovacia odpoveď k projektu. Súbory sa nemenili.',model:'mock-large'};yield{finishReason:'stop',usage:{promptTokens:50,completionTokens:30}};return;}
+      const isPlanCall = messages[0]?.content.includes('"filesPlanned"');
       const text = isPlanCall ? planJson : filesJson;
       for (const ch of text) yield { delta: ch };
       yield { finishReason: 'stop' };
@@ -361,11 +461,21 @@ if (
     publicDeployment: process.env.NODE_ENV === 'production'
   };
   if (cfg.publicDeployment) throw new Error('Public deployment blocked: auth and durable quotas not configured.');
-  const provider = process.env.MOCK_AI === '1' ? makeMockProvider() : makeProvider(cfg);
+  // Parse before provider, DB or migration side effects. Enabling OAuth does
+  // not enable export; each has an explicit, default-off operator switch.
+  const cloudGitHubConfig = readCloudGitHubConfig(process.env);
+  const billingConfig = readBillingConfig(process.env);
+  cfg.projectStorage = readProjectStoragePolicy(process.env);
+  cfg.aiPricing = readAiPricePolicy(process.env);
+  if (process.env.CLOUD_AUTH_ISSUER) validateCloudIssuer(process.env.CLOUD_AUTH_ISSUER);
+  const registry = process.env.MOCK_AI === '1' ? new ProviderRegistry([{id:'default',label:'AI test',provider:makeMockProvider()}]) : configuredProviders(process.env);
+  const provider = registry.defaultProvider;
 
   /* WS-1: AUTH_ENABLED=1 → Postgres + JWT + trvalé kvóty + Redis limiter (fail-fast). */
-  let authWiring: { db: DbLike; jwtSecret: string; quota: QuotaStore } | undefined;
+  let authWiring: { db: DbLike; jwtSecret: string; quota: QuotaStore; usage?: AiUsageStore; cloudAuth?: CloudAuth; cloudGitHub?: CloudGitHubWiring; billing?: BillingService } | undefined;
   let agentLimiter: AsyncRateLimiter | undefined;
+  if (process.env.CLOUD_AUTH_ISSUER && process.env.AUTH_ENABLED !== '1')
+    throw new Error('CLOUD_AUTH_ISSUER requires AUTH_ENABLED=1.');
   if (process.env.AUTH_ENABLED === '1') {
     const databaseUrl = process.env.DATABASE_URL;
     const jwtSecret = process.env.JWT_SECRET;
@@ -378,17 +488,25 @@ if (
     const db = makeDb(databaseUrl);
     const applied = await applyMigrations(db);
     console.log(`[Forge AI] auth: ON · migrácie: ${applied.join(', ') || '(žiadne)'}`);
-    authWiring = { db, jwtSecret, quota: new PostgresQuotaStore(db) };
+    if (cloudGitHubConfig && !(await probeCloudGitHubSchema(db, cloudGitHubConfig.exportsEnabled)).ready)
+      throw new Error('Cloud GitHub schema is not ready. Run the read-only preflight.');
+    if (billingConfig && !(await probeBillingSchema(db)).ready)
+      throw new Error('Billing schema is not ready. Apply and verify the local billing migration before activation.');
+    authWiring = { db, jwtSecret, quota: new PostgresQuotaStore(db),
+      ...(billingConfig ? { billing: new BillingService(db, billingConfig, makeStripeBillingGateway(billingConfig)) } : {}),
+      ...(process.env.CLOUD_AUTH_ISSUER ? { cloudAuth: makeCloudAuth(db, process.env.CLOUD_AUTH_ISSUER) } : {}),
+      ...(cloudGitHubConfig ? { cloudGitHub: makeCloudGitHubWiring(db, cloudGitHubConfig) } : {}) };
     const redis = await loadRedis(process.env.REDIS_URL);
     agentLimiter = redis
       ? makeRedisRateLimiter(redis, cfg.rateLimitPerMin ?? 10)
       : makeInMemoryRateLimiter(cfg.rateLimitPerMin ?? 10);
     console.log(`[Forge AI] rate limiter: ${redis ? 'redis' : 'memory'} · kvóty: postgres (free 10/pro 200 mesačne)`);
+    if (cloudGitHubConfig) console.log(`[Forge AI] Cloud GitHub: ON · public_repo only · exports: ${cloudGitHubConfig.exportsEnabled ? 'ON' : 'OFF'}`);
   }
 
-  const app = createApp(cfg, provider, { auth: authWiring, agentRateLimit: agentLimiter });
+  const app = createApp(cfg, provider, { auth: authWiring, agentRateLimit: agentLimiter, providers: registry });
   serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.bind });
   console.log(
-    `[Forge AI] server na http://127.0.0.1:${cfg.port} · AI: ${provider ? 'mistral (' + (cfg.mistralModel ?? '') + ')' : 'NOT CONFIGURED'}`
+    `[Forge AI] server na http://127.0.0.1:${cfg.port} · AI models: ${registry.catalog().models.length}`
   );
 }

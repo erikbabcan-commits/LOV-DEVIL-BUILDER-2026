@@ -4,6 +4,8 @@ import type { DbLike } from '../db/pool';
 import type { QuotaStore, Plan } from '../security/quotaStore';
 import { hashPassword, verifyPassword, isValidEmail, isStrongEnoughPassword } from './passwords';
 import { signToken, verifyToken, newCsrfToken } from './tokens';
+import { cloudBearer, CLOUD_AUTH_HEADER, type CloudAuth } from './cloud';
+import { effectivePlan } from './plans';
 
 /* WS-1 Auth routes: /api/auth/register | login | logout | me
    Cookie policy: lov_token = httpOnly JWT; lov_csrf = readable double-submit token.
@@ -16,6 +18,7 @@ export interface AuthDeps {
   db: DbLike;
   jwtSecret: string;
   quota: QuotaStore;
+  cloudAuth?: CloudAuth;
 }
 
 export interface AuthUser {
@@ -29,7 +32,7 @@ const CredentialsSchema = z.object({
   password: z.string().min(8).max(128)
 });
 
-interface UserRow { id: string; email: string; password_hash: string; plan: string }
+interface UserRow { id: string; email: string; password_hash: string; plan: string; plan_expires_at?: unknown }
 type Query = (sql: string, params: unknown[]) => Promise<{ rows: UserRow[] }>;
 
 const ROW = (db: DbLike): Query => (sql, params) => db.query(sql, params) as Promise<{ rows: UserRow[] }>;
@@ -84,7 +87,7 @@ export function authRouter(deps: AuthDeps) {
     if (!parsed.success) return c.json({ error: 'invalid_credentials_format' }, 400);
     const email = parsed.data.email.trim().toLowerCase();
 
-    const found = await q('SELECT id, email, password_hash, plan FROM users WHERE email = $1', [email]);
+    const found = await q('SELECT id, email, password_hash, plan, plan_expires_at FROM users WHERE email = $1', [email]);
     const user = found.rows[0];
     if (!user || !(await verifyPassword(parsed.data.password, user.password_hash))) {
       await logAuth(deps.db, user?.id ?? null, 'login_failed');
@@ -92,10 +95,11 @@ export function authRouter(deps: AuthDeps) {
     }
     await logAuth(deps.db, user.id, 'login');
 
-    const token = await signToken({ sub: user.id, email: user.email, plan: (user.plan as Plan) }, deps.jwtSecret);
+    const plan = effectivePlan(user);
+    const token = await signToken({ sub: user.id, email: user.email, plan }, deps.jwtSecret);
     c.res.headers.append('Set-Cookie', serializeCookie(TOKEN_COOKIE, token, cookieOpts(7 * 24 * 3600)));
     c.res.headers.append('Set-Cookie', serializeCookie(CSRF_COOKIE, newCsrfToken(), { ...cookieOpts(7 * 24 * 3600), httpOnly: false }));
-    return c.json({ user: { id: user.id, email: user.email, plan: user.plan } });
+    return c.json({ user: { id: user.id, email: user.email, plan } });
   });
 
   router.post('/api/auth/logout', async (c) => {
@@ -107,10 +111,13 @@ export function authRouter(deps: AuthDeps) {
   });
 
   router.get('/api/auth/me', async (c) => {
-    const user = await currentUser(c, deps.jwtSecret);
-    if (!user) return c.json({ error: 'unauthenticated' }, 401);
-    const quota = await deps.quota.usage(user.id);
-    return c.json({ user, quota });
+    c.header('Cache-Control', 'no-store');
+    try {
+      const user = await currentUser(c, deps.jwtSecret, deps.cloudAuth, deps.db);
+      if (!user) return c.json({ error: 'unauthenticated' }, 401);
+      const quota = await deps.quota.usage(user.id);
+      return c.json({ user, quota });
+    } catch { return c.json({ error: 'identity_unavailable' }, 503); }
   });
 
   return router;
@@ -118,19 +125,30 @@ export function authRouter(deps: AuthDeps) {
 
 export async function currentUser(
   c: { req: { header(name: string): string | undefined } },
-  jwtSecret: string
+  jwtSecret: string,
+  cloudAuth?: CloudAuth,
+  db?: DbLike
 ): Promise<AuthUser | null> {
+  const bearer = cloudBearer(c.req.header('Authorization'), c.req.header(CLOUD_AUTH_HEADER));
+  if (bearer.present) {
+    return bearer.token && cloudAuth ? cloudAuth.resolve(bearer.token) : null;
+  }
   const cookieHeader = c.req.header('Cookie') ?? '';
   const token = parseCookie(cookieHeader, TOKEN_COOKIE);
   if (!token) return null;
   const claims = await verifyToken(token, jwtSecret);
   if (!claims) return null;
-  return { id: claims.sub, email: claims.email, plan: claims.plan };
+  if (db) {
+    const result = await db.query('SELECT id, email, plan, plan_expires_at FROM users WHERE id=$1', [claims.sub]);
+    const row = result.rows[0];
+    return row ? { id: row.id, email: row.email, plan: effectivePlan(row) } : null;
+  }
+  throw new Error('identity_database_required');
 }
 
 async function currentUserId(c: { req: { header(name: string): string | undefined } }, jwtSecret: string): Promise<string | null> {
-  const user = await currentUser(c, jwtSecret);
-  return user?.id ?? null;
+  const token = parseCookie(c.req.header('Cookie') ?? '', TOKEN_COOKIE);
+  return token ? (await verifyToken(token, jwtSecret))?.sub ?? null : null;
 }
 
 /* ---------- cookie helpers (bez.rate závislostí) ---------- */

@@ -1,7 +1,9 @@
 import type { Context, Next } from 'hono';
 import type { DbLike } from '../db/pool';
 import type { QuotaStore } from '../security/quotaStore';
-import { currentUser, parseCookie, CSRF_COOKIE } from './routes';
+import { currentUser, CSRF_COOKIE } from './routes';
+import { cloudBearer, CLOUD_AUTH_HEADER, type CloudAuth } from './cloud';
+import { isCloudApiRoute } from '../../shared/honoBridge';
 
 /* WS-1 auth middleware — ochraňuje všetko pod /api okrem:
    /api/health, /api/auth/*.
@@ -36,16 +38,22 @@ function parseCookies(header: string | undefined): Record<string, string> {
   return out;
 }
 
-export function makeAuthMiddleware(jwtSecret: string) {
+export function makeAuthMiddleware(jwtSecret: string, cloudAuth?: CloudAuth, extraCloudRoute: (method: string, path: string) => boolean = () => false, db?: DbLike) {
   return async (c: Context, next: Next) => {
     const path = c.req.path;
     if (PUBLIC_PREFIXES.some(p => path.startsWith(p))) return next();
 
-    const user = await currentUser(c, jwtSecret);
+    let user: RequestUser | null;
+    try { user = await currentUser(c, jwtSecret, cloudAuth, db); }
+    catch { return c.json({ error: 'identity_unavailable' }, 503); }
     if (!user) return c.json({ error: 'unauthenticated' }, 401);
 
+    const bearer = cloudBearer(c.req.header('Authorization'), c.req.header(CLOUD_AUTH_HEADER)).present;
+    // Cookie-bound OAuth/export flows must not mix Cloud and local identities.
+    if (bearer && !isCloudApiRoute(c.req.method, path) && !extraCloudRoute(c.req.method, path)) return c.json({ error: 'cloud_route_unavailable' }, 403);
+
     const method = c.req.method.toUpperCase();
-    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && !CSRF_EXEMPT_PREFIXES.some(p => path.startsWith(p))) {
+    if (!bearer && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && !CSRF_EXEMPT_PREFIXES.some(p => path.startsWith(p))) {
       const cookieToken = parseCookies(c.req.header('Cookie'))[CSRF_COOKIE];
       const headerToken = c.req.header('X-CSRF-Token');
       if (!cookieToken || !headerToken || cookieToken !== headerToken) {
@@ -70,4 +78,5 @@ export interface AuthWiring {
   db: DbLike;
   jwtSecret: string;
   quota: QuotaStore;
+  cloudAuth?: CloudAuth;
 }

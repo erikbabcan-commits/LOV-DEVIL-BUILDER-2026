@@ -1,3 +1,4 @@
+import {sourceHash} from '../../../server/agent/patches';
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { runAgent, validateFiles } from '../../../server/agent/run';
@@ -12,7 +13,7 @@ function requestFixture(mode: GenerateRequest['mode'] = 'create'): GenerateReque
     projectId: 'project-fixture', prompt: 'Build a CRM', mode,
     context: {
       projectTitle: 'CRM fixture',
-      files: [{ path: 'src/App.tsx', content: 'export default function App(){ return null; }' }],
+      files: [{ path: 'src/App.tsx', content: 'export default function App(){ return <span>Original</span>; }' }],
       history: [{ v: 1, prompt: 'Add a dashboard' }],
     },
   };
@@ -32,9 +33,13 @@ const safeFiles: GeneratedFile[] = [
 
 function providerFixture(plan: Plan = planFixture(), files: GeneratedFile[] = safeFiles) {
   const usage = { promptTokens: 1, completionTokens: 1 };
-  const complete = vi.fn<AIProvider['complete']>()
-    .mockResolvedValueOnce({ text: JSON.stringify(plan), usage })
-    .mockResolvedValueOnce({ text: JSON.stringify({ files }), usage });
+  const complete = vi.fn<AIProvider['complete']>(async messages=>{
+    if(messages[0].content.includes('Forge Patch Editor')){
+      const base=requestFixture().context.files[0];
+      return{text:JSON.stringify({version:1,summary:'Small fixture patch',changes:files.map(file=>({path:file.path,action:'modify',beforeSha256:sourceHash(base.content),edits:[{search:base.content,replace:file.content}]}))}),usage};
+    }
+    return{text:JSON.stringify(messages[0].content.includes('"filesPlanned"')?plan:{files}),usage};
+  });
   const stream = vi.fn<AIProvider['stream']>(async function* () {
     yield { finishReason: 'stop' as const };
   });
@@ -80,7 +85,7 @@ describe.each(['create', 'iterate', 'fix'] as const)('pre-provider context guard
     expect(complete).toHaveBeenCalledTimes(2);
     expect(stream).not.toHaveBeenCalled();
     expect(events.some(event => event.type === 'error')).toBe(false);
-    expect(events).toContainEqual({ type: 'stage', files: safeFiles });
+    expect(events.find(event=>event.type==='stage')).toMatchObject({ type: 'stage', files: safeFiles.map(file=>({...file,action:mode==='create'?'create':'modify'})) });
     expect(events.at(-1)).toMatchObject({ type: 'done', runId: 'run-fixture' });
   });
 });

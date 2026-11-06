@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="sk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Forge · AI náklady</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0e1117;color:#e6e9ee;font-synthesis:none}*{box-sizing:border-box}body{margin:0}main{max-width:1160px;margin:auto;padding:32px 28px 48px}header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:42px}.brand{font-size:22px;font-weight:750;letter-spacing:-1px}.brand span{color:#699cfa}.tag,.pill{display:inline-flex;align-items:center;border:1px solid #303845;border-radius:999px;padding:5px 10px;font-size:11px;color:#aeb7c6}.tag{letter-spacing:.07em;text-transform:uppercase}.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8290a4}h1{font-size:clamp(28px,4vw,38px);font-weight:650;letter-spacing:-1.3px;margin:9px 0 12px}p{line-height:1.65}h1+p{color:#9ca8b9;font-size:14px;margin:0 0 26px}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.card,.table-wrap,.notice,.policies{border:1px solid #29323e;border-radius:13px;background:#151a23}.card{padding:19px}.card h2{font-size:12px;color:#aeb7c6;margin:0 0 13px;font-weight:500}.value{font-size:clamp(22px,2.6vw,29px);font-weight:600;letter-spacing:-.9px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.card small{display:block;color:#8794a7;font-size:11px;line-height:1.5;margin-top:9px}.notice{padding:14px 17px;margin:18px 0 30px;color:#c2cad7;font-size:12px;border-left:3px solid #7598dd}.notice.warning{border-left-color:#deb36a}.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:16px}label{display:flex;flex-direction:column;gap:7px;color:#9ba8ba;font-size:11px}label:first-child{flex:1;min-width:200px}input,select{font:inherit;font-size:13px;padding:11px 13px;border:1px solid #343e4d;border-radius:8px;background:#151b25;color:#e6e9ee;min-height:41px;max-width:100%}input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid #80aafa;outline-offset:3px}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;text-align:left;font-size:12px;min-width:670px}th{padding:14px 18px;color:#91a0b3;background:#181f2a;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.06em}td{padding:18px;border-top:1px solid #28313d;font-variant-numeric:tabular-nums}td:first-child{max-width:220px;overflow-wrap:anywhere;font-weight:550}td small{display:block;margin-top:6px;color:#95a1b1;font-weight:400;font-size:10px}.pill.good{color:#90ceaa;border-color:#304e41;background:#193025}.pill.warn{color:#e2c18c;border-color:#554830;background:#31291c}.count{font-size:12px;color:#95a1b1;margin:14px 0 28px}.empty{padding:30px;text-align:center;font-size:13px;color:#a0acbc}.policies{padding:15px 18px;font-size:12px;color:#a9b5c5}summary{cursor:pointer;color:#c3cfdf}#policy-list{padding:8px 0 0;list-style:none}#policy-list li{margin:10px 0;overflow-wrap:anywhere;font-family:ui-monospace,monospace;font-size:10px}footer{margin-top:27px;color:#8190a4;font-size:11px;line-height:1.8}footer p{margin:8px 0}#error{padding:20px;color:#e4b8a2}.muted{color:#8997a9}@media(max-width:760px){main{padding:22px 18px 36px}header{margin-bottom:28px}.tag{font-size:9px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:15px}.value{font-size:23px}.filters label{flex:1;min-width:140px}h1{font-size:29px}}@media(max-width:370px){.cards{grid-template-columns:1fr}.tag{max-width:155px;text-align:center}header{align-items:flex-start}}
+</style></head><body><main>
+<header><div class="brand">Forge<span>.</span></div><span class="tag">Interný report · lokálny súbor</span></header>
+<div class="eyebrow">Prevádzka / AI spotreba</div><h1>Náklady pod kontrolou.</h1><p id="period">Mesačný prehľad nákladov a pokrytia cien.</p>
+<p id="demo-banner" class="notice warning" hidden>Syntetická ukážka · účty, tokeny aj ceny sú iba testovacie údaje.</p>
+<div id="error" hidden role="alert">Report sa nepodarilo načítať. Vygeneruj nový export cez operátorský príkaz.</div>
+<section class="cards" aria-label="Súhrn zobrazených účtov">
+<div class="card"><h2>Známa časť nákladov</h2><div class="value" id="known-cost">—</div><small>Odhad v USD, bez daní a zliav.</small></div>
+<div class="card"><h2>Pokrytie cien</h2><div class="value" id="coverage">—</div><small id="coverage-detail">Zaznamenané volania s cenou.</small></div>
+<div class="card"><h2>Volania bez ceny</h2><div class="value" id="unknown-cost">—</div><small id="pending">Neúplná spotreba alebo cenník.</small></div>
+<div class="card"><h2>Nahlásené tokeny</h2><div class="value" id="tokens">—</div><small>Vstup aj výstup spolu. Neznáme sa neodhadujú.</small></div>
+</section>
+<div class="notice" id="coverage-note" role="status"></div>
+<section aria-label="Filter účtov" class="filters"><label>Nájsť interný účet<input id="search" type="search" placeholder="Interné ID účtu" autocomplete="off"></label>
+<label>Plán pri prijatí úlohy<select id="plan"><option value="all">Všetky plány</option><option value="free">Free</option><option value="pro">Pro</option></select></label>
+<label>Zoradiť podľa<select id="sort"><option value="cost">Nákladov</option><option value="unknown">Chýbajúcich cien</option><option value="account">Účtu</option></select></label></section>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Náklady podľa účtu a plánu"><table><thead><tr><th>Účet</th><th>Plán</th><th>Volania</th><th>Nahlásené tokeny</th><th>Známy náklad</th><th>Pokrytie cien</th></tr></thead><tbody id="accounts"></tbody></table><div class="empty" id="empty" hidden>Pre tento filter tu nie sú žiadne volania.</div></div>
+<p class="count" id="row-count"></p>
+<details class="policies"><summary>Verzie cenníkov v pôvodnom reporte</summary><ul id="policy-list"></ul></details>
+<footer><p>Tento report zahŕňa iba zaznamenané volania od zapnutia merania. Staršia spotreba môže chýbať aj pri úplnom pokrytí cien. Plán sa určuje pri prijatí úlohy, volania podľa začiatku v UTC.</p><p>Ide o odhad nezľavnených textových tokenov. Nezahŕňa cache zľavy, ďalšie poplatky, hosting, dane ani príjmy. Nie je to faktúra alebo dôkaz marže. Neuzavretý záznam nepotvrdzuje živý proces.</p><p id="generated"></p><p>Údaje zostávajú v tomto súbore. Dashboard neposiela žiadne sieťové požiadavky.</p></footer>
+</main><script type="application/json" id="report-data">__AI_COST_REPORT_JSON__</script>
+<script>
+'use strict';
+try {
+ const report=JSON.parse(document.getElementById('report-data').textContent);
+ if(report.schemaVersion!==1||report.currency!=='USD'||report.coverage!=='recorded_calls_only'||!Array.isArray(report.accounts)||report.accounts.length>500)throw new Error('invalid');
+ const byId=id=>document.getElementById(id), number=value=>BigInt(value).toLocaleString('sk-SK');
+ const micros=usd=>{if(!/^(0|[1-9][0-9]*)\.[0-9]{6}$/.test(usd))throw new Error('money');return BigInt(usd.replace('.',''));};
+ const money=value=>'$'+(value/1000000n).toLocaleString('sk-SK')+'.'+(value%1000000n).toString().padStart(6,'0');
+ const el=(tag,text,className)=>{const node=document.createElement(tag);node.textContent=text;if(className)node.className=className;return node;};
+ byId('demo-banner').hidden=report.demo!==true;
+ byId('period').textContent=report.periodStart.slice(0,7)+' · UTC · odhad modelových nákladov';
+ byId('generated').textContent='Vygenerované: '+new Date(report.generatedAt).toLocaleString('sk-SK')+' · Mena: USD';
+ for(const policy of report.policies)byId('policy-list').append(el('li',policy.version+' · '+policy.fingerprint));
+ if(!report.policies.length)byId('policy-list').append(el('li','Žiadny zachytený cenník. Chýbajúce ceny zostávajú neznáme.'));
+ function render(){
+  const term=byId('search').value.toLocaleLowerCase('sk-SK'),plan=byId('plan').value,sort=byId('sort').value;
+  const rows=report.accounts.filter(row=>(plan==='all'||row.admissionPlan===plan)&&row.userId.toLocaleLowerCase('sk-SK').includes(term));
+  rows.sort((a,b)=>{if(sort==='account')return a.userId.localeCompare(b.userId,'sk');const x=sort==='unknown'?BigInt(a.unknownCostCalls):micros(a.estimatedKnownCostUsd),y=sort==='unknown'?BigInt(b.unknownCostCalls):micros(b.estimatedKnownCostUsd);return x>y?-1:x<y?1:a.userId.localeCompare(b.userId,'sk');});
+  let calls=0n,priced=0n,pending=0n,tokens=0n,cost=0n;byId('accounts').replaceChildren();
+  for(const row of rows){calls+=BigInt(row.calls);priced+=BigInt(row.pricedCalls);pending+=BigInt(row.pendingCalls);tokens+=BigInt(row.promptTokens)+BigInt(row.completionTokens);cost+=micros(row.estimatedKnownCostUsd);
+   const tr=document.createElement('tr'),account=el('td',row.userId),call=el('td',number(row.calls)),coverage=el('td','');
+   account.append(el('small','Interné ID'));tr.append(account,el('td',row.admissionPlan==='pro'?'Pro':'Free'),call,el('td',BigInt(row.reportedCalls)===0n&&BigInt(row.calls)>0n?'Neznáme':number(BigInt(row.promptTokens)+BigInt(row.completionTokens))),el('td',BigInt(row.pricedCalls)===0n&&BigInt(row.calls)>0n?'Neznáme':money(micros(row.estimatedKnownCostUsd))));
+   const complete=BigInt(row.unknownCostCalls)===0n;coverage.append(el('span',number(row.pricedCalls)+' / '+number(row.calls),'pill '+(complete?'good':'warn')));
+   coverage.append(el('small',complete?'Úplné pokrytie zaznamenaných volaní':'Cena alebo spotreba chýba'));tr.append(coverage);byId('accounts').append(tr);
+  }
+  const unknown=calls-priced;byId('known-cost').textContent=priced===0n&&calls>0n?'Neznáme':money(cost);byId('coverage').textContent=number(priced)+' / '+number(calls);byId('unknown-cost').textContent=number(unknown);byId('tokens').textContent=tokens===0n&&rows.some(row=>BigInt(row.reportedCalls)<BigInt(row.calls))?'Neznáme':number(tokens);
+  byId('pending').textContent='Neuzavreté záznamy: '+number(pending);byId('row-count').textContent='Zobrazené skupiny účet / plán: '+rows.length+' z '+report.accounts.length;
+  byId('empty').hidden=rows.length!==0;const note=byId('coverage-note');note.classList.toggle('warning',unknown>0n);
+  note.textContent=rows.length===0?'Pre tento výber nie sú zaznamenané volania.':unknown>0n?'Odhad je neúplný. Známa časť nákladov nezahŕňa volania bez ceny alebo spotreby.':'Všetky zobrazené zaznamenané volania majú cenu. Celkový odhad: '+money(cost)+'. Staršia spotreba pred zapnutím merania môže chýbať.';
+ }
+ for(const id of ['search','plan','sort'])byId(id).addEventListener(id==='search'?'input':'change',render);render();
+}catch{document.getElementById('error').hidden=false;document.getElementById('coverage-note').textContent='Údaje nie sú overené. Nevyhodnocuj náklady podľa tohto súboru.';}
+</script></body></html>

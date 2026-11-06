@@ -51,7 +51,7 @@ describe('P0 local cost and security guards', () => {
     const app = createApp({}, null);
     const res = await app.request('/api/health');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, ai: 'not-configured' });
+    expect(await res.json()).toEqual({ ok: true, ai: 'not-configured', auth: 'disabled' });
   });
 
   it('blocks over-concurrent and over-daily admissions, with idempotent release', () => {
@@ -67,6 +67,24 @@ describe('P0 local cost and security guards', () => {
     expect(guard.acquire()).toEqual({ ok: false, reason: 'daily_budget' });
   });
 
+  it('discards an unstarted admission once and never refunds a completed one', () => {
+    const guard=new LocalBudgetGuard({maxConcurrent:1,maxRunsPerDay:1});
+    const first=guard.acquire();if(!first.ok)throw new Error('expected admission');
+    first.discard();first.discard();first.release();expect(guard.getStats()).toEqual({active:0,admittedToday:0});
+    const next=guard.acquire();if(!next.ok)throw new Error('expected admission');
+    next.release();next.discard();expect(guard.getStats()).toEqual({active:0,admittedToday:1});
+  });
+  it('does not discard a new UTC day count when an older admission is rejected later', () => {
+    vi.useFakeTimers();
+    try{
+      vi.setSystemTime(new Date('2026-11-01T23:59:59Z'));
+      const guard=new LocalBudgetGuard({maxConcurrent:2,maxRunsPerDay:1}),old=guard.acquire();
+      vi.setSystemTime(new Date('2026-11-02T00:00:00Z'));
+      const current=guard.acquire();if(!old.ok||!current.ok)throw new Error('expected admissions');
+      old.discard();expect(guard.getStats()).toEqual({active:1,admittedToday:1});
+      current.release();expect(guard.getStats()).toEqual({active:0,admittedToday:1});
+    }finally{vi.useRealTimers();}
+  });
   it('redacts known credential classes without echoing canary data', () => {
     const canary = 'mstrl_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456';
     expect(containsPotentialSecret(`token=${canary}`)).toBe(true);
@@ -108,7 +126,7 @@ describe('P0 local cost and security guards', () => {
     const canary = 'mstrl_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456';
     const provider = makeMockProvider();
     vi.spyOn(provider, 'complete').mockRejectedValue(new Error('upstream unavailable: ' + canary));
-    const app = createApp({}, provider);
+    const app = createApp({ sandboxMode: 'host' }, provider);
     const res = await app.request('/api/sandbox/autofix', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ files: [{ path: 'src/main.tsx', content: 'export const invalid = ;' }] }),

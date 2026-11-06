@@ -1,4 +1,5 @@
 import type { DbLike } from '../db/pool';
+import { effectivePlan } from '../auth/plans';
 
 /* WS-1 trvalé kvóty — mesačné okno per user, atomic inkrement v jednom UPDATE.
    fallback: InMemoryQuotaStore pre mód bez DB (pilot, AUTH_ENABLED=0). */
@@ -18,6 +19,8 @@ export interface QuotaSnapshot {
 }
 
 export interface QuotaStore {
+  readonly transactionalDb?: DbLike;
+  consumeRecorded?(userId: string, record: (tx: DbLike, quota: QuotaSnapshot, period: string) => Promise<void>): Promise<{ ok: boolean; snapshot: QuotaSnapshot }>;
   /** Vráti použité generácie v aktuálnom mesiaci (bez inkrementu). */
   usage(userId: string): Promise<QuotaSnapshot>;
   /** Atomic inkrement; ok=false keď je kvóta vyčerpaná (vtedy NEPOČÍTA). */
@@ -35,10 +38,11 @@ export function monthWindow(date = new Date()): string {
 }
 
 export class PostgresQuotaStore implements QuotaStore {
-  constructor(private db: DbLike) {}
+  constructor(private db: DbLike, private readonly now: () => Date = () => new Date()) {}
+  get transactionalDb(): DbLike { return this.db; }
 
   async usage(userId: string): Promise<QuotaSnapshot> {
-    const period = monthWindow();
+    const period = monthWindow(this.now());
     const r = await this.db.query(
       'SELECT generations FROM user_quotas WHERE user_id = $1 AND period_start = $2',
       [userId, period]
@@ -49,32 +53,43 @@ export class PostgresQuotaStore implements QuotaStore {
   }
 
   async consume(userId: string): Promise<{ ok: boolean; snapshot: QuotaSnapshot }> {
-    const period = monthWindow();
-    const plan = await this.planOf(userId);
-    const limit = PLAN_LIMITS[plan];
-    /* Atomic inkrement = jediný UPSERT (INSERT ... ON CONFLICT). LIMIT kontrola
-       je na vrátenej hodnote: used<=limit ⇒ povolené. Súbežné prekročenie
-       odráža len čítač (never generuje), presnosť accountingu je korektná. */
-    const r = await this.db.query(
-      `INSERT INTO user_quotas (user_id, period_start, generations)
-       VALUES ($1, $2, 1)
-       ON CONFLICT (user_id) DO UPDATE SET
-         generations = CASE WHEN user_quotas.period_start = $2
-                            THEN user_quotas.generations + 1
-                            ELSE 1 END,
-         period_start = $2
-       RETURNING generations`,
-      [userId, period]
-    );
-    const used = r.rows.length ? Number(r.rows[0].generations) : 0;
-    const ok = used <= limit;
-    const shown = ok ? used : Math.min(used - 1, limit);
-    return { ok, snapshot: snapshotFor(plan, shown) };
+    return this.consumeRecorded(userId, async () => {});
+  }
+
+  async consumeRecorded(userId: string, record: (tx: DbLike, quota: QuotaSnapshot, period: string) => Promise<void>): Promise<{ ok: boolean; snapshot: QuotaSnapshot }> {
+    const period = monthWindow(this.now());
+    if (!this.db.transaction) throw new Error('quota_transaction_unavailable');
+    return this.db.transaction(async tx => {
+      // Use the same pinned READ COMMITTED capability as project storage. Plan
+      // changes, account deletion and admissions serialize on this existing row.
+      const owner = await tx.query('SELECT plan, plan_expires_at FROM users WHERE id=$1 FOR UPDATE', [userId]);
+      if (!owner.rows.length) throw new Error('quota_owner_unavailable');
+      const plan = effectivePlan(owner.rows[0], this.now());
+      const limit = PLAN_LIMITS[plan];
+      await tx.query(`INSERT INTO user_quotas(user_id,period_start,generations)
+        VALUES($1,$2,0) ON CONFLICT(user_id) DO NOTHING`, [userId, period]);
+      const result = await tx.query(`UPDATE user_quotas SET
+          generations = CASE WHEN period_start < $2 THEN 1 ELSE generations + 1 END,
+          period_start = $2
+        WHERE user_id=$1 AND (period_start < $2 OR (period_start=$2 AND generations < $3))
+        RETURNING generations`, [userId, period, limit]);
+      if (result.rows.length) {
+        const snapshot = snapshotFor(plan, Number(result.rows[0].generations));
+        await record(tx, snapshot, period);
+        return { ok: true, snapshot };
+      }
+      // An older request must never roll a newer UTC month backwards.
+      const future = await tx.query('SELECT user_id FROM user_quotas WHERE user_id=$1 AND period_start > $2', [userId, period]);
+      if (future.rows.length) throw new Error('quota_period_unavailable');
+      const current = await tx.query('SELECT generations FROM user_quotas WHERE user_id=$1 AND period_start=$2', [userId, period]);
+      return { ok: false, snapshot: snapshotFor(plan, Number(current.rows[0]?.generations ?? 0)) };
+    });
   }
 
   private async planOf(userId: string): Promise<Plan> {
-    const r = await this.db.query('SELECT plan FROM users WHERE id = $1', [userId]);
-    return r.rows[0]?.plan === 'pro' ? 'pro' : 'free';
+    const r = await this.db.query('SELECT plan, plan_expires_at FROM users WHERE id = $1', [userId]);
+    if (!r.rows.length) throw new Error('quota_owner_unavailable');
+    return effectivePlan(r.rows[0], this.now());
   }
 }
 

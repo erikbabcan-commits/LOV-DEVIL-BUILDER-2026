@@ -1,10 +1,12 @@
-import { useRef, useEffect, useState } from 'react';
+import { lazy, Suspense, useRef, useEffect, useState } from 'react';
 import { useStore } from '../../stores/useAppStore';
 import { filesFor, VfsFile } from '../../lib/vfs/filesFor';
 import { hl } from '../../lib/utils';
-import { BLUEPRINTS, PROMPT_LIB } from '../../lib/templates/editorData';
+import { PROMPT_LIB } from '../../lib/templates/editorData';
 import { initiateGitHubAuth, revokeGitHubAuth } from '../../services/export/githubExport';
 import { withoutExternalScripts } from '../../lib/vfs';
+import {BuildRepairAction} from '../workspace/BuildRepairAction';
+const TemplateGallery = lazy(() => import('../templates/TemplateGallery').then(module => ({ default: module.TemplateGallery })));
 
 /* /editor dashboard — port 1:1 štruktúry; core flow: preview, súbory, história (M1 rozsah);
    blueprints/prompts/backend/team sú v legacy mock panely — pre M1 sú zachované ako
@@ -27,11 +29,32 @@ export function EditorDashboard() {
   const st = useStore();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [search, setSearch] = useState('');
-  const [localTab, setLocalTab] = useState<string>('preview');
+  const localTab = st.edTab;
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const closeProjects = () => setProjectsOpen(false);
+  const projectsToggleRef = useRef<HTMLButtonElement>(null);
   const snap = st.edSnap();
   const html = st.currentHtml();
 
   const files: VfsFile[] = snap ? (st.vfs[snap.id] || filesFor(snap)) : [];
+  const needsCompile = files.some(file => file.name === 'src/main.tsx') && !st.sandboxHtml;
+
+  useEffect(() => {
+    if (!projectsOpen) return;
+    const panel = document.getElementById('editorProjects');
+    const toggle = projectsToggleRef.current;
+    const controls = () => [...(panel?.querySelectorAll<HTMLElement>('button:not(:disabled),input,a[href]') ?? [])];
+    controls()[0]?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setProjectsOpen(false); }
+      if (event.key !== 'Tab') return;
+      const items = controls(); const first = items[0]; const last = items.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('keydown', onKey); toggle?.focus(); };
+  }, [projectsOpen]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -69,22 +92,24 @@ export function EditorDashboard() {
 
   return (
     <section id="editorView">
-      <aside className="ed-side">
+      {projectsOpen && <button className="ed-side-backdrop" aria-label="Zavrieť projekty" onClick={closeProjects} />}
+      <aside className={'ed-side' + (projectsOpen ? ' mobile-open' : '')} id="editorProjects" role={projectsOpen ? 'dialog' : undefined} aria-modal={projectsOpen || undefined} aria-label="Projekty a prepojenia">
+        <button className="ed-side-close" onClick={closeProjects}>Zavrieť projekty ×</button>
         <button className="ed-new" id="edNew" onClick={() => { st.newProject(); st.goHome(); }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
           New
         </button>
         <div className="ed-search">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
-          <input id="edSearch" placeholder="Hľadať projekty…" value={search} onChange={e => setSearch(e.target.value)} />
+          <input id="edSearch" aria-label="Hľadať verziu projektu" placeholder="Hľadať verzie…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div>
           <div className="ed-nav-title">Projekty</div>
           <div className="ed-projects" id="edProjectList">
             {filteredProjects.length === 0 ? <div className="pane-empty">Žiadne projekty.</div> :
               filteredProjects.map(s => (
-                <button key={s.id} className={'ed-proj' + (s.id === st.liveId ? ' active' : '')}
-                  onClick={() => st.restoreSnapshot(s.id)}>
+            <button key={s.id} className={'ed-proj' + (s.id === st.liveId ? ' active' : '')}
+                  onClick={() => { st.restoreSnapshot(s.id); closeProjects(); }}>
                   <b>v{s.v}</b><span>{s.prompt.slice(0, 28)}</span>
                 </button>
               ))}
@@ -108,6 +133,7 @@ export function EditorDashboard() {
       </aside>
       <div className="ed-main">
         <div className="ed-top">
+          <button ref={projectsToggleRef} className="ed-projects-toggle ed-act" aria-controls="editorProjects" aria-expanded={projectsOpen} onClick={() => setProjectsOpen(!projectsOpen)}>☰ Projekty</button>
           <div className="ed-crumb">
             <span id="edProjectName">{st.projectTitle}</span>
             <span className="ed-ver" id="edVer">{snap ? 'v' + snap.v : 'v0'}</span>
@@ -132,7 +158,7 @@ export function EditorDashboard() {
         </div>
         <div className="ed-tabs" id="edTabs">
           {ED_TABS.map(t => (
-            <button key={t.id} data-edtab={t.id} className={'ed-tab' + (localTab === t.id ? ' active' : '')} onClick={() => { setLocalTab(t.id); st.setEdFile(null); }}>
+            <button key={t.id} data-edtab={t.id} className={'ed-tab' + (localTab === t.id ? ' active' : '')} onClick={() => { st.setEdTab(t.id); st.setEdFile(null); }}>
               {t.label}
             </button>
           ))}
@@ -149,7 +175,7 @@ export function EditorDashboard() {
               </div>
               <div className="ed-frame-wrap">
                 {st.sandboxHtml ? (
-                  <iframe id="sandboxFrame" sandbox="allow-scripts" title="M3 Sandbox — bežiaci vygenerovaný React projekt"
+                  <iframe id="sandboxFrame" sandbox="allow-scripts allow-forms" title="M3 Sandbox — bežiaci vygenerovaný React projekt"
                     srcDoc={st.sandboxHtml} style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }} />
                 ) : st.sandboxErrors.length > 0 ? (
                   <div style={{ padding: 16, overflow: 'auto', width: '100%' }}>
@@ -157,8 +183,9 @@ export function EditorDashboard() {
                     {st.sandboxErrors.map((er, i) => (
                       <pre key={i} style={{ whiteSpace: 'pre-wrap', fontSize: 11, color: 'var(--err)', marginTop: 8 }}>{er.file}: {er.message}</pre>
                     ))}
+                    <BuildRepairAction/>
                   </div>
-                ) : html ? <iframe id="editorFrame" ref={frameRef} sandbox="allow-scripts" title="Editor live preview" /> : (
+                ) : needsCompile ? <div className="product-empty"><h3>Projekt je pripravený na náhľad.</h3><p>Spusti kompiláciu React súborov a vyskúšaj výsledok.</p><button className="btn-primary" disabled={st.sandboxBuilding} onClick={() => void st.runSandbox()}>{st.sandboxBuilding ? 'Kompilujem…' : 'Spustiť náhľad'}</button></div> : html ? <iframe id="editorFrame" ref={frameRef} sandbox="allow-scripts" title="Editor live preview" /> : (
                   <div className="ed-empty" id="edEmpty">
                     <div className="ed-empty-ic">▦</div>
                     <b>Zatiaľ žiadny projekt</b>
@@ -221,34 +248,21 @@ export function EditorDashboard() {
                     {idx === 0 && <span className="head-badge">HEAD</span>}
                     <button className="cact" onClick={() => st.restoreSnapshot(s.id)}>Obnoviť</button>
                     <button className="cact" onClick={() => st.viewSnapshot(s.id)}>Pozrieť</button>
+                    <button className="cact" onClick={() => { st.viewSnapshot(s.id); st.setTab('diff'); st.setMode('work'); st.setMview('canvas'); }}>Diff</button>
                   </div>
                 ))}
             </div>
           </div>
           <div className={'ed-pane' + (localTab === 'blueprints' ? ' active' : '')} data-edpane="blueprints">
-            <div className="pane-inner">
-              <div className="ed-bp-grid" id="edBpGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 12 }}>
-                {BLUEPRINTS.map(bp => (
-                  <div key={bp.id} className="ed-bp" data-bp={bp.id} role="button" tabIndex={0}
-                    onClick={() => { st.generate('Blueprint: ' + bp.name + ' — ' + bp.desc, bp.kind); }}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); st.generate('Blueprint: ' + bp.name + ' — ' + bp.desc, bp.kind); } }}>
-                    <div className="ed-bp-thumb" style={{ background: bp.demo }}>{bp.emoji}</div>
-                    <b>{bp.emoji} {bp.name}</b>
-                    <span className="desc">{bp.desc}</span>
-                    <span className="stack">{bp.stack} · {bp.time}</span>
-                    <span className="use">Použi blueprint</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <div className="pane-inner" id="edBpGrid">{localTab === 'blueprints' && <Suspense fallback={<p role="status">Pripravujem šablóny…</p>}><TemplateGallery /></Suspense>}</div>
           </div>
           <div className={'ed-pane' + (localTab === 'prompts' ? ' active' : '')} data-edpane="prompts">
             <div className="pane-inner">
               <div className="ed-prompt-grid" id="edPromptGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 10 }}>
                 {PROMPT_LIB.map((p, i) => (
                   <div key={i} className="ed-prompt" role="button" tabIndex={0}
-                    onClick={() => { st.goHome(); st.toast('Prompt vložený — doplň [zástupné zátvorky]'); }}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); st.goHome(); st.toast('Prompt vložený — doplň [zástupné zátvorky]'); } }}>
+                    onClick={() => st.usePrompt(p.text)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); st.usePrompt(p.text); } }}>
                     <span className="cat">{p.cat}</span>
                     <b>{p.title}</b>
                     <span className="txt" style={{ fontSize: 11.5, color: 'var(--text-dim)', lineHeight: 1.5 }}>{p.text}</span>

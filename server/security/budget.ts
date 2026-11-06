@@ -12,7 +12,7 @@ export class LocalBudgetGuard {
 
   constructor(private readonly cfg: LocalBudgetConfig) {}
 
-  acquire(): { ok: true; release(): void } | { ok: false; reason: 'concurrency' | 'daily_budget' } {
+  acquire(): { ok: true; release(): void; discard(): void } | { ok: false; reason: 'concurrency' | 'daily_budget' } {
     const today = new Date().toISOString().slice(0, 10);
     if (this.day !== today) { this.day = today; this.admitted = 0; }
     if (this.active >= this.cfg.maxConcurrent) return { ok: false, reason: 'concurrency' };
@@ -20,12 +20,20 @@ export class LocalBudgetGuard {
     this.active++;
     this.admitted++;
     let released = false;
+    const admissionDay = this.day;
     return {
       ok: true,
       release: () => {
         if (released) return;
         released = true;
         this.active--;
+      },
+      // Only preparation failures before inference may return the daily slot.
+      discard: () => {
+        if (released) return;
+        released = true;
+        this.active--;
+        if (this.day === admissionDay) this.admitted--;
       },
     };
   }

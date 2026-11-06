@@ -26,7 +26,7 @@ test.describe('GitHub OAuth live boundaries', () => {
     expect(response.status()).toBe(302);
     const location = new URL(response.headers().location);
     expect(location.origin).toBe('https://github.com');
-    expect(location.searchParams.get('scope')).toBe('repo');
+    expect(location.searchParams.get('scope')).toBe('public_repo');
     expect(location.searchParams.get('state')).toMatch(/^[A-Za-z0-9_-]{40,}$/);
     expect(response.headers()['set-cookie']).toMatch(/HttpOnly/i);
     expect(response.headers()['set-cookie']).toMatch(/SameSite=Lax/i);

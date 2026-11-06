@@ -1,14 +1,23 @@
+import {applyFileOperations} from '../lib/projectChanges';
+import {requestBuildRepair} from '../services/ai/buildRepair';
+import {ConversationSchema,type ConversationTurn} from '../../shared/conversation';
 import { apiHeaders } from '../lib/csrf';
 import { create } from 'zustand';
 import { uid, now, dbg } from '../lib/utils';
 import { buildSaas, buildKanban, buildSettings, buildDashboard, detectKind, KIND_INFO, SNIPPETS, AppKind } from '../lib/templates';
 import { filesFor, filesToHtml, VfsFile } from '../lib/vfs/filesFor';
 import type { AgentEvent, GeneratedFile, Plan } from '../services/ai/types';
-import { streamAgentEvents, AiNotConfiguredError, NetworkError } from '../services/ai/client';
+import { streamAgentEvents, AiNotConfiguredError, AiRequestError, NetworkError } from '../services/ai/client';
 import { restoreWorkspace, scheduleAutosave, persistProjectState, persistRun, nextRevision } from '../services/persistence/projectStore';
 import type { StoredSnapshot } from '../services/persistence/db';
-import { exportToZip as doZipExport, prepareVfsForExport, MAX_FILES, MAX_SIZE_BYTES, validateExportFiles, generateReadme, generateZipFilename, type ExportFile } from '../services/export/zipExport';
+import { persistenceScope } from '../services/persistence/db';
+import { prepareVfsForExport } from '../services/export/zipExport';
+import { createProjectZip, downloadProjectZip } from '../services/export/projectZip';
+import { inspectProjectSources } from '../services/export/projectZip';
+import { WorkspaceSchema } from '../../shared/projectSchema';
+import { matchesCodeEditBase, type CodeEditBase } from '../services/editor/codeDrafts';
 import { exportToGitHub as doGitHubExport, checkGitHubAuth as doCheckGitHubAuth, checkGitHubAvailable, initiateGitHubAuth, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
+import type { Blueprint } from '../templates/types';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
 export interface Message {
@@ -16,6 +25,7 @@ export interface Message {
   role: 'user' | 'assistant';
   text: string;
   pending?: boolean;
+  reviewPending?: boolean;
   done?: boolean;
   code?: string;
   file?: string;
@@ -32,6 +42,9 @@ export interface Snapshot {
   html: string;
   pinned?: boolean;
   msg?: string;
+  /** Scalar payload keeps historical React file sets restorable in IndexedDB v2. */
+  sourceFiles?: string;
+  parentId?: string | null;
 }
 export interface ConsoleEntry { t: string; txt: string; cls: string }
 export interface Branch { name: string; headIdx: number }
@@ -43,11 +56,15 @@ export interface ReviewBase {
   branch: string;
   fingerprint: string;
 }
-export interface PendingReview { runId: string; prompt: string; files: GeneratedFile[]; base: ReviewBase }
+export interface PendingReview { messageId?:string; runId: string; prompt: string; files: GeneratedFile[]; base: ReviewBase; source?: 'template'|'patch'; summary?:string; title?: string; followups?: string[] }
 
 export interface AppState {
   /* workspace */
   model: string;
+  aiModelId: string | undefined;
+  aiFallbackIds: string[];
+  chooseAiModel: (id: string, label: string) => void;
+  setAiFallback: (ids: string[]) => void;
   mode: 'home' | 'work' | 'editor';
   viewport: 'desktop' | 'tablet' | 'mobile';
   zoomPct: number;
@@ -64,7 +81,11 @@ export interface AppState {
   console: ConsoleEntry[];
   mview: 'chat' | 'canvas';
   projectTitle: string;
+  remoteRevision: number;
+  remoteSnapshotIds: Record<string,string>;
   titleEditing: boolean;
+  promptDraft: string;
+  templateFollowups: string[];
 
   /* editor */
   vfs: Record<string, VfsFile[]>;
@@ -72,7 +93,7 @@ export interface AppState {
   branch: string;
   edFile: string | null;
   edEditing: boolean;
-  edTab: 'preview' | 'files' | 'history' | 'backend' | 'team' | 'compliance' | 'gallery';
+  edTab: 'preview' | 'files' | 'history' | 'blueprints' | 'prompts' | 'backend' | 'team' | 'compliance' | 'gallery';
 
   /* UI */
   modelMenuOpen: boolean;
@@ -110,6 +131,9 @@ export interface AppState {
   saveEdFile: (content: string) => void;
   setTitle: (t: string) => void;
   setTitleEditing: (v: boolean) => void;
+  setPromptDraft: (text: string) => void;
+  usePrompt: (text: string) => void;
+  stageTemplate: (template: Blueprint) => void;
   publish: () => void;
   toggleHistoryExpanded: () => void;
   newProject: () => void;
@@ -123,21 +147,24 @@ export interface AppState {
   aiMode: boolean;
   aiConnected: boolean | null;
   projectId: string;
+  workspaceEpoch: number;
+  codeDraftDirty: boolean;
   aiAbort: AbortController | null;
   pendingReview: PendingReview | null;
-  generateWithAi: (prompt: string, mode: 'create' | 'iterate' | 'fix') => Promise<void>;
+  generateWithAi: (prompt: string, mode: 'create' | 'iterate' | 'fix' | 'explain' | 'auto') => Promise<void>;
   cancelAiRun: () => void;
-  approveStagedRun: () => void;
+  approveStagedRun: () => boolean;
   rejectStagedRun: () => void;
-  applyStagedFiles: (files: GeneratedFile[]) => void;
+  applyStagedFiles: (files: GeneratedFile[], base?: CodeEditBase) => Promise<boolean>;
   restoreFromDb: () => Promise<void>;
-  persistNow: () => Promise<void>;
+  persistNow: () => Promise<boolean>;
 
   /* M3 sandbox */
   sandboxHtml: string | null;
   sandboxBuilding: boolean;
   sandboxErrors: Array<{ file: string; message: string }>;
   runSandbox: () => Promise<void>;
+  repairSandbox: () => Promise<void>;
   stopSandbox: () => void;
 
   /* M4 export */
@@ -149,6 +176,8 @@ export interface AppState {
 }
 
 const generationTimers: number[] = [];
+let sandboxController: AbortController | null = null;
+let githubExportRun = 0;
 
 function reviewSnapshot(state: AppState): Snapshot | null {
   return state.viewing ?? state.snapshots.find(item => item.id === state.liveId) ?? state.snapshots[state.snapshots.length - 1] ?? null;
@@ -159,9 +188,13 @@ function requestContext(state: AppState) {
   const files = snapshot ? state.vfs[snapshot.id] ?? filesFor(snapshot) : [];
   return {
     projectTitle: state.projectTitle !== 'Nový projekt' ? state.projectTitle : undefined,
-    files: files.map(file => ({ path: file.name, content: file.content })).slice(0, 40),
+    files: files.map(file => ({ path: file.name, content: file.content })),
     history: state.snapshots.slice(-20).map(snapshot => ({ v: snapshot.v, prompt: snapshot.prompt.slice(0, 300) })),
   };
+}
+
+export function conversationContext(messages:Message[]):ConversationTurn[]{
+  return messages.filter(message=>message.text.trim()&&!message.pending).map(({role,text,reviewPending})=>({role,content:reviewPending?'Návrh bol pripravený na kontrolu; jeho aplikovanie sa tým nepotvrdilo.':text}));
 }
 
 /* Local compare-and-apply binding, not an authorization token or cryptographic hash.
@@ -182,6 +215,7 @@ export function captureReviewBase(state: AppState): ReviewBase {
       snapshot: snapshot ? { id: snapshot.id, v: snapshot.v, html: snapshot.html, prompt: snapshot.prompt } : null,
       files: snapshot ? state.vfs[snapshot.id]?.map(file => ({ name: file.name, content: file.content })) ?? null : null,
       edEditing: state.edEditing,
+      codeDraftDirty: state.codeDraftDirty,
     }),
   };
 }
@@ -191,14 +225,20 @@ function matchesReviewIdentity(state: AppState, base: ReviewBase): boolean {
     (state.viewing?.id ?? null) === base.viewingId && state.branch === base.branch;
 }
 
-function matchesReviewBase(state: AppState, base: ReviewBase): boolean {
+export function matchesReviewBase(state: AppState, base: ReviewBase): boolean {
   if (!matchesReviewIdentity(state, base)) return false;
   const current = captureReviewBase(state);
   return current.snapshotId === base.snapshotId && current.fingerprint === base.fingerprint;
 }
 
 export const useStore = create<AppState>((set, get) => ({
+  workspaceEpoch: persistenceScope().epoch,
+  codeDraftDirty: false,
   model: 'Instant Draft',
+  aiModelId: undefined,
+  aiFallbackIds: [],
+  chooseAiModel: (id,label) => set({model:label,aiModelId:id,aiFallbackIds:[],modelMenuOpen:false}),
+  setAiFallback: ids => set({aiFallbackIds:[...ids]}),
   mode: 'home',
   viewport: 'desktop',
   zoomPct: 100,
@@ -216,6 +256,8 @@ export const useStore = create<AppState>((set, get) => ({
   mview: 'chat',
   projectTitle: 'Nový projekt',
   titleEditing: false,
+  promptDraft: '',
+  templateFollowups: [],
   vfs: {},
   branches: [{ name: 'main', headIdx: Infinity }],
   branch: 'main',
@@ -230,6 +272,8 @@ export const useStore = create<AppState>((set, get) => ({
 
   /* M4 export state */
   githubAuthState: { authenticated: false },
+  remoteRevision: 0,
+  remoteSnapshotIds: {},
   githubExportInProgress: false,
 
   setMode: m => {
@@ -243,7 +287,27 @@ export const useStore = create<AppState>((set, get) => ({
     document.body.dataset.view = v;
     set({ mview: v });
   },
-  setModel: m => { set({ model: m, modelMenuOpen: false }); get().log('model: ' + m); },
+  setModel: m => { set({ model: m, modelMenuOpen: false, aiModelId: undefined, aiFallbackIds: [] }); get().log('model: ' + m); },
+  setPromptDraft: promptDraft => set({ promptDraft }),
+  usePrompt: promptDraft => {
+    set({ promptDraft });
+    get().setMode(get().snapshots.length ? 'work' : 'home');
+    get().setMview('chat');
+  },
+  stageTemplate: template => {
+    const state = get();
+    if (state.generating || state.pendingReview || state.codeDraftDirty) { state.toast('Najprv ulož koncept kódu alebo dokonči pripravené zmeny.', 'warn'); return; }
+    const snap = reviewSnapshot(state);
+    const existing = snap ? state.vfs[snap.id] ?? filesFor(snap) : [];
+    const names = new Set(template.files.map(file => file.path));
+    const files: GeneratedFile[] = [
+      ...template.files.map(file => ({ ...file, action: existing.some(item => item.name === file.path) ? 'modify' as const : 'create' as const })),
+      ...existing.filter(file => !names.has(file.name)).map(file => ({ path: file.name, content: '', action: 'delete' as const })),
+    ];
+    set({ pendingReview: { runId: 'template-' + uid(), source: 'template', title: template.title,
+      prompt: 'Šablóna: ' + template.title, files, followups: [...template.followups], base: captureReviewBase(state) } });
+    get().setMode('work'); get().setMview('chat');
+  },
   togglePublic: () => set(s => ({ isPublic: !s.isPublic })),
   toggleEditMode: () => set(s => ({ editMode: !s.editMode })),
 
@@ -327,32 +391,42 @@ export const useStore = create<AppState>((set, get) => ({
 
   createSnapshot: (kind, prompt, html) => {
     const s = get();
-    const snap: Snapshot = { id: uid(), v: s.snapshots.length + 1, prompt, kind, time: now(), html };
+    const snap: Snapshot = { id: uid(), parentId: s.liveId, v: Math.max(0, ...s.snapshots.map(item => item.v)) + 1, prompt, kind, time: now(), html };
     set({ snapshots: [...s.snapshots, snap] });
     return snap;
   },
   manualSnapshot: () => {
     const s = get();
+    if (s.codeDraftDirty) { s.toast('Najprv ulož alebo zruš koncept v záložke Code.', 'warn'); return; }
     if (!s.liveHtml) { get().toast('Najprv vygeneruj appku', 'warn'); return; }
     const snap = get().createSnapshot('manual', 'Ručný checkpoint', s.liveHtml);
-    set({ liveId: snap.id });
+    const previous = s.snapshots.find(item => item.id === s.liveId);
+    const files = previous ? (s.vfs[previous.id] ?? filesFor(previous)).map(file => ({ ...file })) : [];
+    const captured = { ...snap, sourceFiles: JSON.stringify(files) };
+    set(state => ({ snapshots: state.snapshots.map(item => item.id === snap.id ? captured : item),
+      liveId: snap.id, vfs: { ...state.vfs, [snap.id]: files }, viewing: null }));
+    void get().persistNow();
     get().toast('Verzia uložená (Ctrl+S)', 'ok');
   },
   viewSnapshot: id => {
     const s = get();
     const snap = s.snapshots.find(x => x.id === id);
     if (!snap) return;
-    set({ viewing: snap, tab: 'preview' });
+    sandboxController?.abort();
+    set({ viewing: snap, tab: 'preview', sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false });
   },
-  backToLive: () => set({ viewing: null }),
+  backToLive: () => { sandboxController?.abort(); set({ viewing: null, sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false }); },
   pinSnapshot: id => set(s => ({
     snapshots: s.snapshots.map(x => (x.id === id ? { ...x, pinned: !x.pinned } : x)),
   })),
   restoreSnapshot: id => {
     const s = get();
+    if (s.codeDraftDirty) { s.toast('Najprv ulož alebo zruš koncept v záložke Code.', 'warn'); return; }
     const snap = s.snapshots.find(x => x.id === id);
     if (!snap) return;
-    set({ liveHtml: snap.html, viewing: null, liveId: snap.id });
+    sandboxController?.abort();
+    set({ liveHtml: snap.html, viewing: null, liveId: snap.id, sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false });
+    void get().persistNow();
     get().log('✓ obnovené: v' + snap.v, 'ok');
   },
   goHome: () => {
@@ -370,6 +444,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   saveEdFile: content => {
     const s = get();
+    if (s.codeDraftDirty) { s.toast('Najprv ulož alebo zruš koncept v záložke Code.', 'warn'); return; }
     if (s.viewing) {
       set({ edEditing: false });
       get().toast('Read-only — prezeráš historickú verziu. Obnov ju (Obnoviť) pre editáciu.', 'warn');
@@ -386,13 +461,14 @@ export const useStore = create<AppState>((set, get) => ({
     fl.modified = true;
     const html = filesToHtml(files);
     const next: Snapshot = {
-      id: uid(), v: Math.max(0, ...s.snapshots.map(x => x.v)) + 1,
-      prompt: 'Ručná úprava: ' + fl.name, kind: 'manual', time: now(), html,
+      id: uid(), parentId: snap.id, v: Math.max(0, ...s.snapshots.map(x => x.v)) + 1,
+      prompt: 'Ručná úprava: ' + fl.name, kind: 'manual', time: now(), html, sourceFiles: JSON.stringify(files),
     };
     set({
       vfs: { ...s.vfs, [next.id]: files },
       snapshots: [...s.snapshots, next],
       liveId: next.id, liveHtml: html, viewing: null, edEditing: false,
+      sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false,
     });
     void get().persistNow();
     get().toast('💾 ' + fl.name + ' uložený ako v' + next.v, 'ok');
@@ -407,17 +483,23 @@ export const useStore = create<AppState>((set, get) => ({
   },
   toggleHistoryExpanded: () => set(s => ({ historyExpanded: !s.historyExpanded })),
   newProject: () => {
+    sandboxController?.abort();
     get().aiAbort?.abort(new Error('project changed'));
     for (const timer of generationTimers.splice(0)) {
       window.clearTimeout(timer);
       window.clearInterval(timer);
     }
     set({
+      workspaceEpoch: persistenceScope().epoch,
+      codeDraftDirty: false,
       messages: [], snapshots: [], liveHtml: null, viewing: null, liveId: null,
       publishedUrl: null, vfs: {}, edFile: null, edEditing: false,
       projectTitle: 'Nový projekt', projectId: 'pilot-' + uid(),
+      remoteRevision: 0,
+      remoteSnapshotIds: {},
       branches: [{ name: 'main', headIdx: Infinity }], branch: 'main', pendingReview: null,
       generating: false, aiAbort: null,
+      sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false, promptDraft: '', templateFollowups: [],
     });
   },
   setModelMenuOpen: v => set({ modelMenuOpen: v }),
@@ -437,9 +519,9 @@ export const useStore = create<AppState>((set, get) => ({
     const text = prompt.trim();
     if (!text) return;
     if (st.pendingReview) { get().toast('Najprv schváľ alebo odmietni pripravené zmeny', 'warn'); return; }
-    if (st.edEditing) { get().toast('Najprv ulož alebo zruš manuálnu úpravu súboru.', 'warn'); return; }
+    if (st.edEditing || st.codeDraftDirty) { get().toast('Najprv ulož alebo zruš manuálnu úpravu súboru.', 'warn'); return; }
     const base = captureReviewBase(st);
-    const context = requestContext(st);
+    const context = {...requestContext(st),conversation:conversationContext(st.messages)};
     get().addMsg('user', text);
     set({ generating: true, mode: 'work' });
     document.body.dataset.mode = 'work';
@@ -449,13 +531,18 @@ export const useStore = create<AppState>((set, get) => ({
     set({ aiAbort: abort });
 
     const events: AgentEvent[] = [];
+    let resolvedIntent:'create'|'iterate'|'fix'|'explain'|undefined;
+    let answerText='';
     const expireRun = () => {
       abort.abort(new Error('review base changed'));
-      get().updateMsg(planMsg.id, { text: 'Projekt sa počas generovania zmenil. AI návrh bol zahodený; spusti nový run.', done: true });
+      get().updateMsg(planMsg.id, { text: 'Projekt sa počas generovania zmenil. AI návrh bol zahodený; spusti nový run.',plan:undefined, done: true });
       get().toast('AI návrh je zastaraný — projekt sa zmenil. Spusti nový run.', 'warn');
     };
     try {
       for await (const ev of streamAgentEvents({
+        modelId: st.aiModelId,
+        allowFallback: st.aiFallbackIds.length > 0,
+        fallbackIds: [...st.aiFallbackIds],
         projectId: base.projectId,
         prompt: text,
         mode,
@@ -469,8 +556,24 @@ export const useStore = create<AppState>((set, get) => ({
         }
         events.push(ev);
         if (ev.type === 'run_started') set({ aiConnected: true });
+        if(ev.type==='intent_selected'){
+          resolvedIntent=ev.intent;
+          get().log('› Zámer: '+({create:'nová aplikácia',iterate:'úprava',fix:'oprava',explain:'odpoveď bez zmien'}[ev.intent]),'info');
+          if(ev.intent==='explain')get().updateMsg(planMsg.id,{text:'Pripravujem odpoveď bez zmien súborov…'});
+        }
+        if(ev.type==='text_delta'){
+          answerText+=ev.delta;get().updateMsg(planMsg.id,{text:answerText});
+        }
+        if (ev.type === 'provider_update') {
+          get().updateMsg(planMsg.id,{text:ev.message+' ('+ev.provider+' · '+ev.model+')'});
+          get().log('› '+ev.message+' '+ev.provider+' / '+ev.model,'warn');
+        }
+        if(ev.type==='context_update'){
+          const note=ev.state==='summarizing'?`Zhrniem ${ev.summarizedTurns} starších správ, aby zostal priestor pre aktuálny kód.`:`Kontext pripravený: zhrnutých ${ev.summarizedTurns} správ. Počet AI volaní navyše: ${ev.summaryCalls}.`;
+          get().updateMsg(planMsg.id,{text:note});get().log('› '+note,'info');
+        }
         if (ev.type === 'plan') {
-          get().updateMsg(planMsg.id, { plan: ev.plan.steps.map(x => ({ label: x.title, state: 'pending' as const })), planTitle: 'AI plán', model: ev.plan.summary });
+          get().updateMsg(planMsg.id, { text:'', plan: ev.plan.steps.map(x => ({ label: x.title, state: 'pending' as const })), planTitle: 'AI plán', model: ev.plan.summary });
           get().log('› AI plán: ' + ev.plan.summary, 'info');
         }
         if (ev.type === 'plan_step') {
@@ -486,7 +589,15 @@ export const useStore = create<AppState>((set, get) => ({
         if (ev.type === 'validation' && !ev.result.ok) {
           get().log('⚠ validácia: ' + ev.result.errors.map(e => e.path + ': ' + e.message).join('; ').slice(0, 200), 'warn');
         }
-        if (ev.type === 'error') get().log('✗ AI: ' + ev.message, 'err');
+        if (ev.type === 'error') {
+          get().log('✗ AI: ' + ev.message, 'err');
+          get().updateMsg(planMsg.id, { text: answerText?answerText+'\n\nOdpoveď sa prerušila a zostala neúplná. Súbory sa nemenili.':'AI úlohu sa nepodarilo dokončiť. Projekt zostal zachovaný; podrobnosti sú v konzole.',plan:undefined, done: true });
+          get().toast('AI úloha zlyhala. Lokálna práca zostala zachovaná.', 'warn');
+        }
+        if (ev.type === 'cancelled') {
+          get().updateMsg(planMsg.id, { text: answerText?answerText+'\n\nOdpoveď bola zastavená a zostala neúplná. Súbory sa nemenili.':'AI úloha sa zastavila pred dokončením. Projekt zostal zachovaný.', done: true });
+          get().toast('AI úloha bola zastavená.', 'warn');
+        }
       }
 
       const doneEv = events.find(e => e.type === 'done');
@@ -494,12 +605,16 @@ export const useStore = create<AppState>((set, get) => ({
       const runStarted = events.find(e => e.type === 'run_started');
       const validation = events.find(e => e.type === 'validation');
       if (get().aiAbort !== abort || abort.signal.aborted) return;
-      if (doneEv?.type === 'done' && stage?.type === 'stage' && runStarted?.type === 'run_started' &&
+      if(resolvedIntent==='explain'&&doneEv?.type==='done'&&runStarted?.type==='run_started'&&doneEv.runId===runStarted.runId&&!stage&&!events.some(event=>event.type==='error'||event.type==='cancelled')){
+        if(!answerText.trim())throw new AiRequestError('stream_interrupted',true);
+        get().updateMsg(planMsg.id,{done:true});get().toast('Odpoveď je pripravená. Súbory sa nemenili.','ok');
+      }
+      if (resolvedIntent!=='explain'&&doneEv?.type === 'done' && stage?.type === 'stage' && runStarted?.type === 'run_started' &&
           doneEv.runId === runStarted.runId && validation?.type === 'validation' && validation.result.ok &&
           !events.some(event => event.type === 'error' || event.type === 'cancelled')) {
         if (!matchesReviewBase(get(), base)) { expireRun(); return; }
-        set({ pendingReview: { runId: runStarted.runId, prompt: text, files: stage.files.map(file => ({ ...file })), base } });
-        get().updateMsg(planMsg.id, { text: `${stage.files.length} súborov čaká na schválenie. Žiadne zmeny sa zatiaľ neaplikovali.`, done: true });
+        set({ pendingReview: { messageId:planMsg.id, runId: runStarted.runId, prompt: text, files: stage.files.map(file => ({ ...file })),base,...(stage.editMode==='patch'?{source:'patch' as const,summary:stage.summary}:{}) } });
+        get().updateMsg(planMsg.id, { text: `Súbory čakajúce na schválenie: ${stage.files.length}. Žiadne zmeny sa zatiaľ neaplikovali.`, reviewPending:true,plan:get().messages.find(message=>message.id===planMsg.id)?.plan?.map(step=>({...step,state:'done'})), done: true });
         get().toast('AI zmeny pripravené na kontrolu', 'warn');
       }
       set({ aiConnected: true });
@@ -507,108 +622,143 @@ export const useStore = create<AppState>((set, get) => ({
       if (get().aiAbort !== abort) return;
       if (e instanceof AiNotConfiguredError) {
         set({ aiConnected: false });
-        get().toast('AI nie je nakonfigurované — použi Instant Draft mód', 'warn');
+        get().toast('AI teraz nie je dostupné — použi Instant Draft mód', 'warn');
+      } else if (e instanceof AiRequestError) {
+        get().toast(e.message, 'warn');
       } else if (e instanceof NetworkError) {
         set({ aiConnected: false });
-        get().toast('AI server nedostupný — spusti server (npm run server)', 'warn');
+        get().toast('AI server teraz nie je dostupný. Skús to znova o chvíľu.', 'warn');
       } else if (abort.signal.aborted) {
         get().log('⟲ AI generovanie zrušené', 'warn');
       } else {
-        get().toast('AI generovanie zlyhalo: ' + String(e).slice(0, 120), 'err');
+        get().toast('AI generovanie zlyhalo. Lokálna práca zostala zachovaná.', 'err');
       }
-      get().updateMsg(planMsg.id, { done: true });
+      get().updateMsg(planMsg.id, { text: answerText?answerText+'\n\nOdpoveď sa prerušila a zostala neúplná. Súbory sa nemenili.':e instanceof AiRequestError || e instanceof AiNotConfiguredError || e instanceof NetworkError ? e.message : abort.signal.aborted ? 'AI generovanie bolo zrušené.' : 'AI úlohu sa nepodarilo dokončiť. Lokálna práca zostala zachovaná.', done: true });
     } finally {
-      if (get().aiAbort === abort) set({ generating: false, aiAbort: null });
+      if (get().aiAbort === abort) {set({ generating: false, aiAbort: null });void get().persistNow();}
     }
   },
 
   cancelAiRun: () => {
     const st = get();
+    if(st.aiAbort){const active=st.messages.at(-1);if(active?.role==='assistant')get().updateMsg(active.id,{text:(active.text?active.text+'\n\n':'')+'AI odpoveď bola zastavená. Súbory sa nemenili.',done:true});}
     st.aiAbort?.abort(new Error('cancel'));
     set({ generating: false, aiAbort: null });
+    void get().persistNow();
     get().toast('AI generovanie zrušené', 'warn');
   },
 
   approveStagedRun: () => {
     const state = get();
     const review = state.pendingReview;
-    if (!review) return; // idempotentný opakovaný klik
+    if (!review) return false; // idempotentný opakovaný klik
     if (!review.base || !matchesReviewBase(state, review.base)) {
       set({ pendingReview: null });
       get().toast('AI návrh je zastaraný — projekt sa zmenil. Spusti nový run.', 'warn');
-      return;
+      return false;
     }
     const previous = review.base.snapshotId ? state.snapshots.find(snapshot => snapshot.id === review.base.snapshotId) : null;
-    const nextFiles = previous ? (state.vfs[previous.id] ?? filesFor(previous)).map(file => ({ ...file })) : [];
-    for (const file of review.files) {
-      const index = nextFiles.findIndex(existing => existing.name === file.path);
-      if (file.action === 'delete') { if (index !== -1) nextFiles.splice(index, 1); }
-      else if (index !== -1) nextFiles[index] = { ...nextFiles[index], content: file.content, modified: true };
-      else nextFiles.push({ name: file.path, content: file.content, modified: true });
-    }
+    const before=previous?(state.vfs[previous.id]??filesFor(previous)):[];
+    const nextFiles=applyFileOperations(before,review.files,review.source==='patch');
+    if(!nextFiles){get().toast('Návrh obsahuje konfliktné súbory. Nič sa nepoužilo.','warn');return false;}
     const html = filesToHtml(nextFiles);
-    const snap: Snapshot = { id: uid(), v: state.snapshots.length + 1, prompt: review.prompt, kind: 'ai', time: now(), html };
+    const snap: Snapshot = { id: uid(), parentId: previous?.id ?? null, v: Math.max(0, ...state.snapshots.map(item => item.v)) + 1,
+      prompt: review.prompt, kind: review.source === 'template' ? 'template' : 'ai', time: now(), html,
+      sourceFiles: JSON.stringify(nextFiles) };
     // Consume the review and publish the new immutable snapshot in one state update.
     set({
       pendingReview: null, snapshots: [...state.snapshots, snap],
       liveId: snap.id, liveHtml: html, viewing: null,
       vfs: { ...state.vfs, [snap.id]: nextFiles },
+      sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false,
+      templateFollowups: review.followups ?? state.templateFollowups,
+      projectTitle: state.projectTitle === 'Nový projekt' && review.title ? review.title : state.projectTitle,
     });
-    get().toast('Použitých ' + review.files.length + ' súborov z AI', 'ok');
-    get().log(`✓ AI run ${review.runId}: schválených ${review.files.length} súborov`, 'ok');
+    if(review.messageId)get().updateMsg(review.messageId,{text:`Použité súbory: ${review.files.length}. Zmeny sú v aktuálnom projekte.`,reviewPending:false,done:true,plan:get().messages.find(message=>message.id===review.messageId)?.plan?.map(step=>({...step,state:'done'}))});
+    get().toast('Zmeny použité — pôvodná verzia zostáva v histórii.', 'ok');
+    get().log(`✓ ${review.source === 'template' ? 'Šablóna' : 'AI run'} ${review.runId}: schválených ${review.files.length} súborov`, 'ok');
     void get().persistNow();
+    return true;
   },
 
   rejectStagedRun: () => {
-    if (!get().pendingReview) return;
+    const review=get().pendingReview;if (!review) return;
     set({ pendingReview: null });
+    if(review.messageId)get().updateMsg(review.messageId,{text:'Návrh odmietnutý. Jeho súbory sa do projektu nepoužili.',reviewPending:false,done:true,plan:undefined});
+    void get().persistNow();
     get().log('⟲ AI zmeny odmietnuté bez zásahu do projektu', 'warn');
     get().toast('Zmeny odmietnuté — projekt nezmenený', 'warn');
   },
 
-  applyStagedFiles: (files) => {
-    /* REVIEW/APPLY: súbory z AI ide do VFS projektu (snapshot pred zmenou = immutabilita) */
+  applyStagedFiles: async (files, base) => {
     const st = get();
-    const snap = st.edSnap();
-    if (!snap) { get().toast('Najprv vytvor projekt (AI ho vytvorí automaticky pri create móde)', 'warn'); return; }
-    const current = st.vfs[snap.id] ?? filesFor(snap);
-    const next = [...current];
-    for (const f of files) {
-      const idx = next.findIndex(x => x.name === f.path);
-      if (f.action === 'delete') { if (idx !== -1) next.splice(idx, 1); }
-      else if (idx !== -1) next[idx] = { ...next[idx], content: f.content, modified: true };
-      else next.push({ name: f.path, content: f.content, modified: true });
+    const scope = persistenceScope();
+    if (scope.databaseName === null || st.workspaceEpoch !== scope.epoch || st.generating || st.sandboxBuilding || st.pendingReview || st.edEditing || st.viewing || (st.codeDraftDirty && !base) || (base && !matchesCodeEditBase(st, base))) {
+      get().toast('Zdrojová verzia alebo účet sa zmenili, prípadne prebieha iná úloha. Koncept zostal zachovaný.', 'warn');
+      return false;
     }
+    const snap = st.edSnap();
+    if (!snap) { get().toast('Najprv vytvor projekt.', 'warn'); return false; }
+    const current = st.vfs[snap.id] ?? filesFor(snap);
+    const operations = files.map(file => ({ ...file, action: file.action ?? (current.some(f => f.name === file.path) ? 'modify' as const : 'create' as const) }));
+    const next = applyFileOperations(current, operations, true);
+    if (!next || (next.length && inspectProjectSources(next).errors.length)) {
+      get().toast('Súbory neprešli kontrolou. Nič sa nepoužilo.', 'warn'); return false;
+    }
+    if (JSON.stringify(current.map(({name,content})=>({name,content}))) === JSON.stringify(next.map(({name,content})=>({name,content})))) return false;
     const html = filesToHtml(next);
-    set(s2 => ({
-      vfs: { ...s2.vfs, [snap.id]: next },
-      snapshots: s2.snapshots.map(x => x.id === snap.id ? { ...x, html } : x),
-      liveHtml: s2.liveId === snap.id ? html : s2.liveHtml,
-    }));
-    get().toast('Použitých ' + files.length + ' súborov z AI', 'ok');
-    /* Persist VFS files to IndexedDB after apply */
-    void get().persistNow();
+    const child: Snapshot = { id: uid(), parentId: snap.id, v: Math.max(0,...st.snapshots.map(s=>s.v))+1,
+      prompt: 'Ručná úprava: ' + files.map(f=>f.path).join(', ').slice(0,1000), kind: 'manual', time: now(), html, sourceFiles: JSON.stringify(next) };
+    try {
+      WorkspaceSchema.parse({title:st.projectTitle,isPublic:st.isPublic,liveId:child.id,files:next,
+        snapshots:[...st.snapshots,child].map(({id,v,prompt,kind,time,html,pinned,msg,parentId,sourceFiles})=>({id,v,prompt,kind,time,html,pinned,msg,parentId,sourceFiles}))});
+    } catch { get().toast('Úpravy prekračujú limity projektu alebo histórie. Koncept zostal zachovaný.','warn'); return false; }
+    set({vfs:{...st.vfs,[child.id]:next},snapshots:[...st.snapshots,child],liveId:child.id,liveHtml:html,viewing:null,codeDraftDirty:false,
+      sandboxHtml:null,sandboxErrors:[],sandboxBuilding:false});
+    const persisted = await get().persistNow();
+    if (persistenceScope().epoch === scope.epoch && get().projectId === st.projectId)
+      get().toast(persisted ? 'Ručné zmeny uložené ako v' + child.v + '. Pôvodná verzia zostala v histórii.' : 'Nová verzia je v pamäti. Lokálne uloženie zlyhalo; koncept zálohy zostal zachovaný.', persisted ? 'ok' : 'warn');
+    return persisted;
   },
 
   restoreFromDb: async () => {
+    const epoch = persistenceScope().epoch;
+    const projectId = get().projectId;
     try {
       const restored = await restoreWorkspace();
+      if (persistenceScope().epoch !== epoch || get().projectId !== projectId) return;
       if (!restored.project) return;
       const snaps: Snapshot[] = restored.snapshots.map(s => ({ ...s }));
       const live = snaps.find(s => s.id === restored.project?.liveSnapshotId) ?? snaps[snaps.length - 1];
+      const restoredVfs: Record<string, VfsFile[]> = {};
+      for (const snapshot of snaps) {
+        if (!snapshot.sourceFiles) continue;
+        try {
+          const files: unknown = JSON.parse(snapshot.sourceFiles);
+          if (Array.isArray(files) && files.every(file => file && typeof file.name === 'string' && typeof file.content === 'string'))
+            restoredVfs[snapshot.id] = files.map(file => ({ name: file.name, content: file.content, modified: false }));
+        } catch { /* legacy snapshots still restore from their HTML */ }
+      }
+      if (live && restored.files.length) restoredVfs[live.id] = restored.files.map(f => ({ name: f.path, content: f.content, modified: false }));
+      const transcript=ConversationSchema.safeParse(restored.project.conversation);
+      const restoredMessages=transcript.success?transcript.data.map(turn=>({id:uid(),role:turn.role,text:turn.content,done:true})):[];
       set({
+        messages: restoredMessages,
+        workspaceEpoch: epoch,
+        codeDraftDirty: false,
         snapshots: snaps,
         liveId: live?.id ?? null,
         liveHtml: live?.html ?? null,
         viewing: null,
         projectTitle: restored.project.title,
+        remoteRevision: restored.project.remoteRevision ?? 0,
+        remoteSnapshotIds: restored.project.remoteSnapshotIds ?? {},
         publishedUrl: restored.project.publishedUrl,
         isPublic: restored.project.isPublic,
-        vfs: live && restored.files.length > 0
-          ? { [live.id]: restored.files.map(f => ({ name: f.path, content: f.content, modified: false })) }
-          : {},
+        vfs: restoredVfs,
         projectId: restored.project.id,
       });
+      if(live)get().setMode('work');
       dbg('restore: projekt obnovený z IndexedDB', 'snapshotov=' + snaps.length);
     } catch (e) {
       dbg('restore: zlyhal (prvý spustenie?)', String(e));
@@ -620,8 +770,34 @@ export const useStore = create<AppState>((set, get) => ({
   sandboxBuilding: false,
   sandboxErrors: [],
 
+  repairSandbox: async()=>{
+    const st=get();
+    if(st.generating||st.sandboxBuilding||st.pendingReview||st.edEditing||st.codeDraftDirty||st.viewing)return;
+    const base=captureReviewBase(st),files=requestContext(st).files.filter(file=>/^(src\/|public\/)/.test(file.path)||/^(package\.json|index\.html|tsconfig\.json|vite\.config\.ts|README\.md)$/.test(file.path));
+    if(!files.some(file=>file.path==='src/main.tsx')){get().toast('AI oprava náhľadu potrebuje React projekt.','warn');return;}
+    const abort=new AbortController();
+    const prompt='Oprava chýb zostavenia náhľadu';get().addMsg('user',prompt);
+    const message=get().addMsg('assistant','Overujem build a pripravujem cielenú opravu…');
+    set({generating:true,aiAbort:abort});get().setMode('work');get().setMview('chat');
+    try{
+      const result=await requestBuildRepair(files,{modelId:st.aiModelId,allowFallback:st.aiFallbackIds.length>0,fallbackIds:[...st.aiFallbackIds]},abort.signal);
+      if(get().aiAbort!==abort||abort.signal.aborted)return;
+      if(!matchesReviewBase(get(),base)){get().updateMsg(message.id,{text:'Projekt sa počas opravy zmenil. Návrh bol zahodený; spusti novú úlohu.',done:true});return;}
+      if(!result.ok){get().updateMsg(message.id,{text:'AI oprava neprešla overením. Projekt zostal zachovaný; podrobnosti sú v konzole.',done:true});get().log('✗ AI oprava: '+result.buildErrors.map(error=>error.file+': '+error.message).join('; ').slice(0,800),'err');return;}
+      if(!result.changes.length){get().updateMsg(message.id,{text:'Aktuálny projekt prešiel buildom bez AI opravy. Súbory sa nemenili.',done:true});return;}
+      set({pendingReview:{runId:'build-repair-'+uid(),messageId:message.id,prompt,source:'patch',base,files:result.changes,summary:'Návrh prešiel buildom. '+(result.summary??'Skontroluj cielené zmeny.')},tab:'diff'});get().setMview('canvas');
+      get().updateMsg(message.id,{text:'Oprava prešla buildom a čaká na tvoju kontrolu. Projekt sa zatiaľ nemenil.',reviewPending:true,done:true});
+      get().log('✓ AI oprava overená buildom; čaká na schválenie. Pokusy: '+result.attempts,'ok');
+    }catch(error){
+      if(get().aiAbort!==abort)return;
+      const text=error instanceof AiRequestError||error instanceof NetworkError?error.message:abort.signal.aborted?'AI oprava bola zastavená. Projekt zostal zachovaný.':'AI opravu sa nepodarilo dokončiť. Projekt zostal zachovaný.';
+      get().updateMsg(message.id,{text,done:true});get().toast(text,'warn');
+    }finally{if(get().aiAbort===abort){set({generating:false,aiAbort:null});void get().persistNow();}}
+  },
+
   runSandbox: async () => {
     const st = get();
+    if(st.codeDraftDirty){st.toast('Najprv ulož rozpracovaný koncept kódu.','warn');return;}
     const snap = st.edSnap();
     if (!snap) { get().toast('Najprv vygeneruj projekt', 'warn'); return; }
     /* len cesty povolené server pathGuardom — legacy VFS šablóna (styles.css, app.js) sa do buildu neposiela */
@@ -633,14 +809,19 @@ export const useStore = create<AppState>((set, get) => ({
       get().toast('Sandbox: chýba src/main.tsx (React projekt)', 'warn');
       return;
     }
-    set({ sandboxBuilding: true, sandboxErrors: [] });
+    sandboxController?.abort();
+    const controller = new AbortController(); sandboxController = controller;
+    const base = captureReviewBase(st);
+    set({ sandboxBuilding: true, sandboxErrors: [], sandboxHtml: null });
     try {
       const res = await fetch((import.meta.env?.VITE_AI_API_BASE ?? '') + '/api/sandbox/build', {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({ files }),
+        signal: controller.signal,
       });
       const result = await res.json() as { ok: boolean; html: string | null; errors: Array<{ file: string; message: string }> };
+      if (controller.signal.aborted || sandboxController !== controller || !matchesReviewBase(get(), base)) return;
       if (result.ok && result.html) {
         set({ sandboxHtml: result.html, sandboxBuilding: false });
         get().log('✓ sandbox: projekt zabudovaný a spustený', 'ok');
@@ -649,19 +830,23 @@ export const useStore = create<AppState>((set, get) => ({
         get().log('✗ sandbox build: ' + (result.errors ?? []).map(e => e.message.slice(0, 80)).join('; '), 'err');
       }
     } catch (e) {
+      if (controller.signal.aborted || sandboxController !== controller || !matchesReviewBase(get(), base)) return;
       set({ sandboxBuilding: false, sandboxErrors: [{ file: '-', message: 'Sandbox server nedostupný: ' + String(e).slice(0, 120) }] });
       get().toast('Sandbox server nedostupný — spusti npm run server', 'warn');
+    } finally {
+      if (sandboxController === controller) { sandboxController = null; set({ sandboxBuilding: false }); }
     }
   },
 
   stopSandbox: () => {
-    set({ sandboxHtml: null, sandboxErrors: [] });
+    sandboxController?.abort(); sandboxController = null;
+    set({ sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false });
     get().log('⟲ sandbox zastavený', 'warn');
   },
 
   persistNow: async () => {
     const st = get();
-    if (st.snapshots.length === 0) return;
+    if (st.snapshots.length === 0 && st.messages.length === 0) return true;
     const live = st.snapshots.find(snapshot => snapshot.id === st.liveId);
     const files = live ? st.vfs[live.id] ?? filesFor(live) : [];
     const now = Date.now();
@@ -674,11 +859,15 @@ export const useStore = create<AppState>((set, get) => ({
         liveSnapshotId: st.liveId,
         publishedUrl: st.publishedUrl,
         isPublic: st.isPublic,
+        remoteRevision: st.remoteRevision,
+        remoteSnapshotIds: st.remoteSnapshotIds,
+        conversation: conversationContext(st.messages),
       },
       snapshots: st.snapshots.map(s => ({ ...s, projectId: st.projectId, pinned: !!s.pinned })),
       files: files.map(f => ({ projectId: st.projectId, path: f.name, content: f.content, updatedAt: now, revision: nextRevision() })),
     });
     if (err) get().toast('Uloženie zlyhalo: ' + err.message.slice(0, 80), 'warn');
+    return !err;
   },
 
   currentHtml: () => {
@@ -694,54 +883,32 @@ export const useStore = create<AppState>((set, get) => ({
   /* M4 Export actions */
   exportToZip: async () => {
     const st = get();
+    if(st.codeDraftDirty){st.toast('Najprv ulož alebo zruš koncept kódu. ZIP obsahuje schválenú verziu.','warn');return;}
     const snap = st.edSnap();
     if (!snap) {
       get().toast('Najprv vygeneruj projekt', 'warn');
       return;
     }
-    const { files, warnings, missingRequired } = prepareVfsForExport(st.vfs, snap.id);
-    
-    // Check for secrets
-    const hasSecretWarning = warnings.some(w => w.includes('SECRET'));
-    if (hasSecretWarning) {
-      get().toast('Export BLOCKED: Potential secrets detected. ' + warnings.join('; '), 'err');
-      return;
-    }
-    
-    // Warn about missing required files
-    if (missingRequired.length > 0) {
-      const userConfirmed = confirm(
-        `Warning: Missing required files: ${missingRequired.join(', ')}\n\n` +
-        `The exported project may not build correctly.\n` +
-        `Continue with export?`
-      );
-      if (!userConfirmed) {
-        get().toast('Export cancelled', 'warn');
-        return;
-      }
-    }
-    
-    if (files.length === 0) {
-      get().toast('Projekt nemá žiadne exportovateľné súbory', 'warn');
-      return;
-    }
-    
-    // Show other warnings
-    if (warnings.length > 0) {
-      get().toast('Export warnings: ' + warnings.join('; '), 'warn');
-    }
-    
-    const result = await doZipExport(files, st.projectTitle, st.model);
-    if (result.ok) {
-      get().log('✓ ZIP export: ' + result.filename, 'ok');
-      get().toast('ZIP export úspešný: ' + result.filename, 'ok');
-    } else {
-      get().toast('ZIP export zlyhal: ' + (result.error || 'Neznáma chyba'), 'err');
+    const epoch = persistenceScope().epoch, sourceFiles = st.vfs[snap.id], files = sourceFiles ?? [];
+    const isCurrent = () => persistenceScope().epoch === epoch && get().projectId === st.projectId &&
+      get().edSnap()?.id === snap.id && get().vfs[snap.id] === sourceFiles;
+    try {
+      const archive = await createProjectZip(files, st.projectTitle, snap.v);
+      if (!isCurrent()) return;
+      downloadProjectZip(archive);
+      get().log('✓ ZIP export: ' + archive.filename, 'ok');
+      get().toast('ZIP export úspešný: ' + archive.filename, 'ok');
+    } catch {
+      if (isCurrent()) get().toast('ZIP sa nepodarilo vytvoriť. Skontroluj cesty, veľkosť a možné kľúče v súboroch.', 'err');
     }
   },
 
   exportToGitHub: async () => {
     const st = get();
+    if(st.codeDraftDirty){st.toast('Najprv ulož alebo zruš koncept kódu.','warn');return;}
+    const epoch = persistenceScope().epoch;
+    const run = ++githubExportRun;
+    const isCurrent = () => githubExportRun === run && persistenceScope().epoch === epoch && get().projectId === st.projectId;
     const snap = st.edSnap();
     if (!snap) {
       get().toast('Najprv vygeneruj projekt', 'warn');
@@ -750,6 +917,7 @@ export const useStore = create<AppState>((set, get) => ({
     
     // Check GitHub availability first
     const githubStatus = await checkGitHubAvailable();
+    if (!isCurrent()) return;
     if (!githubStatus.available || githubStatus.blocked) {
       const msg = githubStatus.blockReason 
         ? `GitHub export BLOCKED: ${githubStatus.blockReason} - ${githubStatus.message || ''}`
@@ -760,6 +928,7 @@ export const useStore = create<AppState>((set, get) => ({
     
     // Check auth
     const authState = await doCheckGitHubAuth();
+    if (!isCurrent()) return;
     if (!authState.authenticated || authState.blocked) {
       const msg = authState.blockReason
         ? `GitHub export BLOCKED: ${authState.blockReason} - ${authState.message || ''}`
@@ -793,16 +962,23 @@ export const useStore = create<AppState>((set, get) => ({
       
       // For now, use a default repo name based on project title
       const repoName = 'lov-devil-' + st.projectTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now().toString(36).slice(-6);
+      const isPrivate = authState.scopes?.includes('repo') === true;
+      if (!isPrivate && !authState.scopes?.includes('public_repo')) {
+        get().toast('GitHub export BLOCKED: Chýba overené oprávnenie na repozitáre. Pripoj GitHub znova.', 'warn');
+        return;
+      }
       
       // Show confirmation dialog
       const userConfirmed = confirm(
         `Create GitHub repository '${repoName}'?\n\n` +
-        `This will create a new private repository under your GitHub account.\n` +
+        `This will create a new ${isPrivate ? 'private' : 'PUBLIC'} repository under your GitHub account.\n` +
+        (isPrivate ? '' : 'The repository and exported source files will be visible to everyone.\n\n') +
         `Files: ${files.length} | Description: ${'Exported from LOV-DEVIL AI Builder - ' + st.projectTitle}\n\n` +
         (missingRequired.length > 0 ? `WARNING: Missing required files: ${missingRequired.join(', ')}\n` : '') +
         `Click OK to confirm.`
       );
       
+      if (!isCurrent()) return;
       if (!userConfirmed) {
         get().toast('GitHub export cancelled', 'warn');
         return;
@@ -811,11 +987,13 @@ export const useStore = create<AppState>((set, get) => ({
       const request: GitHubExportRequest = {
         repoName,
         description: 'Exported from LOV-DEVIL AI Builder - ' + st.projectTitle,
-        isPrivate: true,
+        isPrivate,
         files: files.map(f => ({ path: f.path, content: f.content })),
       };
       
-      const result = await doGitHubExport(request, true); // confirmed=true
+      if (!authState.csrfToken) return;
+      const result = await doGitHubExport(request, true, { csrfToken: authState.csrfToken, isCurrent });
+      if (!isCurrent()) return;
       if (result.ok && result.repoUrl) {
         get().log('✓ GitHub export: ' + result.repoUrl, 'ok');
         get().toast('GitHub export úspešný! ' + result.repoUrl, 'ok');
@@ -825,9 +1003,10 @@ export const useStore = create<AppState>((set, get) => ({
         get().toast('GitHub export zlyhal: ' + (result.error || 'Neznáma chyba'), 'err');
       }
     } catch (e) {
+      if (!isCurrent()) return;
       get().toast('GitHub export zlyhal: ' + String(e).slice(0, 100), 'err');
     } finally {
-      set({ githubExportInProgress: false });
+      if (githubExportRun === run && persistenceScope().epoch === epoch) set({ githubExportInProgress: false });
     }
   },
 
@@ -836,11 +1015,13 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   checkGitHubAuth: async () => {
+    const epoch = persistenceScope().epoch;
     try {
       const authState = await doCheckGitHubAuth();
+      if (persistenceScope().epoch !== epoch) return;
       set({ githubAuthState: authState });
     } catch {
-      set({ githubAuthState: { authenticated: false } });
+      if (persistenceScope().epoch === epoch) set({ githubAuthState: { authenticated: false } });
     }
   },
 }));

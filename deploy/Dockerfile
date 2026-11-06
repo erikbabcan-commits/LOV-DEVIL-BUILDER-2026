@@ -15,6 +15,9 @@ ENV BIND=0.0.0.0 PORT=8787
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
 COPY server ./server
+COPY shared ./shared
+COPY scripts/check-cloud-github.ts scripts/link-cloud-identity.ts scripts/ai-usage-report.ts ./scripts/
+COPY deploy/ops/ai-cost-dashboard.template.html ./deploy/ops/
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -q -O- http://127.0.0.1:8787/api/health || exit 1

@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { newDb, type IMemoryDb } from 'pg-mem';
 import { createApp } from '../../../server/index';
-import type { DbLike } from '../../../server/db/pool';
+import { dbFromPool, type DbLike } from '../../../server/db/pool';
 import { applyMigrations } from '../../../server/db/migrate';
 import { PostgresQuotaStore, InMemoryQuotaStore, monthWindow } from '../../../server/security/quotaStore';
 import { authRouter, serializeCookie, TOKEN_COOKIE, CSRF_COOKIE } from '../../../server/auth/routes';
@@ -19,14 +19,7 @@ function memDb(): { db: DbLike; mem: IMemoryDb } {
   const mem = newDb();
   /* pg-mem pg adapter podporuje parametrizované query (public.query nie) */
   const pgAdapter = mem.adapters.createPg();
-  const client = new pgAdapter.Client();
-  void client.connect();
-  const db: DbLike = {
-    query: async (sql: string, params?: unknown[]) => {
-      const res = await client.query(sql, (params ?? []) as never[]);
-      return { rows: (res as unknown as { rows: any[] }).rows ?? [], rowCount: (res as unknown as { rowCount: number | null }).rowCount ?? null };
-    }
-  };
+  const db = dbFromPool(new pgAdapter.Pool());
   return { db, mem };
 }
 
@@ -129,11 +122,14 @@ describe('trvalé kvóty (pg-mem)', () => {
     const over = await quota.consume('u1');
     expect(over.ok).toBe(false);
     expect(over.snapshot.remaining).toBe(0);
+    for(let i=0;i<3;i++)expect((await quota.consume('u1')).ok).toBe(false);
+    expect((await db.query('SELECT generations FROM user_quotas WHERE user_id=$1',['u1'])).rows[0].generations).toBe(10);
 
     await db.query("UPDATE users SET plan = 'pro' WHERE id = $1", ['u1']);
     const pro = await quota.consume('u1');
     expect(pro.ok).toBe(true);
     expect(pro.snapshot.limit).toBe(200);
+    expect(pro.snapshot.used).toBe(11);
   });
 
   it('mesačné okno: starý period_start sa resetuje', async () => {

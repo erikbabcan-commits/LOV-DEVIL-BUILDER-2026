@@ -1,0 +1,17 @@
+FROM docker:29-cli AS docker-cli
+FROM node:26-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund --ignore-scripts
+COPY server ./server
+RUN node --input-type=module -e "import {build} from 'esbuild'; await build({entryPoints:['server/sandbox/runner.ts'],bundle:true,platform:'node',format:'esm',target:'node26',outfile:'runner.mjs'});"
+
+FROM node:26-alpine
+WORKDIR /app
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=build /app/runner.mjs ./runner.mjs
+ENV SANDBOX_RUNNER_BIND=0.0.0.0 SANDBOX_RUNNER_PORT=8790
+EXPOSE 8790
+HEALTHCHECK --interval=30s --timeout=8s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:8790/ready',{headers:{Authorization:'Bearer '+process.env.SANDBOX_RUNNER_TOKEN},signal:AbortSignal.timeout(7000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+ENTRYPOINT ["node", "/app/runner.mjs"]

@@ -11,3 +11,8 @@ demo
 docs
 *.log
 .DS_Store
+**/.env
+**/.env.*
+!**/.env.example
+**/.github-sessions/**
+**/*.session.json

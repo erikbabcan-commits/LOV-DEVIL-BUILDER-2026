@@ -44,27 +44,30 @@ describe('Store M2 (AI + persistence)', () => {
     vi.restoreAllMocks();
   });
 
-  it('applyStagedFiles: AI súbory sa aplikujú do VFS (create + modify + delete)', () => {
+  it('applyStagedFiles: create/modify/delete make immutable child versions', async () => {
     const st = useStore.getState();
     const snap = st.createSnapshot('ai', 'CRM prompt', '<html><head><style>x{y:z}</style></head><body><h1>CRM</h1></body></html>');
     useStore.setState({ liveId: snap.id, liveHtml: snap.html, viewing: null });
 
-    useStore.getState().applyStagedFiles([
+    await useStore.getState().applyStagedFiles([
       { path: 'src/App.tsx', content: 'export default () => <h1>CRM v2</h1>;', action: 'create' },
       { path: 'src/components/Sidebar.tsx', content: 'export default () => <nav/>;', action: 'create' },
     ]);
     const s = useStore.getState();
-    const files = s.vfs[snap.id] ?? [];
+    expect(s.snapshots[0]).toEqual(snap);
+    const files = s.vfs[s.liveId!] ?? [];
     expect(files.find(f => f.name === 'src/App.tsx')?.content).toContain('CRM v2');
     expect(files.find(f => f.name === 'src/components/Sidebar.tsx')?.content).toContain('<nav/>');
 
     // modify
-    useStore.getState().applyStagedFiles([{ path: 'src/App.tsx', content: 'export default () => <h1>CRM v3</h1>;', action: 'modify' }]);
-    expect((useStore.getState().vfs[snap.id] ?? []).find(f => f.name === 'src/App.tsx')?.content).toContain('v3');
+    await useStore.getState().applyStagedFiles([{ path: 'src/App.tsx', content: 'export default () => <h1>CRM v3</h1>;', action: 'modify' }]);
+    expect((useStore.getState().vfs[useStore.getState().liveId!] ?? []).find(f => f.name === 'src/App.tsx')?.content).toContain('v3');
+    expect(s.vfs[s.liveId!]).toEqual(files);
 
     // delete
-    useStore.getState().applyStagedFiles([{ path: 'src/components/Sidebar.tsx', content: '', action: 'delete' }]);
-    expect((useStore.getState().vfs[snap.id] ?? []).find(f => f.name === 'src/components/Sidebar.tsx')).toBeUndefined();
+    await useStore.getState().applyStagedFiles([{ path: 'src/components/Sidebar.tsx', content: '', action: 'delete' }]);
+    expect((useStore.getState().vfs[useStore.getState().liveId!] ?? []).find(f => f.name === 'src/components/Sidebar.tsx')).toBeUndefined();
+    expect(useStore.getState().snapshots).toHaveLength(4);
   });
 
   it('applyStagedFiles bez snapshotu: warn toast, nič nepadne', () => {
@@ -165,9 +168,10 @@ describe('Store M2 (AI + persistence)', () => {
     expect(useStore.getState().edEditing).toBe(true);
   });
 
-  it('Approve rejects a source-only edit even when the rendered HTML stays identical', () => {
+  it('Approve rejects a source-only edit even when the rendered HTML stays identical', async () => {
     const snapshot = seedSnapshot();
-    useStore.getState().applyStagedFiles([{ path: 'src/data.ts', content: 'export const value = 1;', action: 'create' }]);
+    await useStore.getState().applyStagedFiles([{ path: 'src/data.ts', content: 'export const value = 1;', action: 'create' }]);
+    const before = structuredClone(useStore.getState().snapshots);
     const html = useStore.getState().liveHtml;
     useStore.setState({ pendingReview: stagedReview() });
     useStore.getState().setEdFile('src/data.ts');
@@ -176,7 +180,8 @@ describe('Store M2 (AI + persistence)', () => {
     useStore.getState().approveStagedRun();
     const state = useStore.getState();
     expect(state.pendingReview).toBeNull();
-    expect(state.snapshots).toHaveLength(2);
+    expect(state.snapshots).toHaveLength(3);
+    expect(state.snapshots.slice(0,2)).toEqual(before);
     expect(state.snapshots[0]).toEqual(snapshot);
     expect(state.vfs[state.liveId!].find(file => file.name === 'src/data.ts')?.content).toBe('export const value = 2;');
     expect(state.vfs[state.liveId!].some(file => file.name === 'src/App.tsx')).toBe(false);

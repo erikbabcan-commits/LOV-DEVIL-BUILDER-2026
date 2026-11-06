@@ -146,28 +146,31 @@ test('M1.1 editor: všetkých 8 tabov prístupných (blueprints/prompts/team/gal
     await page.click(`[data-edtab="${tab}"]`);
     await expect(page.locator(`.ed-pane[data-edpane="${tab}"]`)).toBeVisible();
   }
-  // blueprints: 6 kariet s dátami
+  // Aktuálna galéria obsahuje 12 skutočných projektových šablón.
   await page.click('[data-edtab="blueprints"]');
-  expect(await page.locator('.ed-bp').count()).toBe(6);
-  await expect(page.locator('.ed-bp').first()).toContainText('SaaS Landing');
+  await expect(page.locator('.template-card')).toHaveCount(12);
+  await expect(page.locator('.template-card').first()).toContainText(/SaaS/i);
   // prompts: 8 kariet
   await page.click('[data-edtab="prompts"]');
   expect(await page.locator('.ed-prompt').count()).toBe(8);
 });
 
-test('M1.1 blueprints: klik spustí generovanie (template mód)', async ({ page }) => {
+test('M1.1 blueprints: wizard → review → nová funkčná React verzia', async ({ page }) => {
   await page.goto(APP_URL);
   await page.fill('#homeInput', 'SaaS landing');
   await page.click('#homeSend');
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
   await page.click('#editorBtn');
   await page.click('[data-edtab="blueprints"]');
-  await page.locator('.ed-bp[data-bp="bp-kanban"]').click();
-  // vrati sa do workspace (generate prepne mode); frame sa remountuje so starým obsahom,
-  // nový kanban template dorazí po ~2.2s — čakaj kým srcdoc obsahuje Kanban
-  await page.waitForSelector('#previewFrame', { timeout: 10_000 });
-  await expect.poll(async () => await page.locator('#previewFrame').getAttribute('srcdoc'), { timeout: 15_000 })
-    .toContain('Kanban');
+  await page.locator('.template-card').filter({ has: page.getByRole('heading', { name: 'Kanban board', exact: true }) }).getByRole('button', { name: /Použiť šablónu/ }).click();
+  await page.getByRole('textbox', { name: 'Názov značky' }).fill('E2E Kanban');
+  await page.getByRole('button', { name: /Prezrieť súbory/ }).click();
+  await expect(page.locator('.review-panel')).toBeVisible();
+  await expect(page.locator('#snapCount')).toHaveText('1');
+  await page.getByRole('button', { name: 'Použiť zmeny', exact: true }).click();
+  await expect(page.locator('#snapCount')).toHaveText('2');
+  await expect(page.frameLocator('#previewFrame').getByRole('heading', { name: 'Prehľad namiesto chaosu.' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.frameLocator('#previewFrame').locator('body')).toContainText('E2E Kanban');
 });
 
 /* M1.1 Priority 2: deterministické vizuálne checkpointy — identický stav ako legacy procedúra:
@@ -179,12 +182,8 @@ test('M1.1 vizuálny checkpoint: workspace po dokončení streamovania (determin
   await page.waitForSelector('#previewFrame', { timeout: 10_000 });
   // počkať na dokončenie streamovania — posledná správa má .actions (done)
   await expect(page.locator('.msg .actions').first()).toBeVisible({ timeout: 15_000 });
-  /* parita s legacy procedúrou: expand cez classList add (bez React re-render) */
-  await page.evaluate(() => {
-    const b = document.getElementById('historyBar');
-    if (b) b.classList.add('expanded');
-  });
-  await page.waitForTimeout(400);
+  await page.click('#histToggle');
+  await expect(page.locator('#historyBar')).toHaveClass(/expanded/);
   await page.screenshot({ path: SHOTS + '/02-workspace-desktop.png', animations: 'disabled' });
   // code / console / diff taby
   for (const [tab, shot] of [['raw', '04-code-desktop'], ['console', '05-console-desktop'], ['diff', '06-diff']] as const) {
@@ -201,8 +200,9 @@ test('M1.1 vizuálny checkpoint: workspace po dokončení streamovania (determin
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(300);
   await page.screenshot({ path: SHOTS + '/08-editor-mobile.png', animations: 'disabled' });
-  await page.evaluate(() => window.history.go(0));
-  await page.waitForTimeout(800);
+  await page.getByRole('button', { name: '☰ Projekty', exact: true }).click();
+  await page.click('#edNew');
+  await expect(page.locator('#homeInput')).toBeVisible();
   await page.screenshot({ path: SHOTS + '/09-landing-mobile.png', animations: 'disabled' });
 });
 

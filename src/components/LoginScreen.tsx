@@ -32,7 +32,8 @@ export function LoginScreen({ onAuthenticated }: Props) {
         email_taken: 'Tento e-mail už je zaregistrovaný.',
         invalid_email: 'Neplatný e-mail.',
         weak_password: 'Heslo musí mať aspoň 8 znakov.',
-        invalid_credentials_format: 'Skontroluj e-mail a heslo (min 8 znakov).'
+        invalid_credentials_format: 'Skontroluj e-mail a heslo (min 8 znakov).',
+        network_error: 'Server teraz neodpovedá. Skontroluj pripojenie a skús to znova.'
       };
       setError(messages[res.error ?? ''] ?? 'Prihlásenie sa nepodarilo. Skús znova.');
     }

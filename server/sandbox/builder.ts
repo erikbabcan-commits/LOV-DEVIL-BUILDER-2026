@@ -1,44 +1,24 @@
-import { z } from 'zod';
-import { isSafePath, withinSizeLimits } from '../security/pathGuard';
-import { containsPotentialSecret, redactSecrets } from '../security/secrets';
+import { redactSecrets } from '../security/secrets';
+import { MAX_BUNDLE_BYTES, validateFiles, type SandboxFile, type BuildResult } from './policy';
+export { SandboxFileSchema, APPROVED_DEPS } from './policy';
+export type { SandboxFile, BuildResult } from './policy';
 
 /* M3 Sandbox — compile-only React adapter (server-side esbuild).
    Vygenerovaný projekt sa iba kompiluje; dependencies sú lokálne nainštalované
    a explicitne schválené, bez npm install zo vstupu. Výsledné single-bundle HTML
    je určené pre sandbox iframe (allow-scripts, origin-null). Vygenerovaný kód sa
-   na serveri nespúšťa. Kompilácia však NIE JE bezpečnostne izolovaný worker/VM:
-   tento adaptér nevynucuje hard limity CPU, RAM ani času kompilácie. */
-
-export const SandboxFileSchema = z.object({
-  path: z.string().min(1).max(200),
-  content: z.string().max(200_000),
-});
-export type SandboxFile = z.infer<typeof SandboxFileSchema>;
-
-export interface BuildResult {
-  ok: boolean;
-  html: string | null;
-  errors: Array<{ file: string; message: string }>;
-  durationMs: number;
-  moduleCount: number;
-}
-
-/** Schválené dependencies — whitelist (sandbox policy). */
-export const APPROVED_DEPS = new Set([
-  'react', 'react-dom',
-  '@types/react', '@types/react-dom',
-]);
+   na serveri nespúšťa. Hard limity vynucuje DockerCompiler okolo tohto adaptéra;
+   priamy HostExecutor je iba explicitný lokálny vývoj bez hard limitov. */
 
 const APPROVED_RUNTIME_IMPORTS = new Set([
   'react', 'react/jsx-runtime', 'react/jsx-dev-runtime',
   'react-dom', 'react-dom/client',
 ]);
-const MAX_BUNDLE_BYTES = 2_000_000;
 
-/** esbuild entry transform: TSX → JS; compile-only, bez izolovaného workera. */
+/** Pure compile adapter: TSX → JS. Production callers go through SandboxExecutor. */
 export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
   const started = Date.now();
-  const errors: Array<{ file: string; message: string }> = [];
+  const errors = validateFiles(files);
   const failure = (moduleCount = 0): BuildResult => ({
     ok: false,
     html: null,
@@ -50,30 +30,10 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
     moduleCount,
   });
   const byPath = new Map<string, string>();
-  for (const f of files) {
-    if (containsPotentialSecret(f.path) || containsPotentialSecret(f.content)) {
-      errors.push({ file: f.path, message: 'potenciálne tajomstvo v ceste alebo obsahu zdrojového súboru' });
-      continue;
-    }
-    if (!isSafePath(f.path)) { errors.push({ file: f.path, message: 'zakázaná cesta' }); continue; }
-    byPath.set(f.path, f.content);
-  }
-  const size = withinSizeLimits(files);
-  if (!size.ok) errors.push({ file: '-', message: size.reason ?? 'size limit' });
   if (errors.length) return failure();
+  for (const file of files) byPath.set(file.path, file.content);
 
-  const packageJson = byPath.get('package.json');
-  if (packageJson) {
-    try {
-      const pkg = JSON.parse(packageJson);
-      const deps = Object.keys(pkg.dependencies ?? {});
-      const bad = deps.filter(d => !APPROVED_DEPS.has(d));
-      if (bad.length) errors.push({ file: 'package.json', message: 'ne schválené dependencies: ' + bad.join(', ') });
-    } catch { errors.push({ file: 'package.json', message: 'nevalidný JSON' }); }
-  }
-  if (errors.length) return failure();
-
-  /* esbuild iba kompiluje; tento call nemá resource-isolated worker ani timeout. */
+  /* esbuild iba kompiluje; izoláciu zabezpečuje volajúci worker/executor. */
   try {
     const esbuild = await import('esbuild');
     const entry = byPath.get('src/main.tsx');
@@ -90,13 +50,14 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
           if (!APPROVED_RUNTIME_IMPORTS.has(args.path)) return { errors: [{ text: redactSecrets(`nepovolený import: ${args.path}`) }] };
           return build.resolve(args.path, { resolveDir: process.cwd(), kind: 'import-statement' });
         });
-        /* Filter: len relatívne cesty (./ a /) v forge namespace. Bare imports (react, ...) necháme esbuild default resolver */
-        build.onResolve({ filter: /^\.\/|^\//, namespace: 'forge' }, args => {
+        /* Resolve ./, ../ and root-relative paths only inside the virtual project. */
+        build.onResolve({ filter: /^(?:\.{1,2}\/|\/)/, namespace: 'forge' }, args => {
           const importerPath = args.importer?.replace(/^[^:]+:/, '') ?? '';
           const baseDir = importerPath.includes('/')
             ? importerPath.slice(0, importerPath.lastIndexOf('/'))
             : '';
           const resolved = normalizeJoin(baseDir, args.path);
+          if (resolved === null) return { errors: [{ text: 'import opúšťa koreň projektu' }] };
           const candidates = [resolved, resolved + '.tsx', resolved + '.ts', resolved + '.jsx', resolved + '.js', resolved + '/index.tsx'];
           for (const c of candidates) if (byPath.has(c)) return { path: c, namespace: 'forge' };
           return { errors: [{ text: redactSecrets(`modul nenájdený: ${args.path}`) }] };
@@ -173,12 +134,12 @@ ${appCss ? `<style>${appCss}</style>\n` : ''}</head><body><div id="root"></div>
   }
 }
 
-function normalizeJoin(dir: string, p: string): string {
+function normalizeJoin(dir: string, p: string): string | null {
   if (p.startsWith('/')) return p.slice(1);
   const segs = (dir ? dir.split('/') : []);
   for (const s of p.split('/')) {
     if (s === '.' || s === '') continue;
-    if (s === '..') { segs.pop(); continue; }
+    if (s === '..') { if (!segs.length) return null; segs.pop(); continue; }
     segs.push(s);
   }
   return segs.join('/');

@@ -1,11 +1,17 @@
 import type { AIProvider } from '../providers/types';
-import { buildProject, SandboxFileSchema } from '../sandbox/builder';
+import { validateFiles } from '../sandbox/policy';
 import type { BuildResult, SandboxFile } from '../sandbox/builder';
+import { getSandboxExecutor, type SandboxExecutor } from '../sandbox/executor';
+import { asSandboxError } from '../sandbox/errors';
 import { containsPotentialSecret, redactSecrets } from '../security/secrets';
+import { patchBase,PatchError,requestBuildPatch } from './patches';
+import {ContextBudgetError} from '../providers/contextBudget';
+import {UsageLedgerError} from '../usage/store';
 
 /* Step 4: AUTOFIX — bounded repair loop: BUILD → COLLECT REAL ERRORS → AI PATCH → REBUILD → VERIFY.
    Max 2 automatické opravy. Snapshot pred zmenami (apply robí klient), žiadne deštruktívne prepisy —
-   patch vždy obsahuje CELÉ súbory (nie diffy), takže sa dá kedykoľvek vrátiť na snapshot. */
+   Presné source-bound edits sa materializujú iba v pracovnej kópii; klient ich
+   musí osobitne schváliť. Žiadne orezanie zdrojov alebo full-file fallback. */
 
 export interface AutofixResult {
   ok: boolean;
@@ -13,6 +19,7 @@ export interface AutofixResult {
   finalFiles: SandboxFile[];
   buildErrors: Array<{ file: string; message: string; attempt: number }>;
   patchesApplied: number;
+  summary?: string;
   history: Array<{ attempt: number; phase: 'build' | 'patch' | 'done'; message: string }>;
 }
 
@@ -22,10 +29,9 @@ function filesContainPotentialSecret(files: SandboxFile[]): boolean {
   return files.some(file => containsPotentialSecret(file.path) || containsPotentialSecret(file.content));
 }
 
-async function buildWithRedactedErrors(files: SandboxFile[]): Promise<BuildResult> {
-  const started = Date.now();
+async function buildWithRedactedErrors(files: SandboxFile[], executor: SandboxExecutor, signal?: AbortSignal): Promise<BuildResult> {
   try {
-    const result = await buildProject(files);
+    const result = await executor.execute(files, signal);
     return {
       ...result,
       errors: result.errors.map(error => ({
@@ -34,31 +40,23 @@ async function buildWithRedactedErrors(files: SandboxFile[]): Promise<BuildResul
       })),
     };
   } catch (error) {
-    return {
-      ok: false,
-      html: null,
-      errors: [{ file: '-', message: redactSecrets(String(error)).slice(0, 800) }],
-      durationMs: Date.now() - started,
-      moduleCount: 0,
-    };
+    // Only returned compiler diagnostics are repairable. Thrown failures belong
+    // to infrastructure and must never trigger a paid AI attempt or leak details.
+    throw asSandboxError(error);
   }
 }
-
-const SYSTEM_AUTOFIX = `Si Forge Agent — opravuješ build chyby v React/TypeScript projekte.
-Dostaneš zoznam súborov a build chyby. Oprav IBA príčiny chýb — minimálne zmeny.
-Odpovedaj VÝHRADNE JSON (žiadny markdown): {"files": [{"path": string, "content": string}]}
-Vráť CELÉ opravené súbory (len tie, ktoré meníš).`;
 
 export async function autofixLoop(
   provider: AIProvider,
   files: SandboxFile[],
-  opts?: { signal?: AbortSignal },
+  opts?: { signal?: AbortSignal; executor?: SandboxExecutor; beforeAi?: () => Promise<void> },
 ): Promise<AutofixResult> {
   const history: AutofixResult['history'] = [];
   const buildErrors: AutofixResult['buildErrors'] = [];
-  let current = [...files];
+  let current = files.map(file=>({...file}));
   let attempts = 0;
   let patchesApplied = 0;
+  let summary:string|undefined;
 
   if (filesContainPotentialSecret(current)) {
     const message = 'autofix: vstup obsahuje potenciálne tajomstvo; build a AI volanie boli zablokované';
@@ -72,8 +70,14 @@ export async function autofixLoop(
     };
   }
 
+  // Invalid paths/duplicates/size/dependencies are policy failures, not compiler repairs.
+  const invalid=validateFiles(current);
+  try{patchBase(current);}catch{if(!invalid.length)invalid.push({file:'-',message:'Neplatné alebo prázdne podklady pre opravu.'});}
+  if(invalid.length)return{ok:false,attempts:0,finalFiles:[],buildErrors:invalid.map(error=>({...error,attempt:0})),patchesApplied:0,history:[{attempt:0,phase:'build',message:'Neplatné podklady; build a AI oprava sa nespustili.'}]};
+
   history.push({ attempt: 0, phase: 'build', message: 'počiatočný build' });
-  let result = await buildWithRedactedErrors(current);
+  const executor = opts?.executor ?? getSandboxExecutor();
+  let result = await buildWithRedactedErrors(current, executor, opts?.signal);
 
   while (!result.ok && attempts < MAX_ATTEMPTS) {
     attempts++;
@@ -83,45 +87,25 @@ export async function autofixLoop(
     if (opts?.signal?.aborted) break;
 
     /* AI PATCH — reálna inference s kontextom chýb */
+    // Admission failures must reach HTTP; they are not failed model patches.
     history.push({ attempt: attempts, phase: 'patch', message: 'AI patch generovanie' });
+    let admissionFailed=false;
     try {
-      const filesBlock = current.map(f => `--- ${f.path} ---\n${f.content.slice(0, 4000)}`).join('\n');
-      const errorsBlock = result.errors.map(e => `${e.file}: ${e.message.slice(0, 500)}`).join('\n');
-      const { text } = await provider.complete([
-        { role: 'system', content: SYSTEM_AUTOFIX },
-        { role: 'user', content: `Build chyby:\n${errorsBlock}\n\nSúbory:\n${filesBlock}` },
-      ], { maxTokens: 12_000, temperature: 0.1, signal: opts?.signal });
-
-      if (containsPotentialSecret(text)) throw new Error('autofix: výstup AI obsahuje potenciálne tajomstvo');
-      const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const payload = (fence ? fence[1] : text).trim();
-      const start = payload.indexOf('{');
-      const end = payload.lastIndexOf('}');
-      if (start === -1 || end <= start) throw new Error('autofix: nevalidná AI odpoveď');
-      const parsed = JSON.parse(payload.slice(start, end + 1)) as { files?: unknown };
-      if (!Array.isArray(parsed.files) || !parsed.files.length) throw new Error('autofix: AI nevrátil žiadne súbory');
-      const validatedFiles = SandboxFileSchema.array().safeParse(parsed.files);
-      if (!validatedFiles.success) throw new Error('autofix: nevalidná schéma súborov AI');
-      const patchFiles = validatedFiles.data;
-      // Scan decoded JSON too: a credential may use escaped characters in the raw response.
-      if (filesContainPotentialSecret(patchFiles)) throw new Error('autofix: výstup AI obsahuje potenciálne tajomstvo');
-
-      /* apply patch — len existujúce alebo bezpečné cesty; ostatné súbory ostávajú */
-      const patchMap = new Map(patchFiles.map(f => [f.path, f.content]));
-      current = current.map(f => patchMap.has(f.path) ? { ...f, content: patchMap.get(f.path)! } : f);
-      /* nové súbory z patchu (bezpečné cesty) */
-      for (const [p, c] of patchMap) if (!current.some(f => f.path === p) && /^[a-zA-Z0-9_/.-]+$/.test(p) && !p.includes('..')) {
-        current.push({ path: p, content: c });
-      }
-      patchesApplied += patchFiles.length;
-      history.push({ attempt: attempts, phase: 'patch', message: `AI patch: ${patchFiles.length} súborov` });
+      const patch=await requestBuildPatch(provider,current,result.errors,{signal:opts?.signal,beforeAi:async()=>{try{await opts?.beforeAi?.();}catch(error){admissionFailed=true;throw error;}}});
+      const candidate=new Map(current.map(file=>[file.path,{...file}]));
+      for(const file of patch.files){if(file.action==='delete')candidate.delete(file.path);else candidate.set(file.path,{path:file.path,content:file.content});}
+      const next=[...candidate.values()];if(validateFiles(next).length)throw new PatchError();
+      current=next;summary=patch.summary;patchesApplied+=patch.files.length;
+      history.push({ attempt: attempts, phase: 'patch', message: `AI patch: ${patch.files.length} súborov` });
     } catch (e) {
+      // Admission failures must reach HTTP; they are not failed model patches.
+      if(admissionFailed||e instanceof ContextBudgetError||e instanceof UsageLedgerError)throw e;
       history.push({ attempt: attempts, phase: 'patch', message: 'AI patch zlyhal: ' + redactSecrets(String(e)).slice(0, 120) });
       break;
     }
 
     /* REBUILD + VERIFY */
-    result = await buildWithRedactedErrors(current);
+    result = await buildWithRedactedErrors(current, executor, opts?.signal);
     if (result.ok) {
       history.push({ attempt: attempts, phase: 'done', message: 'build úspešný po oprave' });
     }
@@ -133,6 +117,7 @@ export async function autofixLoop(
     finalFiles: current,
     buildErrors,
     patchesApplied,
+    ...(summary?{summary}:{}),
     history,
   };
 }
