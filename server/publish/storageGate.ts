@@ -101,3 +101,5 @@ export class FilesystemGate {
 }
 
 export const publishFilesystemGate = new FilesystemGate();
+// Anonymous reads cannot occupy the slots required to admit or settle a publish.
+export const publicArtifactReadGate = new FilesystemGate();

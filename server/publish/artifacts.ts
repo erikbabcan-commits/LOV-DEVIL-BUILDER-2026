@@ -12,7 +12,7 @@ import {
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { PublishError } from "./config";
-import { FilesystemGate, publishFilesystemGate, type StorageOperation } from "./storageGate";
+import { FilesystemGate, publishFilesystemGate, publicArtifactReadGate, type StorageOperation } from "./storageGate";
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export class ArtifactStore {
@@ -21,6 +21,7 @@ export class ArtifactStore {
     private readonly maxBytes: number,
     private readonly minFreeBytes = 0,
     readonly gate: FilesystemGate = publishFilesystemGate,
+    readonly readGate: FilesystemGate = publicArtifactReadGate,
   ) {}
   private async root() {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
@@ -159,7 +160,7 @@ export class ArtifactStore {
     } catch { throw new PublishError("publish_storage_unavailable"); }
   }
   async read(id: string, sha256: string, size: number): Promise<Buffer> {
-    return this.gate.submit(async lease => {
+    return this.readGate.submit(async lease => {
       if (!lease.beginIO()) throw new PublishError("publish_storage_timeout");
       return this.physicalRead(id, sha256, size);
     }).result;
