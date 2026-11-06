@@ -477,10 +477,7 @@ export const useStore = create<AppState>((set, get) => ({
   setTitle: t => set({ projectTitle: t }),
   setTitleEditing: v => set({ titleEditing: v }),
 
-  publish: () => {
-    get().log('Publikovanie je demo — reálny deployment nie je nakonfigurovaný', 'warn');
-    get().toast('Publikovanie zatiaľ nie je pripojené k hostingu', 'warn');
-  },
+  publish: () => set({ publishModalOpen: true }),
   toggleHistoryExpanded: () => set(s => ({ historyExpanded: !s.historyExpanded })),
   newProject: () => {
     sandboxController?.abort();

@@ -1,0 +1,15 @@
+# Include INSIDE the existing API HTTPS server block AFTER deploying the signed handler.
+# Only this exact POST bypasses HTTP Basic Auth so Stripe can deliver signed events.
+# Keep the existing auth_basic protection on all other API/editor routes.
+location = /api/billing/webhook {
+    auth_basic off;
+    if ($request_method != POST) { return 405; }
+    client_max_body_size 512k;
+    proxy_pass http://127.0.0.1:8787;
+    proxy_set_header Host $host;
+    proxy_set_header Cookie "";
+    proxy_set_header Authorization "";
+    proxy_set_header X-LOV-Cloud-Authorization "";
+    proxy_hide_header Set-Cookie;
+    # Stripe-Signature passes through unchanged; Hono verifies the raw body.
+}

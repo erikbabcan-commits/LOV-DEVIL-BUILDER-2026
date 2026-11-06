@@ -1,0 +1,19 @@
+# Separate public hostname, independently issued TLS certificate.
+# Replace placeholders only after DNS/certificate verification. Not installed by setup.
+server {
+    listen 443 ssl;
+    server_name PUBLISHED_HOSTNAME;
+    ssl_certificate PUBLISHED_CERTIFICATE_PATH;
+    ssl_certificate_key PUBLISHED_PRIVATE_KEY_PATH;
+    location /p/ {
+        limit_except GET HEAD { deny all; }
+        proxy_pass http://127.0.0.1:8791;
+        # Preserve an allowed non-default HTTPS port for the listener host check.
+        proxy_set_header Host $http_host;
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_hide_header Set-Cookie;
+        # Public app CSP/no-sniff are emitted by the dedicated artifact listener.
+    }
+    location / { return 404; }
+}

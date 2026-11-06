@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "runtimeCommit": "d9b279b56f370982b69b43a51827121564c3d52d",
+  "logs": {
+    "deploy/lovable-github/proof/logs/read-isolation-main.txt": {
+      "sourceLogSha256": "a403357aff684af94be87ea72aaa7eba445b0ccd4dc28c1f63fd54ca51953ebe",
+      "sha256": "0989f40eea2a773bb38756ec08fc57911f1ce8473ea08eefefd82ce8f32ab555",
+      "bytes": 428,
+      "redactions": [
+        "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/read-isolation-types.txt": {
+      "sourceLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "redactions": [
+        "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/read-isolation-lint.txt": {
+      "sourceLogSha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645",
+      "sha256": "1d6dc343d90ebb4b49725417ed8ca241e1149b0469b356a105144d834ea4944f",
+      "bytes": 4143,
+      "redactions": [
+        "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/read-isolation-build.txt": {
+      "sourceLogSha256": "9e9b3913b73454c77830492b04a925eceec31a5b76273c70b851f3c656c9ed2c",
+      "sha256": "d90dcec8fcb831c31d760c5516dd6cff5968640e777764c07830dfc844badc2d",
+      "bytes": 2000,
+      "redactions": [
+        "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/read-isolation-docker.txt": {
+      "sourceLogSha256": "a9bc0d2a880dacbcf006d0c4b33878b1bdb38e123582f5027d255f272f4d583b",
+      "sha256": "33d8efd471ec67aaa689df3b3ffba1f0426c63eb5569a44dac9d7bc3d0655ff9",
+      "bytes": 156,
+      "redactions": [
+        "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/read-isolation-pg16.txt": {
+      "sourceLogSha256": "b76c4f4bf532169d9ff8d48fe743afb476d2548dd63a5e348d12ffe2ff2ddaca",
+      "sha256": "21fdfe9f5fe9e28713f946cb8c6445d591cf7887d9ad64e2cd5b7608661db101",
+      "bytes": 371,
+      "redactions": [
+        "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/read-isolation-pg18.txt": {
+      "sourceLogSha256": "a47fbddc090ecbb1a265526016c51a489fee22afe56b5bece5728c8a3af96ae4",
+      "sha256": "cb2b314da8f48f91960b63d3b3e0dd4ca79fbf64a32adddb7ca2d91c229ce03d",
+      "bytes": 370,
+      "redactions": [
+        "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
+      ]
+    }
+  }
+}

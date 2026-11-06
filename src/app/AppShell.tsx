@@ -4,6 +4,7 @@ import { LoginScreen } from '../components/LoginScreen';
 import { AI_QUOTA_CHANGED } from '../services/ai/usage';
 import { fetchAuthStatus, type AuthStatus } from '../services/auth';
 import { selectPersistenceScope } from '../services/persistence/projectStore';
+const PublishDialog=lazy(()=>import('../features/publish/PublishDialog').then(module=>({default:module.PublishDialog})));
 const ProjectLibrary=lazy(()=>import('../features/projects/ProjectLibrary').then(module=>({default:module.ProjectLibrary})));
 
 /* E2E test hook */
@@ -101,6 +102,7 @@ export function AppShell() {
     <>
       <TopBar onOpenProjects={()=>setLibraryOpen(true)} quota={authState.state==='authenticated'?authState.quota:undefined} />
       {libraryOpen&&<Suspense fallback={<p role="status">Načítavam projekty…</p>}><ProjectLibrary key={accountKey} enabled={authState.state==='authenticated'} userId={authState.state==='authenticated'?authState.user.id:undefined} quota={authState.state==='authenticated'?authState.quota:undefined} onRefreshQuota={()=>checkAuth(false)} onClose={()=>setLibraryOpen(false)}/></Suspense>}
+      {st.publishModalOpen&&<Suspense fallback={<p role="status">Načítavam publikovanie…</p>}><PublishDialog key={accountKey+':'+st.projectId} userId={authState.state==='authenticated'?authState.user.id:undefined} onClose={()=>st.setPublishModalOpen(false)}/></Suspense>}
       <MobileTabs />
       {mode === 'home' && <LandingPage />}
       {mode === 'work' && <Workspace />}

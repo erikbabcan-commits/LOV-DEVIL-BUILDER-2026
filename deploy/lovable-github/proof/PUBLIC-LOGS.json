@@ -584,6 +584,134 @@
       "redactions": [
         "workspace/project/user-home prefixes removed; trailing whitespace normalized; credential values excluded by preceding audit"
       ]
+    },
+    "release-main.log": {
+      "originalSha256": "d5e5727d8476023032e0a989da510fbc546c9aa779307d4a24427dcb4a918a15",
+      "publicFile": "logs/release-main.txt",
+      "publicSha256": "7b520bc3be3a235d0c774be45a77f29ac9e318d4ef044f31661eb2e1b8f04398",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-preflight-final.log": {
+      "originalSha256": "dcb7829ca93682fccf335b8a2cf7e8135f6e89996c0e7def695d57ac70725ee0",
+      "publicFile": "logs/release-preflight-final.txt",
+      "publicSha256": "1ac9f8dd4c19f232437c9235a1297d30526c8688d1580cb0c4d5d104773fe19b",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/release-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-strict-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/release-strict-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-lint.log": {
+      "originalSha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645",
+      "publicFile": "logs/release-lint.txt",
+      "publicSha256": "2ab7833ce9e223b29434b2184ef0acbbbfa0f1c1e181d989657efcb2aee4ac13",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-build.log": {
+      "originalSha256": "e90078e0aab66db1e1df7aed0ae6690e8dfaded4a28547bf1520a18a343dd088",
+      "publicFile": "logs/release-build.txt",
+      "publicSha256": "e90078e0aab66db1e1df7aed0ae6690e8dfaded4a28547bf1520a18a343dd088",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-pg16.log": {
+      "originalSha256": "1ca6d4566f4805779758971649f7357e7925f57c2575b12401739c84a2590251",
+      "publicFile": "logs/release-pg16.txt",
+      "publicSha256": "105b08d98c2a4640ae1b23401568cf30f414b4d09442cfc09f8fb1135c3325b7",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-pg18.log": {
+      "originalSha256": "42a14cc55af2f946f38e972b84a5b29afc0aade7583c5384a8af9cfd342b0fb7",
+      "publicFile": "logs/release-pg18.txt",
+      "publicSha256": "6bf583d39e5d31d1bb46a99cbe4d636ea480fada8877cbe5b094aa786398c567",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-lovable-tests.log": {
+      "originalSha256": "65c36c2bac3da8ae7b498e38d41fa6c257c72cad0bb16ef0edc298c61b21dfc2",
+      "publicFile": "logs/release-lovable-tests.txt",
+      "publicSha256": "98b4be49a30bd04257f97f2ae009dff92bb84fcecc6920f7a91306ee7ef4a0fe",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-lovable-types.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/release-lovable-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-lovable-build.log": {
+      "originalSha256": "aa0dd5c52376f6c0653418ddd008996e48524639b06bdd90c76dece5189118e8",
+      "publicFile": "logs/release-lovable-build.txt",
+      "publicSha256": "fedfb7b0cbdb1bd03bbdeb5cc94178184b6305326d6cf011fbfaf447350532ac",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-docker.log": {
+      "originalSha256": "81434e45f9c4442accfaecde435c019c68cd7284939e5b1768691b1efa3a843e",
+      "publicFile": "logs/release-docker.txt",
+      "publicSha256": "5b7dbafa4286333b3d0dcfb6ffd2672cd6deebf42832cc3416c294fcee2d8fe9",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-react-e2e.log": {
+      "originalSha256": "87496f5dac4306417099ae2cc03560cf99b48d4f14792e35972a0932abecdf5a",
+      "publicFile": "logs/release-react-e2e.txt",
+      "publicSha256": "87496f5dac4306417099ae2cc03560cf99b48d4f14792e35972a0932abecdf5a",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-nginx-syntax.log": {
+      "originalSha256": "c1d95d6441adac8d73265f026042743581500b1133052abc44ed98cf52bb6618",
+      "publicFile": "logs/release-nginx-syntax.txt",
+      "publicSha256": "c1d95d6441adac8d73265f026042743581500b1133052abc44ed98cf52bb6618",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-preflight-help.log": {
+      "originalSha256": "a7693e5099c08f640921d07a9b535e0d09982b333e8c7112cb2d33024abdf955",
+      "publicFile": "logs/release-preflight-help.txt",
+      "publicSha256": "a7693e5099c08f640921d07a9b535e0d09982b333e8c7112cb2d33024abdf955",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "release-browser.log": {
+      "originalSha256": "9d301c63da8cd3ef06d22470b86bda11a9df96c7f0d90560f5ce95aa5c6a5a41",
+      "publicFile": "logs/release-browser.txt",
+      "publicSha256": "9d301c63da8cd3ef06d22470b86bda11a9df96c7f0d90560f5ce95aa5c6a5a41",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
     }
   }
 }

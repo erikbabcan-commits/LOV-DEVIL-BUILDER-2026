@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-11-06T19:16:55.494Z",
+  "projectId": "21fdbb9f-3bac-49a3-8479-875cc9734777",
+  "scope": "Actual hosted Lovable live preview and visible code editor checks, not the published frontend or a completed backend workflow.",
+  "editorSources": {
+    "src/components/forge/ForgePublish.tsx": {
+      "bytes": 12485,
+      "sha256": "23c7e7d344c2d474f6bd05533710c974767e30b06ee4cec7a244d2523532bbdf"
+    },
+    "src/components/forge/TopBar.tsx": {
+      "bytes": 4890,
+      "sha256": "dce47e529ddea6e504e81191545135249591c6d5e198dc089d39077947394459"
+    }
+  },
+  "sourceReadMethod": "Lovable Code Editor Copy file content then SHA-256; no browser storage read",
+  "livePreview": {
+    "newFrontendRendered": true,
+    "realPublishDialogRendered": true,
+    "oldDemoToastReplaced": true,
+    "existingGoogleLogin": "passed",
+    "honoConnection": "unavailable",
+    "models": "unavailable",
+    "publishReadiness": "unavailable",
+    "artifactPublished": false
+  },
+  "cloudSecretNames": {
+    "HONO_BASE_URL": true,
+    "HONO_BASIC_AUTH": false,
+    "valuesRead": false
+  },
+  "publication": {
+    "productionUrl": "https://vorkeeei.lovable.app/",
+    "republished": false
+  },
+  "creditObservation": {
+    "availableBeforeTransfer": 0,
+    "agentSubmittedAiPrompt": false,
+    "agentClickedAiBuild": false,
+    "purchases": false,
+    "reserve30Verified": false,
+    "qualification": "Workspace already showed zero available credits before this transfer. No assertion about total workspace consumption or maintenance of the historical 30-credit balance."
+  },
+  "sourceReceiptSha256": "53093ebd11dba6f2c58e593fd0e89dd0316676cf9ebb31e72d7b6db7368bb89a"
+}

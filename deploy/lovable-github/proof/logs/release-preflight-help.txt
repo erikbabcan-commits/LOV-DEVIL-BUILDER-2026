@@ -1,0 +1,5 @@
+Usage: tsx scripts/billing-preflight.ts [--env-file <private-file>] [--check-db] [--check-stripe]
+Default: configuration only, no network. Explicit dotenv file only; process environment wins.
+--check-db: read-only schema/environment-pin checks; explicit DATABASE_URL required.
+--check-stripe: read-only account and configured monthly/yearly EUR prices. Optional BILLING_EXPECTED_STRIPE_ACCOUNT_ID verifies the intended account.
+No migrations, pin initialization, Stripe writes, Checkout/Portal creation, or payment attempts. No secrets as arguments.

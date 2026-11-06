@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X, RefreshCw } from "lucide-react";
 import { useSession } from "@/hooks/use-session";
@@ -12,6 +12,9 @@ import {
 } from "@/lib/auth-state";
 import { AiUsageSchema, type AiUsage } from "@/lib/ai-usage";
 import { Btn } from "./ui";
+const BillingPanel = lazy(() =>
+  import("./BillingPanel").then((module) => ({ default: module.BillingPanel })),
+);
 
 const REACH: Record<HonoReach, string> = {
   ok: "Dostupný",
@@ -106,7 +109,7 @@ export function ConnectionPanel({ onClose }: { onClose: () => void }) {
     >
       <div className="mb-2 flex items-center justify-between">
         <h2 id="conn-title" className="text-[14px] font-semibold">
-          Pripojenie backendov
+          Účet a pripojenie
         </h2>
         <Btn size="icon" variant="ghost" aria-label="Zavrieť" onClick={onClose}>
           <X className="h-4 w-4" />
@@ -195,6 +198,26 @@ export function ConnectionPanel({ onClose }: { onClose: () => void }) {
           </div>
         </section>
       )}
+      {s.status === "signed-in" &&
+        userId &&
+        s.session?.access_token &&
+        acct?.state === "linked" &&
+        acct.userId && (
+          <Suspense
+            fallback={
+              <p role="status" className="mt-3 text-[12px]">
+                Načítavam predplatné…
+              </p>
+            }
+          >
+            <BillingPanel
+              key={userId + ":" + acct.userId}
+              cloudUserId={userId}
+              honoUserId={acct.userId}
+              accessToken={s.session.access_token}
+            />
+          </Suspense>
+        )}
       <div className="mt-3 flex justify-end gap-2">
         {s.status === "signed-out" ? (
           <Link

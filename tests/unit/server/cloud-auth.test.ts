@@ -47,6 +47,28 @@ describe('Lovable Cloud identity bridge', () => {
     const changed = await app.request('/api/auth/me', { headers: { Authorization: 'Bearer ' + await token() } });
     expect((await changed.json()).user.plan).toBe('pro');
   });
+  it('opens only account-owned Cloud billing routes using the fresh linked database plan', async () => {
+    const bearer = await token();
+    const headers = { Authorization: 'Bearer ' + bearer };
+    const get = () => app.request('/api/billing', { headers });
+    const response = await get();
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(await response.json()).toMatchObject({ userId: 'alice', enabled: false, mode: 'disabled', plan: 'free', prices: { month: null, year: null } });
+    await db.query("UPDATE users SET plan='pro' WHERE id='alice'");
+    expect(await (await get()).json()).toMatchObject({ userId: 'alice', plan: 'pro' });
+    for (const path of ['/api/billing/checkout','/api/billing/portal']) {
+      expect(isCloudApiRoute('POST',path)).toBe(true);
+      const disabled = await app.request(path,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'{}'});
+      expect(disabled.status).toBe(503);
+      expect(await disabled.json()).toEqual({error:'billing_disabled'});
+    }
+    for (const path of ['/api/billing/webhook','/api/billing/customers','/api/billing/invoices']) expect(isCloudApiRoute('POST',path)).toBe(false);
+    expect(isCloudApiRoute('POST','/api/billing')).toBe(false);
+    expect(isCloudApiRoute('GET','/api/billing/portal')).toBe(false);
+    await db.query('DELETE FROM identity_links WHERE user_id=$1',['alice']);
+    expect((await get()).status).toBe(401);
+  });
   it('persists through the real Hono API as Alice, preserving owner isolation and CAS', async () => {
     const bearer = await token();
     const save = (revision: number) => app.request('/api/projects/cloud-project', { method: 'POST', headers: { Authorization: 'Bearer ' + bearer, 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedRevision: revision, workspace }) });

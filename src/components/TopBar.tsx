@@ -68,7 +68,7 @@ export function TopBar({onOpenProjects,quota}:{onOpenProjects?:()=>void;quota?:Q
         </button>
         <button className="btn-primary" id="publishBtn" onClick={st.publish}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2 0-2.8-.8-.7-2-.8-3 0Zm7-5.5 2 2c5-5 7-11 7-11s-6 2-11 7l2 2Zm-5 1c-2 1-3 3-3 5 1 0 3.5-.5 5-2"/></svg>
-          <span id="publishBtnTxt">{st.publishedUrl ? 'Publikované ✓' : 'Publish (demo)'}</span>
+          <span id="publishBtnTxt">Publikovať</span>
         </button>
         <div className="pop-wrap">
           <button className="icon-btn" id="settingsBtn" title="Nastavenia" style={{ padding: '0 7px' }}

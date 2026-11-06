@@ -1,0 +1,462 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-19 static Publish and Cloud test/live billing; local gates passed, frontend source/live-preview follow-up recorded separately, backend production inactive",
+  "baseCommit": "fce375d05921da665fbdb8a93830937c71df8c38",
+  "runtimeCommit": "7f2b923764e4ec15936ec57abc2a05d8d321c7b7",
+  "runtimeCommitTree": "e5b0d9269ecd22f28747072484fa2b5570a5d6b5",
+  "main": {
+    "passed": 1076,
+    "skipped": 181,
+    "filesPassed": 82,
+    "filesSkipped": 6,
+    "workers": 1,
+    "testTimeoutMs": 15000,
+    "hookTimeoutMs": 60000,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "all empty",
+    "scope": "Full run before final test-mock argument narrowing; subsequent preflight20/20 and strict types passed. Later change only extends the separately executed opt-in Docker happy-path."
+  },
+  "checks": {
+    "mainTypeScript": "passed",
+    "strictNativeCliFixtureTypeScript": "passed",
+    "eslint": {
+      "errors": 0,
+      "baselineWarnings": 33
+    },
+    "mainProductionBuild": "passed",
+    "lovableProductionClientSsrWorkersBuild": "passed",
+    "nginxTemplateSyntax": "passed in isolated official nginx container; TLS certificate directives replaced for syntax test only; read-only synthetic config, no network; CHOWN needed for nginx temp-dir initialization"
+  },
+  "postgres": {
+    "versions": [
+      "16.15",
+      "18.6"
+    ],
+    "passedEach": 159,
+    "files": 5,
+    "workers": 1,
+    "migrations": "001-012",
+    "newCoverage": "19 billing mode cases including environment race, plus5 native publish ownership/CAS/reclaim/capacity/artifact cases",
+    "cleanup": "both final logs stopped_and_removed"
+  },
+  "modernLovable": {
+    "passed": 175,
+    "files": 17,
+    "typeScript": "passed",
+    "overlayFiles": 74,
+    "allMirrorOverlayHashesMatch": true,
+    "hostedTransfer": true,
+    "hostedProductionOverlayFiles": 41,
+    "runtimeLivePreview": true,
+    "publicRepublished": false,
+    "agentSubmittedAiPrompt": false,
+    "agentClickedAiBuild": false,
+    "reserve30Verified": false,
+    "hostedEvidence": "PUBLISH-BILLING-ROLLOUT.json"
+  },
+  "docker": {
+    "passed": 21,
+    "newBoundary": "PublishService -> actual IsolatedExecutor -> private runner -> real Docker worker -> immutable disk artifact -> separate public HTTP GET200 with exact bytes/SHA/CSP",
+    "daemon": "explicit local OrbStack UNIX socket",
+    "exclusiveDaemonClaim": false,
+    "rootlessClaim": false,
+    "compilerImages": "seven cached image IDs verified against previous receipt; compiler/runner sources and lockfile unchanged",
+    "cleanup": "owned WS4 worker/runner labels empty after run"
+  },
+  "reactE2E": {
+    "passed": 22,
+    "workers": 1
+  },
+  "browser": {
+    "passed": true,
+    "publishUrl": "http://127.0.0.1:8791/p/c9937735-96bf-4fb7-bb79-6415d40a02bb/",
+    "publishRequest": {
+      "path": "/api/hono/publish",
+      "body": {
+        "requestId": "72073570-5c59-455f-9b07-0b40f33fe816",
+        "projectId": "hybrid-fixture",
+        "expectedRevision": 1,
+        "snapshotId": "hybrid-v1",
+        "publicConsent": true
+      }
+    },
+    "checkoutRequest": {
+      "path": "/api/hono/billing/checkout",
+      "body": {
+        "interval": "month",
+        "requestId": "a83dbcfe-82d2-4d3e-af40-d176114a76ae"
+      }
+    },
+    "pageErrors": [],
+    "verified": [
+      "modern Lovable UI -> explicit public consent -> CloudBFF -> Hono -> owned snapshot -> real compiler -> durable artifact -> publicHTTP200 and renderedReact",
+      "public CSP opaque sandbox and no authcookie",
+      "Cloud billing -> explicit Checkout -> intercepted synthetic Stripe page, no external Stripe traffic",
+      "signed SDK webhook -> DB Pro -> modern UI",
+      "Bob remains Free"
+    ],
+    "limits": [
+      "disposable pg-mem; native DB tests separate",
+      "Stripe boundary synthetic, not a payment",
+      "local mirror not hosted Lovable or VPS deployment"
+    ]
+  },
+  "correctionsDuringVerification": [
+    "New preflight SDK spy argument narrowed from unknown with runtime type guard;20 related tests and types passed after correction.",
+    "Standalone browser verifier declares Node built-in imports for lint; same functional assertions as the executed CJS harness.",
+    "Nginx syntax harness needs a regular read-only config file instead of consumed stdin and CHOWN only for private temp directories; production templates were unchanged."
+  ],
+  "activation": {
+    "publishEnabledByDefault": false,
+    "billingEnabledByDefault": false,
+    "billingModes": [
+      "test",
+      "live"
+    ],
+    "immutableDbEnvironmentPin": true,
+    "stripeConnectorAccess": "Authorized sandbox read-only; actual matching test catalog and default Portal inventory completed via already authenticated Stripe CLI. Existing Pro monthly/yearly prices found; active default Portal configurations:0. No writes.",
+    "actualStripePaymentVerified": false,
+    "StripeAccountWrites": false,
+    "productionDeploy": false,
+    "productionMigration": false,
+    "productionSecretsChanged": false,
+    "hostedLovableEditsOrBuilds": true,
+    "hostedAiPromptOrBuildSubmitted": false,
+    "publicFrontendRepublished": false,
+    "productionDeployScope": "Backend/VPS deployment remains false; frontend source sync and editor live preview are separate follow-up evidence."
+  },
+  "productionReadOnlyAudit": {
+    "date": "2026-11-06",
+    "initialDiskUsedPercent": 99,
+    "initialDiskFreeApproxMiB": 665,
+    "laterDiskAudit": {
+      "observedAtUtc": "2026-11-06T14:19:46.474779+00:00",
+      "scope": "read-only; no pruning, deployment, file changes or Secrets values requested",
+      "filesystem": {
+        "totalBytes": 39956590592,
+        "usedBytes": 34158772224,
+        "availableBytes": 4142149632,
+        "usedPercent": 90
+      },
+      "docker": {
+        "images": {
+          "count": 26,
+          "activeCount": 12,
+          "layersSizeBytes": 10454900790,
+          "unusedUniqueSizeBytes": 2447900338
+        },
+        "containers": {
+          "count": 14,
+          "activeCount": 14,
+          "writableSizeBytes": 13324288
+        },
+        "volumes": {
+          "count": 8,
+          "activeCount": 6,
+          "sizeBytes": 139518500,
+          "unusedSizeBytes": 0,
+          "lovInUse": [
+            {
+              "name": "lov-devil-sessions",
+              "sizeBytes": 750,
+              "references": 1,
+              "inUse": true
+            },
+            {
+              "name": "lov-pgdata",
+              "sizeBytes": 65085157,
+              "references": 1,
+              "inUse": true
+            }
+          ]
+        },
+        "buildCache": {
+          "records": 43,
+          "sizeBytes": 3783220962,
+          "unsharedNotInUseBytes": 884055366
+        },
+        "lovImages": [
+          {
+            "id": "sha256:ab45de271b456d7a9b73ed5ede2c8142e771c74a708d33defa0312989622d900",
+            "tags": [
+              "lov-devil-api:latest"
+            ],
+            "sizeBytes": 612458231,
+            "containers": 1
+          }
+        ],
+        "safeLovOnlyUnusedCleanup": "none identified: the only LOV-tagged image is referenced; untagged images/build cache ownership is not established"
+      },
+      "targetArchitecture": "x86_64",
+      "publishHardMinimum": {
+        "reserveBytes": 1073741824,
+        "maxArtifactBytes": 3000000,
+        "readinessRequiresAvailableBytes": 1076741824,
+        "source": "server/publish/artifacts.ts ready(): available >= reserve + maxArtifactBytes"
+      },
+      "releaseBudget": {
+        "exactNewImageDiskDelta": "unknown until target-architecture API/runner/worker images are built and measured",
+        "suggestedMinimumFreeBeforeInPlaceBuildBytes": 4294967296,
+        "classification": "conservative planning gate, not a proven Docker hard requirement",
+        "basis": "retain >=1GiB operational reserve; allow ~1GiB new unpacked images, ~1GiB compressed/staging data and ~1GiB temporary build/cache headroom; existing rollback image is retained",
+        "preferredNextStep": "prepare all release images outside VPS for its architecture, measure actual compressed+unpacked incremental bytes, then recompute free-space gate immediately before a separately authorized deployment; do not globally prune images or volumes"
+      },
+      "previousObservation": {
+        "usedPercent": 99,
+        "approxAvailableMiB": 665,
+        "note": "earlier read-only audit; superseded by current timestamp, reason for intervening free-space change not asserted"
+      },
+      "diskConsumersAllocatedBytes": {
+        "dockerMetadataAndVolumes": 334626816,
+        "containerd": 13741637632,
+        "systemLogs": 330395648,
+        "applicationDirectories": 904384512,
+        "administratorHome": 3764670464,
+        "temporaryFiles": 151552
+      }
+    },
+    "publishDefaultReserveBytes": 1073741824,
+    "authEnabled": true,
+    "queriedTablesPresent": [
+      "users"
+    ],
+    "queriedTablesMissing": [
+      "identity_links",
+      "builder_projects",
+      "billing_accounts",
+      "billing_environment",
+      "publish_jobs"
+    ],
+    "missingApiConfiguration": [
+      "CLOUD_AUTH_ISSUER",
+      "SANDBOX_MODE",
+      "SANDBOX_RUNNER_URL",
+      "SANDBOX_RUNNER_TOKEN",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "PUBLICPUBLISH_BASE_URL"
+    ],
+    "accountValuesOrSecretsRecorded": false,
+    "latestDetailedReadOnlyReceipt": "WS19-DEPLOYMENT-READINESS.json"
+  },
+  "remaining": [
+    "Configure the missing fixed server-only Basic transport and explicit Cloud identity binding without exposing credential values.",
+    "Prepare a dedicated isolated worker daemon, fresh restore-verified backup and controlled backend migrations/deployment; recheck resources immediately beforehand.",
+    "Configure sandbox Customer Portal and signed webhook under an appropriate write authorization, then complete real sandbox purchase/cancel verification.",
+    "Verify the actual hosted Cloud -> Hono -> project -> compile -> artifact workflow; only then update the published frontend and verify its canonical URL.",
+    "Global NODE_ENV=production guard and the full M1-M6 product requirements remain open; fullstack runtime, taxes/dunning/refunds and operator retention are not claimed complete."
+  ],
+  "logs": {
+    "main": {
+      "originalSha256": "d5e5727d8476023032e0a989da510fbc546c9aa779307d4a24427dcb4a918a15",
+      "publicFile": "logs/release-main.txt",
+      "publicSha256": "7b520bc3be3a235d0c774be45a77f29ac9e318d4ef044f31661eb2e1b8f04398",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "preflight-final": {
+      "originalSha256": "dcb7829ca93682fccf335b8a2cf7e8135f6e89996c0e7def695d57ac70725ee0",
+      "publicFile": "logs/release-preflight-final.txt",
+      "publicSha256": "1ac9f8dd4c19f232437c9235a1297d30526c8688d1580cb0c4d5d104773fe19b",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "types": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/release-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "strict-types": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/release-strict-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "lint": {
+      "originalSha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645",
+      "publicFile": "logs/release-lint.txt",
+      "publicSha256": "2ab7833ce9e223b29434b2184ef0acbbbfa0f1c1e181d989657efcb2aee4ac13",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "build": {
+      "originalSha256": "e90078e0aab66db1e1df7aed0ae6690e8dfaded4a28547bf1520a18a343dd088",
+      "publicFile": "logs/release-build.txt",
+      "publicSha256": "e90078e0aab66db1e1df7aed0ae6690e8dfaded4a28547bf1520a18a343dd088",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "pg16": {
+      "originalSha256": "1ca6d4566f4805779758971649f7357e7925f57c2575b12401739c84a2590251",
+      "publicFile": "logs/release-pg16.txt",
+      "publicSha256": "105b08d98c2a4640ae1b23401568cf30f414b4d09442cfc09f8fb1135c3325b7",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "pg18": {
+      "originalSha256": "42a14cc55af2f946f38e972b84a5b29afc0aade7583c5384a8af9cfd342b0fb7",
+      "publicFile": "logs/release-pg18.txt",
+      "publicSha256": "6bf583d39e5d31d1bb46a99cbe4d636ea480fada8877cbe5b094aa786398c567",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "lovable-tests": {
+      "originalSha256": "65c36c2bac3da8ae7b498e38d41fa6c257c72cad0bb16ef0edc298c61b21dfc2",
+      "publicFile": "logs/release-lovable-tests.txt",
+      "publicSha256": "98b4be49a30bd04257f97f2ae009dff92bb84fcecc6920f7a91306ee7ef4a0fe",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "lovable-types": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publicFile": "logs/release-lovable-types.txt",
+      "publicSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "lovable-build": {
+      "originalSha256": "aa0dd5c52376f6c0653418ddd008996e48524639b06bdd90c76dece5189118e8",
+      "publicFile": "logs/release-lovable-build.txt",
+      "publicSha256": "fedfb7b0cbdb1bd03bbdeb5cc94178184b6305326d6cf011fbfaf447350532ac",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "docker": {
+      "originalSha256": "81434e45f9c4442accfaecde435c019c68cd7284939e5b1768691b1efa3a843e",
+      "publicFile": "logs/release-docker.txt",
+      "publicSha256": "5b7dbafa4286333b3d0dcfb6ffd2672cd6deebf42832cc3416c294fcee2d8fe9",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "react-e2e": {
+      "originalSha256": "87496f5dac4306417099ae2cc03560cf99b48d4f14792e35972a0932abecdf5a",
+      "publicFile": "logs/release-react-e2e.txt",
+      "publicSha256": "87496f5dac4306417099ae2cc03560cf99b48d4f14792e35972a0932abecdf5a",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "nginx-syntax": {
+      "originalSha256": "c1d95d6441adac8d73265f026042743581500b1133052abc44ed98cf52bb6618",
+      "publicFile": "logs/release-nginx-syntax.txt",
+      "publicSha256": "c1d95d6441adac8d73265f026042743581500b1133052abc44ed98cf52bb6618",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "preflight-help": {
+      "originalSha256": "a7693e5099c08f640921d07a9b535e0d09982b333e8c7112cb2d33024abdf955",
+      "publicFile": "logs/release-preflight-help.txt",
+      "publicSha256": "a7693e5099c08f640921d07a9b535e0d09982b333e8c7112cb2d33024abdf955",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    },
+    "browser": {
+      "originalSha256": "9d301c63da8cd3ef06d22470b86bda11a9df96c7f0d90560f5ce95aa5c6a5a41",
+      "publicFile": "logs/release-browser.txt",
+      "publicSha256": "9d301c63da8cd3ef06d22470b86bda11a9df96c7f0d90560f5ce95aa5c6a5a41",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
+    }
+  },
+  "screenshots": {
+    "release-modern-published.png": {
+      "sha256": "cdae061a7c005a09639e29be93ad3fd5760032a5a5a2ec50c73428343d639468",
+      "scope": "local synthetic fixture; not a hosted deployment"
+    },
+    "release-modern-pro.png": {
+      "sha256": "7e19a2d4a8f19855045fb10f3f39f6e165c4efcde75fdeb073e7d3c3cb291dfd",
+      "scope": "local synthetic fixture; not a hosted deployment"
+    },
+    "release-public-application.png": {
+      "sha256": "beec2b078d0f578783f83436ed07d5c0dabf116f6b7fbd71eaf9c9baf4424ef7",
+      "scope": "local synthetic fixture; not a hosted deployment"
+    }
+  },
+  "sources": {
+    "deploy/.env.example": "1fb9d2e587a00b50e765053138cac5d28df10fdb1cb105aebaa6abd35fd29e02",
+    "deploy/Dockerfile": "f1cf187c126a392a6f8798c644e0601784c4676963faf834dd6597c8aef8be11",
+    "deploy/compose.publish.yaml": "d898a84711a1a87e177e584e7c3f22baf629f83de35da8aba3c5531464a7de5a",
+    "deploy/lovable-github/qa/hybrid/session.ts": "d395d783dff4b5c8bdd36e34cc4bf580c09bb62f9aaa1320b66afe1f6e2890d8",
+    "deploy/lovable-github/qa/hybrid/supabase.ts": "492d19f62f51e8a19d621d2644a862df0aa8affd1ec47f8c91395a1972a31fb5",
+    "deploy/lovable-github/src/components/forge/BillingPanel.test.tsx": "ab895b168b2d805b25e5aa33667a5e6e87ef86e8d44fd88eec97996ef7571d3a",
+    "deploy/lovable-github/src/components/forge/BillingPanel.tsx": "cb7c4e4a4866e8a9d3e85a15d38839c903629ee8dddfe75ae011798e77221699",
+    "deploy/lovable-github/src/components/forge/ConnectionPanel.tsx": "63eb4283299a2ac5d7882f063d766dc06443bd60bc23b860122cc4b4ae88b8b7",
+    "deploy/lovable-github/src/components/forge/ForgePublish.test.tsx": "da2914ca5277ef62dbcfa6b4bf04d0e6c43ba844b045062b689dd549f2d802e3",
+    "deploy/lovable-github/src/components/forge/ForgePublish.tsx": "23c7e7d344c2d474f6bd05533710c974767e30b06ee4cec7a244d2523532bbdf",
+    "deploy/lovable-github/src/components/forge/TopBar.tsx": "dce47e529ddea6e504e81191545135249591c6d5e198dc089d39077947394459",
+    "deploy/lovable-github/src/lib/auth-state.test.ts": "b542492deec8e202424a383784af299e37d8ce089152390b040c5881c2a65950",
+    "deploy/lovable-github/src/lib/auth-state.ts": "4a3e4e81dcecab53654a37ea1a845620a90bd0488fb25c62b06e1913a5746ca6",
+    "deploy/lovable-github/src/lib/billing-client.ts": "983dc72779994f94b3afc4e9f4339c0da85c5710ae558f6651bea0ac899a6c7f",
+    "deploy/lovable-github/src/lib/forge-publish.ts": "32961fd8dd4a45f84c765fe6056f154fbed2f90f2779b40d40c95669ca38d0a4",
+    "deploy/lovable-github/src/lib/hono-client.test.ts": "c1112bac168ac1ad74f0215636b6a6894dfb22b542eed5c86a06ade91698e5fb",
+    "deploy/lovable-github/src/lib/hono-client.ts": "df5935ced1d57da34170aadf4a99016f835a48296634af6e1ad8107fc2c2f1aa",
+    "deploy/lovable-github/src/lib/hono-proxy.server.ts": "24bd2ce6c638c8478671f1e3fb4ae8287e8a55f21f45f76788e5ec3f571df9b5",
+    "deploy/lovable-github/src/lib/hono-proxy.test.ts": "91d99e8b052dc406e75c3e004275667e853392895388e86d61d9d4bc5502df9a",
+    "deploy/ops/billing-webhook-nginx.conf.template": "4a3bf890399071e3c1675d61e2caf23c5e22cc51b2d6e69e3171859ce18744cf",
+    "deploy/ops/publish-nginx.conf.template": "d1de1ba560af530e1075fbd40d39115561fe7b79ce8bf641708924a315f5a574",
+    "deploy/test-projects-native.py": "c57f8fe0dec1033f98dcf791424be8633ef33b0208576521f60b090b012f24b2",
+    "package.json": "5949d1d53ed048a10939fee33da8978a04c248defc2762f467954d60756f2273",
+    "scripts/billing-preflight.ts": "d0cea898ce0c5f5d6eeed5040f5d04ea17a2e76b7694cbb3dd3f03d67c209d59",
+    "scripts/verify-publish-billing.mjs": "b17db465ef01cf2c8048bb62fc1e37eb306d2cab1d2b987bcbc267892f029c35",
+    "server/.env.example": "436a6e15170642a82a2ad155018f3d857cea52071abfc6446b7d6662986cd765",
+    "server/billing/config.ts": "97bf2ebf2989fc15f64f9ac3dd82ff5f61b2df400c9a756a397cd3d9f2483d0f",
+    "server/billing/environment.ts": "552efcb5cd74ccfacfa13679c7bb2d2ac1b9f00874a39c09cec257fd6cf232eb",
+    "server/billing/gateway.ts": "cf3a797d55acc37ea2d7f39ba07c177c77187eeb3126e7cc98225e0f846c87d1",
+    "server/billing/preflight.ts": "9bc453c4b00b8223f5669f07a3e1fea3813456b8c62f53c230273bc376738ca8",
+    "server/billing/service.ts": "ae37090dbb75b5eea81cabbb89f8cadc4400a650d813a09fbd4bff0099d90da0",
+    "server/billing/types.ts": "96513ca3661f36e643fbe1809898dbc4f3655242ef4d3e3d7d11f102e8f57873",
+    "server/index.ts": "4d931f565eb7efa9a17602bb4f60b92557359325eb09a8e8e9aab0e26b1031c9",
+    "server/integrations/honoProxy.ts": "5ef71f21b065a0b250af47737e7c9de3fa64a39b940a8e3541bc4136a8e5de2c",
+    "server/migrations/011_publish.sql": "d9c28cbdbec8ad6542e28ed90fd5275b78915f0dd50e3082a60e96fe09eb3ef3",
+    "server/migrations/012_billing_environment.sql": "f61c08f9085017f2073291e999bb0e226f33b474ea902e168c4251541c6444cf",
+    "server/publish/artifacts.ts": "863deb09b124a2ab7d2ba4e599f4a8d66445ae031c629b3f5a69bfdd39fd6045",
+    "server/publish/config.ts": "6c2b4bcacaea8a10a44b1128f9e21e421fe66f44f24333dca3672581b6c6d2c4",
+    "server/publish/public.ts": "4412ebd3ba3d292867d1ed9be445020974655fa20c6505205f1d4b2454383e03",
+    "server/publish/routes.ts": "abde40c915ca6a0bdc85aa117faa57ad9c1a92e40c7a09bbbe7158a2e9c86bb3",
+    "server/publish/service.ts": "184c051119c05a7d9b5df62addd4078756e0ff1227bff9cdd133f527530b90b3",
+    "shared/billing.ts": "07506fabab9980757dbc652d5b14419fe6b9a8fac3b504335e1e45cec5d2e8a7",
+    "shared/honoBridge.ts": "a2fa39055eab04b724dcb8b3ca27d1e8ad4e80033637b1128f35eae6b3e152ac",
+    "shared/publish.ts": "9e0b944655fad790c528e38a5dd49c06e801d70ca853dd2335aea23ba0a147d8",
+    "src/app/AppShell.tsx": "c9edf2f4976200b49cbd1589b81281db4c0c2d7967a01113ab4c69430701009a",
+    "src/components/TopBar.tsx": "442154911d9ca31d572fb07d799b2978fa16a93e67482cb7ee12f9fc150f295c",
+    "src/features/billing/BillingCard.tsx": "3aed439a97fc53e35a01d77742a533b08df6b0277340ba14e987733924dafe1e",
+    "src/features/publish/PublishDialog.tsx": "5e36e80c57900421ab5fe1cc8a500e586256093f1438309149ec95e384a08152",
+    "src/services/billing.ts": "c43b954e3ae73916edc29989493666af8fa1d6ce7a2d478db47ff16d7b8487e8",
+    "src/stores/useAppStore.ts": "c175c71ccb6dfade2cfa70fef1ca21d82153772b406503993d8d0ef2ce8c440f",
+    "tests/fixtures/hybridAiBackend.ts": "d091da1396e186b44339786f6f9de5162256290af99ee01ed1733da8772de772",
+    "tests/fixtures/releaseWorkflowServer.ts": "cf4b4e34ae35c48bfd0f68cc0166d48b6a22a3d5db6368af12ada8f1c7e7cb66",
+    "tests/helpers/billingContract.ts": "68c1fbd3b76ddc294737e30bebeea365eb74c3b1bcf5743e7530ff2151fecc85",
+    "tests/helpers/billingModeContract.ts": "6af1a606d465075f6c36d162215b11e36831cf46e4b6120cb2d1aeb5baa81b6a",
+    "tests/integration/billingPostgres.test.ts": "f4f98a68115d316c093995dbf474248bf475f03b46bfe771d99ac5de48c29692",
+    "tests/integration/publishPostgres.test.ts": "71cda57e87bb4f94eb4fd77e8478bf2953edd53503b7dfd20a475769fb003a46",
+    "tests/integration/sandboxDocker.test.ts": "72c06583355713dc5c8463a8346af7010bbfa884bc78dd6eee0fbe78731c9f47",
+    "tests/unit/billing-card.test.tsx": "9b5d20d7458a81f2e2559c911a55a80e84f489e07fcb8d0a34e551ea3b763f60",
+    "tests/unit/publish-dialog.test.tsx": "5873ba82459ec3feafbdba3d7754cd29860fb65dc5ce42fe7ca86fd34e1ed973",
+    "tests/unit/server/billing-mode.test.ts": "8bb924025fcaea7133b31c38fffebad825b4c7d1609465b8a0f46bf454f3c68b",
+    "tests/unit/server/billing-preflight.test.ts": "bdd52428600ccea76bbb26c39feb6912fc0d7c0abb138ac9dbf9c65d9e06256b",
+    "tests/unit/server/cloud-auth.test.ts": "d902fa3c348104bd736f7d885bf5819b2ac74a7fa4965dea0bd686478511c1b2",
+    "tests/unit/server/hono-proxy.test.ts": "345bb26cee86bd0bafbb1be8a5127216260f22cdaca42d77cdd65a174c20403f",
+    "tests/unit/server/publish.test.ts": "865ee6f962c66cb46ac34428d5017878c271b8ced30e9aeace7b4e941ab950be"
+  },
+  "documentationFollowsInSeparateCommit": true,
+  "historicalReceipts": "Previous WS phase receipts remain historical; current aliases point here.",
+  "operationalFollowup": "PUBLISH-BILLING-ROLLOUT.json"
+}

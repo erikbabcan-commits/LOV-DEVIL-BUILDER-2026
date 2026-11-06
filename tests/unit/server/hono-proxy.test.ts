@@ -24,6 +24,38 @@ function setup(overrides: Partial<HonoProxyOptions> = {}) {
 afterEach(() => vi.useRealTimers());
 
 describe('server-only Lovable → Hono proxy', () => {
+  it('allows only authenticated publish preparation and UUID status with a 4KiB body limit', async () => {
+    const {proxy,fetcher}=setup();
+    const id='dd4ec3fc-a77b-4af7-baa5-f25ac7228221';
+    for (const [path,body] of [['/publish',undefined],['/publish',{}],['/publish/'+id,undefined]] as const) {
+      expect((await proxy(request(path,body))).status).toBe(200);
+      expect(fetcher.mock.calls.at(-1)?.[0]).toBe(baseUrl+'/api'+path);
+    }
+    fetcher.mockClear();
+    for (const path of ['/publish?url=https://evil.test','/publish/not-a-uuid','/publish/'+id+'/artifact','/published/'+id+'/index.html']) expect((await proxy(request(path))).status).toBe(404);
+    expect((await proxy(request('/publish/'+id,{}))).status).toBe(404);
+    expect((await proxy(new Request(origin+'/api/hono/publish',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:' '.repeat(4097)}))).status).toBe(413);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it('maps only owner-authenticated billing GET/checkout/portal with no webhook/query surface', async () => {
+    const {proxy,fetcher}=setup();
+    for(const [path,body] of [['/billing',undefined],['/billing/checkout',{interval:'month',requestId:'fixture'}],['/billing/portal',{requestId:'fixture'}]] as const) {
+      expect((await proxy(request(path,body))).status).toBe(200);
+      expect(fetcher.mock.calls.at(-1)?.[0]).toBe(baseUrl+'/api'+path);
+      expect(new Headers(fetcher.mock.calls.at(-1)?.[1]?.headers).get('Authorization')).toBe('Bearer verified.user.token');
+    }
+    fetcher.mockClear();
+    for(const path of ['/billing?owner=bob','/billing/webhook','/billing/invoices','/billing/customers'])expect((await proxy(request(path))).status).toBe(404);
+    expect((await proxy(request('/billing',{}))).status).toBe(404);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it('rejects oversized billing JSON and foreign origins before provider requests', async () => {
+    const {proxy,fetcher}=setup();
+    expect((await proxy(new Request(origin+'/api/hono/billing/checkout',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:' '.repeat(8193)}))).status).toBe(413);
+    expect((await proxy(request('/billing/portal',{}, {Origin:'https://evil.test'}))).status).toBe(403);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('maps only fixed GET model catalog without query overrides', async () => {
     const {proxy,fetcher}=setup();expect((await proxy(request('/ai-models'))).status).toBe(200);expect(fetcher.mock.calls[0]?.[0]).toBe(baseUrl+'/api/ai-models');
     fetcher.mockClear();expect((await proxy(request('/ai-models?url=https://other.test'))).status).toBe(404);expect((await proxy(request('/ai-models',{}))).status).toBe(404);expect(fetcher).not.toHaveBeenCalled();

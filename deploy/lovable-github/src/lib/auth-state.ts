@@ -45,6 +45,7 @@ export async function mapReady(res: Response): Promise<HonoReach> {
 
 export interface HonoAccountInfo {
   state: HonoAccount;
+  userId?: string | undefined;
   plan?: string | undefined;
   quota?: AiQuota | undefined;
 }
@@ -63,6 +64,7 @@ export async function mapMe(res: Response): Promise<HonoAccountInfo> {
       const quota = AiQuotaSchema.safeParse(parsed.data.quota);
       return {
         state: "linked",
+        userId: parsed.data.user.id,
         plan: parsed.data.user.plan,
         ...(quota.success ? { quota: quota.data } : {}),
       };

@@ -58,6 +58,31 @@ function posted(fetch: ReturnType<typeof vi.fn>) {
   return fetch.mock.calls.filter(([, init]) => init?.method === "POST");
 }
 describe("verified account subscription UI", () => {
+  it("keeps sandbox and live retry UUIDs separate and discards a sandbox interval in live UI", async () => {
+    const identity = captureBillingIdentity("alice")!;
+    const sandbox = prepareCheckoutAttempt(identity, "year", "sandbox");
+    const live = prepareCheckoutAttempt(identity, "month", "live");
+    expect(live.requestId).not.toBe(sandbox.requestId);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(status({mode:"live"}))));
+    render(<BillingCard userId="alice" />);
+    await screen.findByText("Platby cez Stripe");
+    expect(screen.getByRole("radio", {name:/Mesačne/})).toBeChecked();
+    expect(screen.getByRole("radio", {name:/Ročne/})).not.toBeChecked();
+  });
+
+  it("labels live checkout and portal as real payments while requiring an explicit action", async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json(status({ mode: "live", portalAvailable: true })));
+    vi.stubGlobal("fetch", fetch);
+    render(<BillingCard userId="alice" />);
+    expect(await screen.findByText("Platby cez Stripe")).toBeInTheDocument();
+    expect(screen.getByRole("button", {name: "Pokračovať do Checkoutu"})).toBeInTheDocument();
+    expect(screen.getByRole("button", {name: "Spravovať predplatné"})).toBeInTheDocument();
+    expect(screen.queryByText("Testovací režim Stripe")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Testovacie platby nemenia/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Návrat z Checkoutu sám nemení plán/)).toBeInTheDocument();
+    expect(posted(fetch)).toEqual([]);
+  });
+
   it("shows verified disabled plan without invented prices or payment actions", async () => {
     const fetch = vi.fn().mockResolvedValue(
       Response.json(

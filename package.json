@@ -22,7 +22,8 @@
     "ai:usage-report": "tsx scripts/ai-usage-report.ts",
     "templates:verify": "tsx scripts/verify-blueprints.ts",
     "ai:intent-eval": "tsx scripts/eval-intent.ts",
-    "zip:verify": "tsx scripts/verify-project-zip.ts"
+    "zip:verify": "tsx scripts/verify-project-zip.ts",
+    "billing:preflight": "tsx scripts/billing-preflight.ts"
   },
   "dependencies": {
     "@codemirror/lang-css": "6.3.1",

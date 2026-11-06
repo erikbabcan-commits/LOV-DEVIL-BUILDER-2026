@@ -60,7 +60,8 @@ def main():
                                  'tests/integration/projectsPostgres.test.ts',
                                  'tests/integration/projectSyncPostgres.test.ts',
                                  'tests/integration/cloudBridgePostgres.test.ts',
-                                 'tests/integration/billingPostgres.test.ts', '--maxWorkers=' + str(args.workers),
+                                 'tests/integration/billingPostgres.test.ts',
+                                 'tests/integration/publishPostgres.test.ts', '--maxWorkers=' + str(args.workers),
                                  # Native schema/crypto/JIT cold starts can exceed unit-test budgets
                                  # on a shared development machine; SQL/API limits remain unchanged.
                                  '--hookTimeout=60000', '--testTimeout=15000'],

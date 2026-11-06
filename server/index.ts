@@ -42,7 +42,12 @@ import type { QuotaStore, QuotaSnapshot } from './security/quotaStore';
 import { makeInMemoryRateLimiter, type AsyncRateLimiter } from './security/rateLimit';
 import { billingRouter, billingWebhook } from './billing/routes';
 import { BillingService, probeBillingSchema } from './billing/service';
-import { readBillingConfig } from './billing/config';
+import { readBillingConfig, billingMode } from './billing/config';
+import { initializeBillingEnvironment } from './billing/service';
+import { readPublishConfig } from './publish/config';
+import { PublishService, probePublishSchema } from './publish/service';
+import { publishRouter } from './publish/routes';
+import { publicPublishApp } from './publish/public';
 import { makeStripeBillingGateway } from './billing/gateway';
 
 /* Hono backend — server-only Mistral integrácia.
@@ -108,7 +113,7 @@ export function createApp(
     rateLimit?: (k: string) => boolean;
     budget?: LocalBudgetGuard;
     /** WS-1: ak je zadané, auth je zapnutý — všetko okrem /api/health a /api/auth/* vyžaduje prihlásenie. */
-    auth?: { db: DbLike; jwtSecret: string; quota: QuotaStore; usage?: AiUsageStore; cloudAuth?: CloudAuth; cloudGitHub?: CloudGitHubWiring; billing?: BillingService };
+    auth?: { db: DbLike; jwtSecret: string; quota: QuotaStore; usage?: AiUsageStore; cloudAuth?: CloudAuth; cloudGitHub?: CloudGitHubWiring; billing?: BillingService; publish?: PublishService };
     /** Async limiter pre agent/autofix (Redis keď je REDIS_URL; inak per-user memory). */
     agentRateLimit?: AsyncRateLimiter;
     sandbox?: SandboxExecutor;
@@ -155,6 +160,7 @@ export function createApp(
     if (opts.auth.cloudGitHub) app.route('/', githubCloudRouter(opts.auth.cloudGitHub, rateLimit));
   }
   app.route('/', billingRouter(opts?.auth?.billing ?? null, rateLimit));
+  app.route('/', publishRouter(opts?.auth?.publish ?? null, rateLimit));
 
   app.get('/api/ai-usage', async c => {
     c.header('Cache-Control', 'no-store');
@@ -465,6 +471,7 @@ if (
   // not enable export; each has an explicit, default-off operator switch.
   const cloudGitHubConfig = readCloudGitHubConfig(process.env);
   const billingConfig = readBillingConfig(process.env);
+  const publishConfig = readPublishConfig(process.env);
   cfg.projectStorage = readProjectStoragePolicy(process.env);
   cfg.aiPricing = readAiPricePolicy(process.env);
   if (process.env.CLOUD_AUTH_ISSUER) validateCloudIssuer(process.env.CLOUD_AUTH_ISSUER);
@@ -472,7 +479,7 @@ if (
   const provider = registry.defaultProvider;
 
   /* WS-1: AUTH_ENABLED=1 → Postgres + JWT + trvalé kvóty + Redis limiter (fail-fast). */
-  let authWiring: { db: DbLike; jwtSecret: string; quota: QuotaStore; usage?: AiUsageStore; cloudAuth?: CloudAuth; cloudGitHub?: CloudGitHubWiring; billing?: BillingService } | undefined;
+  let authWiring: { db: DbLike; jwtSecret: string; quota: QuotaStore; usage?: AiUsageStore; cloudAuth?: CloudAuth; cloudGitHub?: CloudGitHubWiring; billing?: BillingService; publish?: PublishService } | undefined;
   let agentLimiter: AsyncRateLimiter | undefined;
   if (process.env.CLOUD_AUTH_ISSUER && process.env.AUTH_ENABLED !== '1')
     throw new Error('CLOUD_AUTH_ISSUER requires AUTH_ENABLED=1.');
@@ -490,9 +497,12 @@ if (
     console.log(`[Forge AI] auth: ON · migrácie: ${applied.join(', ') || '(žiadne)'}`);
     if (cloudGitHubConfig && !(await probeCloudGitHubSchema(db, cloudGitHubConfig.exportsEnabled)).ready)
       throw new Error('Cloud GitHub schema is not ready. Run the read-only preflight.');
-    if (billingConfig && !(await probeBillingSchema(db)).ready)
+    if (billingConfig && !(await probeBillingSchema(db, billingMode(billingConfig))).ready)
       throw new Error('Billing schema is not ready. Apply and verify the local billing migration before activation.');
+    if (billingConfig) await initializeBillingEnvironment(db, billingMode(billingConfig));
+    if (publishConfig && !(await probePublishSchema(db))) throw new Error('Publish schema is not ready.');
     authWiring = { db, jwtSecret, quota: new PostgresQuotaStore(db),
+      ...(publishConfig ? { publish: new PublishService(db, publishConfig, createSandboxExecutor(process.env)) } : {}),
       ...(billingConfig ? { billing: new BillingService(db, billingConfig, makeStripeBillingGateway(billingConfig)) } : {}),
       ...(process.env.CLOUD_AUTH_ISSUER ? { cloudAuth: makeCloudAuth(db, process.env.CLOUD_AUTH_ISSUER) } : {}),
       ...(cloudGitHubConfig ? { cloudGitHub: makeCloudGitHubWiring(db, cloudGitHubConfig) } : {}) };
@@ -504,6 +514,10 @@ if (
     if (cloudGitHubConfig) console.log(`[Forge AI] Cloud GitHub: ON · public_repo only · exports: ${cloudGitHubConfig.exportsEnabled ? 'ON' : 'OFF'}`);
   }
 
+  if (publishConfig && authWiring?.publish) {
+    const publicApp = publicPublishApp(publishConfig, authWiring.db, authWiring.publish.artifacts);
+    serve({ fetch: publicApp.fetch, hostname: publishConfig.bind, port: publishConfig.port });
+  }
   const app = createApp(cfg, provider, { auth: authWiring, agentRateLimit: agentLimiter, providers: registry });
   serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.bind });
   console.log(

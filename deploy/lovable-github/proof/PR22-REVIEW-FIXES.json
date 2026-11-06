@@ -1,0 +1,452 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-11-06T20:04:10.235203+00:00",
+  "status": "review fixes verified locally; backend activation not performed",
+  "backendPullRequest": "https://github.com/erikbabcan-commits/LOV-DEVIL-BUILDER-2026/pull/22",
+  "backendPullRequestStateAtDocumentation": "open",
+  "runtime": {
+    "runtimeCommit": "9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2",
+    "parent": "f26ef8b9fedd8590e4b3a8a6631aeac6f9cffcbe",
+    "tree": "fd4fe927599d95719949c3f40436ee3211cf6d29",
+    "files": {
+      "deploy/lovable-github/MANIFEST.json": "060c8fcf3643c7ee0331a2641f954127cfcfa454b41404fd9c4b884eb3de59b4",
+      "deploy/lovable-github/src/components/forge/ForgePublish.test.tsx": "5b6e6366fb58291e06e65f21ce9a48271339632ed191618654446ec0aae6cacb",
+      "deploy/lovable-github/src/components/forge/ForgePublish.tsx": "37b2f8a32564f1e560d3811f7af1ece320a22b4e70330f41009fe53ee52f4961",
+      "deploy/ops/publish-nginx.conf.template": "a7a006b73da8177b333545ad688338a0453c30c0b3a4babe2a41921f3a601321",
+      "server/publish/artifacts.ts": "6a704d5d1090467ef3a7ffff9ff48178dfd90cbdf7fe4e6b476dd2ae5759bb36",
+      "server/publish/service.ts": "7ce3c4232256995123a130be40ee108508ff43431c763fc3cb4b830ac2286369",
+      "src/features/publish/PublishDialog.tsx": "3cde6f2aa95695d1155171380cc201875447998de360587732e4a8377da5eff4",
+      "tests/integration/publishPostgres.test.ts": "065a3de11fe1abe9886b7cfacf070e531458e48627864a8fc579790fba7079da",
+      "tests/unit/publish-dialog.test.tsx": "76b4fe8ed5069048bd9b7a0446b70351e853fde8bda8a4ae64e44b686ca9ccad",
+      "tests/unit/server/publish.test.ts": "d38ae87a4be7a82976828d11eb934822c1b6fe713252a1e9ae4475c652b0cdd1"
+    }
+  },
+  "reviewFixes": [
+    {
+      "finding": "discussion_r4496756199",
+      "area": "server/publish/service.ts and artifacts.ts",
+      "implementation": "Failed jobs release only unused byte reservations; retained on-disk files remain charged. Building reservations and published bytes remain accounted. The durable attempt-count abuse limit is intentionally retained; retention/cleanup is still an operational gate. Owner-row and claim/state fencing prevent stale workers from writing after terminal completion.",
+      "verification": [
+        "failed empty attempts no longer exhaust the byte budget after ten failures",
+        "retained temporary/final/orphan storage is accounted",
+        "native PostgreSQL and isolated Docker regressions passed"
+      ]
+    },
+    {
+      "finding": "discussion_r4496756209",
+      "area": "src/features/publish/PublishDialog.tsx",
+      "implementation": "Only allowlisted definitive POST input rejections release the captured matching receipt. Explicit retry after reconciliation saves the current revision and creates a new UUID. Network/timeout/protocol/server uncertainty and publish_request_conflict preserve the original request. Account/project epochs and compare-and-remove prevent late cleanup of another or newer receipt.",
+      "verification": [
+        "unchanged local source plus reconciled revision retries with a fresh saved revision/UUID",
+        "uncertain results and owner/project changes preserve recovery identity"
+      ]
+    },
+    {
+      "finding": "discussion_r4496756182",
+      "area": "modern ForgePublish.tsx",
+      "implementation": "A verified terminal failed job clears only its matching stored request after owner/version/result checks; first explicit retry after reopening starts a fresh UUID. Building and uncertain attempts remain recoverable.",
+      "verification": [
+        "failed → close/reopen → first retry regression",
+        "wrong revision and newer stored receipt preserved"
+      ]
+    },
+    {
+      "finding": "discussion_r4496756191",
+      "area": "deploy/ops/publish-nginx.conf.template",
+      "implementation": "Forward the exact HTTP Host, including an allowed non-default HTTPS port, while continuing to strip Cookie and Authorization.",
+      "verification": [
+        "nginx syntax and real HTTP negative-control/corrected-template comparison passed without production TLS/deployment"
+      ]
+    }
+  ],
+  "gates": {
+    "main": {
+      "exit": 0,
+      "seconds": 45.58,
+      "verifiedAt": "2026-11-06T19:55:58.500419+00:00",
+      "sourceChangesDuringRun": [],
+      "sourceWitnessFiles": 699,
+      "runtimeSourceHashesMatch": true,
+      "log": "logs/review-main.txt"
+    },
+    "pg16": {
+      "exit": 0,
+      "seconds": 19.66,
+      "verifiedAt": "2026-11-06T19:56:42.025558+00:00",
+      "sourceChangesDuringRun": [],
+      "sourceWitnessFiles": 699,
+      "runtimeSourceHashesMatch": true,
+      "log": "logs/review-pg16.txt"
+    },
+    "pg18": {
+      "exit": 0,
+      "seconds": 32.22,
+      "verifiedAt": "2026-11-06T19:57:28.796832+00:00",
+      "sourceChangesDuringRun": [],
+      "sourceWitnessFiles": 699,
+      "runtimeSourceHashesMatch": true,
+      "log": "logs/review-pg18.txt"
+    },
+    "types": {
+      "exit": 0,
+      "seconds": 6.12,
+      "verifiedAt": "2026-11-06T19:56:32.521270+00:00",
+      "sourceChangesDuringRun": [],
+      "sourceWitnessFiles": 699,
+      "runtimeSourceHashesMatch": true,
+      "log": "logs/review-types.txt"
+    },
+    "lint": {
+      "exit": 0,
+      "seconds": 6.92,
+      "verifiedAt": "2026-11-06T19:57:05.398882+00:00",
+      "sourceChangesDuringRun": [],
+      "sourceWitnessFiles": 699,
+      "runtimeSourceHashesMatch": true,
+      "log": "logs/review-lint.txt"
+    },
+    "build": {
+      "exit": 0,
+      "seconds": 4.56,
+      "verifiedAt": "2026-11-06T19:57:10.905867+00:00",
+      "sourceChangesDuringRun": [],
+      "sourceWitnessFiles": 699,
+      "runtimeSourceHashesMatch": true,
+      "log": "logs/review-build.txt"
+    },
+    "docker": {
+      "exit": 0,
+      "seconds": 49.39,
+      "verifiedAt": "2026-11-06T19:58:18.590693+00:00",
+      "sourceChangesDuringRun": [],
+      "sourceWitnessFiles": 699,
+      "runtimeSourceHashesMatch": true,
+      "log": "logs/review-docker.txt"
+    }
+  },
+  "results": {
+    "main": {
+      "passed": 1101,
+      "skipped": 183
+    },
+    "postgres": {
+      "16.15": {
+        "passed": 161,
+        "temporaryClusterStoppedAndRemoved": true
+      },
+      "18.6": {
+        "passed": 161,
+        "temporaryClusterStoppedAndRemoved": true
+      }
+    },
+    "docker": {
+      "passed": 21
+    },
+    "modern": {
+      "passed": 178,
+      "testFiles": 17,
+      "strictTypes": "PASS",
+      "clientSsrWorkersBuild": "PASS"
+    },
+    "mainTypes": "PASS",
+    "mainBuild": "PASS",
+    "lint": {
+      "errors": 0,
+      "existingWarnings": 33
+    }
+  },
+  "frontend": {
+    "pullRequest": "https://github.com/erikbabcan-commits/vorkeeei/pull/2",
+    "head": "46372049e1f1a62ddb24cf5cec805df7d6a04ffa",
+    "merge": {
+      "sha": "fe3b0d80b5bc7869e2197614e04069d5b35303e5",
+      "tree": "a4fca4d14bad82cd622e0f036d6a86c0ebf4515b",
+      "treeEqualsVerifiedHead": true,
+      "expectedHead": "46372049e1f1a62ddb24cf5cec805df7d6a04ffa",
+      "method": "merge",
+      "mainFileSha256": "37b2f8a32564f1e560d3811f7af1ece320a22b4e70330f41009fe53ee52f4961",
+      "onlyOneProductionFileChanged": true
+    },
+    "review": {
+      "checkId": 128117779673,
+      "app": "coderabbitai",
+      "status": "completed",
+      "conclusion": "success",
+      "completedAt": "2026-11-06T19:56:55Z",
+      "reviewState": "COMMENTED",
+      "inlineThreads": 0,
+      "materialCodeFindings": 0,
+      "warning": "Generic docstring coverage warning; no code changes added for it"
+    },
+    "localVerificationStatus": "success",
+    "githubActionsRuns": 0,
+    "gitSyncObservation": {
+      "source": "root native Lovable UI observation",
+      "featurePushAndPr2MergeVisibleInHistory": true,
+      "meaning": "Git synchronization observed; no AI prompt/build requested and no application publish/payment inferred"
+    }
+  },
+  "nginx": {
+    "verifiedAt": "2026-11-06T19:48:13.376748+00:00",
+    "image": "nginx:1.27-alpine",
+    "network": "none",
+    "readOnly": true,
+    "capabilities": "ALL dropped",
+    "tests": [
+      {
+        "case": "negative_control_original",
+        "receivedHostAndCredentials": "published.example.test||",
+        "syntaxPassed": true
+      },
+      {
+        "case": "corrected_template",
+        "receivedHostAndCredentials": "published.example.test:8443||",
+        "syntaxPassed": true
+      }
+    ],
+    "meaning": "Original template strips non-default port; corrected template preserves exact Host and still strips cookies/authentication."
+  },
+  "freshBackup": {
+    "verifiedAt": "2026-11-06T19:50:30Z",
+    "restoreVerified": true,
+    "restoredTables": 3,
+    "dumpBytes": 5552,
+    "runtimeDeployed": false,
+    "privateSnapshotPathAndIdentityDataExcluded": true
+  },
+  "amd64Images": {
+    "runtimeCommit": "9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2",
+    "localBuildAndReadOnlyNonRootSmoke": "PASS",
+    "images": [
+      {
+        "id": "sha256:97de4da3f9111376b53410383282934867bee1529ce9678ab81c19e95e3e564d",
+        "os": "linux",
+        "architecture": "amd64",
+        "sizeBytes": 103533054,
+        "revision": "9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2",
+        "tag": "lov-devil-api-ws19:9e49e0e-amd64",
+        "smoke": {
+          "exit": 0,
+          "nodeVersion": "v26.13.0",
+          "network": "none",
+          "filesystem": "read-only",
+          "privileges": "non-root/cap-dropALL/no-new-privileges",
+          "hostMounts": false
+        }
+      },
+      {
+        "id": "sha256:8c58900f4f6ccd6c999b8afa7d1924772557e563f2e46d42c7641bd79756b17a",
+        "os": "linux",
+        "architecture": "amd64",
+        "sizeBytes": 315649149,
+        "revision": "9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2",
+        "tag": "lov-devil-sandbox-runner-ws19:9e49e0e-amd64",
+        "smoke": {
+          "exit": 0,
+          "nodeVersion": "v26.13.0",
+          "network": "none",
+          "filesystem": "read-only",
+          "privileges": "non-root/cap-dropALL/no-new-privileges",
+          "hostMounts": false
+        }
+      },
+      {
+        "id": "sha256:68307ef2e632ebd566534f86b40c52bdd02aab7c01e050f4d7aafb686251f033",
+        "os": "linux",
+        "architecture": "amd64",
+        "sizeBytes": 273857765,
+        "revision": "9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2",
+        "tag": "lov-devil-sandbox-ws19:9e49e0e-amd64",
+        "smoke": {
+          "exit": 0,
+          "nodeVersion": "v26.13.0",
+          "network": "none",
+          "filesystem": "read-only",
+          "privileges": "non-root/cap-dropALL/no-new-privileges",
+          "hostMounts": false
+        }
+      }
+    ],
+    "archive": {
+      "file": "ws19-release-9e49e0e-amd64.docker.tar.gz",
+      "compressedBytes": 129687984,
+      "sha256": "5ae82020f5839bd00ccbf6510927e7eb0f7198abcedc11f12116538d4ae7868c",
+      "mode": "0o600",
+      "durationSeconds": 3.43
+    },
+    "separateStoreCapacity": {
+      "verifiedAt": "2026-11-06T20:03:18.769234+00:00",
+      "status": "locally_split_archived_and_layer_diffids_verified",
+      "groups": {
+        "application": {
+          "file": "ws19-application-9e49e0e-amd64.tar.gz",
+          "tags": [
+            "lov-devil-api-ws19:9e49e0e-amd64",
+            "lov-devil-sandbox-runner-ws19:9e49e0e-amd64"
+          ],
+          "compressedBytes": 123534912,
+          "sha256": "c89f9a87c0d0a6d0203e772c51bc6b187caa86bece4bc75375a9d6dd7bd1ad7e",
+          "uniqueLayerCount": 12,
+          "contentStoreBytes": 123921419,
+          "unpackedSnapshotTarBytes": 416511488
+        },
+        "rootless-worker": {
+          "file": "ws19-rootless-worker-9e49e0e-amd64.tar.gz",
+          "tags": [
+            "lov-devil-sandbox-ws19:9e49e0e-amd64"
+          ],
+          "compressedBytes": 68808195,
+          "sha256": "4861f6cf09f75fc334d954b37c61ff0c625e3eec4fc0d45ba85e4a2a6e216e98",
+          "uniqueLayerCount": 12,
+          "contentStoreBytes": 69100874,
+          "unpackedSnapshotTarBytes": 199413248
+        }
+      },
+      "allLayerDiffIdsIndependentlyVerified": true,
+      "uniqueLayersAcrossAllImages": 20,
+      "separateStoreBudget": {
+        "publishFreeReserveAndMaxArtifact": 1076741824,
+        "metadataLoadFilesystemSafetyBytes": 805306368,
+        "additionalFreeBytesPlanningTotal": 2883338328,
+        "sharingAssumedBetweenDaemons": false,
+        "existingGlobalLayersAssumedReused": false,
+        "limitation": "Measured content and tar bytes plus safety allowance; actual daemon filesystem usage must be observed after each scoped load. Unrelated application growth is excluded."
+      },
+      "vpsImagesLoaded": false
+    }
+  },
+  "pendingAtDocumentation": [
+    "rootless guard tests and independent audit final result",
+    "inert staging/upload final receipt if performed",
+    "scoped application/worker load and actual filesystem observation",
+    "production migrations, runtime activation, public republish and real Stripe test/payment gates"
+  ],
+  "deployment": {
+    "newBackendRuntimeDeployed": false,
+    "productionMigrationsApplied": false,
+    "publicFrontendRepublished": false,
+    "stripeCheckoutOrPaymentExecuted": false,
+    "productionActivation": false,
+    "freshBackupRestoreVerified": true,
+    "meaning": "Local build/smoke and a verified restored backup are not a VPS runtime rollout. Any inert staging/dry-run remains non-activation."
+  },
+  "history": {
+    "preReviewRuntime": "7f2b923",
+    "preReviewProof": "PUBLISH-BILLING-VERIFICATION.json",
+    "preReviewCounts": {
+      "mainPassed": 1076,
+      "mainSkipped": 181,
+      "postgresPerVersion": 159,
+      "modernPassed": 175,
+      "reactE2E": 22
+    },
+    "meaning": "Historical pre-review results are preserved; they are not the final counts for the review-fixed runtime. React E2E was not newly rerun in this receipt.",
+    "oldOneStorePlanningBytesApproxGiB": 2.15,
+    "newSeparateStorePlanningBytes": 2883338328
+  },
+  "backlog": {
+    "countBefore": 85,
+    "countAfter": 85,
+    "ids": [
+      "101",
+      "102",
+      "103",
+      "104",
+      "105",
+      "106",
+      "107",
+      "108",
+      "201",
+      "202",
+      "203",
+      "204",
+      "205",
+      "206",
+      "207",
+      "301",
+      "302",
+      "303",
+      "304",
+      "305",
+      "306",
+      "307",
+      "308",
+      "401",
+      "402",
+      "403",
+      "404",
+      "405",
+      "406",
+      "407",
+      "408",
+      "501",
+      "502",
+      "503",
+      "504",
+      "505",
+      "506",
+      "507",
+      "508",
+      "509",
+      "510",
+      "601",
+      "602",
+      "603",
+      "604",
+      "605",
+      "606",
+      "701",
+      "702",
+      "703",
+      "704",
+      "705",
+      "801",
+      "802",
+      "803",
+      "804",
+      "805",
+      "806",
+      "807",
+      "808",
+      "901",
+      "902",
+      "903",
+      "904",
+      "905",
+      "1001",
+      "1002",
+      "1003",
+      "1004",
+      "1005",
+      "1006",
+      "1007",
+      "1101",
+      "1102",
+      "1103",
+      "1104",
+      "1105",
+      "1106",
+      "1107",
+      "1108",
+      "1201",
+      "1202",
+      "1203",
+      "1204",
+      "1205"
+    ],
+    "dropped": [],
+    "added": [],
+    "allExistingTaskRowsUnchanged": true
+  },
+  "publicLogManifest": "PR22-REVIEW-LOGS.json",
+  "privacy": "No personal account data, identity digests, private-plan values, payment banners, session tokens or secret values are included.",
+  "readOnlyDryRun": {
+    "source": "root VPS read-only rootless deployment dry-run",
+    "availableBytes": 3755499520,
+    "planningBudgetBytes": 2883338328,
+    "planningHeadroomBytes": 872161192,
+    "planningFitsMeasurement": true,
+    "applyPerformed": false,
+    "limitation": "Not an installed rootless daemon, image load or production activation; observe actual scoped filesystem usage after each load."
+  }
+}

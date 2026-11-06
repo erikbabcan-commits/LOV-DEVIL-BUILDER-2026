@@ -1,0 +1,32 @@
+vite v6.4.4 building for production...
+transforming...
+node_modules/zod/v4/core/util.js (400:0): A comment
+
+"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle."
+
+in "node_modules/zod/v4/core/util.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+node_modules/zod/v4/core/regexes.js (74:0): A comment
+
+"/** Anchors a pattern source. The interpolation lives here rather than at the call site because
+ * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it
+ * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */"
+
+in "node_modules/zod/v4/core/regexes.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+✓ 240 modules transformed.
+rendering chunks...
+computing gzip size...
+<tmp>/lov-pr22-recovery-dist/index.html                            0.62 kB │ gzip:   0.37 kB
+<tmp>/lov-pr22-recovery-dist/assets/index-QQ4HsVKN.css            69.34 kB │ gzip:  13.02 kB
+<tmp>/lov-pr22-recovery-dist/assets/workspace-XyDrizau.js          4.98 kB │ gzip:   1.94 kB
+<tmp>/lov-pr22-recovery-dist/assets/PublishDialog-DnZPSyqA.js     13.18 kB │ gzip:   4.37 kB
+<tmp>/lov-pr22-recovery-dist/assets/ProjectLibrary-DmI3mTS3.js    35.85 kB │ gzip:   8.65 kB
+<tmp>/lov-pr22-recovery-dist/assets/TemplateGallery-BuPkEtUb.js   49.93 kB │ gzip:  15.03 kB
+<tmp>/lov-pr22-recovery-dist/assets/jszip.min-CaZm8Xp3.js         97.69 kB │ gzip:  30.38 kB
+<tmp>/lov-pr22-recovery-dist/assets/SourceEditor-C3bHGNvu.js     595.07 kB │ gzip: 205.76 kB
+<tmp>/lov-pr22-recovery-dist/assets/index-C_AyBXZh.js            656.18 kB │ gzip: 178.48 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 3.31s

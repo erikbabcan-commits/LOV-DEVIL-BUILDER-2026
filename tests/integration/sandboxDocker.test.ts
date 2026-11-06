@@ -5,8 +5,19 @@ import { dockerCommand } from '../../server/sandbox/command';
 import { createRunnerServer } from '../../server/sandbox/runner';
 import { IsolatedExecutor } from '../../server/sandbox/executor';
 import { createApp } from '../../server/index';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
+import { createServer } from 'node:http';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { getRequestListener } from '@hono/node-server';
+import { newDb } from 'pg-mem';
+import { dbFromPool } from '../../server/db/pool';
+import { applyMigrations } from '../../server/db/migrate';
+import { PublishService } from '../../server/publish/service';
+import { publicPublishApp } from '../../server/publish/public';
+import { registerProjectByteLength } from '../helpers/projectMemoryDb';
 import { BLUEPRINT_REGISTRY } from '../../src/templates/registry';
 
 // Opt in only on a dedicated Linux Docker daemon. Never point this at production.
@@ -36,9 +47,13 @@ describe.skipIf(!enabled)('real Linux Docker compile isolation', () => {
     expect(await containers()).toEqual(baseline);
   }, 25_000);
 
-  it('compiles through API → authenticated private runner → real Docker worker', async () => {
+  it('compiles through API → authenticated private runner → real Docker worker and publishes its durable artifact over HTTP', async () => {
     const token = randomBytes(32).toString('hex');
     const server = createRunnerServer(token);
+    let publication: PublishService | undefined;
+    let publicServer: ReturnType<typeof createServer> | undefined;
+    let closeDb: (() => Promise<void>) | undefined;
+    let directory: string | undefined;
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
     try {
       const sandbox = new IsolatedExecutor(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`, token);
@@ -47,12 +62,78 @@ describe.skipIf(!enabled)('real Linux Docker compile isolation', () => {
       const response = await app.request('/api/sandbox/build', { method: 'POST',
         headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ files }) });
       expect(response.status).toBe(200); expect((await response.json()).html).toContain('ISOLATED_OK');
+
+      // Exercise publication with the actual networked executor, not a HostExecutor
+      // relabelled as isolated. The public response must come from durable bytes.
+      expect(await sandbox.ready()).toEqual({ ready: true, mode: 'isolated' });
+      const memory = newDb();
+      registerProjectByteLength(memory);
+      const pool = new (memory.adapters.createPg().Pool)();
+      closeDb = () => pool.end();
+      const db = dbFromPool(pool);
+      await applyMigrations(db);
+      const sourceBefore = createHash('sha256').update(JSON.stringify(files)).digest('hex');
+      const sourceFiles = files.map(({ path, content }) => ({ name: path, content }));
+      const workspace = {
+        title: 'Isolated public artifact', isPublic: false, liveId: 'isolated-snapshot', files: sourceFiles,
+        snapshots: [{ id: 'isolated-snapshot', v: 1, kind: 'manual', prompt: 'fixture', time: 'test',
+          html: '', sourceFiles: JSON.stringify(sourceFiles) }],
+      };
+      await db.query('INSERT INTO users(id,email,password_hash) VALUES($1,$2,$3)',
+        ['isolated-owner', 'isolated-owner@example.test', 'not-a-password-hash']);
+      await db.query('INSERT INTO builder_projects(owner_id,project_id,title,revision,workspace) VALUES($1,$2,$3,1,$4::jsonb)',
+        ['isolated-owner', 'isolated-project', workspace.title, JSON.stringify(workspace)]);
+      directory = await mkdtemp(join(tmpdir(), 'lov-publish-docker-'));
+      publicServer = createServer();
+      const listener = publicServer;
+      await new Promise<void>(resolve => listener.listen(0, '127.0.0.1', resolve));
+      const port = (listener.address() as AddressInfo).port;
+      const config = {
+        baseUrl: `http://127.0.0.1:${port}/`, appUrl: 'http://localhost:5176/', artifactDir: directory,
+        bind: '127.0.0.1', port, maxArtifacts: 20, maxOwnerBytes: 30000000, maxArtifactBytes: 3000000,
+        allowHostTest: true, minFreeBytes: 0,
+      };
+      publication = new PublishService(db, config, sandbox);
+      listener.on('request', getRequestListener(publicPublishApp(config, db, publication.artifacts).fetch));
+      expect(await publication.ready()).toMatchObject({ ready: true, reason: null });
+      const selection = {
+        requestId: randomUUID(), projectId: 'isolated-project', expectedRevision: 1,
+        snapshotId: 'isolated-snapshot', publicConsent: true as const,
+      };
+      expect(await publication.start('isolated-owner', selection)).toMatchObject({ state: 'building', url: null });
+      await publication.settled();
+      const published = await publication.status('isolated-owner', selection.requestId);
+      expect(published).toMatchObject({ state: 'published', revision: 1, snapshotId: 'isolated-snapshot' });
+      const served = await fetch(published.url!, { signal: AbortSignal.timeout(5000) });
+      expect(served.status).toBe(200);
+      expect(served.headers.get('content-type')).toContain('text/html');
+      expect(served.headers.get('content-security-policy')).toContain('sandbox allow-scripts');
+      expect(served.headers.get('set-cookie')).toBeNull();
+      const publicBytes = Buffer.from(await served.arrayBuffer());
+      expect(publicBytes.toString()).toContain('ISOLATED_OK');
+      expect(publicBytes.toString()).toContain('<div id="root">');
+      const row = (await db.query('SELECT artifact_id,artifact_bytes,artifact_sha256 FROM publish_jobs WHERE owner_id=$1 AND request_id=$2',
+        ['isolated-owner', selection.requestId])).rows[0];
+      expect(publicBytes).toEqual(await readFile(join(directory, row.artifact_id + '.html')));
+      expect(publicBytes.byteLength).toBe(Number(row.artifact_bytes));
+      expect(createHash('sha256').update(publicBytes).digest('hex')).toBe(row.artifact_sha256);
+      expect(createHash('sha256').update(JSON.stringify(files)).digest('hex')).toBe(sourceBefore);
       expect(await containers()).toEqual(baseline);
     } finally {
+      await publication?.settled();
+      // Stop listeners and close pools even when another cleanup operation fails.
       server.closeAllConnections();
-      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      publicServer?.closeAllConnections();
+      const listener = publicServer;
+      const cleanup = await Promise.allSettled([
+        new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())),
+        listener ? new Promise<void>((resolve, reject) => listener.close(error => error ? reject(error) : resolve())) : Promise.resolve(),
+        closeDb?.(),
+        directory ? rm(directory, { recursive: true, force: true }) : Promise.resolve(),
+      ]);
+      expect(cleanup.filter(result => result.status === 'rejected')).toEqual([]);
     }
-  }, 30_000);
+  }, 60_000);
 
   it('compiles React with CSP and returns syntax/import diagnostics without executing source', async () => {
     const worker = new DockerCompiler();

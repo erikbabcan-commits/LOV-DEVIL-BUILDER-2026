@@ -7,8 +7,14 @@ export const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 const ID = "[A-Za-z0-9_-]{1,128}";
 const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
-type Kind = "crud" | "build" | "ai";
-const TIMEOUTS: Record<Kind, number> = { crud: 20_000, build: 35_000, ai: 130_000 };
+type Kind = "crud" | "build" | "ai" | "billing" | "publish";
+const TIMEOUTS: Record<Kind, number> = {
+  crud: 20_000,
+  build: 35_000,
+  ai: 130_000,
+  billing: 60_000,
+  publish: 20_000,
+};
 
 interface RouteDef {
   method: "GET" | "POST";
@@ -20,6 +26,27 @@ interface RouteDef {
 }
 
 const ROUTES: RouteDef[] = [
+  { method: "GET", re: /^publish$/, upstream: () => "/api/publish", kind: "publish" },
+  { method: "POST", re: /^publish$/, upstream: () => "/api/publish", kind: "publish" },
+  {
+    method: "GET",
+    re: /^publish\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i,
+    upstream: (m) => `/api/publish/${m[1]}`,
+    kind: "publish",
+  },
+  { method: "GET", re: /^billing$/, upstream: () => "/api/billing", kind: "billing" },
+  {
+    method: "POST",
+    re: /^billing\/checkout$/,
+    upstream: () => "/api/billing/checkout",
+    kind: "billing",
+  },
+  {
+    method: "POST",
+    re: /^billing\/portal$/,
+    upstream: () => "/api/billing/portal",
+    kind: "billing",
+  },
   { method: "GET", re: /^ai-models$/, upstream: () => "/api/ai-models", kind: "crud" },
   { method: "GET", re: /^ai-usage$/, upstream: () => "/api/ai-usage", kind: "crud" },
   { method: "GET", re: /^project-storage$/, upstream: () => "/api/project-storage", kind: "crud" },
@@ -162,6 +189,7 @@ export function matchRoute(
 async function readLimited(
   body: ReadableStream<Uint8Array>,
   signal: AbortSignal,
+  maxBytes = MAX_REQUEST_BYTES,
 ): Promise<Uint8Array> {
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];
@@ -175,7 +203,7 @@ async function readLimited(
       if (signal.aborted) throw new ProxyError(504, "timeout");
       if (done) break;
       total += value.byteLength;
-      if (total > MAX_REQUEST_BYTES) {
+      if (total > maxBytes) {
         reader.cancel().catch(() => {});
         throw new ProxyError(413, "payload_too_large");
       }
@@ -247,7 +275,12 @@ export async function handleHonoProxy(
     if (ct !== "application/json") return jsonError(415, "unsupported_media_type");
     const cl = request.headers.get("content-length");
     if (cl !== null && !/^\d+$/.test(cl)) return jsonError(400, "invalid_content_length");
-    if (cl && Number(cl) > MAX_REQUEST_BYTES) return jsonError(413, "payload_too_large");
+    if (
+      cl &&
+      Number(cl) >
+        (def.kind === "billing" ? 8192 : def.kind === "publish" ? 4096 : MAX_REQUEST_BYTES)
+    )
+      return jsonError(413, "payload_too_large");
   }
 
   const auth = request.headers.get("authorization") ?? "";
@@ -282,7 +315,13 @@ export async function handleHonoProxy(
 
     let body: Uint8Array | undefined;
     if (def.method === "POST") {
-      body = request.body ? await readLimited(request.body, ctrl.signal) : new Uint8Array();
+      body = request.body
+        ? await readLimited(
+            request.body,
+            ctrl.signal,
+            def.kind === "billing" ? 8192 : def.kind === "publish" ? 4096 : MAX_REQUEST_BYTES,
+          )
+        : new Uint8Array();
     }
 
     // Headers are built only from the verified token and server config; nothing from the browser

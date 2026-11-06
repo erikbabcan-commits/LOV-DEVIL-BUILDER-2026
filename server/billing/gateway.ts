@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { validateBillingConfig } from "./config";
 import {
   BillingError,
   type BillingConfig,
@@ -55,6 +56,7 @@ function session(value: Stripe.Checkout.Session): BillingSession {
 export function makeStripeBillingGateway(
   config: BillingConfig,
 ): BillingGateway {
+  validateBillingConfig(config, process.env.NODE_ENV === "test");
   const stripe = new Stripe(config.secretKey, {
     timeout: 8000,
     maxNetworkRetries: 0,

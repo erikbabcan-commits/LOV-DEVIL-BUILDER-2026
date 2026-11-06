@@ -16,14 +16,23 @@ LOV-DEVIL BUILDER 2026 vyvíja AI editor aplikácií v štýle Lovable.
 referenciu. Niektoré UI flows sú ukážky alebo používajú mock dáta; produkčné
 nasadenie, billing ani izolácia nedôveryhodných buildov nie sú potvrdené.
 
-Lokálne prírastky WS-3 až WS-18 zahŕňajú immutable projekty, kvóty a metering,
-review AI patchov, obnoviteľný CodeMirror editor, skutočný ZIP a predvolene vypnuté
-sandbox predplatné. Aktuálne výsledky a produkčné limity sú v
-[backlogu](docs/BACKLOG.md), [overení WS-18](docs/WS-18-BILLING.md) a
-[záverečnom lokálnom overení](docs/LOCAL-VERIFICATION-2026-11-06.md).
+Lokálne prírastky WS-3 až WS-19 zahŕňajú immutable projekty, kvóty a metering,
+review AI patchov, CodeMirror editor a skutočný ZIP. Nový statický Publish v oboch
+UI ukladá zostavený snapshot na oddelený verejný listener; moderný Lovable panel
+používa Cloud billing bridge s explicitným test/live režimom a DB pinom.
+**Publish aj billing zostávajú predvolene vypnuté, produkcia sa neaktivovala.**
+Kontrakt a limity sú v [WS-19](docs/WS-19-PUBLISH-BILLING.md) a
+[backlogu](docs/BACKLOG.md); [lokálne overenie PR #21](docs/LOCAL-VERIFICATION-2026-11-06.md)
+je historický základ pred WS-19. Nové lokálne brány: **1 076/181 main**,
+**159/159 PG na každej verzii**, **175/175 Lovable**, **21/21 Docker**, **22/22 E2E**;
+[aktuálny dôkaz](deploy/lovable-github/proof/PUBLISH-BILLING-VERIFICATION.json).
 
-`src/` je pôvodný hlavný frontend. Novšie Lovable UI sa pripravuje samostatne;
-prenosný overlay a presný postup sú v [Lovable hybrid](docs/LOVABLE-HYBRID.md).
+`src/` je pôvodný hlavný frontend. Moderné Lovable UI má vlastný synchronizovaný
+[privátny repozitár](https://github.com/erikbabcan-commits/vorkeeei); 41 produkčných
+overlay súborov a automaticky vygenerovaný route tree sú prenesené do editora. Nové
+rozhranie je overené v live preview; verejná verzia ešte nebola aktualizovaná.
+Presný stav je v [Lovable hybrid](docs/LOVABLE-HYBRID.md) a
+[prevádzkovom dôkaze](deploy/lovable-github/proof/PUBLISH-BILLING-ROLLOUT.json).
 Spustenie tohto koreňového Vite projektu samo neotvára Lovable frontend.
 
 ## ✨ Demonštrované UI a pilotné funkcie (nie produkčné garancie)
@@ -35,7 +44,7 @@ Spustenie tohto koreňového Vite projektu samo neotvára Lovable frontend.
 | **Canvas** | Preview / Code / Console / Diff, zoom 50–150 %, breakpointy desktop/tablet/mobile, Edit mode s vizuálnym výberom elementov |
 | **/editor dashboard** | sidebar s projektmi + fulltext, connectors, live preview prepojený s canvasom, Publish/Share flow |
 | **História verzií** | snapshots, pin, restore, read-only rewind, diff medzi verziami |
-| **Publish** | Demonštračný flow; nie potvrdený produkčný CDN deployment |
+| **Publish** | Lokálne implementovaný statický job, skutočný compiler, nemenný HTML artefakt a oddelená verejná URL; produkčné HTTPS/CDN neaktivované |
 | **Test suite** | Historická vstavaná demo suite + samostatné Vitest/Playwright testy v repozitári |
 
 ## 🚀 Rýchly štart
@@ -92,13 +101,17 @@ React/server kód má samostatné Vitest unit/integration testy a Playwright E2E
 Použi vyššie uvedené príkazy. [CI workflow](.github/workflows/ci.yml) je iba
 manuálny; aktuálne overovanie prebieha lokálne v testovacích sandboxoch.
 Úspech v minulom CI nie je automaticky výsledkom testovania aktuálneho HEAD.
-Konkrétne výsledky, odtlačky zdrojov a rozsah sandboxov uvádza
-[lokálne overenie z 6. 11. 2026](docs/LOCAL-VERIFICATION-2026-11-06.md).
+Predchádzajúce výsledky a odtlačky zachováva
+[lokálne overenie PR #21](docs/LOCAL-VERIFICATION-2026-11-06.md). WS-19 má
+nové finálne brány; pôvodné počty nedokazujú jeho aktuálny strom. Lokálny browser
+už overil Cloud BFF → Hono → compiler → artefakt/HTTP 200 a syntetický billing
+webhook → Pro s oddeleným Free účtom. Skutočná Stripe platba tým nie je overená.
 
 ## 🏗️ Architektúra prototypu
 
 - **React 18 + Vite + TypeScript + Zustand** — `src/`, `package.json`
-- **Hono server, providery, Postgres projekty/kvóty a voliteľný Stripe sandbox** — `server/`
+- **Hono server, providery, Postgres projekty/kvóty a voliteľný Stripe test/live režim** — `server/`; billing je default OFF, prostredie sa pripína v DB.
+- **Statický Publish** — vlastný serverový snapshot → compiler → nemenné HTML; samostatný listener/hostname s CSP bez sieťových API. Fullstack hosting tým nevzniká.
 - **Compile-only sandbox** — hostiteľský pilot alebo výslovne nakonfigurovaný
   súkromný runner s jednorazovými Docker workermi; [rozsah WS-4](docs/WS-4-SANDBOX.md).
   Toto ešte nie je fullstack runtime s ľubovoľnými npm balíčkami a HMR.
@@ -107,6 +120,21 @@ Konkrétne výsledky, odtlačky zdrojov a rozsah sandboxov uvádza
 - Historické demo má stav v objekte `state` a render funkcie (`renderChat`, `renderPreview`, `renderEditor`…)
 - Historické demo používa ladiace logy `dbg()` (`console.debug`)
 - Testy a build nie sú dôkazom bezpečného hostovania ľubovoľného kódu.
+
+Read-only kontrola VPS o 19:07 UTC namerala **91 % disku a 3,50 GiB voľných**.
+Tri obrazy `linux/amd64` sú zostavené a uložené lokálne: archív má 129 686 811 B,
+unikátne rozbalené vrstvy 433 890 304 B. Odhad pre načítanie hotových obrazov vrátane
+rezervy je 2,15 GiB; aktuálne meranie mu vyhovuje. To nepotvrdzuje prevádzkovú
+pripravenosť: chýba dedikovaný izolovaný worker, migrácie 002–012 a nové nastavenia.
+Na VPS sa obrazy nenačítali, nič sa nemazalo ani nenasadzovalo.
+
+V novom Lovable live preview sa zobrazil skutočný Publish dialóg a prešlo
+existujúce Google prihlásenie; Hono, modely a publish readiness zatiaľ hlásia
+nedostupnosť. Cloud má názov `HONO_BASE_URL`, ale chýba `HONO_BASIC_AUTH`; hodnoty
+Secrets sa nečítali. Stripe read-only inventúra potvrdila existujúce testové Pro
+ceny 29 €/mesiac a 290 €/rok, no žiadny aktívny default Customer Portal. Platby
+ostávajú vypnuté. Lovable už pred prenosom ukazoval 0 dostupných kreditov; agent
+neodoslal AI prompt ani AI Build a nepotvrdzuje zachovanie historickej rezervy 30.
 
 ## 📁 Štruktúra repa
 

@@ -1,0 +1,11 @@
+
+ RUN  v5.0.4 <backend-workspace>
+
+
+ Test Files  84 passed | 6 skipped (90)
+      Tests  1115 passed | 189 skipped (1304)
+   Start at  21:33:52
+   Duration  44.02s (tests 48%, import 19%, environment 19%, transform 6%, setup 6%, worker 1%)
+
+    Isolate  90 workers spawned · ~149ms startup each (spawn + environment, per file)
+             at least ~13.28s faster with isolate: false — reuses workers across files instead of one per file

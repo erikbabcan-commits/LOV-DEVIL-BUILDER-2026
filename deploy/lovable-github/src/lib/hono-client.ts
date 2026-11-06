@@ -8,11 +8,14 @@ export async function honoFetch(
     body?: unknown;
     signal?: AbortSignal;
     expectedUserId?: string;
+    expectedAccessToken?: string;
   } = {},
 ) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (init.expectedUserId && data.session?.user.id !== init.expectedUserId)
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (init.expectedAccessToken && token !== init.expectedAccessToken)
     return Response.json({ error: "unauthorized" }, { status: 401 });
   const headers: Record<string, string> = { accept: "application/json" };
   if (token) headers["authorization"] = `Bearer ${token}`;
@@ -23,5 +26,6 @@ export async function honoFetch(
     body: init.body !== undefined ? JSON.stringify(init.body) : null,
     signal: init.signal ?? null,
     credentials: "omit",
+    cache: "no-store",
   });
 }

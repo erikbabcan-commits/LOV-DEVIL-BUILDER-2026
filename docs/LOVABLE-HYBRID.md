@@ -1,12 +1,57 @@
 # Lovable UI + Cloud + Hono
 
-WS-18 pridáva billing do hlavného cookie klienta a Hono (default OFF, iba
-sandbox); Lovable billing proxy sa týmto nerozširuje. Hostovaný ani lokálny
-Lovable zdrojový overlay sa nemení. Hlavné lokálne overenie:1001 passed/157
-skipped a135 natívnych PG scenárov na každej verzii; detaily WS-18-BILLING.md.
-Pri lokálnom overovaní je5177 starší hlavný frontend, nie Lovable UI. Skutočný
-Lovable frontend zostáva v samostatnom `../lovable-github-local`; postupy a
-hosted aktivačné limity nižšie tým nie sú nahradené.
+Aktuálny lokálny prírastok [WS-19](WS-19-PUBLISH-BILLING.md) prepája moderné
+Lovable UI so skutočným statickým Publish a existujúcim Hono billingom. Publish
+posiela iba potvrdený výber vlastného serverového projektu/revízie/snapshotu;
+Cloud BFF → Hono job → compiler vytvorí nemenné HTML na samostatnom verejnom
+listeneri. Nová URL sa ukáže až po potvrdení artefaktu. Oddelená hostname, presný
+Host a CSP opaque sandbox oddeľujú verejný kód od aplikácie; sieťové API sú zakázané.
+
+Moderný BillingPanel používa presne GET billing a POST checkout/portal. Identita
+sa overí cez Cloud JWT a explicitnú väzbu na interné userId; neskoré odpovede a
+receipt strážia účet, token aj režim. `BILLING_MODE=test|live` kontroluje provider
+dáta a migrácia 012 pripína DB na jedno prostredie. Výmena testového kľúča za live
+nepremení uložené testové nároky na platené. Read-only preflight má iba explicitné
+DB čítanie a voliteľné GET Stripe účtu/cien, bez mutácií.
+
+**Publish aj billing sú default OFF a produkčný Cloud tok sa neaktivoval.**
+Lokálny browser už overil skutočný compiler/artefakt/HTTP 200 aj vykreslený React,
+syntetický Checkout a podpísaný SDK webhook → Pro s oddeleným Bob účtom Free,
+bez JS chýb. Stripe hranica a identity sú testovacie; neprebehla platba. Finálne
+brány WS-19 prešli: 1 076/181 main, 159/159 PG na každej verzii, 175/175 moderné
+UI, 21/21 Docker a 22/22 React E2E; typy a buildy zelené. Podrobný
+[dôkaz](../deploy/lovable-github/proof/PUBLISH-BILLING-VERIFICATION.json) uvádza
+rozsah testovacích hraníc a všetky obmedzenia.
+
+Produkčný overlay je prenesený cez privátny frontend repozitár
+[`erikbabcan-commits/vorkeeei`](https://github.com/erikbabcan-commits/vorkeeei),
+merge PR #1 `f7e3361` a refresh `96751c31`, s rovnakým overeným stromom `7f9cd337`.
+Obsahuje 41 produkčných súborov plus automatický route tree; testy/QA zostávajú
+lokálne. Porovnanie zdrojov malo 0 konfliktov, novší README sa zachoval.
+Viditeľné celé obsahy TopBar a ForgePublish majú presné SHA overlay.
+
+Nové Lovable live preview po oficiálnom reštarte zobrazilo skutočný Publish
+dialóg; existujúci Google login prešiel. Hono/modely/publish readiness sú
+nedostupné. V Cloud je názov `HONO_BASE_URL`, ale chýba `HONO_BASIC_AUTH`;
+hodnoty Secrets sa nečítali. Verejný `https://vorkeeei.lovable.app/` ešte nebol
+znovu publikovaný. Žiadna aplikácia sa novým tokom nepublikovala.
+
+Tri amd64 obrazy sú pripravené lokálne a odhad načítania 2,15 GiB vyhovuje
+read-only meraniu VPS o 19:07 UTC: 91 % disku, 3,50 GiB voľných. Dedikovaný
+izolovaný worker, migrácie 002–012 a nové nastavenia ešte chýbajú. Obrazy sa na
+VPS nenačítali a produkcia sa nemenila. [Prevádzkový dôkaz](../deploy/lovable-github/proof/PUBLISH-BILLING-ROLLOUT.json)
+uvádza presné odtlačky a hranice overenia.
+
+Workspace už pred prenosom ukazoval 0 dostupných kreditov. Agent neodoslal AI
+prompt ani AI Build; historickú 30-kreditovú rezervu nemožno potvrdiť ako aktuálnu.
+Hlavný frontend v `src/` a moderný Lovable frontend sú samostatné entrypointy;
+používateľ určil Lovable pre frontend a VPS pre backend.
+
+## Historické fázy pred WS-19
+
+Nasledujúce počty a rozsahy opisujú fázu, v ktorej boli namerané. WS-18 pridával
+iba sandbox billing do hlavného cookie klienta; nový Cloud billing bridge a
+explicitný test/live režim pribudli až vo WS-19.
 
 Aktualizácia WS-17: hlavný frontend má samostatne opravený CodeMirror, privátne
 obnoviteľné koncepty a immutable ručné uloženie/Ctrl+S s kompiláciou a CAS
@@ -57,14 +102,14 @@ Aktuálny kontrolovaný export je vedľa repozitára v `../lovable-hybrid-202611
 Nie je to synchronizovaný Git checkout. Lovable konektor má prístup k inému účtu;
 správny projekt sa kontroloval cez prihlásené relácie prehliadača.
 
-Kreditový limit používateľa: neklesnúť pod 30. Posledný overený zostatok 32,8;
-ďalšie AI generovanie ani hosted buildy sa nespúšťajú. Existujúce automatické
-dobíjanie pri 25 kreditoch nebolo zapnuté ani zmenené touto prácou. Lokálne
-overovanie exportu nespotrebúva Lovable kredity.
+Historický kreditový limit používateľa bol neklesnúť pod 30; zostatok 32,8 je
+staršie meranie. Novšia UI kontrola pred prenosom WS-19 ukázala 0 dostupných
+kreditov. Agent neodoslal AI prompt ani AI Build; globálna spotreba účtu a
+zachovanie rezervy sa netvrdia. Automatické dobíjanie sa touto prácou nemenilo.
 
 ## Autorita dát a identity
 
-- Hono: projekty, workspace, immutable snapshoty, CAS, sandbox, AI kvóty.
+- Hono: projekty, workspace, immutable snapshoty, CAS, sandbox, AI kvóty, publish joby/artefakty a billing oprávnenia.
 - Lovable Cloud: používateľské prihlásenie, súkromné prílohy a auth predvoľby.
 - TanStack server: autentifikovaná proxy s pevným zoznamom ciest; browser nepozná
   infra credentials. Žiadne duplicitné tabuľky projektových verzií v Cloud.
@@ -94,7 +139,8 @@ default startup ich nezapína. Explicitné runtime prepínače a read-only prefl
 sú pripravené v `docs/GITHUB-ACTIVATION.md`. Majú oddelené routy, overeného Cloud ownera,
 serverový bridge key a HttpOnly nonce cookie; generický API kontrakt nižšie
 ani cookie GitHub flow sa nerozširujú. Detaily v `docs/GITHUB-CONNECTOR.md`.
-BFF ani callback UI zatiaľ nie sú nahrané a zapojené v hostovanom Lovable.
+BFF a callback UI sú vo WS-19 prenesené do hostovaného editora; serverová
+konfigurácia a skutočný Cloud GitHub export ešte nie sú overené.
 Lokálny overlay už obsahuje aj export uloženého projektu/historickej verzie
 cez oddelené prepare/confirm/status/review/cancel/reconcile endpointy. Obnovená príprava
 znovu overí súbory a vyžaduje čerstvý súhlas; zrušenie či expirácia uvoľní názov
@@ -122,6 +168,12 @@ Zoznam ciest je v `shared/honoBridge.ts`:
 | Metóda a cesta | Vstup / výsledok |
 |---|---|
 | GET `/api/auth/me` | `{user:{id,email,plan},quota}` |
+| GET `/api/publish` | skutočná dostupnosť statického publikovania |
+| POST `/api/publish` | `{requestId,projectId,expectedRevision,snapshotId,publicConsent:true}` → job building/published/failed |
+| GET `/api/publish/:requestId` | vlastný job, chyby a potvrdená verejná URL |
+| GET `/api/billing` | overený plán, režim a dostupné ceny/akcie |
+| POST `/api/billing/checkout` | `{requestId,interval:month|year}` → overené Stripe presmerovanie |
+| POST `/api/billing/portal` | `{requestId}` → overené Stripe Portal presmerovanie |
 | GET `/api/project-storage` | vlastná kapacita účtu bez owner/query vstupu |
 | GET `/api/projects?deleted=0&cursor=<id>` | `{projects:[{id,title,revision,updatedAt,deletedAt}],nextCursor}` |
 | GET `/api/projects/:id` | `{id,revision,workspace}` |
@@ -139,6 +191,9 @@ restore je možný 30 dní. `POST /api/projects`, PUT a samostatná snapshots ro
 neexistujú. Workspace schéma je `shared/projectSchema.ts`, súbory majú `name`,
 snapshotové zdroje `sourceFiles` sú JSON string. Sandbox vstup používa `path`.
 Limit projektového requestu je 8 000 000 bajtov, 40 súborov a 100 snapshotov.
+Publish má vlastnú UUID schému v `shared/publish.ts` a neakceptuje HTML ani cieľovú
+URL z browsera. Billing webhook nie je súčasť Cloud allowlistu a zostáva samostatnou
+serverovou route s overením pôvodných bajtov a SDK podpisu.
 
 Proxy musí overiť prihlásenie na serveri; vziať iba overený pôvodný user token;
 zahodiť cudzie cookies a infra hlavičky; povoliť len uvedené metódy/cesty a
@@ -156,21 +211,25 @@ nasadená TanStack route: kód a runtime napojenie v Lovable sa overujú osobitn
 
 ## Aktivačné kroky, ktoré ešte zostávajú
 
-1. Cloud a región Europe (Ireland) sú overené; login aplikácie funguje.
+1. Pripraviť dedikovaný izolovaný worker a čerstvú restore-verified zálohu. Tri amd64 obrazy sú hotové mimo VPS; odhad načítania 2,15 GiB vyhovuje meraniu 3,50 GiB voľných o 19:07 UTC, ale bezprostredne pred nasadením treba nový resource gate.
 2. Discovery issuer a asymetrický JWKS sú overené. Pri reálnom bridge teste ešte
    overiť podpis a audience skutočnej používateľskej relácie; nelogovať JWT.
-3. Proxy aj login sú uložené v Lovable. Potvrdiť serverový `HONO_BASE_URL` a
-   aktuálny hosted build; lokálny build sám nedokazuje nasadenie. Cloud migrácie
-   vykonáva Lovable. Projektové CRUD je napojené v lokálnej WS-14 kópii;
-   hostované UI ešte tento prírastok neobsahuje.
-4. Pripraviť nasadenie Hono adaptéra a migrácie 003, potom explicitne previazať
+3. Proxy, CRUD, editor, Publish a billing zdroje sú prenesené do Lovable cez Git.
+   Nové live preview a existujúci Google login sú overené; Hono je nedostupné.
+   Názov `HONO_BASE_URL` je prítomný, chýba serverový `HONO_BASIC_AUTH`. Hodnoty
+   Secrets sa nečítali. Cloud migrácie vykonáva Lovable; lokálny build ani UI
+   prenos nenahrádzajú overenie serverového workflow a verejnej aktualizácie.
+4. Pripraviť nasadenie Hono adaptéra a potrebných migrácií vrátane 011/012, potom explicitne previazať
    preukázaný Cloud subject s účtom používateľa. JWT z browsera sa neloguje.
 5. Používateľ uloží existujúce Basic Auth údaje priamo do serverových Secrets
    Lovable ako `HONO_BASIC_AUTH`; hodnotu nesmie posielať do chatu. Pevný dvojitý
    transport vyššie zachová Nginx aj samostatnú Cloud identitu. Neukladať ho do
    VITE_* ani do klienta. Tento Secret ešte nie je nakonfigurovaný.
 6. Skutočný test: Cloud login → Hono `/auth/me` → vlastné projekty → CAS save →
-   sandbox; cudzí účet nič nevidí. Až tento test potvrdí živé prepojenie.
+   sandbox; cudzí účet nič nevidí. Osobitne zapnúť a overiť oddelený HTTPS publish
+   host a vlastný immutable snapshot. Pre billing po read-only preflighte pripraviť
+   skutočný sandbox nákup/cancel a doručovanie webhookov. Live platby vyžadujú
+   samostatné rozhodnutie a DB s vhodným prostredím; zatiaľ sa nezapínajú.
 
 Lokálne zapnutie vyžaduje `AUTH_ENABLED=1`, DB, JWT secret a presný
 `CLOUD_AUTH_ISSUER`; bez issuer zostáva Cloud vstup vypnutý. Nastavenie issuer
@@ -211,9 +270,10 @@ Toto overenie nenahrádza živý bridge so skutočným Cloud issuerom a účtom.
 
 Presný uložený Lovable export: 36/36 testov, TypeScript a build klienta,
 SSR aj Workers prešli lokálne. Verejné assety neobsahovali serverové proxy
-markery ani `HONO_BASIC_AUTH`. Stav najnovšieho hosted buildu nebol preukázaný.
-GitHub tlačidlo v Lovable stále iba zobrazuje ukážkovú správu; návrh reálneho
-napojenia a lokálna oprava izolácie účtov sú v `docs/GITHUB-CONNECTOR.md`.
+markery ani `HONO_BASIC_AUTH`. Toto je historické overenie exportu. Vo WS-19
+je nový zdroj a reálny Publish dialóg preukázaný v hostovanom live preview;
+verejná aktualizácia a skutočný GitHub export ešte nie sú potvrdené. Kontrakt
+napojenia a izolácia účtov sú v `docs/GITHUB-CONNECTOR.md`.
 
 Dokumentácia použitá pri návrhu:
 - https://docs.lovable.dev/features/cloud
