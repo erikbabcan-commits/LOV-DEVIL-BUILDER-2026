@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "runtimeCommit": "186eba1223dad2f0a081f2aa524feb5508a144fa",
+  "note": "Recovery-phase logs only. Existing release/review/infra proofs remain immutable. Hashes cover source/log bytes, never identity data.",
+  "logs": {
+    "deploy/lovable-github/proof/logs/recovery-main.txt": {
+      "sourceLogSha256": "b1bc5ed94adfc5f805c5f322dcf3a4f97443f37454dcee9ba058b48dcd9f6440",
+      "sha256": "8440ea4970c945d6fb46d944143b9c369e4885139c4e2e679b068342dd8f1089",
+      "bytes": 441,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-pg16.txt": {
+      "sourceLogSha256": "f470e2aa5381387e0ded79d758860f7f3cffe048aaf0c2f8b7debe30fa4d26ee",
+      "sha256": "2f424f026fff8616b3b11d3760b699bfd2f4b9d23fe54df3b4e05295390b451a",
+      "bytes": 384,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-pg18.txt": {
+      "sourceLogSha256": "55772c291df6f0b994d5191908a56165de303dbe987b1fc156ccdc41ac8eef24",
+      "sha256": "135d2a11094ad96ea21cf23ae1069f1dbd43da5cce5b29f3ac40bf23548da21f",
+      "bytes": 383,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-types.txt": {
+      "sourceLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-lint.txt": {
+      "sourceLogSha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645",
+      "sha256": "127dc7b555aefe36b88c19085dc1b157a21aaf5e0b6cf9b979f29d014fc1b41b",
+      "bytes": 4260,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-build.txt": {
+      "sourceLogSha256": "422302e025f7f2beb97c5c4f3e5c5d771d6acc05e6f0b7162c5474330bcf91cb",
+      "sha256": "2b69de212e57aaebade2017f6d07776bb12f95032151b555b55edc3b066d35ec",
+      "bytes": 2254,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-docker.txt": {
+      "sourceLogSha256": "a53e46fa5fe95806f551e6095f67fdace4d2c9b93c54422fc2a4f612b3665752",
+      "sha256": "6d406b66f75c804463568d56f1fd4bfef0b580ed94777c76ff2c4999279045ca",
+      "bytes": 155,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-modern-tests.txt": {
+      "sourceLogSha256": "8f45b1d1e2584280bd9e090aa37d7c5410a25ea82677f63162af8fa9343bcf6a",
+      "sha256": "54072829bf98fdf85811a21956d96cf58e66bc38ee705191ba707736c5ce5839",
+      "bytes": 213,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-modern-types.txt": {
+      "sourceLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-modern-lint.txt": {
+      "sourceLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/recovery-modern-build.txt": {
+      "sourceLogSha256": "18f8b1cbf845f5d24844ebe7011e71279ad244e6058534e68c272ab4d3239d10",
+      "sha256": "e91f16634190860070fbee1c6bcdb98a6d6bc8f6e4ec0bbce129d1f95eb79651",
+      "bytes": 12479,
+      "redactions": [
+        "local workspace/home/temp paths replaced; email/credential/token patterns excluded; terminal escape and trailing whitespace normalized"
+      ]
+    }
+  }
+}

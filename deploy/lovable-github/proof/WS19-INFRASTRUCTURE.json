@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "documentedAt": "2026-11-06T20:33:30.440269+00:00",
+  "status": "rootless daemon, reviewed worker kernel fixture, dedicated TLS ingress and exact-lineage renewal hook verified; new application runtime not activated",
+  "scope": "Sanitized technical infrastructure summary; no source, account or runtime changes are made by this documentation step.",
+  "rootlessDaemon": {
+    "status": "own_rootless_daemon_ready",
+    "serviceUid": 987,
+    "reviewedInstallerSha256": "a912ec08620b98097fb47be56e828430b8dba1ed7472dd2afcabac528a159806",
+    "preApplyGuardChecksPassed": 79,
+    "verification": {
+      "driver": "overlay2",
+      "cgroupDriver": "systemd",
+      "cgroupVersion": "2",
+      "security": [
+        "name=seccomp,profile=builtin",
+        "name=rootless",
+        "name=cgroupns",
+        "name=no-new-privileges"
+      ],
+      "memory": true,
+      "swap": true,
+      "cpu": true,
+      "pids": true,
+      "ownSliceLimits": {
+        "memoryMaxBytes": 671088640,
+        "memorySwapMaxBytes": 0,
+        "pidsMax": 512,
+        "cpuQuota": 75000,
+        "cpuPeriod": 100000
+      }
+    },
+    "privateLocalSocket": true,
+    "globalDaemonUnchanged": true,
+    "runnerTokenCreated": false,
+    "meaning": "An isolated rootless daemon is running; it is not yet the integrated Hono application/runner deployment."
+  },
+  "actualReviewedWorker": {
+    "status": "reviewed_worker_loaded_kernel_verified",
+    "image": {
+      "actualImmutableId": "sha256:b6272b9dbfb778a1cb6d7a243faca591379825cd64648ba35ed6106b33296b9a",
+      "configId": "sha256:b6272b9dbfb778a1cb6d7a243faca591379825cd64648ba35ed6106b33296b9a",
+      "localManifestId": "sha256:68307ef2e632ebd566534f86b40c52bdd02aab7c01e050f4d7aafb686251f033",
+      "diffIdsVerified": true
+    },
+    "imageIdentityMeaning": "The target Docker engine reports its config digest b627; this is mapped to the local manifest digest683 through verified layer DiffIDs. This receipt proves only the worker image was loaded, not the API/runner images.",
+    "buildLineage": "Reviewed worker from the historical9e49 image bundle; this does not attest the upcoming storage-phase013 application runtime.",
+    "kernel": {
+      "memoryMax": 268435456,
+      "swapMax": 0,
+      "pidsMax": 128,
+      "cpuQuota": 50000,
+      "cpuPeriod": 100000,
+      "capEff": 0,
+      "noNewPrivs": 1,
+      "seccomp": 2,
+      "rootReadOnly": true,
+      "tmpNoexec": true,
+      "tmpNosuid": true,
+      "tmpNodev": true,
+      "tmpSizeBytes": 33554432,
+      "netnsDifferent": true,
+      "ipv4Routes": [],
+      "requestedUser65532MappingVerified": true
+    },
+    "compilePassed": true,
+    "reactHtmlMarkerMatched": true,
+    "buildResultValidation": "Strict Python shape/bounds/marker checks; TypeScript parseBuildResult not invoked",
+    "ownFixtureCleanedUp": true,
+    "cleanupScope": "Only the fixture created for this verification; its name, full container ID, host PID and cgroup path are excluded.",
+    "globalDaemonAndExistingApiUnchanged": true,
+    "honoDatabaseSchemaOrNginxMutatedByWorkerStep": false,
+    "existingImagesRemoved": false,
+    "postWorkerResources": {
+      "freeBytes": 3354742784,
+      "memoryAvailableBytes": 1045778432
+    }
+  },
+  "dedicatedHttpsIngress": {
+    "status": "own_publish_https_configured",
+    "hostname": "published.2.29.52.59.sslip.io",
+    "reviewedInstallerSha256": "5815a7df3d432f6666c6b5592a00d8d7f4bf55bb760df063607a6be00569e925",
+    "preApplyGuardChecksPassed": 25,
+    "certificateObservation": {
+      "source": "lov-publish-external-verification.json",
+      "tlsVerifiedWithDefaultTrustStore": true,
+      "subjectAltName": [
+        "published.2.29.52.59.sslip.io"
+      ],
+      "expiresAtUtc": "2027-02-04T19:25:04Z",
+      "recordedAt": "2026-11-06T20:29:11.794197+00:00",
+      "observation": "Successful external handshake and HTTP check observed earlier in this same active run; exact check timestamp was not separately captured.",
+      "method": "Python ssl.create_default_context hostname handshake and urllib HTTPS request from Mac; no insecure option"
+    },
+    "rootHttpObservation": {
+      "source": "same external observation receipt",
+      "status": 404,
+      "basicAuthChallenge": false,
+      "setCookie": false,
+      "recordedAt": "2026-11-06T20:29:11.794197+00:00",
+      "exactCheckTimestampSeparatelyCaptured": false
+    },
+    "certificateIssuedUsingExistingRegistration": true,
+    "existingLovSiteUnchanged": true,
+    "apiOrDockerChanged": false,
+    "intendedLocalUpstream": "127.0.0.1:8791",
+    "applicationListenerStarted": false,
+    "publishedArtifactHttp200Verified": false,
+    "renewalHook": {
+      "status": "own_lineage_hook_installed_guard_verified_timer_active",
+      "installedOrVerifiedByThisReceipt": true,
+      "reviewedInstallerSha256": "11f252337eed2c1cae622d08d14c73de5a76e4a50fd3dacc22f0464ac0ed0e03",
+      "installedHookSha256": "5644d675f28333c3297a6cdb55e670ccbed5e2a1b6d0a66a0b6962df01fcc73e",
+      "preApplyGuardChecksPassed": 31,
+      "scope": "Directory deploy hook with an exact match for the dedicated publish certificate lineage; other lineages return0 without commands.",
+      "guardDryRuns": [
+        {
+          "scope": "own publish lineage",
+          "matched": true,
+          "commandsExecuted": 0
+        },
+        {
+          "scope": "existing application lineage",
+          "matched": false,
+          "commandsExecuted": 0
+        },
+        {
+          "scope": "empty lineage",
+          "matched": false,
+          "commandsExecuted": 0
+        }
+      ],
+      "timer": {
+        "enabled": true,
+        "active": true,
+        "nextElapseUtc": "2026-11-07T09:07:41Z"
+      },
+      "renewalConfigUnchanged": true,
+      "actualAcmeRenewalTested": false,
+      "actualNginxReloadDuringGuardDryRuns": false,
+      "certificateOrAccountChanged": false,
+      "basicAuthChanged": false,
+      "meaning": "Installed exact-lineage dispatch and scheduled timer are verified. An ACME renewal handshake and serving a newly renewed certificate were not tested."
+    },
+    "meaning": "A valid HTTPS certificate and root404 prove the dedicated ingress, not a published application or a functioning Hono Publish service."
+  },
+  "activationGates": {
+    "newApplicationApiOrRunnerLoaded": false,
+    "existingApiPort": 8787,
+    "existingApiUnchanged": true,
+    "productionMigrations002Through012Present": false,
+    "upcomingMigration013": "storage phase in local development; not applied",
+    "newBasicTransportAccountCreated": false,
+    "newBasicTransportAccountApprovalPending": true,
+    "newCloudIdentityBindingApplied": false,
+    "newBillingOrStripePaymentPerformed": false,
+    "publicFrontendRepublished": false,
+    "newPublishedApplicationServed": false,
+    "milestonesM1ThroughM6Closed": false
+  },
+  "codeReview": {
+    "pullRequest": "https://github.com/erikbabcan-commits/LOV-DEVIL-BUILDER-2026/pull/22",
+    "reviewedHead": "5ef32afc81b54fb977040e4576e5081e1e9516a8",
+    "state": "open; not merged by this task",
+    "originalFourThreadsResolved": true,
+    "newMajorThreadsOpen": [
+      {
+        "id": 4497120852,
+        "area": "server receipt-independent expired-build recovery"
+      },
+      {
+        "id": 4497120864,
+        "area": "bounded finalization database capacity"
+      },
+      {
+        "id": 4497120869,
+        "area": "main UI pending receipt across source changes"
+      }
+    ],
+    "localMainUiFix": {
+      "status": "locally verified, not yet committed/pushed at documentation time",
+      "unitTestsPassed": 29,
+      "types": "PASS",
+      "targetedLint": "PASS",
+      "files": {
+        "src/features/publish/PublishDialog.tsx": {
+          "sha256": "9d9dbf9b9f6f2655c3b6b89a1e325684350f2cbcc0ac19c7966174d900148a0a",
+          "bytes": 12154
+        },
+        "tests/unit/publish-dialog.test.tsx": {
+          "sha256": "83b768f5f083839ad79bc8051f187c4af15f2beefdd862fe08ccd8c89a6b56ea",
+          "bytes": 18217
+        }
+      }
+    },
+    "backendStoragePhase013": "in progress; upcoming full gates not yet frozen/run"
+  },
+  "historicalFullGates": {
+    "runtimeCommit": "9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2",
+    "documentationHead": "5ef32afc81b54fb977040e4576e5081e1e9516a8",
+    "proof": "PR22-REVIEW-FIXES.json",
+    "main": {
+      "passed": 1101,
+      "skipped": 183
+    },
+    "postgresPerVersion": 161,
+    "modernUiPassed": 178,
+    "meaning": "Preserved historical verification before the next three Major fixes/storage phase013; not the upcoming final source gate."
+  },
+  "backlog": {
+    "taskIdsBefore": 85,
+    "taskIdsAfter": 85,
+    "originalTaskRowsUnchanged": true,
+    "droppedIds": []
+  },
+  "sourceReceipts": [
+    "lov-rootless-vps-apply.json",
+    "lov-reviewed-worker-apply.json",
+    "lov-publish-https-apply.json",
+    "lov-publish-external-verification.json",
+    "lov-publish-renew-hook-apply.json"
+  ],
+  "privacy": "Personal identities, emails, credential values/digests, private-plan/billing-banner data, host PID, container UUID and cgroup/socket filesystem paths are excluded."
+}

@@ -1,0 +1,8 @@
+
+ RUN  v5.0.4 <backend-workspace>
+
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  21:35:26
+   Duration  34.11s (tests 99%, import 1%)

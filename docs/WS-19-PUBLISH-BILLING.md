@@ -13,11 +13,42 @@ a `publicConsent:true`. Klient neposiela zostavené HTML ani cieľovú URL. Back
 pod zámkom vlastníka zachytí uložené zdroje, validuje ich a spustí existujúci
 izolovaný compiler. Migrácia `011_publish.sql` uchováva job a dôkazy artefaktu.
 
-Výsledok má stav `building`, `published` alebo `failed`. Nová verejná URL sa
-zobrazí až po atomickom uložení súboru a potvrdení DB záznamu. Opakovanie UUID
-zachová presný výber. Opuštený build sa po časovo obmedzenom lease obnovuje cez
-rovnaké UUID s claim/CAS ochranou; starý worker nesmie prepísať novší výsledok.
-UI chráni zmenu účtu/projektu/verzie a umožňuje zistiť neistý výsledok.
+Výsledok má stav `building`, `published` alebo `failed`. Opakovanie UUID
+zachová presný výber; claim/CAS bráni starému workeru prepísať novší stav.
+Verejná URL vzniká iba po včasnom dokončení zápisu, presne validovanom receipt
+(SHA-256 a počet bajtov) a potvrdení DB stavu `published`. UI umožňuje zistiť
+neistý výsledok pri zachovaní identity účtu, projektu a pôvodného výberu.
+
+### Trvalý storage protokol — migrácia 013
+
+Krátke transakcie pod zámkom vlastníka majú `lock_timeout=1 s` a
+`statement_timeout=2 s`; nevykonávajú filesystem I/O. Nový job vstupuje do
+`compiling` s rezerváciou maximálnej veľkosti artefaktu. Pri status požiadavke
+vlastníka aj novom prijímaní sa `compiling` starší než 120 s uzavrie ako
+`failed/empty` s 0 bajtmi, aj keď klient stratil receipt. Rovnaké UUID tým
+nespúšťa nový build. Pred prvým I/O musí byť samostatne potvrdená DB fáza
+`writing`; až potom sa smie fyzicky zapisovať.
+
+Všetky inštancie store v procese zdieľajú filesystem gate: najviac **2 aktívne
+operácie**, **8 čakajúcich**, deadline najviac **5 s** vrátane čakania. Slot sa
+uvoľní až po skutočnom skončení práce. Zrušená čakajúca operácia sa neskôr
+nesmie spustiť; samotný timeout bežiaceho I/O nepotvrdzuje jeho zastavenie.
+Neistý `writing` preto ponecháva plnú rezerváciu. Potvrdené neskoré fyzické
+uloženie smie skončiť iba ako `failed/retained` so skutočným počtom bajtov,
+bez verejnej URL. `legacy_unknown` z existujúcich záznamov vyžaduje operátorské
+obnovenie; kapacita sa z neho automaticky neuvoľňuje.
+
+Trvalý limit pokusov je prednastavene **20**, vlastná konfigurácia najviac
+**100**. Počítajú sa všetky joby vrátane neúspešných a prázdnych. Retencia,
+vyčistenie osirelých súborov a bezpečné obnovenie neurčitých záznamov zostávajú
+otvorenou operátorskou úlohou; diagnostické meranie súborov nepatrí do owner
+transakcie a nesmie uvoľniť živého writera.
+
+Kontrakt vychádza z [PublishService](../server/publish/service.ts),
+[ArtifactStore](../server/publish/artifacts.ts),
+[FilesystemGate](../server/publish/storageGate.ts),
+[limitov konfigurácie](../server/publish/config.ts) a
+[migrácie 013](../server/migrations/013_publish_storage_phase.sql).
 
 Verejné HTML servuje **samostatný listener**, ktorý neobsahuje aplikáciu ani API.
 Vyžaduje presný Host, inú hostname než editor a v produkčnej konfigurácii HTTPS.
@@ -34,7 +65,7 @@ neúspešnými pokusmi a osirelými artefaktmi. Prednastavená disková rezerva 
 
 Zapojenie je default OFF:
 
-- `PUBLICPUBLISH_ENABLED=1`, existujúce `AUTH_ENABLED=1` a overená DB migrácia 011;
+- `PUBLICPUBLISH_ENABLED=1`, existujúce `AUTH_ENABLED=1` a overená schéma migrácií 001–013;
 - `PUBLICPUBLISH_BASE_URL`: presná HTTPS root URL verejného hostingu;
 - `PUBLICPUBLISH_APP_URL`: presná root URL Lovable aplikácie, iná hostname;
 - `PUBLICPUBLISH_ARTIFACT_DIR`: absolútna cesta mimo repozitára na trvalom volume;
@@ -42,8 +73,9 @@ Zapojenie je default OFF:
 - funkčný izolovaný sandbox runner. Host compiler sa povoľuje iba v explicitnej test fixture.
 
 `deploy/compose.publish.yaml` je voliteľný vzor volume/loopback portu;
-`deploy/ops/publish-nginx.conf.template` je vzor oddeleného HTTPS hosta. Nie sú
-nainštalované na VPS. Existujúca produkcia používa vlastné nginx/lov-net zapojenie;
+`deploy/ops/publish-nginx.conf.template` je vzor oddeleného HTTPS hosta.
+Samostatný TLS vstup a izolovaný worker už majú vlastný prevádzkový dôkaz;
+nový aplikačný runtime ešte nie je aktivovaný. Existujúca produkcia používa vlastné nginx/lov-net zapojenie;
 ukážkový compose sa cez ňu nesmie spustiť bez prispôsobenia. Globálny existujúci
 startup guard pre `NODE_ENV=production` sa touto funkciou neodstraňuje.
 
@@ -90,7 +122,19 @@ MCP prístup k Stripe sandboxu ostáva iba na čítanie; táto práca ho nerozš
 
 ## Overenie a nasadenie
 
-Finálne lokálne brány: **1 076 passed / 181 skipped main**, **159/159 PostgreSQL
+Aktuálna implementácia 013 má nové úplné lokálne gates PASS: **1 115 passed /
+189 skipped main**, PostgreSQL 16.15 aj 18.6 **167/167** s cleanup, Docker
+**21/21**, moderné UI **188/188**, hlavné/strict typy, lint a oba lokálne buildy.
+Dôkaz: [PR22-RECOVERY-VERIFICATION.json](../deploy/lovable-github/proof/PR22-RECOVERY-VERIFICATION.json).
+Ide o lokálne overenie runtime 186eba1; nový backend ani schema na VPS tým nie sú aktivované.
+Produkčná DB má podľa doterajšieho auditu iba schému 001; tento release potrebuje
+kontrolovaný prechod cez **001–013**, čerstvú restore-verified zálohu a nové
+prevádzkové overenie. Billing pin migrácie 012 sa nemení a billing zostáva OFF.
+Aktuálnu pripravenosť infraštruktúry opisuje
+[WS19-INFRASTRUCTURE.json](../deploy/lovable-github/proof/WS19-INFRASTRUCTURE.json).
+
+Nasledujúce brány sú **historické, pred storage protokolom 013**:
+**1 076 passed / 181 skipped main**, **159/159 PostgreSQL
 16.15 aj 18.6**, **175/175 moderné UI**, **21/21 Docker** a **22/22 React E2E**.
 Prešli hlavné/strict typy, oba produkčné buildy, lint (0 chýb / 33 existujúcich
 upozornení) a syntaktická kontrola nginx vzorov bez TLS certifikátov. Hlavný beh
@@ -108,6 +152,11 @@ Docker happy-path navyše prešiel PublishService → skutočný IsolatedExecuto
 private runner → Docker worker → trvalý artefakt → verejné HTTP 200; kontajnery sa upratali.
 
 ## Nadväzujúci hostovaný prenos a prevádzková pripravenosť
+
+Nasledujúci záznam prenosu, runtime `7f2b923` a kapacity je historický; jeho
+merania a chýbajúce komponenty nevyjadrujú dnešný stav. Novší infra dôkaz je
+[WS19-INFRASTRUCTURE.json](../deploy/lovable-github/proof/WS19-INFRASTRUCTURE.json);
+nový backend, schéma 013 a verejné publikovanie aplikácie zostávajú neaktivované.
 
 Frontend je synchronizovaný cez privátny
 [`erikbabcan-commits/vorkeeei`](https://github.com/erikbabcan-commits/vorkeeei).

@@ -1,7 +1,8 @@
 # 🔥 Forge — kompletný backlog
 
-**Aktualizované:** 6. 11. 2026, štyri review opravy PR #22 overené na runtime `9e49e0e`; frontend PR #2 merged a Git sync potvrdený v Lovable histórii. Backend, migrácie, verejná aktualizácia a platby ešte neaktivované.
-**Základ WS-19:** merge PR #21 · `fce375d05921da665fbdb8a93830937c71df8c38`; `7f2b923` a [pôvodný dôkaz](../deploy/lovable-github/proof/PUBLISH-BILLING-VERIFICATION.json) sú historický stav pred review. **Aktuálne review overenie:** `9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2` · [nový dôkaz](../deploy/lovable-github/proof/PR22-REVIEW-FIXES.json).
+**Aktualizované:** 6. 11. 2026, recovery/storage fáza 013 v runtime `186eba1223dad2f0a081f2aa524feb5508a144fa` má nové úplné lokálne gates PASS. Rootless worker, oddelený HTTPS vstup a renewal guard sú overené na VPS; nové API, migrácie, Cloud Basic transport, verejné republish a skutočné Stripe platby zostávajú neaktivované.
+**Základ WS-19:** merge PR #21 · `fce375d05921da665fbdb8a93830937c71df8c38`; `7f2b923` a [pôvodný dôkaz](../deploy/lovable-github/proof/PUBLISH-BILLING-VERIFICATION.json) sú historický stav pred review. **Posledné úplné review overenie (historické, pred fázou 013):** runtime `9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2`, docs head `5ef32af` · [zachovaný dôkaz](../deploy/lovable-github/proof/PR22-REVIEW-FIXES.json). **Aktuálna infra:** [samostatný dôkaz](../deploy/lovable-github/proof/WS19-INFRASTRUCTURE.json).
+**Posledné úplné recovery overenie:** **1 115 passed / 189 skipped main**, **167/167 PostgreSQL16 aj18** s cleanup, **21/21 Docker**, **188/188 moderné UI**, hlavné/strict typy, lint a oba lokálne buildy PASS · [nový dôkaz](../deploy/lovable-github/proof/PR22-RECOVERY-VERIFICATION.json). Backend PR#22 pred novým push/review; frontend [PR#3](https://github.com/erikbabcan-commits/vorkeeei/pull/3) otvorený.
 **Cieľ:** plnohodnotný AI editor s reálnym hostingom a plateným predplatným.
 **Stav:** lokálne overený pilot a nové UI v hostovanom live preview; žiadny z míľnikov M1–M6 nie je uzavretý.
 **Cieľ je znovu aktívny:** pokračujeme podľa pôvodného backlogu. Aktuálna priorita je
@@ -25,7 +26,7 @@ nenahrádzajú prvý úplný produkčný workflow.
 | Billing | Default OFF; explicitný test/live režim s DB pinom, podpísané webhooky, idempotencia, čerstvé DB oprávnenia; Cloud billing BFF a moderný panel | Aktivácia a živé overenie nového toku, skutočné Stripe nastavenie/platba, operátorské reconciliation CLI, dane/faktúry a dunning/refundy |
 | Sandbox a publish | Compile-only izolácia; obe UI používajú skutočný statický publish job zo serverového snapshotu do nemenného HTML na oddelenom verejnom listeneri; lokálne HTTP 200 overené | Zapnutie produkčného hostingu, HTTPS/CDN/doména, retencia a rollback; fullstack runtime, HMR, ľubovoľné npm balíčky a produkčná tenant izolácia |
 | Auth | Cookie auth a Cloud Google prihlásenie majú implementované/overené čiastkové toky | Kompletné email verify/reset flow, nasadenie nového hybridu, organizácie a 2FA aplikácie |
-| Prevádzka | Čerstvá záloha úspešne obnovená na overenie; tri nové amd64 obrazy runtime `9e49e0e` majú lokálny build a non-root/read-only smoke PASS. Historický read-only audit o 19:07 UTC: 91 % disku, 3,50 GiB voľných | Oddelený kapacitný plán a read-only dry-run sú zmerané; rootless guard/audit a prípadný inertný staging sa dokončujú. VPS runtime, migrácie a aktivácia neprebehli. Dedikovaný worker, DR/SLA a odložené prevádzkové kroky zostávajú otvorené |
+| Prevádzka | Čerstvá záloha restore-verified; vlastný rootless daemon a reálny kernel-bounded worker s React fixture overené. Oddelený TLS vstup má platný certifikát a root404 bez Basic challenge/cookies | Nové API/runner, migrácie a Cloud transport nie sú aktivované; Nové plné gates fázy 013 prešli; pred aktiváciou zostáva čerstvý resource gate a živé overenie. Skutočný ACME renewal test, DR/SLA a zostávajúce prevádzkové brány sú otvorené |
 
 Hlavný React frontend v `src/` a moderný Lovable frontend sa spúšťajú samostatne.
 Lokálny moderný mirror je v `../lovable-github-local`; prenosný balík je
@@ -35,11 +36,101 @@ je synchronizovaný cez privátny `erikbabcan-commits/vorkeeei`; nové live prev
 overiteľné, verejný `https://vorkeeei.lovable.app/` ešte nebol aktualizovaný. Cloud →
 Hono tok stále vyžaduje serverový Basic transport, identity binding a živé overenie.
 
-### PR #22 — štyri review opravy a aktuálne lokálne overenie
+### Aktuálna infra — rootless worker a TLS, bez nového aplikačného deploymentu
+
+Vlastný rootless Docker daemon na VPS je skutočne READY (technický UID 987,
+overlay2/systemd/cgroupv2). Jeho slice má 640 MiB pamäte, 0 swap, 0,75 CPU a
+limit 512 úloh. Reviewed inštalátor prešiel 79 guard kontrolami; globálny Docker
+ostal nezmenený. Nie je to nové API ani pripojený Hono runner.
+
+Do tohto daemona bol načítaný iba overený worker. Target engine uvádza config
+digest `b6272b9d…`; layer DiffID kontrola ho mapuje na lokálny manifest `68307ef2…`.
+Nejde o tvrdenie, že lokálne obrazy API/runner runtime `9e49e0e` už bežia na VPS.
+Skutočná fixture overila kernel limity 256 MiB/0,5 CPU/pids 128, 0 capabilities,
+no-new-privileges, seccomp, read-only root, samostatnú sieť bez IPv4 routes a
+32 MiB tmpfs s noexec/nosuid/nodev. Mapovanie požadovaného UID 65532 bolo overené.
+React compile marker prešiel a vlastná fixture sa odstránila. Výsledok preverila
+prísna Python kontrola formátu/limitov; nejde o nový celý Hono Publish workflow
+ani o vyvolanie TypeScript `parseBuildResult` v tejto VPS fixture.
+Po tomto kroku bolo nameraných **3 354 742 784 B voľného disku** a
+**1 045 778 432 B dostupnej pamäte**. Staré API na porte 8787 aj globálny daemon
+ostali nezmenené; databáza a schema sa týmto worker krokom nemenili.
+
+Oddelený HTTPS vstup `published.2.29.52.59.sslip.io` má vydaný certifikát.
+Nezávislé externé pozorovanie potvrdilo jediný očakávaný SAN a platnosť do
+**4. 2. 2027 19:25:04 GMT**. Externý výsledok bol následne zapísaný; presný čas samotnej kontroly nebol samostatne zachytený. Root odpovedá 404 bez Basic challenge a bez cookies;
+to ešte nie je publikovaný artefakt s HTTP 200. Aplikačný listener zatiaľ nebeží.
+Existujúci Lov web ani API/Docker sa TLS krokom nemenili. Inštalátor mal 25 guard
+kontrol. Vlastný obnovovací hook je nainštalovaný a chráni presnú publish
+lineage; lokálne prešlo 31 guard kontrol. Skutočne spustené guard dry-runy
+nainštalovaného hooku pre vlastnú, existujúcu aplikačnú a prázdnu lineage prešli
+s **0 príkazmi Nginx**. Certbot timer je **enabled/active**, ďalší beh má
+**7. 11. 2026 09:07:41 UTC**. Renewal konfigurácia zostala nezmenená.
+**Skutočný ACME renewal nebol testovaný**; konfigurácia, dispatch guard a timer
+nepreukazujú vydanie ani servovanie nového obnoveného certifikátu.
+
+Nový Basic transport účet **nebol vytvorený**; jeho výslovné schválenie ešte
+chýba. Produkčné migrácie 002–012 stále chýbajú; nová storage fáza 013 je
+lokálne commitnutá a overená, na produkčnej DB tiež nie je aplikovaná. Nové aplikačné runtime ani billing/Stripe platby a verejný
+frontend neboli aktivované či znovu publikované. Infra príprava neuzatvára M1–M6.
+
+Tri Major nálezy pri vzdialenom head `5ef32af` sú opravené v lokálnom runtime
+`186eba1223dad2f0a081f2aa524feb5508a144fa` a nové úplné gates prešli. Backend
+oprava ešte nebola pushnutá ani opätovne posúdená CodeRabbit; pôvodné tri vlákna
+sa preto týmto dokumentom neuzatvárajú. Moderný frontend má otvorený PR#3 na
+presnom head `4f2ef43`, jeho nový CodeRabbit review prebieha. Historických
+1101/183 main, 161 PG a 178 moderných testov nižšie zostáva zachovaný dobový stav.
+
+Sanitizovaný dôkaz bez osobných identít, credential údajov, host PID, container
+UUID a cgroup ciest: [WS19 infrastructure](../deploy/lovable-github/proof/WS19-INFRASTRUCTURE.json).
+
+### PR #22 — nové recovery/storage overenie runtime 186eba1
+
+1. Expired compiling lease sa obnoví cez owner-scoped status/admission sweep aj
+   bez pôvodného browser receipt. Claim fencing zastaví starého compilera;
+   writing/legacy_unknown rezervy sa neuvoľňujú odhadom neprítomnosti súborov.
+2. Fyzický storage už nedrží DB transakciu. Migrácia013 odlišuje compiling,
+   writing, retained, empty a legacy_unknown; spoločná bounded brána povoľuje
+   2 aktívne I/O a 8 čakajúcich s 5-sekundovým deadline volajúceho. Fyzicky
+   zaseknutý zápis ďalej drží slot aj byte rezervu. Natívny pool max 5 pri dvoch
+   blokovaných writeroch a piatich inventory volaniach zostal dostupný, iný owner
+   dostal auth/me HTTP 200 v rozpočte; skutočné testovacie dáta vlastníka sa nepoužili.
+3. Hlavné aj moderné UI obnovia pôvodný pending UUID pred novým save/UUID aj po
+   zmene zdrojov či revízie. GET404 a sieťová neistota ho zachovajú. Starý úspešný
+   artefakt je označený ako predchádzajúca verzia a nemení aktuálny publication
+   stav; iba zhodný terminal receipt sa odstráni. Nová verzia vyžaduje ďalší
+   výslovný súhlas a klik. Owner/project/workspace a presná server revision/snapshot
+   kontrola zostávajú zachované.
+
+| Nové úplné gates runtime 186eba1 | Výsledok |
+|---|---|
+| Hlavná sada | **1 115 passed / 189 skipped** |
+| PostgreSQL 16.15 a 18.6 | **167/167 na každej**, oba dočasné clustre stopped/removed |
+| Docker sandbox/publish | **21/21** |
+| Moderný mirror | **188/188** v 17 súboroch; Publish 21/21 vrátane10 nových regresií |
+| Hlavný Publish dialóg | **29/29** vrátane7 nových regresií |
+| Typy, lint, lokálne buildy | PASS; hlavný lint 0 chýb / 33 existujúcich upozornení |
+
+Všetkých sedem hlavných gates má totožný witness 300 runtime/config/test súborov
+a žiadnu zmenu počas behu; všetkých 14 commitnutých súborov zodpovedá receipt.
+Moderný mirror a overlay sú byte-identické. Nový API linux/amd64 obraz186eba1
+prešiel lokálnym Node 26 nonroot/read-only/network-none smoke a bol zabalený
+s nezmeneným overeným runnerom 9e49. Git-diff witness pokrýva sandbox aj oba
+tranzitívne security importy; worker 9e49 už beží v samostatnom rootless daemone
+pod config digest b627…, API/runner archív však tento krok nenačítal ani nespustil.
+Node smoke nie je aplikačné/auth readiness. Živý Cloud→Hono, kontrolované
+migrácie 001–013, nový Basic účet so schválením vlastníka, nové API/runner,
+public artefakt HTTP 200, verejný frontend republish a skutočný Stripe tok ostávajú
+otvorené. Nové gates neuzatvárajú M1–M6 ani nepotvrdzujú aktuálny kreditový zostatok.
+
+Dôkaz: [PR22-RECOVERY-VERIFICATION.json](../deploy/lovable-github/proof/PR22-RECOVERY-VERIFICATION.json)
+a [samostatný manifest 11 sanitizovaných logov](../deploy/lovable-github/proof/PR22-RECOVERY-LOGS.json).
+
+### PR #22 — historické úplné overenie runtime 9e49 / head 5ef
 
 Runtime commit `9e49e0e2ecdc004215d926ebfdc30171bc3bc2a2` opravuje štyri
 nálezy pôvodného CodeRabbit review; backendový PR #22 je pri tomto zázname
-stále otvorený. Nejde o nasadenie nového backendu.
+stále otvorený. Ide o zachovaný historický beh pred tromi ďalšími Major nálezmi a pripravovanou fázou013; nie o nové finálne gates ani nasadenie aplikácie.
 
 1. Zlyhané publish joby uvoľnia nevyužitú byte rezervu. Reálne zachované súbory sa
    ďalej účtujú, building joby držia rezerváciu a zápisy sú ohradené owner lockom
@@ -56,7 +147,7 @@ stále otvorený. Nejde o nasadenie nového backendu.
    odstraňuje Cookie a Authorization. Negatívna kontrola aj opravený HTTP tok
    boli overené lokálne, bez inštalácie na VPS.
 
-| Aktuálna kontrola po review | Výsledok |
+| Historická úplná kontrola 9e49/head 5ef | Výsledok |
 |---|---|
 | Hlavná sada | **1 101 passed / 183 skipped** |
 | PostgreSQL 16.15 a 18.6 | **161/161 na každej verzii**, oba dočasné clustre zastavené a odstránené |
@@ -65,7 +156,7 @@ stále otvorený. Nejde o nasadenie nového backendu.
 | Hlavné typy, lint a build | PASS; **0 lint chýb / 33 existujúcich upozornení** |
 | Nginx vzor | Syntax aj skutočný HTTP Host/port negatívny kontrolný prípad a opravený tok PASS |
 
-Všetky hlavné gates zachytili rovnakých 699 zdrojových hashov bez zmien počas
+Pri tomto historickom behu hlavné gates zachytili rovnakých 699 zdrojových hashov bez zmien počas
 behu; desať dotknutých súborov sa zhoduje s runtime commit receipt. Nové
 sanitizované `review-*.txt` logy majú samostatný hash manifest; historických
 16 `release-*.txt` logov a pre-review `7f2b923` receipts zostalo zachovaných.
@@ -91,7 +182,7 @@ image stores bez zdieľania vrstiev medzi daemonmi potrebuje **2 883 338 328 B
 dry-run nameral 3 755 499 520 B voľných; plán sa do tohto merania zmestí.
 Starý 2,15 GiB odhad jednej image store je iba historický. Skutočné využitie
 filesystému treba sledovať po každom budúcom scope-limited načítaní.
-Rootless guard/audit a prípadný inertný staging sa pri písaní záznamu dokončujú.
+V čase tohto historického 9e49 záznamu sa rootless guard/audit a inertný staging ešte dokončovali; aktuálne skutočné infra výsledky sú uvedené samostatne vyššie.
 Dry-run neaplikoval zmeny; inertné uloženie archívu nie je načítanie obrazov,
 inštalácia rootless daemona ani aktivácia kontajnerov.
 Čerstvá záloha bola obnovená a overená; nový VPS runtime, produkčné migrácie,
@@ -101,7 +192,7 @@ predvolene vypnuté a všetkých 85 pôvodných backlog ID aj riadkov zostáva z
 Presný dôkaz: [PR22 review fixes](../deploy/lovable-github/proof/PR22-REVIEW-FIXES.json)
 a [hashy nových logov](../deploy/lovable-github/proof/PR22-REVIEW-LOGS.json).
 
-### WS-19 — implementované a prenesené do editora, produkčný workflow nezapnutý
+### WS-19 — pôvodný pre-review stav7f2 a prenos do editora
 
 Oba frontend entrypointy používajú reálny statický Publish: výslovný verejný
 súhlas → vlastný uložený projekt/revízia/snapshot → Hono job → existujúci compiler
@@ -196,7 +287,7 @@ Read neoprávňuje vytvárať produkty, ceny ani platobné session.
 1. Dokončiť živý Cloud → Hono priechod: chýbajúci serverový Basic transport, auth/identity binding → projekt → AI review → build → serverové uloženie. Frontend zostáva na Lovable a backend na VPS; editor už obsahuje nový kód, verejnú aktualizáciu a celý priechod ešte treba overiť.
 2. Overiť nový hostovaný GitHub connector s rozsahom `public_repo`, prepare/confirm/recovery a explicitným súhlasom s verejnými súbormi. Repo upratanie cez Git nie je dôkazom exportu z aplikácie.
 3. Aktivovať a overiť implementovaný Cloud billing bridge, pripraviť Stripe sandbox konfiguráciu a reconciliation nástroje; následne prejsť skutočný testovací nákup/cancel. Implementovaný live režim s DB pinom sa tým nezapína; platby, dane/faktúry, dunning a refundy majú samostatné brány.
-4. Dokončiť dedikovaný izolovaný worker a kontrolované migrácie 002–012; čerstvá záloha už bola obnovená a overená. Načítať nové amd64 obrazy `9e49e0e` až po finálnom resource/rootless gate a read-only dry-run, pripraviť oddelený HTTPS hosting a overiť statický Publish. CDN/domény, retencia, rollback a produkčná izolácia zostávajú otvorené; statický snapshot nenahrádza fullstack runtime.
+4. Pripojiť nové API/runner k už overenému rootless workeru a vykonať kontrolované migrácie vrátane lokálne overenej013; čerstvá záloha je restore-verified. Nové plné gates prešli; pred aktiváciou uzavrieť nové remote review a aktuálny resource gate; historický image bundle `9e49e0e` tým nie je novým aplikačným release, pripraviť oddelený HTTPS hosting a overiť statický Publish. CDN/domény, retencia, rollback a produkčná izolácia zostávajú otvorené; statický snapshot nenahrádza fullstack runtime.
 5. Zmerať živú kvalitu, latenciu, intent a dlhý kontext na eval sete; doložiť reálne náklady a maržu. Terajších 150 promptov a offline scorer nie sú nameraná úspešnosť modelu.
 6. Uzavrieť produktové brány M1: recovery účtu, plánové oprávnenia, prevádzkové monitorovanie a právne/fakturačné toky. Odložené kroky vlastníka zostávajú odložené.
 
