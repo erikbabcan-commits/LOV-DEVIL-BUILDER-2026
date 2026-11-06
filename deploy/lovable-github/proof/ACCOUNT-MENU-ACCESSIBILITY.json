@@ -1,0 +1,81 @@
+{
+  "verifiedAt": "2026-11-06T21:56:28.520276+00:00",
+  "frontendMain": "201a619ba43ec6010efd87ca1154f7fa6f552486",
+  "scope": "Account menu accessibility only; no auth protocol/credential changes",
+  "gates": {
+    "tests": {
+      "gate": "tests",
+      "exit": 0,
+      "seconds": 12.63,
+      "sourceHashes": {
+        "src/components/forge/AccountMenu.tsx": "5ef77de4e20bd09d9c5862c133a2d580691a1e481d53123d45194682cf023883",
+        "src/components/forge/AccountMenu.test.tsx": "2aaffbe000ac82ada206e5badae8e719f6697f1ede13d982c5546dacc0c0d75c",
+        "src/components/forge/TopBar.tsx": "4c10de128b834fb460c87263c4e45b874d7b41204345a41d5f8798ea669c8d0c"
+      },
+      "sourceStable": true
+    },
+    "types": {
+      "gate": "types",
+      "exit": 0,
+      "seconds": 6.41,
+      "sourceHashes": {
+        "src/components/forge/AccountMenu.tsx": "5ef77de4e20bd09d9c5862c133a2d580691a1e481d53123d45194682cf023883",
+        "src/components/forge/AccountMenu.test.tsx": "2aaffbe000ac82ada206e5badae8e719f6697f1ede13d982c5546dacc0c0d75c",
+        "src/components/forge/TopBar.tsx": "4c10de128b834fb460c87263c4e45b874d7b41204345a41d5f8798ea669c8d0c"
+      },
+      "sourceStable": true
+    },
+    "lint": {
+      "gate": "lint",
+      "exit": 0,
+      "seconds": 1.8,
+      "sourceHashes": {
+        "src/components/forge/AccountMenu.tsx": "5ef77de4e20bd09d9c5862c133a2d580691a1e481d53123d45194682cf023883",
+        "src/components/forge/AccountMenu.test.tsx": "2aaffbe000ac82ada206e5badae8e719f6697f1ede13d982c5546dacc0c0d75c",
+        "src/components/forge/TopBar.tsx": "4c10de128b834fb460c87263c4e45b874d7b41204345a41d5f8798ea669c8d0c"
+      },
+      "sourceStable": true
+    },
+    "build": {
+      "gate": "build",
+      "exit": 0,
+      "seconds": 4.37,
+      "sourceHashes": {
+        "src/components/forge/AccountMenu.tsx": "5ef77de4e20bd09d9c5862c133a2d580691a1e481d53123d45194682cf023883",
+        "src/components/forge/AccountMenu.test.tsx": "2aaffbe000ac82ada206e5badae8e719f6697f1ede13d982c5546dacc0c0d75c",
+        "src/components/forge/TopBar.tsx": "4c10de128b834fb460c87263c4e45b874d7b41204345a41d5f8798ea669c8d0c"
+      },
+      "sourceStable": true
+    }
+  },
+  "uiTestsPassed": 192,
+  "regressions": [
+    "mobile link accessible name with hidden text",
+    "loading has no interactive auth control",
+    "ArrowDown opens menu; Escape restores focus without sign-out",
+    "Enter explicitly selects mocked sign-out"
+  ],
+  "negativeControl": "original component fails new regressions",
+  "localBrowser390": {
+    "signInAccessibleName": "Prihl\u00e1si\u0165 sa",
+    "visibleCaptionHidden": true,
+    "linkRight": 382.014,
+    "viewport": 390
+  },
+  "hostedPreviewVerified": {
+    "verifiedAt": "2026-11-06T21:58:43.530573+00:00",
+    "gitCommitVisibleInHistory": true,
+    "mobileWidth": 393,
+    "scrollWidth": 393,
+    "signInAccessibleName": "Prihl\u00e1si\u0165 sa",
+    "visualCaptionHidden": true,
+    "linkRight": 385.333,
+    "keyboardSignedInScope": "Real Radix menu tested locally with mocked auth; not exercised against a live account"
+  },
+  "canonicalRepublish": false,
+  "liveSignOutPerformed": false,
+  "identityOrCredentialWrites": 0,
+  "aiPrompts": 0,
+  "paidCalls": 0,
+  "newDependencies": false
+}
