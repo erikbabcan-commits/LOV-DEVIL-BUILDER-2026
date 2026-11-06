@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-10 partial FORGE-107/1103; conversation memory and complete snapshot",
+  "previousGoalTurn": "progress: WS-9 code, tests and receipts; Stripe CLI verified and direct MCP configured, OAuth remains a separate pending handoff",
+  "main": {
+    "passed": 787,
+    "skipped": 98,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "all three empty"
+  },
+  "ui": {
+    "passed": 68,
+    "verification": "WS-9 result, unchanged Lovable UI; 27 local/overlay fingerprints and10 pristine fingerprints revalidated; not rerun in this main/backend phase"
+  },
+  "checks": [
+    "main TypeScript",
+    "strict native/CLI TypeScript",
+    "production build",
+    "ESLint 0 errors / 41 baseline warnings",
+    "new code included in lint",
+    "infra/context-window/price markers absent in public assets; existing provider key-name secret-detector regexes remain",
+    "git diff --check"
+  ],
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "logs": {
+    "main": {
+      "localLog": "/tmp/lov-context-main-final.log",
+      "sha256": "4139c35b8bd27dca31902c506598371635ef92883056a95618674aaad0a06c47"
+    },
+    "types": {
+      "localLog": "/tmp/lov-context-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-types": {
+      "localLog": "/tmp/lov-context-native-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lint": {
+      "localLog": "/tmp/lov-context-lint-final.log",
+      "sha256": "9fd5c494aa6c21190d5880c068d058ad8e8c0ef3370daedd7d59fcc251c9383e"
+    },
+    "build": {
+      "localLog": "/tmp/lov-context-build-final.log",
+      "sha256": "9e5cf31785ff7baa33e13edf655fad715e569eacdf5bc052d5c9044e2645f577"
+    },
+    "pg16": {
+      "localLog": "/tmp/lov-context-pg16-final.log",
+      "sha256": "430de9ba2cd9dc7de9ec59d2bf2d7266bc4a863e7f3386547a12a956077f19d0"
+    },
+    "pg18": {
+      "localLog": "/tmp/lov-context-pg18-final.log",
+      "sha256": "95c974af49feda23ec263674cd60280002e841d82249ec7859ebf01a0a174b57"
+    }
+  },
+  "screenshots": {
+    "context-rejected-mobile.jpg": {
+      "sha256": "4b76839bb928c4b6c1ca58ab620db200636804a0e2dd4ab18898177853c71612",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "context-usage-desktop.jpg": {
+      "sha256": "51ed4d7528e0b2269ff2eaaddee12a91dd1f1a65c4de34e0b5d7f95dad14ca62",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "context-console-desktop.jpg": {
+      "sha256": "8abac4eaa4837cf90799a889a7485113b9b98a2ff04a5378f6864ec59b28e723",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "context-usage-mobile.jpg": {
+      "sha256": "96f00072170fd1c83afaf5d087d6f947093145c7dfaf7161913af778722dfea5",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    }
+  },
+  "browser": {
+    "data": "local synthetic Alice/Bob and pg-mem, mock AI/memory only; no live quality claim",
+    "flow": "server project26 turns -> accepted3call generation -> refresh28 turns without live pending review -> second accepted3call generation -> rejected proposal, unchanged current Kanban",
+    "quota": "8 seeded ->10; two new tasks,6 calls all reported;460input+2040output=2500tokens",
+    "console": "20older turns summarized in1extra physical call before plan and generation",
+    "persistence": "chat restored after refresh; unresolved review explicitly not applied; rejected review text correct",
+    "security": "HTML-shaped <b>Acme</b> remains literal text, no content b element; unit covers img/script",
+    "mobile": "CSS390x844, document width390, no page overflow",
+    "errors": "no browser warn/error entries in final local session",
+    "cleanup": "viewport reset, owned tab closed; owned8788/5176 processes stopped; no listeners"
+  },
+  "scope": "no commits/deployment, production DB/env or new credentials, financial changes, real inference, hosted edits or Lovable credits",
+  "limits": [
+    "512external turns,4000chars/turn",
+    "conservative text budget, operator must verify configured model window",
+    "semantic summary accuracy and real20+session eval not yet verified",
+    "memory prefix recomputed per long run; no incremental server cache",
+    "full M1 and M2-M6 backlog remain open"
+  ]
+}

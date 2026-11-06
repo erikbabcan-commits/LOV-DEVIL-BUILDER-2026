@@ -1,0 +1,16 @@
+import {serve} from '@hono/node-server';
+import {Hono} from 'hono';
+import {newDb} from 'pg-mem';
+import {dbFromPool} from '../../server/db/pool';
+import {applyMigrations} from '../../server/db/migrate';
+import {registerProjectByteLength} from '../helpers/projectMemoryDb';
+import {hybridAiBackend} from './hybridAiBackend';
+if(process.env.HYBRID_AI_UI_FIXTURE!=='1'||process.env.NODE_ENV!=='test')throw new Error('Explicit test fixture only');
+process.env.GITHUB_ALLOWED_ORIGINS='http://localhost:5191';
+const memory=newDb();registerProjectByteLength(memory);const adapter=memory.adapters.createPg(),pool=new adapter.Pool(),db=dbFromPool(pool);await applyMigrations(db);
+for(const user of ['alice','bob'])await db.query('INSERT INTO users(id,email,password_hash) VALUES($1,$2,$3)',[user,user+'@example.test','not-a-password']);
+const backend=await hybridAiBackend(db),app=new Hono();
+app.get('/__test/session/:user',c=>{const user=c.req.param('user');return backend.tokens[user]?c.json({access_token:backend.tokens[user],user:{id:user,email:user+'@example.test'}}):c.json({error:'invalid_fixture_user'},404);});
+app.all('/api/hono/*',async c=>backend.proxy(new Request('http://localhost:5191'+new URL(c.req.url).pathname+new URL(c.req.url).search,{method:c.req.method,headers:c.req.raw.headers,signal:c.req.raw.signal,...(c.req.method==='POST'?{body:await c.req.raw.arrayBuffer()}: {})})));
+serve({fetch:app.fetch,hostname:'127.0.0.1',port:8789});
+console.log('Hybrid AI fixture on loopback8789; ephemeral ES256 Alice/Bob, pg-mem, mock model, actual compiler.');

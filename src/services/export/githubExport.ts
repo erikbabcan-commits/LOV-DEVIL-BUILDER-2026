@@ -164,7 +164,8 @@ export async function revokeGitHubAuth(): Promise<{ ok: boolean; error?: string 
 /** Exports project to GitHub repository */
 export async function exportToGitHub(
   request: GitHubExportRequest,
-  confirmed: boolean = false
+  confirmed: boolean = false,
+  connection?: { csrfToken: string; isCurrent: () => boolean }
 ): Promise<GitHubExportResult> {
   // Validate on client first
   const validation = validateGitHubExport(request.repoName, request.files);
@@ -183,6 +184,9 @@ export async function exportToGitHub(
   
   try {
     const auth = await checkGitHubAuth();
+    if (connection && (!connection.isCurrent() || auth.csrfToken !== connection.csrfToken)) {
+      return { ok: false, error: 'Account or GitHub connection changed. Confirm export again.', errorType: 'auth' };
+    }
     if (!auth.authenticated || !auth.csrfToken) {
       return { ok: false, error: 'Not authenticated', errorType: 'auth' };
     }

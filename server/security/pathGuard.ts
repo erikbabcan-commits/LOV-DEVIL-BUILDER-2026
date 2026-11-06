@@ -29,7 +29,7 @@ export function withinSizeLimits(files: { path: string; content: string }[]): { 
   if (files.length > MAX_FILES) return { ok: false, reason: `file count ${files.length} > ${MAX_FILES}` };
   let total = 0;
   for (const f of files) {
-    const bytes = Buffer.byteLength(f.content, 'utf8');
+    const bytes = new TextEncoder().encode(f.content).byteLength;
     if (bytes > MAX_FILE_BYTES) return { ok: false, reason: `${f.path}: ${bytes} > ${MAX_FILE_BYTES} B` };
     total += bytes;
   }

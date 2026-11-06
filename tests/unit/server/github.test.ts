@@ -79,7 +79,7 @@ describe('GitHub OAuth and export security', () => {
     process.env.LOV_APP_URL = 'http://localhost:5173/';
     process.env.GITHUB_ALLOWED_ORIGINS =
       'http://localhost:5173,http://localhost:8787,https://app.example';
-    delete process.env.GITHUB_OAUTH_SCOPE;
+    process.env.GITHUB_OAUTH_SCOPE = 'repo';
   });
 
   afterEach(() => {
@@ -103,6 +103,14 @@ describe('GitHub OAuth and export security', () => {
     expect(cookie).toMatch(/HttpOnly/i);
     expect(cookie).toMatch(/SameSite=Lax/i);
     expect(cookie).not.toMatch(/;\s*Secure/i);
+  });
+
+  it('defaults to public repositories and rejects unknown scope configuration', async () => {
+    delete process.env.GITHUB_OAUTH_SCOPE;
+    const response = await request('/api/github/auth/start');
+    expect(new URL(response.headers.get('location')!).searchParams.get('scope')).toBe('public_repo');
+    process.env.GITHUB_OAUTH_SCOPE = 'repos';
+    expect((await request('/api/github/auth/start')).status).toBe(503);
   });
 
   it('enables Secure cookies for an HTTPS callback', async () => {
@@ -167,7 +175,11 @@ describe('GitHub OAuth and export security', () => {
     expect(flow.fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('uses the commit tree SHA, preserves the base tree, and verifies every uploaded blob', async () => {
+  it.each([
+    { scope: 'repo', isPrivate: true },
+    { scope: 'public_repo', isPrivate: false }
+  ])('exports $scope with a preserved base tree and verifies every uploaded blob', async ({ scope, isPrivate }) => {
+    process.env.GITHUB_OAUTH_SCOPE = scope;
     const flow = await authenticate();
     const files = [
       { path: 'README.md', content: '# Exported' },
@@ -178,7 +190,8 @@ describe('GitHub OAuth and export security', () => {
       const url = String(input);
       if (url.endsWith('/repos/octocat/safe-repo') && init?.method === 'GET')
         return json({ message: 'Not Found' }, 404);
-      if (url.endsWith('/user/repos') && init?.method === 'POST')
+      if (url.endsWith('/user/repos') && init?.method === 'POST') {
+        expect(JSON.parse(String(init.body)).private).toBe(isPrivate);
         return json(
           {
             full_name: 'octocat/safe-repo',
@@ -188,6 +201,7 @@ describe('GitHub OAuth and export security', () => {
           },
           201
         );
+      }
       if (url.endsWith('/git/ref/heads/main') && init?.method === 'GET') {
         refReads += 1;
         return json({ object: { sha: refReads === 1 ? 'commit-parent' : 'commit-new' } });
@@ -227,7 +241,7 @@ describe('GitHub OAuth and export security', () => {
         'X-CSRF-Token': flow.csrfToken,
         Origin: 'http://localhost:5173'
       },
-      body: JSON.stringify({ repoName: 'safe-repo', isPrivate: true, confirmed: true, files })
+      body: JSON.stringify({ repoName: 'safe-repo', isPrivate, confirmed: true, files })
     });
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({

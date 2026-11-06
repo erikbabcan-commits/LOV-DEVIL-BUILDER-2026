@@ -1,4 +1,6 @@
+import { assertProviderResponse, readJson } from './http';
 import type { AIProvider, ChatMessage, CompletionChunk, CompletionResult, ProviderTransport } from './types';
+import { safeModel, validUsage } from '../usage/validation';
 
 /* Mistral provider — server-only. MISTRAL_API_KEY sa nikdy nedostane do klienta. */
 
@@ -36,45 +38,57 @@ export class MistralProvider implements AIProvider {
 
   async complete(messages: ChatMessage[], opts?: { maxTokens?: number; temperature?: number; signal?: AbortSignal }): Promise<CompletionResult> {
     const res = await this.transport.postChat(this.body(messages, { ...opts, stream: false }), opts?.signal);
-    if (!res.ok) throw new Error(`mistral: HTTP ${res.status}`);
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+    await assertProviderResponse(res);
+    const data = (await readJson(res)) as {
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
       usage?: { prompt_tokens?: number; completion_tokens?: number };
+      model?: string;
     };
     const text = data.choices?.[0]?.message?.content ?? '';
     if (!text) throw new Error('mistral: prázdna odpoveď');
+    const usage = { promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens };
     return {
       text,
-      usage: { promptTokens: data.usage?.prompt_tokens ?? 0, completionTokens: data.usage?.completion_tokens ?? 0 },
+      finishReason: data.choices?.[0]?.finish_reason === 'length' ? 'length' : 'stop',
+      usage: validUsage(usage) ? usage : { promptTokens: 0, completionTokens: 0 },
+      usageReported: validUsage(usage),
+      model: safeModel(data.model) ?? undefined,
     };
   }
 
   async *stream(messages: ChatMessage[], opts?: { maxTokens?: number; temperature?: number; signal?: AbortSignal }): AsyncIterable<CompletionChunk> {
     const res = await this.transport.postChat(this.body(messages, { ...opts, stream: true }), opts?.signal);
-    if (!res.ok || !res.body) throw new Error(`mistral stream: HTTP ${res.status}`);
+    await assertProviderResponse(res);
+    if (!res.body) throw new Error('mistral: empty stream');
     const reader = (res.body as ReadableStream<Uint8Array>).getReader();
     const decoder = new TextDecoder();
     let buf = '';
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split('\n');
-      buf = lines.pop() ?? '';
-      for (const line of lines) {
-        const s = line.trim();
-        if (!s.startsWith('data:')) continue;
-        const payload = s.slice(5).trim();
-        if (payload === '[DONE]') return;
-        try {
-          const j = JSON.parse(payload) as {
-            choices?: Array<{ delta?: { content?: string }; finish_reason?: string }>;
-          };
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        if (buf.length > 8_000_000) throw new Error('mistral: stream limit');
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          const s = line.trim();
+          if (!s.startsWith('data:')) continue;
+          const payload = s.slice(5).trim();
+          if (payload === '[DONE]') return;
+          let j: { model?: string; usage?: { prompt_tokens?: number; completion_tokens?: number }; choices?: Array<{ delta?: { content?: string }; finish_reason?: string }> };
+          try { j = JSON.parse(payload); } catch { continue; }
           const ch = j.choices?.[0];
-          if (ch?.delta?.content) yield { delta: ch.delta.content };
-          if (ch?.finish_reason) yield { finishReason: ch.finish_reason === 'stop' ? 'stop' : 'length' };
-        } catch { /* ignoruj malformed SSE riadky */ }
+          const usage = { promptTokens: j.usage?.prompt_tokens, completionTokens: j.usage?.completion_tokens };
+          const model = safeModel(j.model) ?? undefined;
+          if (validUsage(usage)) yield { usage, model };
+          if (ch?.delta?.content) yield { delta: ch.delta.content, model };
+          if (ch?.finish_reason) yield { finishReason: ch.finish_reason === 'stop' ? 'stop' : ch.finish_reason === 'length' ? 'length' : 'error', model };
+        }
       }
+    } finally {
+      try { await reader.cancel(); } catch { /* preserve provider failure */ }
+      reader.releaseLock();
     }
   }
 }
@@ -87,6 +101,7 @@ export function makeFetchTransport(cfg: { apiKey: string; baseUrl: string; timeo
       const merged = signal ? AbortSignal.any([signal, timeout]) : timeout;
       return fetch(cfg.baseUrl + '/chat/completions', {
         method: 'POST',
+        redirect: 'error',
         headers: {
           'Authorization': `Bearer ${cfg.apiKey}`,
           'Content-Type': 'application/json',

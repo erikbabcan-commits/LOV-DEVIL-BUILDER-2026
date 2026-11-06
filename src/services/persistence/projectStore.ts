@@ -1,4 +1,5 @@
-import { openDb, saveProject, loadProjects, saveSnapshot, loadSnapshots, saveFile, loadFiles, saveRun, loadRuns, saveMeta, loadMeta, StoredProject, StoredSnapshot, StoredFile, StoredRun, QuotaError, DB_VERSION } from './db';
+import { openDb, saveProjectState, loadProjects, loadSnapshots, loadFiles, saveRun, loadRuns, saveMeta, loadMeta, StoredProject, StoredSnapshot, StoredFile, StoredRun, QuotaError } from './db';
+import { persistenceScope, selectDatabaseScope, type PersistenceScope } from './db';
 
 /* Projekťový persistence servis: debounced autosave, restore, obnova po prerušení.
    Stale async zápisy nemôžu prepísať novšiu revíziu (revision guard v db.saveFile). */
@@ -9,6 +10,16 @@ export interface PersistError { message: string; kind: 'quota' | 'io' }
 
 let lastAutosaveTimer: number | null = null;
 let currentRevision = 0;
+
+export function selectPersistenceScope(scope: PersistenceScope): boolean {
+  const changed = selectDatabaseScope(scope);
+  if (changed) {
+    if (lastAutosaveTimer !== null) clearTimeout(lastAutosaveTimer);
+    lastAutosaveTimer = null;
+    currentRevision = 0;
+  }
+  return changed;
+}
 
 export function nextRevision(): number {
   return ++currentRevision;
@@ -37,10 +48,7 @@ export interface ProjectState {
 
 export async function persistProjectState(state: ProjectState): Promise<PersistError | null> {
   try {
-    await saveProject(state.project);
-    for (const s of state.snapshots) await saveSnapshot(s);
-    for (const f of state.files) await saveFile(f);
-    await saveMeta('lastProject', state.project.id);
+    await saveProjectState(state);
     return null;
   } catch (e) {
     if (e instanceof QuotaError) return { message: e.message, kind: 'quota' };
@@ -62,24 +70,32 @@ export interface RestoredWorkspace {
 }
 
 export async function restoreWorkspace(): Promise<RestoredWorkspace> {
-  await openDb();
-  const lastId = await loadMeta<string>('lastProject');
-  const projects = await loadProjects();
+  const scope = persistenceScope();
+  await openDb(scope.databaseName);
+  const lastId = await loadMeta<string>('lastProject', scope.databaseName);
+  const projects = await loadProjects(scope.databaseName);
   if (projects.length === 0) {
     return { project: null, snapshots: [], files: [], runs: [] };
   }
   const project = projects.find(p => p.id === lastId) ?? projects[projects.length - 1];
   const [snapshots, files, runs] = await Promise.all([
-    loadSnapshots(project.id),
-    loadFiles(project.id),
-    loadRuns(project.id),
+    loadSnapshots(project.id, scope.databaseName),
+    loadFiles(project.id, scope.databaseName),
+    loadRuns(project.id, scope.databaseName),
   ]);
+  // The IDB index orders equal project keys by snapshot ID, not by version.
+  snapshots.sort((a,b)=>a.v-b.v || a.id.localeCompare(b.id));
+  // The module-local counter starts over after reload; resume beyond persisted
+  // revisions so the first edit is not rejected as an older file write.
+  if (persistenceScope().epoch === scope.epoch)
+    for (const file of files) currentRevision = Math.max(currentRevision, file.revision);
   return { project, snapshots, files, runs };
 }
 
 export async function markInterruptedWrites(): Promise<string[]> {
   /* Obnova po prerušených zápisoch: runs bez completed statusu v meta označíme ako interrupted */
-  const interrupted = await loadMeta<string[]>('interruptedRuns');
-  if (interrupted && interrupted.length) await saveMeta('interruptedRuns', []);
+  const scope = persistenceScope();
+  const interrupted = await loadMeta<string[]>('interruptedRuns', scope.databaseName);
+  if (interrupted && interrupted.length) await saveMeta('interruptedRuns', [], scope.databaseName);
   return interrupted ?? [];
 }

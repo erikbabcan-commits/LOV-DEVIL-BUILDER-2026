@@ -1,0 +1,38 @@
+# Optional overlay: docker compose -f compose.yaml -f compose.sandbox.yaml ...
+# Build the immutable worker image first; this overlay never mounts Docker into app.
+services:
+  app:
+    environment:
+      SANDBOX_MODE: isolated
+      SANDBOX_RUNNER_URL: http://sandbox-runner:8790/
+      SANDBOX_RUNNER_TOKEN: ${SANDBOX_RUNNER_TOKEN:?set a private random runner token}
+    networks:
+      - default
+      - sandbox-control
+
+  sandbox-runner:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.sandbox-runner
+    restart: unless-stopped
+    environment:
+      SANDBOX_RUNNER_TOKEN: ${SANDBOX_RUNNER_TOKEN:?set a private random runner token}
+      SANDBOX_WORKER_IMAGE: lov-devil-sandbox:ws4
+    volumes:
+      - ${SANDBOX_DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    networks:
+      - sandbox-control
+    read_only: true
+    tmpfs:
+      - /tmp:size=16777216,noexec,nosuid,nodev
+    mem_limit: 192m
+    memswap_limit: 192m
+    cpus: 0.25
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    # One coordinator per worker daemon. Do not scale this service independently.
+
+networks:
+  sandbox-control:
+    internal: true

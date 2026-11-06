@@ -1,0 +1,23 @@
+{
+  "phase": "WS-17 main editor immutable save through Hono/PG",
+  "runner": "deploy/test-projects-native.py",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 88,
+  "migrations": "001-009 unchanged",
+  "provider": "no paid inference; new main manual scenario zero AI runs",
+  "clusters": "private loopback SCRAM; stopped and removed",
+  "logs": {
+    "main-code-pg16.log": "4d185a85be0edd3bdf2156e895828abcac96638d74a9fb83e7f10175ccb4b79a",
+    "main-code-pg18.log": "ddfde684ff41611556901ee51ed81d7aad8801a92c7ff4f9cb813b2ea238cd28"
+  },
+  "coverage": "Previous87 plus actual main applyStagedFiles child, exact immutable server parent, CAS save/reopen and zero AI runs",
+  "initialFailure": {
+    "file": "main-code-pg16-initial-timeout.log",
+    "sha256": "53672d0bb1ecedf61679f52420dd93dc594b9554eb23219b72adbae1e6fc43dd",
+    "cause": "1s Testing Library findByText timeout during concurrent full-suite/database load; UI still pending",
+    "resolution": "5s native-only async wait, restored after suite; final PG runs sequential and passed"
+  }
+}

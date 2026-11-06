@@ -1,0 +1,133 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-8 cost estimates and offline operator dashboard; partial FORGE-106/1202",
+  "main": {
+    "passed": 721,
+    "skipped": 90,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "mistralKey": "empty"
+  },
+  "ui": {
+    "passed": 67,
+    "verification": "Prior WS-7 tests/build unchanged; all 27 overlay and local UI fingerprints revalidated. Not rerun in this backend/operator-HTML phase."
+  },
+  "checks": [
+    "main TypeScript and strict native/CLI graph",
+    "main production build",
+    "main ESLint 0 errors / 41 existing warnings",
+    "new cost code targeted lint clean",
+    "unchanged Lovable overlay and 10 recorded pristine fingerprints",
+    "server pricing/credential marker names absent in public assets",
+    "git diff --check"
+  ],
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "logs": {
+    "mainTests": {
+      "localLog": "/tmp/lov-ai-cost-main-tests-final.log",
+      "sha256": "b70609ad8f6c7ed013cd36306dc4b2ac842fbc6d4396746dd3d000ec1a7f0ce9"
+    },
+    "mainTypecheck": {
+      "localLog": "/tmp/lov-ai-cost-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "mainBuild": {
+      "localLog": "/tmp/lov-ai-cost-build-final.log",
+      "sha256": "e8df82aa8493a3e2e94541fa4098d3f33443b4a5e7d8ea98c8278085a2f47a78"
+    },
+    "mainLint": {
+      "localLog": "/tmp/lov-ai-cost-lint-final.log",
+      "sha256": "52417199ac9e6fe8527afc01b6bb75d69a2c88fb11c62d12968c3dc668e4739b"
+    },
+    "nativeAndCliTypecheck": {
+      "localLog": "/tmp/lov-ai-cost-native-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "newCodeLint": {
+      "localLog": "/tmp/lov-ai-cost-focused-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "screenshots": {
+    "ai-usage-lovable-bob-mobile.png": {
+      "sha256": "625e1d33f997c77c15adfeb2b96b1c0a883007e32783b5be34ec9742853ba4e3",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-lovable-desktop.png": {
+      "sha256": "014d450c8fe14212a4f36db54eee343082bd111e9d73aaca9f7eb3f68cb22a2b",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-lovable-mobile.png": {
+      "sha256": "20f5aa3ed5403880d20abe0ee50103063cf7bc178a136feecd17de9396efbef8",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-main-bob-mobile.png": {
+      "sha256": "8cddcc1a758736d48f0eb59730b09fe28d22a2af4327240f58d040f528b6beb1",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-main-desktop.png": {
+      "sha256": "390052594913d717d457f54b8521f21cbd202c72cb1261ec0150d791323ab17c",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-main-mobile.png": {
+      "sha256": "8d01007169c68f8e3e4e430d160cb0723f6abc77f31d6beba666664a2de8fcbb",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-cost-dashboard-desktop.png": {
+      "sha256": "f88e374b121721daa057f995f56c2975352ae1e00fae629fe6f15b9551889ee1",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-cost-dashboard-mobile.png": {
+      "sha256": "9b5f224c5a7ad804d86703bea4cc5e96764a248e504d95913d678bab5f569776",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-cost-unknown-desktop.png": {
+      "sha256": "e8e36161ed912797187b7f0f9d65ba79a79f35bfc94a361ca6497b9ffd80e5ed",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-cost-unknown-mobile.png": {
+      "sha256": "f48cb8c08c3e679a95338f9cf6cf26b9f9033ddcad404a8f9ff169d734c54883",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    }
+  },
+  "scope": "Local only; no commits, deployment, production migrations, price configuration, paid inference, financial actions, hosted edits or Lovable credits consumed",
+  "costDashboard": {
+    "source": "deploy/ops/ai-cost-dashboard.template.html",
+    "fixture": "proof/ai-cost-dashboard-fixture.html",
+    "fixtureData": "synthetic accounts/tokens/fictional USD rates only",
+    "browser": "IAB desktop and CSS390x844. Overall0.014400 USD/4of5 prices; Free0.007200/2of2; Alice Pro unknown0of1; empty state and unknown-first sort; no horizontal page overflow, table scroll region; no console warn/error",
+    "network": "self-contained HTML; CSP denies network; no external code/fonts",
+    "temporaryServer": "owned fixture process stopped; port5191 no listener"
+  },
+  "historicalUiReceipt": "LOCAL-VERIFICATION.ai-usage-phase.json"
+}

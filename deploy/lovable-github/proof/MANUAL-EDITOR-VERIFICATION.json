@@ -1,0 +1,199 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-16 partial FORGE-301/302/303/1103; local Lovable CodeMirror/file operations/manual versions",
+  "previousGoalTurn": "progress: WS-15 actual ZIPs, browser downloads,12 trusted extracted builds and receipts",
+  "main": {
+    "passed": 891,
+    "skipped": 109,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "all three empty"
+  },
+  "ui": {
+    "passed": 146,
+    "files": 15,
+    "newControllerCases": 14,
+    "newReactCases": 7,
+    "scope": "React orchestration tests substitute textarea; actual CodeMirror verified separately in browser"
+  },
+  "checks": [
+    "main and Lovable TypeScript",
+    "strict native/CLI graph including new manual PG scenario",
+    "main production and Lovable client/SSR/Workers builds",
+    "main ESLint0errors34existingwarnings; modified Lovable source/tests0errors0warnings",
+    "React checklist: owner/project identity, immutable apply, async upload/cancel races, accessible label/Tab, lazy editor, fallback",
+    "git diff --check"
+  ],
+  "logs": {
+    "tests": {
+      "proofLog": "manual-editor-tests.log",
+      "localLog": "/tmp/lov-files-tests.log",
+      "sha256": "eae1e404a7175036d613dac738601eaabcc3b4c35e4561e6306d9761713870b0"
+    },
+    "types": {
+      "proofLog": "manual-editor-types.log",
+      "localLog": "/tmp/lov-files-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ui-lint": {
+      "proofLog": "manual-editor-ui-lint.log",
+      "localLog": "/tmp/lov-files-ui-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ui-build": {
+      "proofLog": "manual-editor-ui-build.log",
+      "localLog": "/tmp/lov-files-ui-build.log",
+      "sha256": "5eec6f8cc0fc8e53ba03ab02a34d536185720c04ee6b6afa2298a757f3488333"
+    },
+    "native-types": {
+      "proofLog": "manual-editor-native-types.log",
+      "localLog": "/tmp/lov-files-native-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "main": {
+      "proofLog": "manual-editor-main.log",
+      "localLog": "/tmp/lov-files-main.log",
+      "sha256": "ebe49b2bfaed2e43f1c9f9ff17ea7049b784caefa06edbabeb31ca4f8141995f"
+    },
+    "main-types": {
+      "proofLog": "manual-editor-main-types.log",
+      "localLog": "/tmp/lov-files-main-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "main-lint": {
+      "proofLog": "manual-editor-main-lint.log",
+      "localLog": "/tmp/lov-files-main-lint.log",
+      "sha256": "52025db2fdaff4195a10e7d1577dc4e9d24ef2bfa5529825e334d313d572fb2f"
+    },
+    "main-build": {
+      "proofLog": "manual-editor-main-build.log",
+      "localLog": "/tmp/lov-files-main-build.log",
+      "sha256": "dc7c33bac1cc777306b40b57b4143c5645e4f0190d31a2c4f77e87b940af44be"
+    },
+    "pg16": {
+      "proofLog": "manual-editor-pg16.log",
+      "localLog": "/tmp/lov-files-pg16.log",
+      "sha256": "07f5b66ff54aa66181a503d84537b14722b3f7066907d3e8cadc903dc2470191"
+    },
+    "pg18": {
+      "proofLog": "manual-editor-pg18.log",
+      "localLog": "/tmp/lov-files-pg18.log",
+      "sha256": "d8053555bab72174f722f847ab8d8fddea0017181d013c1a6d939f0d82a74d81"
+    }
+  },
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "assetScan": [
+    {
+      "directory": "dist/assets",
+      "files": 5,
+      "markers": [
+        "HONO_BASIC_AUTH",
+        "HONO_BASE_URL",
+        "GITHUB_BRIDGE_SECRET",
+        "GITHUB_CLOUD_CLIENT_ID",
+        "GITHUB_CLOUD_CALLBACK_URL",
+        "CLOUD_AUTH_ISSUER",
+        "AI_PROVIDER_PRICES_JSON",
+        "makeCloudAuth",
+        "makeHonoProxy"
+      ],
+      "matches": []
+    },
+    {
+      "directory": "../lovable-github-local/.output/public",
+      "files": 21,
+      "markers": [
+        "HONO_BASIC_AUTH",
+        "HONO_BASE_URL",
+        "GITHUB_BRIDGE_SECRET",
+        "GITHUB_CLOUD_CLIENT_ID",
+        "GITHUB_CLOUD_CALLBACK_URL",
+        "CLOUD_AUTH_ISSUER",
+        "AI_PROVIDER_PRICES_JSON",
+        "makeCloudAuth",
+        "makeHonoProxy"
+      ],
+      "matches": []
+    }
+  ],
+  "screenshots": {
+    "manual-files-completion-mobile.png": {
+      "sha256": "71fb83d1c04e765d20995f5c1d6291e321fb9e8b60021449ed71293a608b735b",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "manual-files-edit-desktop.png": {
+      "sha256": "5ee670290050a87bafbaa2216f2b837fed6f7ce36ca0e762d00428276d47e567",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "manual-files-error-desktop.png": {
+      "sha256": "136675a50707b70ab9275dd9fadd7b4d33a1b90f764870e2a2ef8575ea8c03a6",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "manual-files-error-mobile.png": {
+      "sha256": "92e68cdf028c5f03a8be37f1be21cb1e070ef138b37892dfb1892472ab17224a",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x219, components 3"
+    },
+    "manual-files-preview-desktop.png": {
+      "sha256": "55ebd1a5852b21812d17532bdc5a582b453ea7426d42e10de24e9825783f40a3",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "manual-files-reopened-mobile.png": {
+      "sha256": "869484f3e4a941dcf4851f328710ad31c7b40869c4573fe4f89995eefd49e63e",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    },
+    "manual-files-upload-mobile.png": {
+      "sha256": "4e13b4180e38c6f7b5e19af2c4ac08a9d8b83342e91d67bd1fc9f8f89479d921",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    }
+  },
+  "sourceHashes": {
+    "tests/integration/cloudBridgePostgres.test.ts": "e8d88a23181143c2acc38c12fde7c0beafa3a22f9c0f07407e20604905fdf13f",
+    "proof/manual-files-upload-fixture.ts": "8cd6980dcf03d29fd60ba2e73163040f7b62483416b316944ecc295e22f775a3"
+  },
+  "overlay": {
+    "files": 68,
+    "sourceAndUnitFiles": 49,
+    "visualFixtureFiles": 17,
+    "packageFiles": 2,
+    "manifestSha256": "ff148db64dda442a3af0e5db187618e289422e034ace3758c13496a2c23d81f4",
+    "mirrorHashes": "all68 match",
+    "pristineFiles": 10,
+    "pristineHashes": "unchanged",
+    "dependencies": "6 direct editor packages,27 new lock packages since WS-15;40 added since pristine including13ZIP; original lock tuples unchanged; portable registry references",
+    "status": "local-only; not uploaded or deployed"
+  },
+  "behavior": {
+    "draft": "separate owner/project IndexedDB editor payload, optional backward-compatible field; not workspace/server/AI context",
+    "apply": "source-bound atomic validation, one immutable edit snapshot,parentId/full sources,then explicit real compile; no-op none",
+    "navigation": "AI/save/project switching/restore/ZIP/compile blocked during editor draft; cancel/discard explicit; late cancelled local open cannot replace later edits",
+    "files": "hierarchical tree,add/rename/delete,explicit folder UTF8 picker/drop,whole-batch failures;no silent path rewrite or import refactor",
+    "validation": "existing40files/200000Bperfile/2000000Btotal; UTF8,paths,collisions,known credential heuristic; no trimming",
+    "diagnostics": "per-file last-build messages and CodeMirror lint ranges when matching sources;not semantic TS language service"
+  },
+  "browser": {
+    "fixture": "signed ephemeral synthetic Cloud session,actual proxy/Hono,pg-mem,trusted host compiler;no live LLM",
+    "flow": "serverr1 -> realCM CSSgreen -> refresh private draft -> applymanualv2/actualcompile -> saverev2; add/rename/delete temporary source; applybadAppv3 -> actualesbuild error and1inline marker; restorev2; actualpicker UTF8 import; Alice/Bob isolation/restored draft; TScompletionuploaded; discardimport -> saverev3 -> reopen/actualcompilegreen",
+    "finalProject": "5files,3immutable snapshots(v1original,v2greenmanual,v3intentionalinvalid),livev2,serverrevision3;temporaryuploadedfile not applied",
+    "colors": {
+      "primary": "rgb(22, 163, 74)",
+      "secondary": "rgb(100, 116, 139)"
+    },
+    "codeMirror": "actual.cm-editor,46CSSsyntaxspans,1realbuildlintRange,TSCompletionslistoffereduploaded",
+    "viewports": [
+      "1280x720 desktop",
+      "390x844 mobile/document390"
+    ],
+    "logs": "no browser warnings/errors",
+    "cleanup": "ownedtab21closed,viewportreset;owned5191/8789serversstopped,listenersabsent",
+    "timing": "Browser verified functional code before whitespace/localized-invalid-UTF8 message and final cancellation guard; final unit/native/build checks cover those followups."
+  },
+  "scope": "No commit, deployment, production schema/env/Secrets changes, hosted Lovable edits/builds, paid inference or credit spend. Generated integration files untouched.",
+  "open": [
+    "semantic TS/strict/lint/format flow",
+    "automatic import refactoring and branches/merge",
+    "binary/vision uploads",
+    "hosted transfer within30credit floor",
+    "main legacy Monaco improvements",
+    "billing/publish/fullstack and remainingM1-M6"
+  ]
+}

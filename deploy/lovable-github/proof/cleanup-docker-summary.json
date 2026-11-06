@@ -1,0 +1,99 @@
+{
+  "dockerContext": "orbstack",
+  "endpoint": "local UNIX OrbStack socket",
+  "engineVersion": "29.8.2",
+  "osType": "linux",
+  "architecture": "aarch64",
+  "cgroupVersion": "2",
+  "securityOptions": [
+    "name=seccomp,profile=builtin",
+    "name=cgroupns"
+  ],
+  "rootlessClaim": false,
+  "exclusiveDaemonClaim": false,
+  "testsPassed": 21,
+  "testFiles": 1,
+  "durationSeconds": 69.89,
+  "sourceFiles": {
+    ".dockerignore": "ac156d54c4e4eff3166854f36ea207dd5bdcd83d5b50ceca734811260c226e87",
+    "deploy/test-sandbox.sh": "5964fad1690e865bf0cb0b4058232613ae0615f72bd644e288dd2d9ab15f8e0e",
+    "deploy/Dockerfile.sandbox": "c18f138757624472b1dbe200e183aa364178a5d1c51b13a205b36593cc23d000",
+    "deploy/Dockerfile.sandbox-runner": "1dda911a1aa0957c68a4dd8f9a8e682100f719889849c80d17ae924f2c62b7b2",
+    "tests/fixtures/sandbox/Dockerfile": "94d949dabd5720d026fc4136fd4ffb391cd4c672780079534373c5a315b82416",
+    "tests/fixtures/sandbox/harness.mjs": "4166d4dbee346dd7810851532ebbe7cac0592c45be43aeb49c0b0226f6e5a8db",
+    "tests/integration/sandboxDocker.test.ts": "83c17a251d008e9b8b92121154ca290691facbae02bc12d293554d932555464f",
+    "package.json": "a9bb9f428a5c4084b040129b8fcbb51c333c8aa4557431b3d24f12f92762100d",
+    "package-lock.json": "5df3348f2d1fc796ecbac0fc24cd03932b2410b56121477fe375dc57e7460f7b"
+  },
+  "ownedContainers": [
+    {
+      "label": "lov-devil.sandbox=ws4",
+      "remaining": []
+    },
+    {
+      "label": "lov-devil.runner-test=ws4",
+      "remaining": []
+    }
+  ],
+  "imagesRetained": [
+    {
+      "tags": [
+        "lov-devil-sandbox:ws4"
+      ],
+      "id": "sha256:78f60ea3757a7cc1e5b52bfe234563686affc8a0e3a419e4b2c180274b09c460",
+      "os": "linux",
+      "architecture": "arm64"
+    },
+    {
+      "tags": [
+        "lov-devil-sandbox-runner:ws4"
+      ],
+      "id": "sha256:3fc97b3251e7b34b5ce324adc555b599cfb97c3cab0e6ef08f05cf4fb563a7d1",
+      "os": "linux",
+      "architecture": "arm64"
+    },
+    {
+      "tags": [
+        "lov-devil-sandbox-test:constraints"
+      ],
+      "id": "sha256:5a5591b6534fcebaae79146d86c4130c73965ccffede27f736465a801b544344",
+      "os": "linux",
+      "architecture": "arm64"
+    },
+    {
+      "tags": [
+        "lov-devil-sandbox-test:hang"
+      ],
+      "id": "sha256:f2eb6b0df10a897294054a860a356d27a3749a81c585ca579714f4a7e0c718ea",
+      "os": "linux",
+      "architecture": "arm64"
+    },
+    {
+      "tags": [
+        "lov-devil-sandbox-test:oom"
+      ],
+      "id": "sha256:e246b57f594de7f2a405e9b690c7f6f25c93f9cfa67119216db29a942b661fcf",
+      "os": "linux",
+      "architecture": "arm64"
+    },
+    {
+      "tags": [
+        "lov-devil-sandbox-test:output"
+      ],
+      "id": "sha256:c77d2294aa3c5c4319ba602dfad470698bf68111ce26f71808a2c609666e04ca",
+      "os": "linux",
+      "architecture": "arm64"
+    },
+    {
+      "tags": [
+        "lov-devil-sandbox-test:invalid"
+      ],
+      "id": "sha256:94dd43a522d04045b56a5c5a9e7a907d8abd5e5c93325356d645a1549a283b1b",
+      "os": "linux",
+      "architecture": "arm64"
+    }
+  ],
+  "log": "logs/cleanup-docker.txt",
+  "logSha256": "7cd6baf9a377bfc1d064f3a25bca9322aa499043fbaf1405b31d420629e7c840",
+  "publicLogSha256": "97102662e13ebea9c3b7375e43897e041084c64eee6836b2b436afe4a051cc34"
+}

@@ -19,7 +19,476 @@
 
 **Čo je fake a musí sa nahradiť reálnym:** LLM volania (mock), generované appky (4 šablóny), publish URL, ZIP export, connectors, billing, účty.
 
+### Lokálny záverečný gate a Git cleanup · 6. 11. 2026
+
+Pred usporiadaním commitov prešlo hlavné overenie **1002 passed / 157 skipped**,
+TypeScript, strict native/CLI graf, ESLint **0 errors / 33 baseline warnings**
+a produkčný build. Samostatné lokálne sandboxy overili Docker **21/21**, React
+E2E **22/22**, historické demo **6/6 + 112/112** vnútorných kontrol a moderný
+Lovable mirror **146/146** vrátane typov a buildov. Natívne PostgreSQL brány sa
+po úprave rozpočtu štartu testovacích fixture overili sériovo: **135/135 na
+16.15 aj18.6**, oba clustre zastavené a odstránené. Po poslednej úprave testovacích
+rozpočtov prešlo aj80/80 billing testov, strict graf a lint harnessu. Oprava fingerprintu konceptu zachová rovnaký
+podklad aj po obnove IndexedDB s iným poradím súborov, bez oslabenia kontrol
+obsahu alebo verzie. Presný mobilný billing gate390×844 prešiel bez pretečenia.
+Rozsah a aktuálne výsledky: [lokálne overenie](LOCAL-VERIFICATION-2026-11-06.md).
+Ide o používateľom vyžiadané upratanie s lokálnymi testami pred pauzou v nových
+funkciách. Celý M1–M6 zostáva otvorený; produkcia, Stripe a hosted Lovable sa
+nemenia.
+
+### Predplatné a overený serverový plán · WS-18 · 6. 11. 2026
+
+Pribudol predvolene vypnutý sandbox Stripe Checkout/Portal pre mesačný a ročný
+Pro plán, trvalá identita zákazníka, idempotentné prípravy, podpísané webhooky,
+dedup a canonical reconciliation pod rovnakým owner lockom ako AI kvóty.
+Čerstvý plán a konečnú expiráciu čítajú cookie/Cloud auth aj kvóty z DB; spotreba
+sa pri zmene plánu neresetuje. Každé neterminálne predplatné blokuje druhý nákup.
+Hlavný frontend má decentnú kartu plánu/cien/správy v Moje projekty s chráneným
+retry a neskorými odpoveďami podľa účtu. Návratová URL neaktivuje Pro.
+Overené **1001 passed/157 skipped**, z toho billing **61 backend+19 UI**;
+**135/135 PG 16.15 aj 18.6**, TypeScript/lint/build. Browser overil syntetické
+Free→Pro→scheduled cancel→Free, owner isolation a disabled stav. Následný
+headless browser preukázal presných390×844 bez pretečenia a s dostupným CTA;
+fixture/hosted limity sú v `docs/WS-18-BILLING.md`.
+Migrácia010 je iba lokálna. Skutočné Stripe produkty/ceny/portál/webhooky,
+živé platby, dane/dunning/refundy a Lovable Cloud billing bridge ostávajú otvorené.
+FORGE-801/803/804 sú čiastočné, nie hotový platený M1. Bez deployu, externých
+Stripe zápisov alebo Lovable kreditov. Nasleduje už len používateľom žiadaný
+Git cleanup/commity/merge s lokálnym overením a potom pauza v nových funkciách.
+
+### Hlavný editor: koncepty a nemenné uloženie · WS-17 · 6. 11. 2026
+
+Aj hlavný frontend má lokálne pribalený CodeMirror, obnoviteľné koncepty podľa
+účtu/projektu/verzie a funkčný jednoduchý editor. Uloženie/Ctrl+S vytvára jedinú
+novú ručnú verziu, zachová rodiča a spúšťa reálnu kompiláciu. Presný podklad a
+epochy blokujú neskoré aplikovanie; neuložený koncept chráni aj pred konkurenčným
+checkpointom, dashboard editáciou, restore, AI, exportom a serverovými operáciami.
+Obnova projektu bez chatu otvorí workspace. UI len decentne doladené aj na 390 px.
+Overenie: **921 passed / 110 skipped main**, desktop/mobile browser: reálny
+CodeMirror/fallback, refresh konceptu, prepnutie účtu a návrat, green CSS build,
+serverový save/reopen rev2, história2 a nezmenená AI spotreba. **88/88 PG 16.15
+aj 18.6**, TypeScript/build/lint (0 errors/33 warnings). Dôkazy eviduje `deploy/lovable-github/proof/MAIN-CODE-EDITOR-VERIFICATION.json`.
+Lokálny Lovable editor/68 hashov overlay sa nemenili; 146 UI testov patrí WS-16,
+nejde o opakovaný beh. Detaily: `docs/WS-17-MAIN-CODE-EDITOR.md`.
+FORGE-302/303/1103 ostávajú čiastočné; semantic TS/lint/format, branches/merge,
+hosted prenos a celý M1–M6 nie sú hotové. Odložený editor chunk ~582kB zostáva
+nad Vite upozornením. Bez commit/deploy, produkčných zmien alebo kreditov.
+
+### Súborový editor a ručné verzie · WS-16 · 6. 11. 2026
+
+Lokálny Lovable má CodeMirror so syntaxou/dopĺňaním, strom súborov, add/rename/
+delete a atomický UTF-8 picker/drop import. Koncept je oddelený od schváleného
+kódu a uložený podľa účtu/projektu; apply vytvorí immutable verziu a skutočne
+kompiluje. Chyba sa zobrazí pri súbore aj inline; restore vráti pôvodný kód.
+Overenie: **146/146 UI**, **891 passed / 109 skipped main**, **87/87 PG 16.15
+aj 18.6**, TypeScript/buildy a lint main 0/34 baseline warnings, nové UI čisté.
+Browser desktop/390px overil reálny CodeMirror, TS completion, refresh konceptu,
+ručnú zelenú CSS zmenu, CAS save/reopen, súborové operácie, skutočný import,
+owner switch, build chybu a návrat funkčnej verzie. Detaily: `docs/WS-16-FILE-EDITOR.md`.
+FORGE-301/302/303 sú rozšírené lokálne; semantic TS/lint/format, branches/merge,
+binárne prílohy a hosted prenos ostávajú otvorené. Hlavný starší Monaco sa nemení.
+Bez commit/deploy/produkčných zmien, platených inference alebo Lovable kreditov.
+
+### Skutočný ZIP aktuálnej a historickej verzie · WS-15 · 6. 11. 2026
+
+Lovable demo Export ZIP je nahradený reálnym lokálnym stiahnutím: výber verzie,
+zoznam/bajty a presné zdroje, bez chatu alebo čakajúceho AI návrhu. Rovnaké jadro
+používa hlavný frontend; zachová README aj `.gitignore`, blokuje celý archív pri
+nebezpečných cestách, kolíziách, UTF-8 limitoch alebo rozpoznaných kľúčoch.
+Zmena účtu/projektu/verzie počas generovania zahodí oneskorený download.
+Overenie: **891 passed / 108 skipped main**, **125/125 Lovable UI**, TypeScript,
+buildy, lint main 0/34 existujúcich warnings a nové UI čisté. Reálne ZIP-y oboma
+buildermi pre **12/12 šablón** → CRC/úplné zdroje → rozbalenie → TypeScript/Vite
+build s čerstvou spoločnou inštaláciou identického toolchainu. Browser desktop
+a 390px stiahol v2/v1; nezávislý Python CRC potvrdil presný jednoriadkový CSS
+rozdiel, Escape/fokus/účty a žiadne pretečenie. Detaily: `docs/WS-15-ZIP-EXPORT.md`.
+FORGE-605 má reálny ZIP tok lokálne v oboch UI; hosted prenos a živý GitHub flow
+ostávajú otvorené. Bez commit/deploy, produkčných zmien, hosted buildov, platených
+inference alebo Lovable kreditov. PostgreSQL sa nemenil; posledné WS-14 overenie
+86/86 na každej verzii sa v tejto fáze neopakovalo.
+
+### Lovable AI workspace napojený lokálne · WS-14 · 6. 11. 2026
+
+Lokálny Lovable frontend používa skutočný Hono katalóg modelov, SSE/auto intent,
+oddelený návrh a diff, schválenie do immutable verzie, compile-only náhľad a
+projektové CRUD s CAS. IndexedDB chráni rozpracované zdroje aj históriu podľa účtu;
+prepnutie ownera aj tokenu je overené. Otvorenie serverovej verzie zachová dirty
+projekt ako samostatnú lokálnu kópiu. Kompaktný mobilný review bez redizajnu.
+Overenie: **851 passed / 108 skipped main**, **86/86 Lovable UI**, **86/86 PG 16.15
+aj 18.6**, TypeScript/buildy, main lint 0/40 baseline warnings, nové UI čisté.
+Browser desktop/390px: otázka bez zmeny → jeden CSS diff → approval → reálna
+kompilácia → save/reopen; účty, lokálna obnova, história a odmietnutie. Provider
+je syntetický, nejde o živú kvalitu LLM. Prenosný overlay má 58 súborov.
+Detaily a dôkazy: `docs/WS-14-LOVABLE-AI.md`. Hosted Lovable zostáva bez zmien,
+žiadne kredity, commit/deploy alebo produkčné zmeny. Živá aktivácia, publish,
+ZIP, billing a zvyšok M1–M6 ostávajú otvorené. Stripe MCP OAuth sandbox Read je
+autorizovaný samostatne; nejde o billing aplikácie.
+
+### AI oprava overená buildom · WS-13 · 6. 11. 2026
+
+Automatická build-error vetva teraz používa presné source-bound patche z WS-12
+nad celým kódom, bez 4000-znakového rezu alebo full-file fallbacku. Najviac dva
+repair kroky a tri kompilácie, pred každým nové hashe; konflikt/infra chyba
+zastaví ďalšiu opravu. Prvý priveľký kontext sa odmietne pred mesačným čerpaním.
+Pri chybe náhľadu pribudlo explicitné AI tlačidlo → kontrolný build → Diff/review
+→ schválenie. Pôvodné zdroje aj snapshot zostávajú do approval bez zmien.
+Overenie: **851 passed / 106 skipped**, **84/84 PG 16.15 aj 18.6**, oba TypeScript
+grafy, build, lint 0 errors / 40 existujúcich warnings. Browser desktop/390px
+overil skutočnú compile chybu, jedno-riadkovú opravu, kontrolu, approval aj
+uloženie/reopen/recompile; jedna syntetická AI úloha/volanie. Opravené aj mobilné
+prepínanie Chat/Diff/Preview bez redizajnu. Detaily: `docs/WS-13-BUILD-REPAIR.md`.
+FORGE-104/202/503 ostávajú čiastočné: živá kvalita/regresné evaly a produkčný Vite
+publish pipeline nie sú hotové. Bez commit/deploy/produkčných zmien, platených
+inference, hosted Lovable úprav alebo kreditov.
+
+### Cielené úpravy a diff pred schválením · WS-12 · 6. 11. 2026
+
+Iterate/fix používa source-bound JSON patch: presný SHA-256, jedinečný pôvodný
+search, neprekrývajúce sa rozsahy a atomická kontrola celého výsledku. Mení iba
+plánované súbory; konflikt zastaví úlohu bez tichej regenerácie. Review ukazuje
+skutočný diff pred schválením, blokuje zastaraný návrh a zachová pôvodnú verziu.
+Na mobile pribudol návrat ku schváleniu a kompaktnejší toolbar bez redizajnu.
+Overenie: **840 passed / 103 skipped**, **81/81 PG 16.15 aj 18.6**, oba TypeScript
+grafy, build, lint 0 errors / 41 baseline warnings. Browser desktop/390px:
+iba jeden CSS riadok, modrá pred schválením → červená po ňom, druhé tlačidlo bez
+zmeny; uloženie/reopen zachová v2; chybný hash nemá nový návrh. Dve syntetické
+úlohy = 6 meraných calls. Detaily a limity: `docs/WS-12-PATCHES.md`.
+FORGE-104/502/503 sú čiastočné: živá kvalita patchov/eval a samostatná automatická
+build-error autofix vetva zostávajú otvorené. Žiadny commit/deploy, produkčné
+zmeny, platené inference alebo Lovable kredity. Hosted Lovable wiring sa nemenilo.
+
+### Zámer a odpoveď bez zmien · WS-11 · 6. 11. 2026
+
+Lokálne implementované auto routing create/iterate/fix/explain cez validované
+merané classifier volanie. Otázka používa reálny provider stream bez plan/stage,
+compilera alebo mutácie. UI spojí delty, označí prerušenú odpoveď, Re-run patrí
+ku konkrétnej otázke a vybranému modelu; kopírovanie skutočne používa Clipboard.
+Merač jasne uvádza čerpanie aj za otázky. Bez redizajnu/hosted zmien/kreditov.
+Pripravených 150 SK/EN eval promptov a offline export/scorer s odtlačkami,
+confusion/recall a presnými >90 % / max5 % regression hranicami. Nejde o nameranú
+presnosť LLM; príklad má zámerne 135/150 syntetických výsledkov a gate neprejde.
+Overenie: **816 passed / 100 skipped**, **78/78 PG 16.15 aj 18.6**, TypeScript,
+strict native/CLI graf, build, lint 0 errors / 41 baseline warnings; finálna
+quota copy ešte 17 cielených UI/project-sync testov. Browser desktop/390px:
+otázka → odpoveď → copy → Re-run ostáva bez zmien, 4calls za2úlohy. Native PG
+preverí nezmenený workspace/revíziu a durable accounting aj chybný classifier.
+FORGE-105/102/504/509 sú čiastočné: presnosť reálneho modelu, živá kvalita/latencia,
+nočný eval CI/dashboard a širšie prompt packy zostávajú otvorené. Rozsah a limity:
+`docs/WS-11-INTENT.md`. Žiadne commit/deploy/produkčné migrácie, platené inference
+alebo Lovable kredity; 30-kreditová rezerva platí.
+
+### Pamäť konverzácie a úplný snapshot · WS-10 · 6. 11. 2026
+
+Lokálne doplnené odoslanie a owner/CAS uloženie chatu, obnovenie aj po refreshe,
+meraná rolling sumarizácia starších správ a úplný aktuálny/generated kód bez
+3000-znakového orezania. Kontrola kontextu s rezervou výstupu platí pred každým
+fyzickým volaním a používa najmenší limit povoleného fallback reťazca. Priveľký
+snapshot odmietne preflight pred kvótou; neskorší rast sa zastaví bez aplikovania.
+Návrh v histórii rozlišuje pripravené/odmietnuté/použité. Správy sú text bez HTML
+vykonávania; odstránený nepravdivý pevný údaj 200k ctx. Bez redizajnu alebo kreditov.
+Overenie: **787 passed / 98 skipped**, **76/76 PostgreSQL 16.15 aj 18.6**,
+TypeScript/build, lint 0 errors / 41 baseline warnings. Desktop/390px: 26 správ
+zo servera → generovanie → refresh → ďalšia úloha → odmietnutie; šesť meraných
+calls za dve mesačné úlohy. Syntetické dáta, žiadne živé inference. Nezmenený
+Lovable overlay má stále 68 UI testov; hostované AI zostáva otvorené.
+FORGE-107 ostáva čiastočné: kvalita reálnej pamäte/20+ sessions potrebuje golden
+eval set a live overenie; cache a správa veľmi dlhého chatu sú ďalšia práca.
+Podrobnosti a limity: `docs/WS-10-CONTEXT.md`.
+
+### Výber modelu, retry a failover · WS-9 · 6. 11. 2026
+
+Lokálne implementované Mistral/OpenAI Responses/Claude Messages adaptéry, pevný
+serverový katalóg a skutočný výber v hlavnom UI. Nové služby sú default OFF;
+záložné modely vyžadujú presný aktuálny opt-in príjemcov. Ohraničený retry
+prechodných HTTP odmietnutí, bez replay pri partial stream/sieťovej neistote alebo
+chybe ledgeru. Každý fyzický pokus má usage/cost záznam, mesačná úloha iba jeden.
+Overenie: **766 passed / 95 skipped**, **73/73 PG 16.15 aj 18.6**, **68/68 lokálne
+Lovable UI**, oba buildy, TypeScript, lint 0 errors / 41 baseline warnings.
+Browser desktop/390px overil syntetický fallback a priamy výber, tokeny aj
+reset súhlasu. Lovable má iba proxy katalógu; jeho AI UI zostáva demo. Bez
+živých inference, hosted zmien, commitov/deployu; 30-kreditová rezerva platí.
+FORGE-101 ostáva čiastočné (latencia <15s a živá kvalita neoverené), rovnako
+106/804/1202 a celý M1. Detaily: `docs/WS-9-PROVIDERS.md`.
+
+### Odhady AI nákladov · WS-8 · 6. 11. 2026
+
+Lokálne doplnený verziovaný serverový cenník, snapshot pri rezervácii každého
+volania a presné BigInt odhady mikro-USD. Zmena cien nemení historické výsledky;
+chýbajúca cena/model/usage zostáva unknown. Kontrola migrácie 009 pri prijatí
+vráti mesačný inkrement späť pri chýbajúcej schéme. Operátor má READ ONLY CLI
+report per účet/plán a samostatný offline dashboard s filtrami, pokrytím a
+mobilným zobrazením. Fiktívny príklad sa nepovažuje za živé ceny.
+Overenie: **721/90 main**, **68/68 PostgreSQL 16.15 aj 18.6**, build, TypeScript,
+čistý nový lint; dashboard browser desktop/390px, bez provider calls alebo
+hosted zmien. FORGE-1202 zostáva čiastočné: webový admin, billing/príjmy, reálne
+ceny a preukázaná >70 % marža nie sú hotové. Detaily: `docs/WS-8-AI-COSTS.md`.
+
+### Spotreba provider volaní · WS-7 · 6. 11. 2026
+
+Lokálne doplnené trvalé účtovanie každého AI volania a owner-only tokenový report.
+Migrácia 008 zapisuje prijatie úlohy atomicky s kvótou; pred každou inference
+musí existovať call rezervácia. Tokeny bez údajov zostávajú unknown, pád/zrušenie
+sa neprezentuje ako nula a zlyhanie ledgeru blokuje ďalšiu inference.
+Hlavné UI aj lokálny Lovable panel zobrazujú vstup/výstup a pokrytie bez redizajnu.
+Overenie: **687/77 hlavná sada, 67/67 Lovable UI, 55/55 natívny PG 16.15 aj 18.6**,
+oba buildy a TypeScript, browser desktop/390px vrátane druhého účtu.
+Bez platených AI volaní, hosted zmien, commitov alebo nasadenia. FORGE-106/804 sú
+čiastočné: retry, finančné costy/cenník, tokenové limity a celý usage dashboard
+zostávajú otvorené, rovnako FORGE-1202. Detaily: `docs/WS-7-AI-USAGE.md`.
+
+### Lovable hybrid a GitHub konektor · 6. 11. 2026
+
+Na požiadanie sa pripravuje prepojenie samostatného Lovable UI s Cloud auth/prílohami
+a existujúcim Hono backendom. Hono má voliteľné JWKS overovanie Cloud user tokenov,
+explicitné väzby identity na existujúce účty a pevný zoznam povolených API ciest.
+Cloud je aktívny v Europe (Ireland), používateľovo prihlásenie v IAB náhľade
+funguje. Serverová proxy a stavový panel sú uložené v Lovable; presný export
+prešiel 36/36 testami a lokálnym client/SSR/Workers buildom. Živé Cloud → Hono
+prepojenie, serverové Secrets, identity binding, projektové CRUD ovládanie
+a produkčné nasadenie zostávajú otvorené. Prílohy zatiaľ nie sú implementované.
+
+GitHub: lokálne opravená väzba OAuth relácie na interný účet, odmietnutie
+legacy/pilot relácií po prepnutí účtu a vynútenie public-only limitu aj pre
+starší širší token. Predvolený scope je `public_repo`; chýbajúce udelené práva
+blokujú export. Hostované GitHub tlačidlo v Lovable je stále ukážkové; lokálne
+implementované BFF prepojenie a návrh neskoršej GitHub App sú v `docs/GITHUB-CONNECTOR.md`.
+
+Aktuálne celkové overenie main repo: **851 testov prešlo, 106 bolo preskočených**
+(opt-in Docker/PG a pôvodný skip), platený live smoke vylúčený, Mistral kľúč prázdny.
+TypeScript, cielený lint a produkčný build prešli. GitHub regresie zahŕňajú aj
+prepnutie účtu či zmenu prepojenia medzi potvrdením a odoslaním: pôvodné súbory
+sa vtedy neodošlú. **17/17 reálnych PostgreSQL scenárov** vrátane Basic/Cloud
+transportu a operátorského identity helpera prešlo na testovacom Linuxe, cleanup
+potvrdený. Zmeny nie sú commitnuté ani nasadené. Lovable rezerva 30 kreditov platí;
+pri poslednom zostatku 32,8 sa ďalšie generácie a hosted buildy nespúšťajú.
+Presný kontrakt a prevádzkové limity: `docs/LOVABLE-HYBRID.md`.
+
+Prvý prvok Cloud GitHub flow: migrácia 004 a durable pending helper ukladajú
+iba odtlačky state/nonce, viažu ich na interný účet a atomicky spotrebujú
+neexpirovaný stav. Nový začiatok nahradí starší, účet má najviac jeden záznam.
+Nadväzujúca serverová služba implementuje PKCE S256, výmenu kódu, overenie
+GitHub identity, šifrované uloženie tokenu, stav a lokálne odpojenie. Vynucuje
+public-only práva, pevný HTTPS callback, 10s provider deadline a limit odpovede.
+Výsledok starého flow neobnoví odpojené alebo novšie prepojenie. Osem testov
+služby a štyri testy pending úložiska prešli. Rozšírených **30/30 reálnych PG
+testov prešlo na PostgreSQL 16.15 aj 18.6** v dočasných natívnych clustroch na Macu
+(testovací Linux offline). Zahŕňajú migrácie 004–007, 8 súbežných spotrebovaní state,
+late finish vs. disconnect/restart, celý JWT/BFF/OAuth/PG priechod a jeden writer
+pri 8 súbežných potvrdeniach exportu.
+Oba clustre boli zastavené a odstránené. Produkcia sa nemenila.
+Cloud OAuth endpointy aj serverová BFF factory sú lokálne implementované,
+štandardný startup ich predvolene nezapína; explicitné runtime prepínače a
+read-only preflight sú v `docs/GITHUB-ACTIVATION.md`. Vyžadujú overenú Cloud identitu a samostatný
+serverový bridge key, BFF viaže flow na vlastnú __Host-/HttpOnly nonce cookie.
+Štrnásť HTTP/BFF testov prešlo vrátane skutočného Hono middleware a simulovaného
+GitHubu. UI a Lovable route wiring sú pripravené lokálne v samostatnej kópii
+`lovable-github-local` a prenášacom balíku `deploy/lovable-github`: GitHub karta,
+callback, retry, odpojenie a account-switch guard. Prešlo 60/60 UI testov,
+TypeScript, cielený lint a client/SSR/Workers build. Lokálna vizuálna kontrola
+prešla na desktope a 390px mobile; opravený fokus/klávesnica mobilného panela
+pomocou existujúceho Sheet. Screenshoty sú súčasťou prenášacieho balíka.
+Hosted prenos, konfigurácia a živé prepojenie zostávajú otvorené.
+Serverový výber exportnej verzie je pripravený: historické zdroje z vlastného
+projektu, CAS revízia, kontrola ciest/tajomstiev a deterministický fingerprint.
+Prešiel ôsmimi unit testami aj reálnym PG scenárom. Lokálne sú pripravené writer
+nového verejného repozitára a prepare/confirm pipeline s durable ledgerom,
+väzbou súhlasu na cieľ/zdroje/prepojenie a kontrolou tree/commit/ref/blob integrity.
+Šestnásť ďalších unit testov prešlo. Neisté výsledky sa automaticky neopakujú;
+retencia a manuálna obnova neúplných zápisov sú otvorené. HTTP aj lokálne Lovable UI exportu sú pripravené:
+výber skutočného serverového projektu/verzie, kontrola súborov, výslovný public
+súhlas, výsledok a bezpečné obnovenie stavu cez UUID oddelene pre app účet.
+BFF akcie sú dostupné len pri explicitnom exporter wiring; default vypnuté.
+Native PG test overuje aj prepare/confirm/status a idempotentný retry.
+Hostovaná aktivácia a živý GitHub zápis neprebehli.
+
+FORGE-605/1103: doplnené obnovenie serverovej kontroly súborov podľa UUID,
+zrušenie nepotvrdenej prípravy a expirácia. Migrácia 006 uvoľní názov iba pre
+cancelled/expired; starý UUID zostáva neaktívny a nemožno ho znovu potvrdiť.
+Running/failed/succeeded rezervácie sa automaticky neuvoľňujú. Reálny PG test
+overuje súbeh nových rezervácií, cancel vs. confirm a upgrade naplnenej schémy 005.
+UI po reload vyžaduje čerstvý súhlas; zrušenie a expirácia už nemajú slepý koniec.
+Retencia ledgeru a manuálne posúdenie neúplných/starších GitHub zápisov zostávajú otvorené.
+Overenie tohto prírastku: **627 passed/52 skipped**, 60/60 lokálnych UI testov,
+30/30 reálnych PG scenárov na 16.15 aj 18.6; TypeScript, cielený lint a oba buildy
+prešli. Preskočené PG/Docker scenáre sa spúšťajú samostatne; platený smoke vylúčený.
+
+FORGE-605/1103: migrácia 007 ukladá repo/commit/tree/blob dôkazy pred posunom
+vetvy. Nová read-only kontrola výsledku vie obnoviť running/failed → succeeded
+po strate PATCH odpovede či páde pred uložením výsledku. Žiadny nový GitHub zápis
+sa pri nej nespustí. Overuje pôvodný repo/owner ID, verejnosť, tip vetvy, commit,
+rodiča, tree a každý blob/mode. Obnova funguje aj po úprave/zmazaní projektu a
+refreshi pripojenia toho istého GitHub ID. Neúplné dôkazy alebo zmenená vetva
+vyžadujú ručné zosúladenie; retencia zostáva otvorená. UI má samostatnú kontrolu
+a odkaz na známy čiastočne vytvorený repozitár; na 390px mobile overený simulovaný
+priechod chyba → kontrola → výsledok. Produkcia, živý GitHub ani kredity sa nemenili.
+
+Cloud GitHub startup je pripravený: oddelené default-off OAuth/export prepínače,
+validácia pred DB/migráciami, samostatné Secrets a callback, runtime factory
+a kontrola DB stĺpcov/unique indexov/exportných stavov. Nový `github:preflight`
+číta iba explicitný dotenv; voliteľne overí DB v READ ONLY transakcii, nič
+neprepája/nemigruje/neštartuje a nevolá providera. 25 nových unit/CLI testov
+a tri nové reálne PG scenáre prešli. Postup: `docs/GITHUB-ACTIVATION.md`.
+Verejný deployment guard ostáva; živá konfigurácia, identity binding, hosted
+prenos a overenie stále nie sú dokončené.
+
+### AI limity a priebeh úloh · 6. 11. 2026
+
+Čiastočný prírastok FORGE-102/106/803/804/1103: odmietnutia nezvyšujú uloženú
+mesačnú spotrebu, predpríprava ju nečerpá a autofix sa ráta raz až pred prvou
+inference. Kvóta používa pripnutú READ COMMITTED transakciu a owner lock;
+64 súbežných požiadaviek prijme presne 10. Oneskorený starý mesiac neprepíše
+nový čítač. Zrušený reader drží concurrent slot, kým provider naozaj neskončí.
+UI rozlišuje vyčerpanie, rate limit, denný budget, auth a dostupnosť služby;
+prerušený stream nie je úspešný návrh. Mesačný meter a upozornenie od 80 % sú
+v hlavnom editore aj lokálnej Lovable kópii. Príprava nevyčerpala hosted kredity.
+
+105 cielených main testov, 63 Lovable UI testov a **48/48 PG scenárov na 16.15
+aj 18.6** prešlo. Browser fixture overila 8→9→10 a odmietnutie ďalšej úlohy bez
+zmeny projektu, prepnutie účtov a 390px panel. Ide o syntetický provider a lokálne
+rozhrania. Bez novej migrácie, commitov a produkcie. Tokenové/nákladové účtovanie,
+provider failover/retry, billing a živá hostovaná aktivácia zostávajú otvorené.
+Detaily: `docs/WS-6-AI-QUOTAS.md`. Konečná main sada má **667 passed/70 skipped**,
+TypeScript/build prešli a celoplošný lint má 0 chýb/41 upozornení. Nový Cloud →
+proxy → PG quota → syntetická inference priechod prešiel aj po zrušení identity
+väzby (401 bez ďalšieho provider volania).
+
+### Overený prírastok WS-4 · 5. 11. 2026
+
+Izolovaná **compile-only** kompilácia je implementovaná na vetve
+`codex/ws4-sandbox-isolation`: súkromný trusted runner, jednorazové Docker workery,
+spoločná fronta buildu aj všetkých autofix rebuildov (1 aktívny + 8 čakajúcich),
+hard resource limity, watchdog, cancellation a potvrdený cleanup. Pri infra chybe
+sa nespúšťa platený AI autofix a izolovaný režim nepoužije host fallback.
+
+Overenie: **419 lokálnych testov prešlo**, 10 preskočených (9 Docker scenárov
+spúšťaných oddelene + 1 existujúci preskočený test). Platený `liveSmoke.test.ts`
+bol výslovne vylúčený a `MISTRAL_API_KEY` prázdny. **9/9 reálnych Docker testov
+prešlo na samostatnom rootless Linuxe**, vrátane kernel limitov, siete/filesystemu,
+timeoutu s potomkom, OOM, cancellation, cleanupu a výsledného runner image.
+TypeScript a produkčný build prešli. Produkcia ani existujúce credentials sa
+nemenili. Podrobnosti, limity, spustenie testov, budúci deploy a rollback:
+`docs/WS-4-SANDBOX.md`.
+
+**FORGE-201 a FORGE-1001 zostávajú otvorené.** Tento prírastok nezavádza fullstack
+runtime/HMR, ľubovoľné npm balíčky ani nenahrádza tenant pentest a širšie egress
+kritériá. Nasadenie na kapacitne obmedzený VPS je samostatný budúci krok.
+
+### Overený prírastok šablón a UX · 5. 11. 2026
+
+- 12 samostatných React/TypeScript štartovacích projektov po 13 súborov,
+  funkčné lokálne interakcie, filtre galérie, názov/farba značky a follow-up prompty.
+- Galéria a AI návrhy majú viditeľnú kontrolu súborov pred použitím. Schválenie
+  vytvorí novú verziu; starý obsah a historické React zdroje sa zachovajú.
+- Spoločný composer sa naozaj predvyplní z prompt knižnice. Zrušená alebo stará
+  kompilácia neprepíše náhľad nového projektu. Obnovenie preview nevymaže dokument.
+- Mobilný panel projektov má klávesnicu/fokus; loading, chyby, retry a prázdne
+  stavy boli doplnené. Výpadok auth API už neotvorí editor ako pilot bez loginu.
+- Samostatný [Lovable UI návrh](https://lovable.dev/projects/21fdbb9f-3bac-49a3-8479-875cc9734777)
+  zachováva pôvodný tmavý shell a modrý akcent. Nie je prepojený s backendom.
+
+Overenie: **455 lokálnych testov prešlo**, 22 skipov (21 Docker spustených
+osobitne + 1 pôvodný skip), TypeScript a produkčný build prešli.
+**12/12 exportovaných projektov prešlo tsc/Vite buildom** na testovacom Linuxe;
+**21/21 reálnych Docker scenárov prešlo** vrátane všetkých šablón.
+Klikacie overenie potvrdilo branding → review → build → pridanie/presun úlohy,
+mobilný fokus, obnovenie projektu a zotavenie po výpadku API.
+Detaily, príkazy, obmedzenia a výsledky: `docs/WS-3-TEMPLATES.md`.
+
+**FORGE-401–403, 303, 701 a 1102–1103 tým získavajú čiastočný prírastok,
+nie úplné uzavretie.** Šablóny majú lokálne ukážkové dáta; DB/auth/platby
+zákazníckych aplikácií, hostovanie, širší wizard, fullstack runtime, tenant
+izolácia, úplný súborový diff a billing zostávajú otvorené. Zmeny nie sú
+commitnuté ani nasadené; rozdelenie commitov nasleduje po spoločnej kontrole.
+
 ---
+
+### Súborový diff a predchodcovia verzií · 5. 11. 2026
+
+FORGE-104/303: Diff panel teraz porovnáva skutočné zdroje vybraných verzií
+(React, CSS, JSON aj HTML), vrátane pridaných/odstránených súborov a riadkov.
+V History je priamy vstup Diff pre konkrétnu verziu. Nové snapshoty ukladajú
+`parentId`, takže zmena po obnovení staršej verzie používa správny základ.
+Metadata sa zachovávajú v IndexedDB v2 bez zmeny schémy; staršie snapshoty
+bez predchodcu predvolia predchádzajúcu uloženú verziu. Chýbajúce/poškodené
+zdroje zobrazia chybu, nie falošné porovnanie voči prázdnemu projektu.
+
+Overenie: **463 passed, 22 skipped**, TypeScript/produkčný build, čistý lint
+dotknutých komponentov a klikacie porovnanie `src/brand.ts` (+1/−1) prešli.
+Veľké zmeny používajú ohraničený výpočet a postupné zobrazenie ďalších riadkov.
+Diff je iba na čítanie; nevykonáva kód súborov. Branch/merge UI, patch-based AI
+editácie a serverové verziovanie zostávajú otvorené. Bez commitov a deployu.
+
+### Lokálne projekty oddelené podľa účtu · 5. 11. 2026
+
+Overený účet teraz používa vlastnú IndexedDB databázu pre projekty, snapshoty,
+súbory, runy a meta ukazovatele. Pilot ponecháva pôvodnú databázu bez migrácie
+alebo mazania. Anonymný používateľ a neoverený stav nemajú aktívne úložisko.
+Po zmene overenej identity sa zrušia generovanie/kompilácia a čakajúci autosave,
+vyčistí sa obsah pamäte aj súkromné logy a obnoví sa iba databáza nového účtu.
+Oneskorený restore alebo auth výsledok nemôže obnoviť predchádzajúci účet.
+Pri návrate na kartu sa relácia znovu overí.
+
+Overenie: **472 passed/22 skipped**, 9 nových testov pre hranice účtov,
+TypeScript/produkčný build a lint dotknutého rozsahu prešli. Klikacie overenie
+potvrdilo zachovanie pilotnej v2 a `src/brand.ts` po reload.
+
+**FORGE-703/1001 zostávajú otvorené:** toto je lokálne oddelenie dát, nie
+serverová autorizácia projektov, šifrovanie alebo samostatná bezpečnostná
+hranica pred skriptom na tom istom origin. Staré neoznačené dáta vrátane
+starších prihlásených relácií zostávajú v pôvodnej databáze; automatický import
+prvému prihlásenému účtu by mohol priradiť cudzie dáta. Budúci prenos musí
+výslovne určiť vlastníka. Synchronizácia medzi zariadeniami ešte neexistuje.
+Bez commitov a bez zásahu do produkcie.
+
+### Serverové projekty — API základ · 5. 11. 2026
+
+Pridaná aditívna migrácia `002_projects.sql` a auth-only API pre uloženie,
+načítanie, owner listing s pagination, konflikt revízie, nemennú históriu
+a soft-delete/obnovu do 30 dní. Owner sa berie iba zo session; cudzie ID sa
+správa ako neexistujúce. Súbežné zápisy chráni atomická revízia a unique constraint.
+Osem API scenárov prešlo nad pg-mem; **9/9 prešlo nad reálnym PostgreSQL**
+vrátane opakovania migrácií, dvoch súbežných create aj update požiadaviek.
+Testovací kontajner bol odstránený, produkčná migrácia sa nespúšťala.
+Celá lokálna sada: **480 passed/31 skipped** (9 PG + 21 Docker spúšťaných
+osobitne a 1 pôvodný skip), TypeScript/produkčný build a cielený lint prešli.
+
+Rozsah, API, limity a testovacie prostredie: `docs/WS-5-PROJECT-STORAGE.md`.
+**Automatická synchronizácia, import pôvodných dát bez vlastníka, plánové storage entitlements, fyzická retention,
+organizácie/RBAC a verejné zdieľanie zostávajú otvorené.** Klient stále používa
+lokálne projekty; následná ručná integrácia do UI je uvedená nižšie.
+
+### Projektová knižnica a ručné serverové ukladanie · 5. 11. 2026
+
+UI má `Moje projekty`: lokálne uložené projekty, serverový zoznam s pagination,
+uloženie, uloženie kópie, otvorenie, kôš a obnova. Overený účet vie načítať
+serverový projekt v inom prehliadači. Pilot používa iba lokálne dáta. Konflikt
+revízie neprepíše lokálnu prácu; otvorenie serverovej verzie pri rovnakom ID
+vytvorí atomickú lokálnu záložnú kópiu. Mapping snapshot IDs zachová serverovú
+históriu aj pri kópiách; oneskorené odpovede sa neaplikujú po zmene účtu/projektu.
+
+**486 lokálnych testov prešlo**, 36 skipov (14 PG + 21 Docker spustených
+osobitne + 1 pôvodný). **14/14 prešlo nad reálnym PostgreSQL**, vrátane
+React/klient → Hono → PG → lokálna cache a koša v UI. Klikacie overenie v
+samostatnom loopback pg-mem fixture potvrdilo save/open/trash/restore aj
+oddelenie alice/bob. TypeScript, build a cielený lint prešli. Bez commitov
+a bez produkčnej migrácie. Detaily: `docs/WS-5-PROJECT-STORAGE.md`.
+
+Automatický sync, offline fronta, spolupráca, plánové storage entitlements a legacy import
+s potvrdeným vlastníctvom ešte nie sú implementované. Zdieľanie ani publish
+sa uložením na server nezapína.
+
+### Kapacita serverových projektov · 6. 11. 2026
+
+FORGE-803/1103 získavajú ďalší čiastočný prírastok: prevádzková kapacita účtu
+64 MiB/100 projektov, varovanie od 80 %, vlastníkom viazané metadata API a
+atomické odmietnutie nadlimitného zápisu so zachovaním lokálnej práce. Kôš sa
+počíta a obnova sa neúčtuje druhýkrát. Pinned READ COMMITTED transakcia so
+zámkom vlastníka chráni súbežné tvorby aj rast rôznych projektov toho istého účtu.
+Nejde o dokončené predplatné, fyzickú retenciu ani globálnu ochranu disku.
+Overenie: 639/63 hlavná sada, 61 Lovable UI testov, po 41/41 PG 16.15 a 18.6;
+TypeScript/buildy prešli a celoplošný lint má 0 chýb/46 upozornení.
+Bez novej migrácie, commitov a zásahu do produkcie. Podrobnosti a opakovanie
+sú v `docs/WS-5-PROJECT-STORAGE.md`.
 
 ## 1. Míľniky (roadmap)
 
@@ -53,7 +522,7 @@
 
 | ID | Položka | Akceptačné kritériá | Odhad |
 |---|---|---|---|
-| 201 | Sandbox preview pre fullstack (WebContainers/Firecracker) | `npm install`, dev server, HMR beží v prehliadači/VM izolovane | XL |
+| 201 | Sandbox preview pre fullstack (WebContainers/Firecracker) — **otvorené; WS-4 dokončuje iba compile izoláciu** | `npm install`, dev server, HMR beží v prehliadači/VM izolovane | XL |
 | 202 | Build pipeline (Vite) + produkčný build | „Publish" najprv prejde reálnym buildom; chyby sa zobrazia v Console | L |
 | 203 | Závislosti: npm balíčky na želanie | „pridaj recharts" → AI prida + nainštaluje | M |
 | 204 | Databáza ako služba (tabuľky, seed, migrácie) | AI navrhne schému, UI editor tabuliek, data browser | XL |
@@ -182,7 +651,7 @@ Pravidlá:
 
 | ID | Položka | Akceptačné kritériá | Odhad |
 |---|---|---|---|
-| 1001 | Sandbox izolácia ( žiadny prístup k dátam iných zákazníkov) | pentestom overené; egress filter | XL |
+| 1001 | Sandbox izolácia (žiadny prístup k dátam iných zákazníkov) — **otvorené; overený compile základ WS-4** | pentestom overené; egress filter | XL |
 | 1002 | Prompt injection ochrana (P8) + content moderácia uploadov | eval: < 2 % prienik | M |
 | 1003 | Šifrovanie secrets vault (KMS), rotácia kľúčov | audit: secrets nikdy v logoch | M |
 | 1004 | Rate limiting + abuse monitoring per účet/IP | anti-scraper, anti-mining | M |

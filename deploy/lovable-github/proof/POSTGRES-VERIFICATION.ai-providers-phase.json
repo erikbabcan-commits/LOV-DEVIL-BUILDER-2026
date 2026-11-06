@@ -1,0 +1,17 @@
+{
+  "phase": "WS-9 providers/retry/failover",
+  "runner": "deploy/test-projects-native.py",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 73,
+  "migrations": "001-009",
+  "provider": "synthetic transport and fixtures; no paid requests",
+  "clusters": "loopback/SCRAM/private temp; stopped and removed",
+  "logs": {
+    "ai-providers-postgres16-tests.log": "d5fead20f91e419917631efad7e052ebc7b1235a0af638b753da948191ef940b",
+    "ai-providers-postgres18-tests.log": "5f78f38a263b1ac905e6de49e31b376e2d5a8a489f3d544a7f5266fbd321e44c"
+  },
+  "coverage": "Prior68 plus5 provider HTTP/Hono/PG cases: all physical calls, one monthly task, sticky backup, direct Claude, exact consent, ledger failure, cancel during backoff."
+}

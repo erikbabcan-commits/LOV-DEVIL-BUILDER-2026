@@ -1,0 +1,17 @@
+{
+  "phase": "WS-16 local manual file versions through Cloud/proxy/Hono/PG",
+  "runner": "deploy/test-projects-native.py",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 87,
+  "migrations": "001-009 unchanged",
+  "provider": "no paid inference; manual scenario zero AI runs/monthly usage; actual trusted HostExecutor compile",
+  "clusters": "private loopback SCRAM; stopped and removed",
+  "logs": {
+    "manual-editor-pg16.log": "07f5b66ff54aa66181a503d84537b14722b3f7066907d3e8cadc903dc2470191",
+    "manual-editor-pg18.log": "d8053555bab72174f722f847ab8d8fddea0017181d013c1a6d939f0d82a74d81"
+  },
+  "coverage": "Previous86 plus private manual draft restore, immutable child version, real compile, CAS save/reopen, original history retention, no editor metadata in saved project and zero AI charge."
+}

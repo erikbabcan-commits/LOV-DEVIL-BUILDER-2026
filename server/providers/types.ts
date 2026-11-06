@@ -3,14 +3,21 @@
 
 export interface ChatMessage { role: 'system' | 'user' | 'assistant'; content: string }
 
-export interface CompletionChunk { delta?: string; finishReason?: 'stop' | 'length' | 'error' }
+export interface CompletionChunk { delta?: string; finishReason?: 'stop' | 'length' | 'error'; model?: string; usage?: CompletionResult['usage'] }
 
 export interface CompletionResult {
   text: string;
+  /** 'length' = output useknutý na max_tokens (volajúci môže požiadať o pokračovanie). */
+  finishReason?: 'stop' | 'length';
   usage: { promptTokens: number; completionTokens: number };
+  /** false means the numeric placeholders are NOT reported consumption. */
+  usageReported?: boolean;
+  model?: string;
 }
 
 export interface AIProvider {
+  /** Operator-verified total window; conservative default when absent. */
+  readonly contextWindowTokens?: number;
   readonly name: string;
   readonly model: string;
   /** jednorazová completion (JSON výstupy plánu/súborov) */

@@ -1,0 +1,122 @@
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+vite v8.1.5 building client environment for production...
+[2K
+transforming...✓ 2055 modules transformed.
+rendering chunks...
+computing gzip size...
+.output/public/assets/styles-BA0iXtzE.css            77.07 kB │ gzip:  13.30 kB
+.output/public/assets/useNavigate-6R3ftroO.js         0.29 kB │ gzip:   0.22 kB
+.output/public/assets/hammer-DC_OfwuR.js              0.38 kB │ gzip:   0.26 kB
+.output/public/assets/rolldown-runtime-W7wSyTde.js    0.97 kB │ gzip:   0.56 kB
+.output/public/assets/reset-password-dUybUwV5.js      1.33 kB │ gzip:   0.77 kB
+.output/public/assets/github-client-3x-lqqGd.js       1.36 kB │ gzip:   0.83 kB
+.output/public/assets/github.callback-DZWAve2c.js     2.46 kB │ gzip:   1.18 kB
+.output/public/assets/preload-helper-CK9aqxb0.js      5.09 kB │ gzip:   2.08 kB
+.output/public/assets/auth-ZPugkv3e.js                8.84 kB │ gzip:   3.80 kB
+.output/public/assets/link-DkEwx4fd.js               11.30 kB │ gzip:   5.01 kB
+.output/public/assets/ui-BtWnrqvk.js                 31.28 kB │ gzip:  10.46 kB
+.output/public/assets/use-session-CRr5mjiG.js        58.12 kB │ gzip:  13.57 kB
+.output/public/assets/jszip.min-BOjQVLz1.js          95.97 kB │ gzip:  28.50 kB
+.output/public/assets/routes-LP80Dd2E.js            153.05 kB │ gzip:  47.66 kB
+.output/public/assets/client-Cd_as_zu.js            229.12 kB │ gzip:  60.02 kB
+.output/public/assets/index-dszPO7cW.js             318.17 kB │ gzip: 101.32 kB
+
+✓ built in 630ms
+vite v8.1.5 building ssr environment for production...
+[2K
+transforming...✓ 112 modules transformed.
+rendering chunks...
+computing gzip size...
+node_modules/.nitro/vite/services/ssr/assets/styles-BA0iXtzE.css                      77.07 kB │ gzip: 13.30 kB
+node_modules/.nitro/vite/services/ssr/assets/empty-plugin-adapters-D0YT6eRu.js         0.25 kB │ gzip:  0.18 kB
+node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-DHraR8ef.js    1.90 kB │ gzip:  0.62 kB
+node_modules/.nitro/vite/services/ssr/assets/github-client-BsPFZVfk.js                 1.94 kB │ gzip:  1.00 kB
+node_modules/.nitro/vite/services/ssr/assets/reset-password-0EvDwU7r.js                1.98 kB │ gzip:  0.94 kB
+node_modules/.nitro/vite/services/ssr/assets/start-BxwCulkP.js                         2.03 kB │ gzip:  0.90 kB
+node_modules/.nitro/vite/services/ssr/assets/github-export-protocol-Bd9taW4_.js        2.88 kB │ gzip:  1.06 kB
+node_modules/.nitro/vite/services/ssr/assets/use-session-hd4zks6B.js                   3.00 kB │ gzip:  1.18 kB
+node_modules/.nitro/vite/services/ssr/assets/ui-C9QNoAJF.js                            3.14 kB │ gzip:  1.26 kB
+node_modules/.nitro/vite/services/ssr/assets/createCsrfMiddleware-B2Le3pWD.js          3.25 kB │ gzip:  1.04 kB
+node_modules/.nitro/vite/services/ssr/assets/github.callback-BZXzmybY.js               3.70 kB │ gzip:  1.43 kB
+node_modules/.nitro/vite/services/ssr/index.js                                         4.61 kB │ gzip:  1.92 kB
+node_modules/.nitro/vite/services/ssr/assets/auth-CZXzePc3.js                          7.59 kB │ gzip:  2.68 kB
+node_modules/.nitro/vite/services/ssr/assets/client-D-JmBiWV.js                        7.95 kB │ gzip:  2.66 kB
+node_modules/.nitro/vite/services/ssr/assets/github-bff.server-DJ_377im.js             9.25 kB │ gzip:  3.31 kB
+node_modules/.nitro/vite/services/ssr/assets/hono-proxy.server-l27UNEOL.js            11.27 kB │ gzip:  3.56 kB
+node_modules/.nitro/vite/services/ssr/assets/router-Cdfv-uQo.js                       13.30 kB │ gzip:  3.77 kB
+node_modules/.nitro/vite/services/ssr/assets/server-CZ9xGgCp.js                       66.88 kB │ gzip: 16.98 kB
+node_modules/.nitro/vite/services/ssr/assets/routes-Da6Xn5Yp.js                      120.84 kB │ gzip: 31.54 kB
+
+✓ built in 203ms
+
+[nitro] ◐ Building [Nitro] (preset: cloudflare-module, compatibility: 2026-11-06)
+[nitro] ✔ Generated public .output/public
+vite v8.1.5 building nitro environment for production...
+
+ WARN  inlineDynamicImports option is ignored because the codeSplitting option is specified.
+
+[2K
+transforming...✓ 2142 modules transformed.
+rendering chunks...
+computing gzip size...
+.output/server/_ssr/empty-plugin-adapters-D0YT6eRu.mjs         0.25 kB │ gzip:   0.18 kB
+.output/server/_libs/isarray.mjs                               0.38 kB │ gzip:   0.27 kB
+.output/server/_chunks/ssr-renderer.mjs                        0.65 kB │ gzip:   0.39 kB
+.output/server/_libs/tanstack__react-query.mjs                 1.08 kB │ gzip:   0.49 kB
+.output/server/_libs/hookable.mjs                              1.19 kB │ gzip:   0.53 kB
+.output/server/_libs/inherits.mjs                              1.28 kB │ gzip:   0.50 kB
+.output/server/_runtime.mjs                                    1.76 kB │ gzip:   0.83 kB
+.output/server/_libs/radix-ui__primitive.mjs                   1.86 kB │ gzip:   0.74 kB
+.output/server/_ssr/start-BxwCulkP.mjs                         1.93 kB │ gzip:   0.88 kB
+.output/server/_libs/core-util-is.mjs                          1.97 kB │ gzip:   0.64 kB
+.output/server/_tanstack-start-manifest_v-DHraR8ef.mjs         1.99 kB │ gzip:   0.67 kB
+.output/server/_libs/immediate.mjs                             2.09 kB │ gzip:   0.83 kB
+.output/server/_ssr/github-client-BsPFZVfk.mjs                 2.15 kB │ gzip:   1.10 kB
+.output/server/_ssr/reset-password-0EvDwU7r.mjs                2.50 kB │ gzip:   1.09 kB
+.output/server/_ssr/createCsrfMiddleware-B2Le3pWD.mjs          3.13 kB │ gzip:   1.03 kB
+.output/server/_ssr/github-export-protocol-Bd9taW4_.mjs        3.15 kB │ gzip:   1.17 kB
+.output/server/_libs/class-variance-authority+clsx.mjs         3.22 kB │ gzip:   1.27 kB
+.output/server/_ssr/use-session-hd4zks6B.mjs                   3.30 kB │ gzip:   1.33 kB
+.output/server/_ssr/ui-C9QNoAJF.mjs                            3.57 kB │ gzip:   1.38 kB
+.output/server/_ssr/github.callback-BZXzmybY.mjs               4.38 kB │ gzip:   1.56 kB
+.output/server/_ssr/ssr.mjs                                    4.58 kB │ gzip:   1.94 kB
+.output/server/_libs/radix-ui__react-context+react.mjs         5.82 kB │ gzip:   1.70 kB
+.output/server/_libs/lovable.dev__cloud-auth-js.mjs            7.30 kB │ gzip:   2.55 kB
+.output/server/_ssr/client-D-JmBiWV.mjs                        8.02 kB │ gzip:   2.73 kB
+.output/server/_ssr/auth-CZXzePc3.mjs                          8.70 kB │ gzip:   2.82 kB
+.output/server/_ssr/github-bff.server-DJ_377im.mjs             9.47 kB │ gzip:   3.39 kB
+.output/server/_libs/h3-v2+rou3+srvx.mjs                       9.97 kB │ gzip:   3.08 kB
+.output/server/_ssr/hono-proxy.server-l27UNEOL.mjs            11.39 kB │ gzip:   3.64 kB
+.output/server/_libs/tanstack__history.mjs                    12.53 kB │ gzip:   3.73 kB
+.output/server/_libs/supabase__functions-js.mjs               12.63 kB │ gzip:   3.50 kB
+.output/server/index.mjs                                      12.96 kB │ gzip:   3.94 kB
+.output/server/_libs/lucide-react.mjs                         13.24 kB │ gzip:   3.07 kB
+.output/server/_ssr/router-Cdfv-uQo.mjs                       14.02 kB │ gzip:   3.92 kB
+.output/server/_libs/h3+rou3+srvx.mjs                         16.69 kB │ gzip:   4.82 kB
+.output/server/_libs/@radix-ui/react-compose-refs+[...].mjs   16.93 kB │ gzip:   4.70 kB
+.output/server/_libs/@tanstack/router-core+[...].mjs          30.01 kB │ gzip:   8.02 kB
+.output/server/_libs/supabase__supabase-js.mjs                40.57 kB │ gzip:  11.86 kB
+.output/server/_libs/tanstack__query-core.mjs                 48.60 kB │ gzip:  10.73 kB
+.output/server/_libs/supabase__phoenix.mjs                    50.56 kB │ gzip:  12.79 kB
+.output/server/_libs/sonner.mjs                               52.00 kB │ gzip:  11.80 kB
+.output/server/_ssr/server-CZ9xGgCp.mjs                       64.79 kB │ gzip:  16.82 kB
+.output/server/_libs/supabase__realtime-js+unenv.mjs          84.13 kB │ gzip:  21.64 kB
+.output/server/_libs/tailwind-merge.mjs                       88.16 kB │ gzip:  15.69 kB
+.output/server/_libs/@radix-ui/react-dialog+[...].mjs         89.41 kB │ gzip:  20.82 kB
+.output/server/_libs/zod.mjs                                 100.37 kB │ gzip:  17.38 kB
+.output/server/_libs/supabase__postgrest-js.mjs              112.08 kB │ gzip:  23.72 kB
+.output/server/_libs/@supabase/storage-js+[...].mjs          127.83 kB │ gzip:  24.16 kB
+.output/server/_ssr/routes-Da6Xn5Yp.mjs                      130.67 kB │ gzip:  32.09 kB
+.output/server/_libs/jszip+[...].mjs                         275.33 kB │ gzip:  61.09 kB
+.output/server/_libs/supabase__auth-js.mjs                   322.61 kB │ gzip:  65.61 kB
+.output/server/_libs/@tanstack/react-router+[...].mjs        750.01 kB │ gzip: 158.39 kB
+
+✓ built in 345ms
+[nitro] ℹ Using auto generated worker name: tanstack-start-ts
+ℹ Generated .output/server/wrangler.json
+ℹ Generated .wrangler/deploy/config.json
+ℹ Generated .output/public/_headers
+ℹ Generated .output/nitro.json
+
+[nitro] ✔ You can preview this build using npx vite preview
+[nitro] ✔ You can deploy this build using npx nitro deploy --prebuilt

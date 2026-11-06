@@ -1,0 +1,21 @@
+[Unit]
+Description=LOV-DEVIL PostgreSQL backup and isolated restore verification
+After=docker.service
+Requires=docker.service
+StartLimitIntervalSec=15min
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/libexec/lov-devil/backup-database.py
+UMask=0077
+TimeoutStartSec=15min
+Restart=on-failure
+RestartSec=1min
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/root/lov-devil-backups /run/lock
+PrivateTmp=true

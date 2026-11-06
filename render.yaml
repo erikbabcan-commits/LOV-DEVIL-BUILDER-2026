@@ -1,0 +1,52 @@
+# Render Blueprint — deploy z repo rootu: `render blueprint launch`
+# (alebo Settings → Blueprint → branch) Pozn.: Render auto-detekuje render.yaml na
+# root repo; ak potrebuješ inú cestu, nastav ju v dashboarde.
+services:
+  # Backend: Hono API (Docker) — plan starter ~$7/mes
+  - type: web
+    name: lov-devil-api
+    runtime: docker
+    dockerfilePath: ./deploy/Dockerfile
+    plan: starter
+    port: 8787
+    healthCheckPath: /api/health
+    envVars:
+      # !! NODE_ENV NEnastavuj na production — server ho blokuje public deploy guardom !!
+      - key: BIND
+        value: 0.0.0.0
+      - key: PORT
+        value: 8787
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: MISTRAL_MODEL
+        value: mistral-large-latest
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CALLBACK_URL
+        sync: false
+      - key: LOV_APP_URL
+        sync: false
+      - key: GITHUB_ALLOWED_ORIGINS
+        sync: false
+      - key: GITHUB_SESSION_SECRET
+        sync: false
+      - key: GITHUB_SESSION_DIR
+        value: /data/sessions
+      - key: AI_GENERATION_ENABLED
+        value: "1"
+
+  # Frontend: Caddy s natívaným buildom UI + reverse proxy /api -> lov-devil-api
+  - type: web
+    name: lov-devil-web
+    runtime: docker
+    dockerfilePath: ./deploy/Dockerfile.web
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: APP_UPSTREAM
+        fromService:
+          name: lov-devil-api
+          type: web
+          property: hostport

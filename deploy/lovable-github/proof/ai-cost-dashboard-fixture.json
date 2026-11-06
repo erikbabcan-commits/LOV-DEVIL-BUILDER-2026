@@ -1,0 +1,91 @@
+{
+  "demo": true,
+  "schemaVersion": 1,
+  "currency": "USD",
+  "basis": "estimated-uncached-text-tokens",
+  "coverage": "recorded_calls_only",
+  "periodStart": "2026-11-01T00:00:00.000Z",
+  "periodEnd": "2026-12-01T00:00:00.000Z",
+  "generatedAt": "2026-11-06T12:00:00.000Z",
+  "policies": [
+    {
+      "version": "synthetic-demo-v1",
+      "fingerprint": "79cbe2122ffd66beaf086d8dfeafe81d1faa0af74acfdc304dddd2e4bcd5a55d"
+    }
+  ],
+  "accounts": [
+    {
+      "userId": "alice-demo",
+      "admissionPlan": "free",
+      "calls": "1",
+      "reportedCalls": "1",
+      "pricedCalls": "1",
+      "unknownCostCalls": "0",
+      "pendingCalls": "0",
+      "legacyCallsWithoutCostSnapshot": "0",
+      "promptTokens": "1200",
+      "completionTokens": "200",
+      "estimatedKnownCostUsd": "0.003600",
+      "estimatedRecordedCostUsd": "0.003600",
+      "allRecordedCallsPriced": true
+    },
+    {
+      "userId": "alice-demo",
+      "admissionPlan": "pro",
+      "calls": "1",
+      "reportedCalls": "0",
+      "pricedCalls": "0",
+      "unknownCostCalls": "1",
+      "pendingCalls": "1",
+      "legacyCallsWithoutCostSnapshot": "0",
+      "promptTokens": "0",
+      "completionTokens": "0",
+      "estimatedKnownCostUsd": "0.000000",
+      "estimatedRecordedCostUsd": null,
+      "allRecordedCallsPriced": false
+    },
+    {
+      "userId": "bob-demo",
+      "admissionPlan": "free",
+      "calls": "1",
+      "reportedCalls": "1",
+      "pricedCalls": "1",
+      "unknownCostCalls": "0",
+      "pendingCalls": "0",
+      "legacyCallsWithoutCostSnapshot": "0",
+      "promptTokens": "1200",
+      "completionTokens": "200",
+      "estimatedKnownCostUsd": "0.003600",
+      "estimatedRecordedCostUsd": "0.003600",
+      "allRecordedCallsPriced": true
+    },
+    {
+      "userId": "cedar-eu-demo-account-with-a-long-id-for-wrapping",
+      "admissionPlan": "pro",
+      "calls": "2",
+      "reportedCalls": "2",
+      "pricedCalls": "2",
+      "unknownCostCalls": "0",
+      "pendingCalls": "0",
+      "legacyCallsWithoutCostSnapshot": "0",
+      "promptTokens": "2400",
+      "completionTokens": "400",
+      "estimatedKnownCostUsd": "0.007200",
+      "estimatedRecordedCostUsd": "0.007200",
+      "allRecordedCallsPriced": true
+    }
+  ],
+  "totals": {
+    "calls": "5",
+    "reportedCalls": "4",
+    "pricedCalls": "4",
+    "unknownCostCalls": "1",
+    "pendingCalls": "1",
+    "legacyCallsWithoutCostSnapshot": "0",
+    "promptTokens": "4800",
+    "completionTokens": "800",
+    "estimatedKnownCostUsd": "0.014400",
+    "estimatedRecordedCostUsd": null,
+    "allRecordedCallsPriced": false
+  }
+}

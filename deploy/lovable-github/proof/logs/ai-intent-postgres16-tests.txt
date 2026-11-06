@@ -1,0 +1,15 @@
+postgres (PostgreSQL) 16.15
+waiting for server to start.... done
+server started
+
+ RUN  v5.0.4 <workspace>
+
+
+ Test Files  3 passed (3)
+      Tests  78 passed (78)
+   Start at  06:14:20
+   Duration  6.08s (tests 83%, import 7%, environment 5%, transform 4%, setup 1%)
+
+waiting for server to shut down.... done
+server stopped
+native_pg_cleanup=stopped_and_removed

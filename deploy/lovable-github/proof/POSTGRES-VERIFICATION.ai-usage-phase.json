@@ -1,0 +1,17 @@
+{
+  "runner": "deploy/test-projects-native.py",
+  "platform": "Darwin arm64",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 55,
+  "migrations": "001-008; idempotent migration replay and populated v005 upgrade scenarios",
+  "provider": "synthetic; no paid inference",
+  "clusters": "loopback, SCRAM, private temporary data; stopped and removed",
+  "logs": {
+    "ai-usage-postgres16-tests.log": "270c98c0dceca7195a576d39a8f744998de22420f54efa35bc94aa971fcb77fb",
+    "ai-usage-postgres18-tests.log": "c61946d573c356a26fe1c993a04fa7d7eb33eb07f80a845d4b570741bf94c760"
+  },
+  "coverage": "Previous 48 quota/project/GitHub/Cloud scenarios plus 7 durable AI ledger contracts. Atomic quota+run rollback, 10 of 32 admissions, 128 of 140 call reservations, call rollback, owner isolation/account cascade, reopen and unknown usage, UTC month boundary independent of DB timezone, terminal run refusal. Signed Cloud JWT through generic proxy, real Hono, PG and synthetic generation verifies token totals and revoked identity denial."
+}

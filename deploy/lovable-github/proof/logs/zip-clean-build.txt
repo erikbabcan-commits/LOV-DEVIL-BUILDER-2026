@@ -1,0 +1,15 @@
+PASS fresh npm install from exported trusted package.json; lifecycle scripts disabled
+PASS saas-landing — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS kanban — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS settings — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS analytics-dashboard — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS blog — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS todo — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS chat — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS ecommerce-catalog — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS portfolio — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS admin-crud — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS calendar — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+PASS login-flow — both ZIPs CRC/source equality, extracted TypeScript + Vite build
+Verified 12 complete exported projects; dependency mode=fresh isolated npm install, shared identical toolchain
+zip_build_cleanup=removed

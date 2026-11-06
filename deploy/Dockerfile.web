@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+# LOV-DEVIL web frontend (Vite build) servovaný Caddym — same-origin /api proxy.
+# Na VPS / managed platformách sa Caddyfile prepíše volume-mountom (deploy/Caddyfile).
+
+FROM node:26-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund --ignore-scripts
+COPY . .
+RUN npm run build
+
+FROM caddy:2-alpine AS web
+COPY deploy/Caddyfile.managed /etc/caddy/Caddyfile
+COPY --from=build /app/dist /srv
+EXPOSE 8080

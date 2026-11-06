@@ -1,0 +1,17 @@
+{
+  "phase": "WS-12 precise patches and preapproval diff",
+  "runner": "deploy/test-projects-native.py",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 81,
+  "migrations": "001-009, unchanged",
+  "provider": "actual Mistral adapter with synthetic HTTP, no live requests; all three keys empty",
+  "clusters": "private loopback SCRAM; stopped and removed",
+  "logs": {
+    "ai-patches-postgres16-tests.log": "2273e9a41eb8243828d3af633535f757f1d5e02f3060a2700b05827bd4c56a85",
+    "ai-patches-postgres18-tests.log": "ec0290f1af913de400909ba96ae2e1262b13c8c8c254741ae16399f7cc12ce9e"
+  },
+  "coverage": "Previous78 plus actual UI store/Hono/project save and reopen of approved single-CSS patch with immutable old JSONB source, adapter-ledger successful precise patch, and multi-file conflict with no partial stage or regeneration."
+}

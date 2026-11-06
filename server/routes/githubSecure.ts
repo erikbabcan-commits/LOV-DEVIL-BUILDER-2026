@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { allowedOrigins, validCallback } from '../security/oauthPolicy';
 import { makeSessionStore } from '../security/sessionStore';
 import { isSafePath, withinSizeLimits } from '../security/pathGuard';
+import { getUserFromContext } from '../auth/middleware';
 
 const githubRouter = new Hono();
 const SESSION_COOKIE_NAME = 'github_session_id';
@@ -22,12 +23,14 @@ interface GitHubConfig {
 
 interface PendingSession {
   kind: 'pending';
+  ownerId: string | null;
   stateToken: string;
   expiresAt: number;
 }
 
 interface AuthenticatedSession {
   kind: 'authenticated';
+  ownerId: string | null;
   githubToken: string;
   githubScopes: string[];
   githubUsername: string;
@@ -56,7 +59,8 @@ function getGitHubConfig(): GitHubConfig | null {
     'http://localhost:8787/api/github/auth/callback'
   );
   const appUrl = configuredUrl(process.env.LOV_APP_URL, 'http://localhost:5173/');
-  const scope = process.env.GITHUB_OAUTH_SCOPE === 'public_repo' ? 'public_repo' : 'repo';
+  const scope = process.env.GITHUB_OAUTH_SCOPE === 'repo' ? 'repo' : 'public_repo';
+  if (process.env.GITHUB_OAUTH_SCOPE && !['repo', 'public_repo'].includes(process.env.GITHUB_OAUTH_SCOPE)) return null;
   try {
     if (!clientId || !clientSecret || !callbackUrl || !appUrl || !validCallback(callbackUrl))
       return null;
@@ -170,7 +174,21 @@ async function githubApiRequest<T>(
 function authenticatedSession(c: Context): { id: string; session: AuthenticatedSession } | null {
   const id = getCookie(c, SESSION_COOKIE_NAME);
   const session = getSession(id);
-  return id && session?.kind === 'authenticated' ? { id, session } : null;
+  return id && session?.kind === 'authenticated' && sessionBelongsToUser(c, session)
+    ? { id, session } : null;
+}
+
+function sessionBelongsToUser(c: Context, session: GitHubSession): boolean {
+  const ownerId = getUserFromContext(c)?.id ?? null;
+  // Legacy records without an owner must reconnect. Pilot sessions must never
+  // become usable by a signed-in account or when authentication is enabled.
+  return session.ownerId === ownerId && (ownerId !== null || process.env.AUTH_ENABLED !== '1');
+}
+
+function effectiveScopes(session: AuthenticatedSession, config: GitHubConfig): string[] {
+  if (config.scope === 'repo') return session.githubScopes;
+  return session.githubScopes.some(scope => scope === 'repo' || scope === 'public_repo')
+    ? ['public_repo'] : [];
 }
 
 function csrfMatches(c: Context, session: AuthenticatedSession): boolean {
@@ -187,6 +205,11 @@ function gitBlobSha(content: string): string {
   const bytes = Buffer.from(content, 'utf8');
   return crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
 }
+
+githubRouter.use('/api/github/*', async (c, next) => {
+  c.header('Cache-Control', 'no-store');
+  await next();
+});
 
 githubRouter.get('/api/github/status', (c) => {
   const config = getGitHubConfig();
@@ -237,7 +260,7 @@ githubRouter.get('/api/github/auth', (c) => {
     configured: true,
     username: found.session.githubUsername,
     avatarUrl: found.session.githubAvatarUrl,
-    scopes: found.session.githubScopes,
+    scopes: effectiveScopes(found.session, config),
     csrfToken: found.session.csrfToken,
     message: 'Authenticated',
     blocked: false
@@ -248,9 +271,12 @@ githubRouter.get('/api/github/auth/start', (c) => {
   const config = getGitHubConfig();
   if (!config)
     return c.json({ ok: false, error: 'GitHub integration not configured' } as const, 503);
+  const ownerId = getUserFromContext(c)?.id ?? null;
+  if (ownerId === null && process.env.AUTH_ENABLED === '1')
+    return c.json({ ok: false, error: 'Authentication required' } as const, 401);
   const stateToken = randomToken();
   const sessionId = randomToken();
-  sessions.set(sessionId, { kind: 'pending', stateToken, expiresAt: Date.now() + PENDING_TTL_MS });
+  sessions.set(sessionId, { kind: 'pending', ownerId, stateToken, expiresAt: Date.now() + PENDING_TTL_MS });
   setSessionCookie(c, sessionId, config);
   const params = new URLSearchParams({
     client_id: config.clientId,
@@ -275,9 +301,10 @@ githubRouter.get('/api/github/auth/callback', async (c) => {
     !state ||
     !sessionId ||
     pending?.kind !== 'pending' ||
+    !sessionBelongsToUser(c, pending) ||
     !constantTimeEqual(pending.stateToken, state)
   ) {
-    if (sessionId) sessions.delete(sessionId);
+    if (sessionId && pending && sessionBelongsToUser(c, pending)) sessions.delete(sessionId);
     clearSessionCookie(c, config);
     return redirectToApp(c, config, 'error');
   }
@@ -314,9 +341,10 @@ githubRouter.get('/api/github/auth/callback', async (c) => {
     const newSessionId = randomToken();
     sessions.set(newSessionId, {
       kind: 'authenticated',
+      ownerId: pending.ownerId,
       githubToken: tokenData.access_token,
-      githubScopes: (tokenData.scope || config.scope)
-        .split(',')
+      githubScopes: (tokenData.scope || '')
+        .split(/[\s,]+/)
         .map((scope) => scope.trim())
         .filter(Boolean),
       githubUsername: userResult.data.login,
@@ -392,11 +420,12 @@ githubRouter.post('/api/github/export', async (c) => {
       { ok: false, error: 'Invalid repository name', errorType: 'validation' } as const,
       400
     );
-  if (isPrivate && !found.session.githubScopes.includes('repo')) {
+  const scopes = effectiveScopes(found.session, config);
+  if (isPrivate ? !scopes.includes('repo') : !scopes.some(scope => scope === 'repo' || scope === 'public_repo')) {
     return c.json(
       {
         ok: false,
-        error: 'Private repository export requires the broad classic OAuth repo scope',
+        error: 'Repository visibility is not allowed by the configured and granted GitHub permissions',
         errorType: 'auth'
       } as const,
       403

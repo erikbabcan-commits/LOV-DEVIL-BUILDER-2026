@@ -1,0 +1,17 @@
+{
+  "runner": "deploy/test-projects-native.py",
+  "platform": "Darwin arm64",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 68,
+  "migrations": "001-009; repeated migration replay, populated v005 upgrade and populated v008 calls retained as legacy unknown costs",
+  "provider": "synthetic, no paid requests",
+  "clusters": "loopback SCRAM private temp; stopped and removed",
+  "logs": {
+    "ai-cost-postgres16-tests.log": "cba5a71027e7ebcf102dab6d8c92c28a70b5ccb9408471226921f871ba6c7a79",
+    "ai-cost-postgres18-tests.log": "6372bcedc007ab65a4caa50c0f5e0dbf5fd9c8204488df0c9b2e526e15ff8b71"
+  },
+  "coverage": "Previous 55 project/GitHub/identity/quota/usage cases plus 13 durable AI-cost scenarios. Captured price policy survives config rotation and month boundary; no retroactive pricing; missing usage/model/rate explicit; zero vs unknown; reservation and completion rollback; damaged policy refusal before and after inference; admission rollback on missing v009; owner/admission-plan grouping; constraints and cascade; signed HTTP/SSE pricing; real CLI with SELECT-only role, private HTML, no auto dotenv, overwrite refusal and invalid file permissions."
+}

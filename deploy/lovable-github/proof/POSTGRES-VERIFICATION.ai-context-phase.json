@@ -1,0 +1,17 @@
+{
+  "phase": "WS-10 conversation memory and full snapshots",
+  "runner": "deploy/test-projects-native.py",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 76,
+  "migrations": "001-009, unchanged; optional transcript in existing owner/CAS JSONB workspace",
+  "provider": "synthetic transports/memory only; all three API keys empty",
+  "clusters": "private loopback SCRAM; stopped and removed",
+  "logs": {
+    "ai-context-postgres16-tests.log": "430de9ba2cd9dc7de9ec59d2bf2d7266bc4a863e7f3386547a12a956077f19d0",
+    "ai-context-postgres18-tests.log": "95c974af49feda23ec263674cd60280002e841d82249ec7859ebf01a0a174b57"
+  },
+  "coverage": "Previous73 plus owner transcript/credential refusal, IDB/Hono/PG transcript round-trip, metered summary+plan+batch with one monthly admission and no admission for oversized snapshot."
+}

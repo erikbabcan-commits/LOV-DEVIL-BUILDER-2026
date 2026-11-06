@@ -1,0 +1,203 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-17 main CodePane immutable save, scoped drafts and local CodeMirror",
+  "previousGoalTurn": "progress: Stripe sandbox OAuth Read and CLI verified; returned to unfinished WS-17 main editor work",
+  "main": {
+    "passed": 921,
+    "skipped": 110,
+    "filesPassed": 76,
+    "filesSkipped": 4,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "all three empty"
+  },
+  "postgres": {
+    "versions": [
+      "16.15",
+      "18.6"
+    ],
+    "passedEach": 88,
+    "temporaryClusters": "loopback SCRAM, stopped and removed",
+    "migrations": "001-009 unchanged",
+    "coverage": "Previous87 plus actual main applyStagedFiles child, exact immutable server parent, CAS save/reopen and zero AI runs"
+  },
+  "ui": {
+    "sourcePhase": "WS-16",
+    "passed": 146,
+    "rerunThisPhase": false,
+    "note": "Lovable source and UI dependencies unchanged in this phase; all68 overlay and mirror file hashes match"
+  },
+  "checks": [
+    "main TypeScript",
+    "strict native/CLI TypeScript after native wait harness update",
+    "production build",
+    "ESLint 0errors/33existingwarnings",
+    "React checklist: stable subscriptions, exact identity, captured scope, async guards, lazy editor, fallback, focus and keyboard labels",
+    "git diff --check"
+  ],
+  "browser": {
+    "engine": "IAB",
+    "origin": "http://localhost:5176",
+    "backend": "loopback disposable pg-mem/Hono synthetic Alice/Bob; no real accounts",
+    "verified": [
+      "real CodeMirror loaded",
+      "manual CSS draft restored before first apply",
+      "CtrlS created only childv2",
+      "actual compile primarygreen and secondaryunchanged",
+      "server revision2 save/reopen with history2",
+      "simple fallback usable and switch back to CodeMirror",
+      "additional private comment restored after reload",
+      "Bob has empty new project and no Alice source",
+      "Alice private comment restored on return",
+      "390x844 document does not overflow",
+      "temporary comment reverted to approved source with no extra snapshot",
+      "final cold navigation console warnings/errors empty"
+    ],
+    "computed": {
+      "primary": "rgb(22, 163, 74)",
+      "secondary": "rgb(100, 116, 139)",
+      "mobileDocumentWidth": 390,
+      "mobileViewportWidth": 390,
+      "mobileEditorWidth": 358,
+      "historyCount": 2,
+      "serverRevision": 2,
+      "monthlyAiUsedBefore": 8,
+      "monthlyAiUsedAfter": 8,
+      "newAiCalls": 0
+    },
+    "limitations": [
+      "CSS browser copy also includes trailing whitespace; no one-line-only claim",
+      "synthetic fixture does not prove hosted Cloud/production flow",
+      "fallback toggle tested, not an induced offline chunk failure"
+    ],
+    "cleanup": {
+      "tab23": "closed",
+      "viewport": "reset",
+      "ownedServers5176_8788": "stopped and listeners absent"
+    }
+  },
+  "packages": {
+    "added": 27,
+    "removed": 7,
+    "existingVersionsChanged": 0,
+    "existingIntegrityChanged": 0,
+    "additionalMetadata": "@babel/runtime is now a runtime dependency, dev flag removed",
+    "localRegistryUrls": 0,
+    "monacoImportsRemaining": 0
+  },
+  "overlay": {
+    "entries": 68,
+    "bundleAndMirrorAllMatch": true,
+    "pristineFilesUnchanged": 10,
+    "manifestSha256": "ff148db64dda442a3af0e5db187618e289422e034ace3758c13496a2c23d81f4"
+  },
+  "limits": [
+    "Main SourceEditor deferred chunk582.03kB min/200.45kB gzip remains above Vite500k warning",
+    "semanticTS, full lint/format workflow, main file CRUD, branches/merge, arbitrary npm/fullstack/HMR still open",
+    "main legacy dashboard remains separate",
+    "failed project persist may leave child only in memory; recovery backup retained",
+    "unscoped old sessionStorage drafts ignored, not assigned/migrated/deleted",
+    "Known credential patterns are heuristic, not a complete secrets detector",
+    "full original M1-M6 goal remains active"
+  ],
+  "initialFailure": {
+    "file": "main-code-pg16-initial-timeout.log",
+    "sha256": "53672d0bb1ecedf61679f52420dd93dc594b9554eb23219b72adbae1e6fc43dd",
+    "cause": "1s Testing Library findByText timeout during concurrent full-suite/database load; UI still pending",
+    "resolution": "5s native-only async wait, restored after suite; final PG runs sequential and passed"
+  },
+  "logs": {
+    "main": {
+      "file": "main-code-main.log",
+      "sha256": "dd2525632892b1ca4c0fdd250d918b3d14fed41a63fae151c08262729ae0e202"
+    },
+    "types": {
+      "file": "main-code-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-types": {
+      "file": "main-code-native-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lint": {
+      "file": "main-code-lint.log",
+      "sha256": "9f820a4624de89443506d4d1d0f8aea0b8cef852eb3ae206c35728998882c645"
+    },
+    "build": {
+      "file": "main-code-build.log",
+      "sha256": "db7ad1c2bea9f6f54d371569b4e31b2002b6d62f0eb1f0ba7543e4a903b9e8e5"
+    },
+    "pg16": {
+      "file": "main-code-pg16.log",
+      "sha256": "4d185a85be0edd3bdf2156e895828abcac96638d74a9fb83e7f10175ccb4b79a"
+    },
+    "pg18": {
+      "file": "main-code-pg18.log",
+      "sha256": "ddfde684ff41611556901ee51ed81d7aad8801a92c7ff4f9cb813b2ea238cd28"
+    }
+  },
+  "screenshots": {
+    "main-code-draft-desktop.png": {
+      "sha256": "fe74f1fd203799ccfab34ed23dcd88a05cd7fce72c41a4edeaa216bcd39c780a",
+      "width": 65536,
+      "height": 4292542531
+    },
+    "main-code-preview-desktop.png": {
+      "sha256": "9a9a5b64b2aab91d4baca42684327fc796cab6f93014cfdf096df6232ea16b3a",
+      "width": 65536,
+      "height": 4292542531
+    },
+    "main-code-server-revision.png": {
+      "sha256": "ead45ba79970cbc1409170185862a42d4a9fa9bd6f64dbd9fe931b1033aa3aa1",
+      "width": 65536,
+      "height": 4292542531
+    },
+    "main-code-owner-bob.png": {
+      "sha256": "eebe7584f4f4a077b63837f03fc142cee1fab820349f67b5b18ef4c16b2a1ba4",
+      "width": 65536,
+      "height": 4292542531
+    },
+    "main-code-mobile.png": {
+      "sha256": "6ff8f54025603ebbd1effb8d5e718b9548caab56f462098a9a5a9de543e90a37",
+      "width": 65536,
+      "height": 4292542531
+    },
+    "main-code-final-desktop.png": {
+      "sha256": "3d51c086fe063aa81bca0c7506a63345a68770d48105bd0c45be0e6deaef2069",
+      "width": 65536,
+      "height": 4292542531
+    }
+  },
+  "sources": {
+    "package.json": "71e6f3e4f498270f893d223fb2170697aae441347b563193daa533ec8c378c74",
+    "package-lock.json": "0171a83013e4120f04278be22cf89b7291c907049d9649bd8ce718d2f261379c",
+    "src/features/workspace/CodePane.tsx": "af3d2297bb15cab4905fb2a65a7da32f8c60045575cb1a4b2b2a500acbabeb3c",
+    "src/features/workspace/SourceEditor.tsx": "9b2a0e981fde0036fd546ec89c3980e9d44a7ef58fc39afd1950940b30c182fe",
+    "src/services/editor/codeDrafts.ts": "6f5aece867d0740b11c2325d2b5f195f1862100f2ef28975594eeee6ee6b3daa",
+    "src/services/persistence/db.ts": "a0fc6823315a429d2602500cc24dc9f3a7ddbea6f5e87b26607f9ce0dd2e749d",
+    "src/services/projects/workspace.ts": "1fefbb8b7885728be7ddfb38b78acce15404194adfa7986bcb0eb3f8f766566a",
+    "src/stores/useAppStore.ts": "114a13d5dbc84a641dd86695e6d21e99113790fe62c3d38157b21b5f37e6e38a",
+    "src/app/AppShell.tsx": "2b8345a9fa1fe87254ff021b64ae69282b130163c7e1d06ab64a9b9ef155bf78",
+    "src/components/TopBar.tsx": "533a5ebcb6a047dfb6341d56b72c9ef0a368d0d60a53bf9ed5f64ac3b1fe14c4",
+    "src/styles/forge.css": "2db1e143a32a33738ce9ab31836b35f013efb9ac487cc21fa1753c9d72eb7502",
+    "tests/unit/code-apply.test.ts": "a4a78ca8e185977d7b58b5ed58ce6da0353666bde2d2c8b873a07d6f73b5744a",
+    "tests/unit/code-drafts.test.ts": "226f0edc95d6b191d58883d0f00957253d751e04337433c66ecf65bd194f59f7",
+    "tests/unit/code-pane.test.tsx": "b25fa6d2c16b891e661c9a98688603c25781c13b927cad8c25ea58b5985daf14",
+    "tests/unit/storeM2.test.ts": "f31a0d25ea3a3425f2a0ad1f1fa816afc3adb361fa76574ddab4e58a37b259a6",
+    "tests/unit/account-persistence.test.tsx": "72b787d09dc037111ead6201c7fed83bae9f0500ccbc9a99077e47839217bbf8",
+    "tests/helpers/projectSyncContract.tsx": "ef9ea790726ed750605902ca1d9254b0520b76a2868e97514df4b3fed06e52ce",
+    "tests/integration/projectSyncPostgres.test.ts": "94e095a058e91fbc6cf3114336c734d87444b472afcffa52d278c14f08a71045",
+    "docs/WS-17-MAIN-CODE-EDITOR.md": "a06d55b3840569a7244832f9d61459209d14ec01cafec0e0e77f26f3d5397525",
+    "docs/BACKLOG.md": "158a752cbc29771bb6277b40ea0a6750b533fa2d314b93a9f391ae430adb266b",
+    "docs/LOVABLE-HYBRID.md": "1bcd511531c17179386f2461e01b1680d68c31af5df7b9b0abbbab30fb9c9a9f",
+    "deploy/lovable-github/README.md": "516aa4bc0e32c8d5a41943d485f40149123568b498c7899186ec6971433d5697"
+  },
+  "externalChanges": {
+    "commit": false,
+    "deploy": false,
+    "productionSchemaOrSecrets": false,
+    "paidInference": false,
+    "hostedLovableEditOrBuild": false,
+    "lovableCreditsSpent": 0
+  }
+}

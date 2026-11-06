@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "version": "example-not-live-prices",
+  "currency": "USD",
+  "basis": "uncached-text-tokens",
+  "rates": [
+    {
+      "provider": "example-provider",
+      "model": "replace-with-provider-reported-model",
+      "validFrom": "2026-11-01T00:00:00Z",
+      "validUntil": "2026-12-01T00:00:00Z",
+      "inputUsdPerMillion": "2.000000",
+      "outputUsdPerMillion": "6.000000"
+    }
+  ]
+}

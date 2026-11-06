@@ -1,0 +1,17 @@
+{
+  "phase": "WS-13 precise build-verified AI repair",
+  "runner": "deploy/test-projects-native.py",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "testsPassedPerVersion": 84,
+  "migrations": "001-009 unchanged",
+  "provider": "actual Mistral adapter with synthetic HTTP; real local trusted HostExecutor compile; all provider keys empty",
+  "clusters": "private loopback SCRAM; stopped and removed",
+  "logs": {
+    "ai-build-repair-postgres16-tests.log": "be2711e36df5139c597368cca77651525185add92b4be8b0b34bd4c08949af9a",
+    "ai-build-repair-postgres18-tests.log": "e44245cee9edef898f5bbc8b9b5ac5c53be17f7d9a87cb0bfde439757a6f7ffd"
+  },
+  "coverage": "Previous81 plus one precise repair of real compiler error with durable autofix accounting, two repairs with fresh source hashes and one monthly admission, and HTTP413 full-context preflight with no admitted run/call/monthly usage."
+}

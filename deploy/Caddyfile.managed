@@ -1,0 +1,16 @@
+# Managed variant (Railway/Render) — TLS terminuje platforma, Caddy len servuje.
+# APP_UPSTREAM = http://<backend-host>:<port> (platformový interne DNS).
+:{$PORT:8080}
+
+encode zstd gzip
+
+root * /srv
+
+handle /api/* {
+	reverse_proxy {$APP_UPSTREAM:http://app:8787}
+}
+
+handle {
+	try_files {path} /index.html
+	file_server
+}

@@ -1,0 +1,19 @@
+FROM node:26-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund --ignore-scripts
+COPY server ./server
+RUN node --input-type=module -e "import {build} from 'esbuild'; await build({entryPoints:['server/sandbox/worker.ts'],bundle:true,platform:'node',format:'esm',target:'node26',external:['esbuild'],outfile:'worker.mjs'});"
+
+FROM node:26-alpine
+WORKDIR /app
+COPY --from=build /app/worker.mjs ./worker.mjs
+COPY --from=build /app/node_modules/esbuild ./node_modules/esbuild
+COPY --from=build /app/node_modules/@esbuild ./node_modules/@esbuild
+COPY --from=build /app/node_modules/react ./node_modules/react
+COPY --from=build /app/node_modules/react-dom ./node_modules/react-dom
+COPY --from=build /app/node_modules/scheduler ./node_modules/scheduler
+COPY --from=build /app/node_modules/loose-envify ./node_modules/loose-envify
+COPY --from=build /app/node_modules/js-tokens ./node_modules/js-tokens
+USER 65532:65532
+ENTRYPOINT ["node", "/app/worker.mjs"]

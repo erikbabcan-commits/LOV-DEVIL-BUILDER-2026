@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily LOV-DEVIL database backup at 04:00 Bratislava time
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 Europe/Bratislava
+RandomizedDelaySec=5min
+Persistent=true
+Unit=lov-devil-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,190 @@
+{
+  "date": "2026-11-06",
+  "phase": "WS-15 FORGE-605 ZIP export; current/historical Lovable and main source integrity",
+  "previousGoalTurn": "progress: WS-14 real local Lovable AI/project wiring and signed Cloud/backend/browser evidence",
+  "main": {
+    "passed": 891,
+    "skipped": 108,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "providerKeys": "all three empty",
+    "finalFollowup": "101 passed/1 skipped ZIP suites after legacy lazy-import/unused-import cleanup; full891 suite preceded those two small cleanups"
+  },
+  "ui": {
+    "passed": 125,
+    "files": 13,
+    "checks": "strict TypeScript, targeted ESLint0errors0warnings, production client/SSR/Workers build"
+  },
+  "checks": [
+    "main TypeScript",
+    "strict native/CLI graph including verify-project-zip",
+    "main production build with NODE_ENV=production; lazy97.69kB JSZip chunk",
+    "main ESLint0errors34existingwarnings, down6 unused imports",
+    "React checklist: explicit user event, real Dialog focus/keyboard, controlled selection, unmount/project-change race guard",
+    "git diff --check"
+  ],
+  "logs": {
+    "main": {
+      "proofLog": "zip-main.log",
+      "localLog": "/tmp/lov-zip-main-final.log",
+      "sha256": "8260e71d530ac87e5ce874e2f5aaffd37d4875f51af390042bdc4a13fb248e0a"
+    },
+    "main-types": {
+      "proofLog": "zip-main-types.log",
+      "localLog": "/tmp/lov-zip-main-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "main-lint": {
+      "proofLog": "zip-main-lint.log",
+      "localLog": "/tmp/lov-zip-main-lint-final.log",
+      "sha256": "52025db2fdaff4195a10e7d1577dc4e9d24ef2bfa5529825e334d313d572fb2f"
+    },
+    "main-build": {
+      "proofLog": "zip-main-build.log",
+      "localLog": "/tmp/lov-zip-main-build-final.log",
+      "sha256": "66a10b3d0cae070f44f824881585f0f4b7abb83681242b23f98bc532bc546cd1"
+    },
+    "main-zip": {
+      "proofLog": "zip-main-zip.log",
+      "localLog": "/tmp/lov-zip-main-zip-final.log",
+      "sha256": "c29784e227f6d72b858d34b1e5f412db3172d2165833dd63e83eb81722261643"
+    },
+    "native-types": {
+      "proofLog": "zip-native-types.log",
+      "localLog": "/tmp/lov-zip-native-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ui": {
+      "proofLog": "zip-ui.log",
+      "localLog": "/tmp/lov-zip-ui-final.log",
+      "sha256": "cd15ec893a0974a8b4b8d972d4f66f0dc98ceeac2f3c651b1b45ab1c71ad407d"
+    },
+    "ui-types": {
+      "proofLog": "zip-ui-types.log",
+      "localLog": "/tmp/lov-zip-ui-types-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ui-lint": {
+      "proofLog": "zip-ui-lint.log",
+      "localLog": "/tmp/lov-zip-ui-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ui-build": {
+      "proofLog": "zip-ui-build.log",
+      "localLog": "/tmp/lov-zip-ui-build-final.log",
+      "sha256": "5a4409d056e5cdccb9c6dcbc91f0f695b6cd9f5968f7366ce2e4f1bc989ac510"
+    },
+    "clean-build": {
+      "proofLog": "zip-clean-build.log",
+      "localLog": "/tmp/lov-zip-clean-build-final.log",
+      "sha256": "222c91c0003fcb8168477c4c1a4f59ce48171d37a4517e78eb93371149cfd7eb"
+    }
+  },
+  "assetScan": [
+    {
+      "directory": "dist/assets",
+      "fileCount": 5,
+      "markers": [
+        "HONO_BASIC_AUTH",
+        "HONO_BASE_URL",
+        "GITHUB_BRIDGE_SECRET",
+        "GITHUB_CLOUD_CLIENT_ID",
+        "GITHUB_CLOUD_CALLBACK_URL",
+        "CLOUD_AUTH_ISSUER",
+        "AI_PROVIDER_PRICES_JSON",
+        "makeCloudAuth",
+        "makeHonoProxy"
+      ],
+      "matches": []
+    },
+    {
+      "directory": "../lovable-github-local/.output/public",
+      "fileCount": 19,
+      "markers": [
+        "HONO_BASIC_AUTH",
+        "HONO_BASE_URL",
+        "GITHUB_BRIDGE_SECRET",
+        "GITHUB_CLOUD_CLIENT_ID",
+        "GITHUB_CLOUD_CALLBACK_URL",
+        "CLOUD_AUTH_ISSUER",
+        "AI_PROVIDER_PRICES_JSON",
+        "makeCloudAuth",
+        "makeHonoProxy"
+      ],
+      "matches": []
+    }
+  ],
+  "postgres": "Not rerun; unchanged DB/auth/CRUD. Latest86/86 perPG16.15/18.6 is WS-14 POSTGRES-VERIFICATION.json with original coverage.",
+  "screenshots": {
+    "zip-export-desktop.png": {
+      "sha256": "a7406bfdcb3d7c476f03ab3f167505867b0aa3d8b28d7d24c60c762fdb4703b8",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 1280x720, components 3"
+    },
+    "zip-export-mobile.png": {
+      "sha256": "2909f48d57dd4764dfa0feac501fa899212446ee5754a859c5d5d5e4d7d1d320",
+      "format": "JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 390x844, components 3"
+    }
+  },
+  "downloadReceipt": "ZIP-DOWNLOAD-VERIFICATION.json",
+  "downloads": {
+    "zip-export-current-fixture.zip": "d0b1d33ce2e7d13ab18d788fccedd21aee4b2b01f769cc6339be36a1f1b70beb",
+    "zip-export-historical-fixture.zip": "8b181eb97b0b84b0b63c6c0b5a43db40f7131d828b7f6f04aa6f80d69ce5b698"
+  },
+  "sourceHashes": {
+    "src/services/export/projectZip.ts": "a37e2f2259625358e72c24ab11c4f500997972e62a202108614db45e65cb373a",
+    "src/services/export/zipArchive.ts": "3c9efaaa752590b6a22f2efd48426669b087e13a1539c6832eba513b2210e49d",
+    "src/stores/useAppStore.ts": "6b83bbc4ff299d1b079c9d414783d8ef16db602c068311fbf765cefcf3c2d627",
+    "scripts/verify-project-zip.ts": "d5baf3ea8198ca03d0586c706986fd713b465727ea8baa638da0fb76394bcfd2",
+    "tests/unit/project-zip.test.ts": "2abb76088c8ce2e04746eb0570498590c95f8819852e4a4a19950b855b4d13cb",
+    "tests/unit/project-zip-store.test.ts": "1c971b37f2740c127457f9950eea1d8f27478fcd16c64b7365755372e42a28dc",
+    "tests/unit/zip-readme.test.ts": "10f17d3b26518a5b3f52d81abdbf7f9e1d92608e97883c7650f7b9b475e45090",
+    "package.json": "f26ecf7e07c76cde0cb093e647ac401a2b96b4a1ecca1d30b62c3c09cdcb0d10"
+  },
+  "overlay": {
+    "manifestSha256": "abbc6be14f75931987882b3ab160bca910afee7eaadf557c61956827da5ec7bb",
+    "fileCount": 64,
+    "sourceAndUnitFiles": 45,
+    "visualFixtureFiles": 17,
+    "packageFiles": 2,
+    "allMirrorHashes": "verified",
+    "portableZipCore": "exact source/mirror/overlay equality",
+    "pristineFilesVerifiedUnchanged": 10,
+    "dependency": "JSZip3.10.2 exact;13 added lock entries; all existing lock tuples unchanged; loopback registry URLs removed",
+    "status": "local-only, not uploaded or deployed"
+  },
+  "protocol": {
+    "contents": "exact chosen source files only; no README replacement or synthesized files; empty UTF8 and .gitignore preserved",
+    "validation": "whole archive rejected on unsafe/colliding/nonportable paths, UTF8 bounds, known credential-shaped content; heuristics are not a complete secret detector",
+    "limits": "200 files,10MiB perfile,50MiB total UTF8; Hono stricter workspace limits unchanged",
+    "async": "copy inputs before await; close/unmount/owner/project/source change drops delayed archive",
+    "dependencies": "lazy JSZip, actual CRC/source tests; no arbitrary user package installs in verifier"
+  },
+  "browser": {
+    "fixture": "same local synthetic signed Cloud QA, prior Alice IndexedDB currentv2 and historicalv1; backend pg-mem, no live inference",
+    "downloads": "actual completed downloads through CUA download events; Python independently opened both actual ZIP files with validCRC,5files939sourcebytes each",
+    "difference": "v1blue#2563eb vs v2red#dc2626; onlysrc/index.css content differs; secondary#64748b unchanged",
+    "scope": "browserfixture minimal package.json is not standalone-build proof;12 trusted registered templates are verified separately",
+    "desktop": "1280x720 actual download currentv2",
+    "mobile": "390x844 actual historicalv1, dialog358/document390, no overflow",
+    "accessibility": "Escape focus returns to Export ZIP on desktop/mobile",
+    "owner": "Bob sees blank ownworkspace/export disabled; Alice restored",
+    "logs": "no warnings/errors",
+    "cleanup": "ownedtab20closed,viewportreset,owned5191/8789serversstopped/listenersabsent"
+  },
+  "cleanBuild": {
+    "templates": 12,
+    "archives": 24,
+    "verification": "both production ZIP builders, checkCRC32, complete exact path/content set, extract LovableZIP, actual npm run build (TypeScript+Vite)",
+    "dependencies": "fresh npm install --ignore-scripts in new temp outside repo; other11 reuse only after equal dependency+script declarations",
+    "environment": "dedicated empty npm user/globalconfig, temporary HOME, whitelisted childenv; no appsecrets or dotenv; trusted bundled sources only",
+    "cleanup": "removed",
+    "knownSetupFixes": "npm user/global config need distinct files; compare toolchain declarations, not per-project package name; corrected before successful full runs"
+  },
+  "scope": "No commit, deployment, production env/schema changes, hosted Lovable edits/builds, paid inference or Lovable credit spend. Local dependency install via official package registry only.",
+  "open": [
+    "hosted transfer within30credit floor",
+    "live GitHub activation/export",
+    "actual publish/CDN and fullstack runtime",
+    "billing and remainingM1-M6 backlog"
+  ]
+}

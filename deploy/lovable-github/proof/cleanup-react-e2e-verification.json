@@ -1,0 +1,29 @@
+{
+  "result": "22/22 React E2E passed",
+  "workers": 1,
+  "browser": "official Playwright Chromium/headlessshell1248",
+  "duration": "1.2m",
+  "sourceHashes": {
+    "tests/e2e/billing.spec.ts": "105716b78c2ee5852070dfd5b9a1b09d6e74db6ac0789731699ec2988464d271",
+    "tests/e2e/m2-ai.spec.ts": "d03caf68a56e1babe278eae4cd8d41366954e4f631904fee5a7e1ad1315583d6",
+    "tests/e2e/react.spec.ts": "3a0055c1e4f0b89227ea3449872675417385293ebe6c5208f50f6c0842050387",
+    "tests/e2e/github-oauth.spec.ts": "7d615148bf4ebe8b7c5e3d59a114e9964bd839af1ccf2c6e4f1d073756c3486a",
+    "tests/e2e/playwright.config.ts": "c97a2e7cd7ce190c29215189d381e49966fee0a85ca04837b3c1a5d8fcd4ae35"
+  },
+  "logs": {
+    "logs/cleanup-react-e2e.txt": "b2411874445d2066abc682c374b1206ff66f21aecfaff60e4663b80133fac0d9",
+    "logs/cleanup-react-e2e-lint.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/cleanup-react-e2e-types.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "billingScreenshot": {
+    "path": "billing-mobile-headless.png",
+    "width": 390,
+    "height": 844,
+    "sha256": "4ac579bedbf13903b5f8d4e3683bcc744ee1804dca8da3d70ef3b946641b41c7",
+    "geometry": "innerWidth390 innerHeight844 documentWidth390; dialog/client no horizontal overflow; CTA focused and inside viewport; year checked; no POST/unknownAPI"
+  },
+  "cleanup": "owned5174/8788listeners absent; Playwright closed owned browser/server children",
+  "externalEffects": "no GitHub write, no CI trigger/push, provider keys empty, authDBCloudStripe disabled, no production config read",
+  "initialResult": "15/21;6 obsolete assertions/selectors corrected; intermediate8/10 then2/2changed and22/22full",
+  "limits": "cancel case observes actual mock Hono HTTP held at browser response boundary, not a provider cancellation claim;billing geometry controlledGET-onlyAPI with realUI, not a Stripe payment"
+}

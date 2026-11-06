@@ -18,6 +18,11 @@ export default tseslint.config(
     },
   },
   {
+    files: ['tests/fixtures/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { '@typescript-eslint/no-unused-vars': ['warn', { varsIgnorePattern: '^_' }] },
+  },
+  {
     files: ['tests/**/*.ts', 'tools/**/*.ts'],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     rules: {

@@ -1,0 +1,79 @@
+{
+  "scope": "WS-7 partial FORGE-106/804; not completed MVP, billing or cost dashboard",
+  "localReceipt": "LOCAL-VERIFICATION.json",
+  "postgresReceipt": "POSTGRES-VERIFICATION.json",
+  "main": {
+    "passed": 687,
+    "skipped": 77,
+    "workers": 1,
+    "paidLiveSmoke": "excluded",
+    "mistralKey": "empty"
+  },
+  "ui": {
+    "passed": 67,
+    "source": "../lovable-github-local"
+  },
+  "screenshots": {
+    "ai-usage-lovable-bob-mobile.png": {
+      "sha256": "625e1d33f997c77c15adfeb2b96b1c0a883007e32783b5be34ec9742853ba4e3",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-lovable-desktop.png": {
+      "sha256": "014d450c8fe14212a4f36db54eee343082bd111e9d73aaca9f7eb3f68cb22a2b",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-lovable-mobile.png": {
+      "sha256": "20f5aa3ed5403880d20abe0ee50103063cf7bc178a136feecd17de9396efbef8",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-main-bob-mobile.png": {
+      "sha256": "8cddcc1a758736d48f0eb59730b09fe28d22a2af4327240f58d040f528b6beb1",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-main-desktop.png": {
+      "sha256": "390052594913d717d457f54b8521f21cbd202c72cb1261ec0150d791323ab17c",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    },
+    "ai-usage-main-mobile.png": {
+      "sha256": "8d01007169c68f8e3e4e430d160cb0723f6abc77f31d6beba666664a2de8fcbb",
+      "pixels": [
+        65536,
+        4292542531
+      ]
+    }
+  },
+  "browser": {
+    "main": "Real loopback Hono HTTP/SSE + pg-mem + synthetic provider: Alice 8 to 9 tasks, 2 calls, input200/output1000; proposed changes discarded, project unchanged. Bob sees separate zero usage and no Alice projects.",
+    "lovable": "Real panel with deterministic synthetic fixture: 4/5 known calls, 16600 reported tokens, unknown notice, Bob 0 tasks/tokens. Not a live Cloud bridge.",
+    "mobileCssViewport": [
+      390,
+      844
+    ],
+    "horizontalOverflow": false,
+    "temporaryServers": "stopped; ports 5176,8788,5189 no longer listening"
+  },
+  "limitations": [
+    "no price policy or financial cost calculation",
+    "no token plan limits",
+    "no retry/failover",
+    "no retrospective usage before ledger activation",
+    "no retention automation or unresolved-call operator tooling",
+    "no live Cloud bridge/deployment"
+  ],
+  "pristineFingerprintsVerified": 10
+}

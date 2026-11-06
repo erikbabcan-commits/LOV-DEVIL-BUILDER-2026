@@ -3,6 +3,10 @@ import { useStore } from '../../stores/useAppStore';
 import { esc, hl } from '../../lib/utils';
 import { THUMBS } from '../../lib/templates';
 import { withoutExternalScripts } from '../../lib/vfs';
+import { CodePane } from './CodePane';
+import { ReviewPanel } from './ReviewPanel';
+import { ProjectDiff } from './ProjectDiff';
+import {BuildRepairAction} from './BuildRepairAction';
 
 /* Workspace: chat panel + canvas panel — port 1:1 legacy štruktúry. */
 
@@ -24,7 +28,7 @@ function ChatMessage({ m }: { m: ReturnType<typeof useStore.getState>['messages'
             ))}
           </div>
         )}
-        {m.text && <div className="content" dangerouslySetInnerHTML={{ __html: m.text }} />}
+        {m.text && <div className="content" style={{whiteSpace:'pre-wrap'}}>{m.text}</div>}
         {m.code && m.done && (
           <div className="code-block">
             <div className="code-head"><span>{esc(m.file || 'index.html')}</span></div>
@@ -33,9 +37,9 @@ function ChatMessage({ m }: { m: ReturnType<typeof useStore.getState>['messages'
         )}
         {!isUser && m.done && (
           <div className="actions">
-            <button className="qact" onClick={() => st.toast('Kód skopírovaný', 'ok')}>⧉ Kopírovať</button>
+            <button className="qact" onClick={() => { void navigator.clipboard?.writeText(m.code ?? m.text).then(() => st.toast(m.code?'Kód skopírovaný':'Odpoveď skopírovaná','ok')).catch(() => st.toast('Prehliadač nepovolil kopírovanie. Text môžeš označiť ručne.','warn')); if(!navigator.clipboard)st.toast('Kopírovanie teraz nie je dostupné. Text môžeš označiť ručne.','warn'); }}>⧉ Kopírovať</button>
             <button className="qact" onClick={() => st.toast('Fork — nový projekt z verzie', 'ok')}>⑂ Fork</button>
-            <button className="qact" onClick={() => { const last = st.messages.filter(x => x.role === 'user').pop(); if (last) st.generate(last.text); }}>↻ Re-run</button>
+            <button className="qact" onClick={() => { const position=st.messages.findIndex(message=>message.id===m.id); const last = st.messages.slice(0,position).filter(x => x.role === 'user').pop(); if (last) {if(st.model==='Instant Draft')st.generate(last.text);else void st.generateWithAi(last.text,'auto');} }}>↻ Re-run</button>
           </div>
         )}
       </div>
@@ -47,19 +51,16 @@ export function Workspace() {
   const st = useStore();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [dragging, setDragging] = useState(false);
-  const frameRef = useRef<HTMLIFrameElement>(null);
+  const [previewRevision, setPreviewRevision] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const html = st.currentHtml();
+  const html = st.sandboxHtml ?? st.currentHtml();
   const iter = st.snapshots.length ? 'v' + st.snapshots.length : 'v1';
   const tokens = st.liveHtml ? Math.ceil(st.liveHtml.length / 4) : 0;
+  const snapshot = st.edSnap();
+  const needsCompile = !!snapshot && (st.vfs[snapshot.id] ?? []).some(file => file.name === 'src/main.tsx') && !st.sandboxHtml;
 
-  useEffect(() => {
-    const frame = frameRef.current;
-    if (!frame || !html) return;
-    const doc = '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">' + withoutExternalScripts(html) + '</body></html>';
-    if (frame.getAttribute('srcdoc') !== doc) frame.setAttribute('srcdoc', doc);
-  }, [html]);
+  const previewDocument = st.sandboxHtml ?? ('<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">' + withoutExternalScripts(html ?? '') + '</body></html>');
 
   /* applyViewport port: auto-fit scale, rovnaký výpočet ako legacy */
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -79,11 +80,12 @@ export function Workspace() {
   }, [st.messages.length]);
 
   const submit = () => {
-    const v = inputRef.current?.value ?? '';
-    if (inputRef.current) { inputRef.current.value = ''; inputRef.current.style.height = 'auto'; }
+    const v = st.promptDraft.trim();
+    if (!v || st.generating || st.pendingReview) return;
+    st.setPromptDraft('');
     /* M2: AI (Mistral) model → reálny engine; Instant Draft / iné → template mód */
-    if (st.model === 'AI (Mistral)') {
-      void st.generateWithAi(v, st.snapshots.length ? 'iterate' : 'create');
+    if (st.model !== 'Instant Draft') {
+      void st.generateWithAi(v, 'auto');
     } else {
       st.generate(v);
     }
@@ -106,27 +108,29 @@ export function Workspace() {
           {st.messages.length === 0 && (
             <div className="empty-chat">
               <div className="ec-badge">F</div>
-              <p>Napíš prompt a Agent Mode ti naplánuje, vygeneruje a nasadí appku.</p>
+              <p>Popíš zmenu alebo sa opýtaj na projekt. Návrhy súborov skontroluješ pred použitím.</p>
             </div>
           )}
           {st.messages.map(m => <ChatMessage key={m.id} m={m} />)}
         </div>
+        <ReviewPanel />
+        {st.templateFollowups.length > 0 && !st.pendingReview && <div className="workspace-followups" aria-label="Nápady na ďalší krok">{st.templateFollowups.map(prompt => <button key={prompt} onClick={() => st.usePrompt(prompt)}>{prompt}</button>)}</div>}
         <div className="composer">
           <div className="comp-box">
-            <textarea id="promptInput" ref={inputRef} rows={1} placeholder="Popíš zmenu… (Ctrl+Enter)"
+            <textarea id="promptInput" ref={inputRef} rows={1} aria-label="Popíš zmenu" value={st.promptDraft} onChange={event => st.setPromptDraft(event.target.value)} placeholder="Popíš zmenu alebo polož otázku… (Ctrl+Enter)"
               onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); submit(); } }} />
             <div className="comp-actions">
               <div className="comp-left">
-                <button className="icon-btn" id="attachBtn" title="Prílohy" style={{ padding: '0 7px' }}>
+                <button className="icon-btn" id="attachBtn" title="Prílohy — pripravujeme" disabled style={{ padding: '0 7px' }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21.4 11.1-9.2 9.2a5.7 5.7 0 0 1-8-8l9-9a3.8 3.8 0 0 1 5.4 5.4l-9 9a1.9 1.9 0 0 1-2.7-2.7l8.3-8.2"/></svg>
                 </button>
-                <span className="token-count" id="tokenCount">≈ {tokens} tok · 200k ctx</span>
+                <span className="token-count" id="tokenCount">≈ {tokens} tok · kontext podľa modelu</span>
               </div>
               <div className="comp-right">
                 {st.generating && st.aiAbort ? (
                   <button className="send-btn" id="cancelBtn" title="Zrušiť generovanie" onClick={st.cancelAiRun}>✕</button>
                 ) : (
-                <button className="send-btn" id="sendBtn" title="Odoslať (Ctrl+Enter)" disabled={st.generating} onClick={submit}>
+                <button className="send-btn" id="sendBtn" title="Odoslať (Ctrl+Enter)" disabled={st.generating || !!st.pendingReview || !st.promptDraft.trim()} onClick={submit}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>
                 </button>
                 )}
@@ -162,6 +166,7 @@ export function Workspace() {
             ))}
           </div>
           <div className="ct-actions">
+            {st.tab==='preview'&&<>
             <button className={'edit-chip' + (st.editMode ? ' active' : '')} id="editToggle" title="Visual Edit mode — klikaj na elementy v preview" onClick={st.toggleEditMode}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
               Edit
@@ -183,13 +188,14 @@ export function Workspace() {
               <button id="zoomIn" title="Zväčšiť" onClick={() => st.setZoom(st.zoomPct + 10)}>+</button>
             </div>
             <button className="icon-btn" id="refreshBtn" title="Obnoviť preview" style={{ padding: '0 7px' }}
-              onClick={() => { if (!html){ st.toast('Zatiaľ žiadne HTML na obnovenie', 'warn'); return; } const f = frameRef.current; if (f) f.setAttribute('srcdoc', ''); setTimeout(() => st.toast('Preview obnovený', 'ok'), 50); }}>
+              onClick={() => { if (!html){ st.toast('Zatiaľ žiadne HTML na obnovenie', 'warn'); return; } setPreviewRevision(value => value + 1); st.toast('Preview obnovený', 'ok'); }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5"/></svg>
             </button>
             <button className="icon-btn hide-m" id="openTabBtn" title="Otvoriť v novom tabe" style={{ padding: '0 7px' }}
               onClick={() => st.toast('Sandbox upozornenie: otváram v novom tabe (demo)', 'warn')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg>
             </button>
+            </>}
             <button className="icon-btn" id="snapBtn" title="Uložiť verziu (Ctrl+S)" style={{ padding: '0 7px' }} onClick={st.manualSnapshot}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
             </button>
@@ -205,9 +211,10 @@ export function Workspace() {
                   <button className="back" id="backToLive" onClick={st.backToLive}>Späť na live verziu</button>
                 </div>
               )}
-              {html ? (
+              {st.sandboxBuilding ? <div className="product-empty" role="status"><span className="spinner"/><h3>Pripravujem tvoj náhľad…</h3><p>Kompilujem súbory projektu.</p><button className="btn-ghost" onClick={st.stopSandbox}>Zrušiť build</button></div> : st.sandboxErrors.length ? <div className="product-empty" role="alert"><h3>Náhľad sa nepodarilo zostaviť.</h3>{st.sandboxErrors.map((error,index) => <p key={index}>{error.file}: {error.message}</p>)}<BuildRepairAction/><button className="btn-ghost" onClick={() => void st.runSandbox()}>Skúsiť znova</button></div> : needsCompile ? <div className="product-empty"><h3>Tvoj projekt je pripravený.</h3><p>Spusti náhľad a vyskúšaj jeho funkcie.</p><button className="btn-primary" onClick={() => void st.runSandbox()}>Spustiť náhľad</button></div> : html ? (
                 <div className="device" id="device" style={{ width: deviceW, height: 'calc(100% - 8px)' }}>
-                  <iframe id="previewFrame" ref={frameRef} sandbox="allow-scripts" title="Live preview" />
+                  {/* Compiled HTML keeps CSP form-action 'none'; allow-forms lets local React submit handlers run. */}
+                  <iframe id="previewFrame" key={(st.sandboxHtml ? 'compiled-' : 'html-') + previewRevision} srcDoc={previewDocument} sandbox={st.sandboxHtml ? 'allow-scripts allow-forms' : 'allow-scripts'} title="Live preview" />
                   {st.generating && (
                     <div className="skeleton show" id="skeleton">
                       <div className="sk-gen"><span className="spinner"></span><span id="skModel">Agent · {st.model}</span></div>
@@ -236,7 +243,7 @@ export function Workspace() {
           </div>
           <div className={'pane' + (st.tab === 'code' ? ' active' : '')} data-pane="raw">
             <div className="pane-inner">
-              {html ? <pre className="raw-pre" id="rawPre" dangerouslySetInnerHTML={{ __html: hl(html) }} /> : <div className="pane-empty">Žiadny kód — vygeneruj appku.</div>}
+              <CodePane />
             </div>
           </div>
           <div className={'pane' + (st.tab === 'console' ? ' active' : '')} data-pane="console">
@@ -249,27 +256,7 @@ export function Workspace() {
           </div>
           <div className={'pane' + (st.tab === 'diff' ? ' active' : '')} data-pane="diff">
             <div className="pane-inner" id="diffInner">
-              {st.snapshots.length < 2 ? <div className="pane-empty">Diff potrebuje aspoň 2 verzie — vygeneruj alebo ulož ďalšiu.</div> : (
-                <div className="diff-content">
-                  <div className="diff-head">v{st.snapshots[st.snapshots.length - 2].v} → v{st.snapshots[st.snapshots.length - 1].v}</div>
-                  {(() => {
-                    const a = (st.snapshots[st.snapshots.length - 2].html || '').split('\n');
-                    const b = (st.snapshots[st.snapshots.length - 1].html || '').split('\n');
-                    const setA = new Map<string, number>();
-                    a.forEach(l => setA.set(l, (setA.get(l) || 0) + 1));
-                    const added: string[] = [];
-                    b.forEach(l => {
-                      const n = setA.get(l) || 0;
-                      if (n > 0) setA.set(l, n - 1); else added.push(l);
-                    });
-                    return (
-                      <>
-                        {added.map((l, i) => <div key={'a' + i} className="diff-line add">+ {l || ' '}</div>)}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
+              {st.tab === 'diff' && <ProjectDiff key={st.projectId} />}
             </div>
           </div>
         </div>
@@ -291,7 +278,7 @@ export function Workspace() {
                   className={'snap' + (s.pinned ? ' pinned' : '') + (!st.viewing && s.id === st.liveId ? ' current' : '')} data-snap={s.id}
                   onClick={() => st.viewSnapshot(s.id)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); st.viewSnapshot(s.id); } }}>
-                  <div className="snap-thumb" style={{ background: (THUMBS as Record<string, string>)[s.kind] || THUMBS.dashboard }}>v{s.v}</div>
+                  <div className="snap-thumb" style={{ background: (THUMBS as Record<string, string>)[s.kind] || THUMBS.dashboard }}><span className="snap-thumb-label">v{s.v}</span></div>
                   <div className="snap-row"><span className="snap-ver">v{s.v}</span><span className="snap-time">{s.time}</span></div>
                   <div className="snap-prompt">{s.prompt}</div>
                   <div className="snap-btns">

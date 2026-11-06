@@ -1,0 +1,612 @@
+{
+  "datasetHash": "936ae9b2e9f69547475a5ddd01fd9238323760525c430b947e048a5b8946b4f6",
+  "promptHash": "c41ea2bec342f59c0dd948e0b96efc616aeffec7edd445ae6588a0a34f1e1621",
+  "promptVersion": "forge-intent-v1",
+  "provenance": {
+    "kind": "synthetic",
+    "provider": "fixture",
+    "model": "scorer-demo-not-model-quality"
+  },
+  "predictions": [
+    {
+      "id": "sk-create-01",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-02",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-03",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-04",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-05",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-06",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-07",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-08",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-09",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-10",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-11",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-12",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-13",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-14",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-15",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-16",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-17",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-18",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-19",
+      "intent": "create"
+    },
+    {
+      "id": "sk-create-20",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-01",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-02",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-03",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-04",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-05",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-06",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-07",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-08",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-09",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-10",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-11",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-12",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-13",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-14",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-15",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-16",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-17",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-18",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-19",
+      "intent": "create"
+    },
+    {
+      "id": "en-create-20",
+      "intent": "create"
+    },
+    {
+      "id": "sk-iterate-01",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-02",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-03",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-04",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-05",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-06",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-07",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-08",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-09",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-10",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-11",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-12",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-13",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-14",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-15",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-16",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-17",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-18",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-19",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-iterate-20",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-01",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-02",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-03",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-04",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-05",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-06",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-07",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-08",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-09",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-10",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-11",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-12",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-13",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-14",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-15",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-16",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-17",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-18",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-19",
+      "intent": "iterate"
+    },
+    {
+      "id": "en-iterate-20",
+      "intent": "iterate"
+    },
+    {
+      "id": "sk-fix-01",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-02",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-03",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-04",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-05",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-06",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-07",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-08",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-09",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-10",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-11",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-12",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-13",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-14",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-15",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-16",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-17",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-fix-18",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-01",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-02",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-03",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-04",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-05",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-06",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-07",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-08",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-09",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-10",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-11",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-12",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-13",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-14",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-15",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-16",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-17",
+      "intent": "fix"
+    },
+    {
+      "id": "en-fix-18",
+      "intent": "fix"
+    },
+    {
+      "id": "sk-explain-01",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-02",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-03",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-04",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-05",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-06",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-07",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-08",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-09",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-10",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-11",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-12",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-13",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-14",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-15",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-16",
+      "intent": "explain"
+    },
+    {
+      "id": "sk-explain-17",
+      "intent": "explain"
+    },
+    {
+      "id": "en-explain-01",
+      "intent": "explain"
+    },
+    {
+      "id": "en-explain-02",
+      "intent": "explain"
+    },
+    {
+      "id": "en-explain-03",
+      "intent": null
+    },
+    {
+      "id": "en-explain-04",
+      "intent": null
+    },
+    {
+      "id": "en-explain-05",
+      "intent": null
+    },
+    {
+      "id": "en-explain-06",
+      "intent": null
+    },
+    {
+      "id": "en-explain-07",
+      "intent": null
+    },
+    {
+      "id": "en-explain-08",
+      "intent": null
+    },
+    {
+      "id": "en-explain-09",
+      "intent": null
+    },
+    {
+      "id": "en-explain-10",
+      "intent": null
+    },
+    {
+      "id": "en-explain-11",
+      "intent": null
+    },
+    {
+      "id": "en-explain-12",
+      "intent": null
+    },
+    {
+      "id": "en-explain-13",
+      "intent": null
+    },
+    {
+      "id": "en-explain-14",
+      "intent": null
+    },
+    {
+      "id": "en-explain-15",
+      "intent": null
+    },
+    {
+      "id": "en-explain-16",
+      "intent": null
+    },
+    {
+      "id": "en-explain-17",
+      "intent": null
+    }
+  ]
+}
