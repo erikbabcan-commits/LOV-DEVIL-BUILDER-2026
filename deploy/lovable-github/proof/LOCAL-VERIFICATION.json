@@ -1,30 +1,32 @@
 {
   "date": "2026-11-06",
-  "phase": "Final local integration gates before Git cleanup and user-requested coding pause",
-  "detailReceipt": "CLEANUP-VERIFICATION.json",
-  "previousPhaseReceipt": "LOCAL-VERIFICATION.billing-phase.json",
-  "runtimeCommit": "ae82c94567d4c71f02d09634d7d2a18adce59e55",
+  "phase": "WS-19 static Publish and Cloud test/live billing; local gates passed, frontend source/live-preview follow-up recorded separately, backend production inactive",
+  "detailReceipt": "PUBLISH-BILLING-VERIFICATION.json",
+  "previousPhaseReceipt": "LOCAL-VERIFICATION.cleanup-phase.json",
+  "runtimeCommit": "7f2b923764e4ec15936ec57abc2a05d8d321c7b7",
   "main": {
-    "passed": 1002,
-    "skipped": 157,
-    "filesPassed": 78,
-    "filesSkipped": 5,
+    "passed": 1076,
+    "skipped": 181,
+    "filesPassed": 82,
+    "filesSkipped": 6,
     "workers": 1,
+    "testTimeoutMs": 15000,
+    "hookTimeoutMs": 60000,
     "paidLiveSmoke": "excluded",
-    "providerKeys": "all three empty",
-    "timingScope": "Full1002/157 run precedes final harness-only budget changes; After those changes billing61+UI19=80/80, strict native/CLI/fixture graph and harness lint passed; native135 each cover the cost CLI processes."
+    "providerKeys": "all empty",
+    "scope": "Full run before final test-mock argument narrowing; subsequent preflight20/20 and strict types passed. Later change only extends the separately executed opt-in Docker happy-path."
   },
   "postgres": {
     "versions": [
       "16.15",
       "18.6"
     ],
-    "passedEach": 135,
+    "passedEach": 159,
+    "files": 5,
     "workers": 1,
-    "runner": "deploy/test-projects-native.py",
-    "migrations": "001-010",
-    "cleanup": "both final logs confirm stopped_and_removed",
-    "environment": "temporary private loopback SCRAM clusters"
+    "migrations": "001-012",
+    "newCoverage": "19 billing mode cases including environment race, plus5 native publish ownership/CAS/reclaim/capacity/artifact cases",
+    "cleanup": "both final logs stopped_and_removed"
   },
   "checks": {
     "mainTypeScript": "passed",
@@ -33,26 +35,43 @@
       "errors": 0,
       "baselineWarnings": 33
     },
-    "productionBuild": "passed; SourceEditor deferred chunk retains Vite500k warning",
-    "whitespace": "root checks before publication"
+    "mainProductionBuild": "passed",
+    "lovableProductionClientSsrWorkersBuild": "passed",
+    "nginxTemplateSyntax": "passed in isolated official nginx container; TLS certificate directives replaced for syntax test only; read-only synthetic config, no network; CHOWN needed for nginx temp-dir initialization"
   },
-  "uiLovable": {
-    "passed": 146,
-    "filesPassed": 15,
+  "modernLovable": {
+    "passed": 175,
+    "files": 17,
     "typeScript": "passed",
-    "productionClientSsrWorkersBuild": "passed",
-    "sourceFilesUnchanged": 125,
-    "overlayEntries": 68,
-    "allMirrorAndOverlayHashesMatch": true,
-    "pristineHashesUnchanged": 10,
-    "hostedBuildOrEdit": false
+    "overlayFiles": 74,
+    "allMirrorOverlayHashesMatch": true,
+    "hostedTransfer": true,
+    "hostedProductionOverlayFiles": 41,
+    "runtimeLivePreview": true,
+    "publicRepublished": false,
+    "agentSubmittedAiPrompt": false,
+    "agentClickedAiBuild": false,
+    "reserve30Verified": false,
+    "hostedEvidence": "PUBLISH-BILLING-ROLLOUT.json"
   },
-  "externalChanges": {
-    "productionOrDeploy": false,
-    "productionDatabaseOrSecrets": false,
+  "activation": {
+    "publishEnabledByDefault": false,
+    "billingEnabledByDefault": false,
+    "billingModes": [
+      "test",
+      "live"
+    ],
+    "immutableDbEnvironmentPin": true,
+    "stripeConnectorAccess": "Authorized sandbox read-only; actual matching test catalog and default Portal inventory completed via already authenticated Stripe CLI. Existing Pro monthly/yearly prices found; active default Portal configurations:0. No writes.",
+    "actualStripePaymentVerified": false,
     "StripeAccountWrites": false,
-    "hostedLovableBuildOrEdit": false,
-    "lovableCreditsSpent": 0,
-    "testExecution": "local only; no CI/CD run invoked"
-  }
+    "productionDeploy": false,
+    "productionMigration": false,
+    "productionSecretsChanged": false,
+    "hostedLovableEditsOrBuilds": true,
+    "hostedAiPromptOrBuildSubmitted": false,
+    "publicFrontendRepublished": false,
+    "productionDeployScope": "Backend/VPS deployment remains false; frontend source sync and editor live preview are separate follow-up evidence."
+  },
+  "operationalFollowup": "PUBLISH-BILLING-ROLLOUT.json"
 }

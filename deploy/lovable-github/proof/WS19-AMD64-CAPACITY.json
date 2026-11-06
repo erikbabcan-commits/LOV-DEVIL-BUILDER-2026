@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-11-06T19:00:28.900451+00:00",
+  "runtimeCommit": "7f2b923764e4ec15936ec57abc2a05d8d321c7b7",
+  "scope": "Target-platform images built and measured locally; no VPS loading, deployment, pruning or registry push.",
+  "status": "three_target_images_built_smoked_and_archived_locally",
+  "platform": "linux/amd64",
+  "context": {
+    "files": 120,
+    "logicalBytes": 736388,
+    "archiveBytes": 849920,
+    "privateEnvSessionFilesOrHostNodeModules": false
+  },
+  "images": [
+    {
+      "id": "sha256:ec4bd3ccd4226dcc1d73e6acb77a4d79f7a6853909681c5be35fd69e4d4b03f0",
+      "os": "linux",
+      "architecture": "amd64",
+      "sizeBytes": 103531920,
+      "revision": "7f2b923764e4ec15936ec57abc2a05d8d321c7b7",
+      "tag": "lov-devil-api-ws19:7f2b923-amd64",
+      "smoke": {
+        "exit": 0,
+        "nodeVersion": "v26.13.0",
+        "network": "none",
+        "filesystem": "read-only",
+        "privileges": "non-root/cap-dropALL/no-new-privileges",
+        "hostMounts": false
+      },
+      "build": {
+        "image": "api",
+        "tag": "lov-devil-api-ws19:7f2b923-amd64",
+        "exit": 0,
+        "durationSeconds": 41.21,
+        "freeBytesAfter": 25789177856
+      }
+    },
+    {
+      "id": "sha256:adc9b74f04bfe1a9702bb7a94dcd5ad9aa9dce84d9c9588f554f64b322a3263e",
+      "os": "linux",
+      "architecture": "amd64",
+      "sizeBytes": 83352701,
+      "revision": "7f2b923764e4ec15936ec57abc2a05d8d321c7b7",
+      "tag": "lov-devil-sandbox-runner-ws19:7f2b923-amd64",
+      "smoke": {
+        "exit": 0,
+        "nodeVersion": "v26.13.0",
+        "network": "none",
+        "filesystem": "read-only",
+        "privileges": "non-root/cap-dropALL/no-new-privileges",
+        "hostMounts": false
+      },
+      "build": {
+        "image": "sandbox-runner",
+        "tag": "lov-devil-sandbox-runner-ws19:7f2b923-amd64",
+        "exit": 0,
+        "durationSeconds": 79.7,
+        "freeBytesAfter": 25513652224
+      }
+    },
+    {
+      "id": "sha256:7447d16e814db970169833b2efb55d36aa44c4468df9d859d18d6fa091d906ed",
+      "os": "linux",
+      "architecture": "amd64",
+      "sizeBytes": 69111013,
+      "revision": "7f2b923764e4ec15936ec57abc2a05d8d321c7b7",
+      "tag": "lov-devil-sandbox-ws19:7f2b923-amd64",
+      "smoke": {
+        "exit": 0,
+        "nodeVersion": "v26.13.0",
+        "network": "none",
+        "filesystem": "read-only",
+        "privileges": "non-root/cap-dropALL/no-new-privileges",
+        "hostMounts": false
+      },
+      "build": {
+        "image": "sandbox",
+        "tag": "lov-devil-sandbox-ws19:7f2b923-amd64",
+        "exit": 0,
+        "durationSeconds": 26.3,
+        "freeBytesAfter": 25494634496
+      }
+    }
+  ],
+  "archive": {
+    "compressedBytes": 129686811,
+    "sha256": "65503f6ccb4ee93b572f7f5df120880d1f14ef7f409afd8b5caa6901a4617810",
+    "mode": "0o600"
+  },
+  "layers": {
+    "uniqueCount": 20,
+    "allDiffIdHashesIndependentlyVerified": true,
+    "uniqueStoredContentBytes": 130075341,
+    "uniqueUncompressedTarBytes": 433890304
+  },
+  "planningBudget": {
+    "deployMethod": "load prebuilt target images; do not build on VPS",
+    "publishReadinessReservePlusMaxArtifactBytes": 1076741824,
+    "metadataFilesystemAndLoadSafetyAllowanceBytes": 536870912,
+    "fullArchiveStagingBytes": 129686811,
+    "fullContentStoreCopyBytes": 130075341,
+    "uncompressedSnapshotBytesNoSharing": 433890304,
+    "planningPeakAdditionalFreeBytesNoSharing": 2307265192,
+    "classification": "conservative measured-content planning estimate, not a formal bound on Docker filesystem allocation or a production readiness claim",
+    "rollback": "existing production image and persistent volumes are retained; their already-allocated space is not counted as new free-space demand"
+  },
+  "remainingGate": "Recheck current free space immediately before loading prebuilt images; prepare dedicated isolated worker daemon and verify actual application/runner readiness. The estimate excludes unrelated concurrent growth.",
+  "verificationLimits": [
+    "Node --version smoke confirms cross-architecture execution only; full API/runner readiness with production settings is not asserted",
+    "No real Stripe or Cloud traffic was performed",
+    "Independent target image/source snapshot does not include later source commits beyond7f2b923",
+    "Docker inspect.Size is recorded verbatim; actual uncompressed tar sizes were measured separately"
+  ],
+  "externalChanges": {
+    "registryPush": false,
+    "vpsWriteOrPrune": false,
+    "productionDeploy": false,
+    "ciRun": false,
+    "hostSecretsOrDockerSocketMountedIntoSmokeContainers": false
+  },
+  "sourceReceiptSha256": "b8ed3b43c7e5ea8311b9b358dd32529a921491ac50b86c1ad7d4ee6521c484d8"
+}

@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-11-06T19:07:37.186368+00:00",
+  "schemaFollowupObservedAtUtc": "2026-11-06T19:09:11.737611+00:00",
+  "scope": "Read-only resource/configuration-name/schema metadata checks; no credentials, user or billing rows, or production mutations.",
+  "host": {
+    "architecture": "x86_64",
+    "cpuCount": 1,
+    "memoryBytes": {
+      "MemTotalBytes": 2008002560,
+      "MemAvailableBytes": 1189064704,
+      "SwapTotalBytes": 4294963200,
+      "SwapFreeBytes": 3360944128
+    },
+    "filesystem": {
+      "totalBytes": 39956590592,
+      "availableBytes": 3755892736,
+      "usedPercent": 91
+    },
+    "runningContainerCount": 14
+  },
+  "prebuiltReleaseCapacityComparison": {
+    "sourceCommit": "7f2b923764e4ec15936ec57abc2a05d8d321c7b7",
+    "archiveBytes": 129686811,
+    "planningFreeBytesNoSharing": 2307265192,
+    "observedAvailableBytes": 3755892736,
+    "planningMarginBytes": 1448627544,
+    "meetsPlanningEstimate": true,
+    "qualification": "Measured-content estimate for loading prebuilt images only, includes512MiB safety and1GiB publish reserve; re-check free space at deployment; no VPS in-place build budget or concurrency guarantee"
+  },
+  "isolation": {
+    "dedicatedWorkerSocketFound": false,
+    "globalDaemonShared": true,
+    "missingCommands": [
+      "newuidmap",
+      "newgidmap",
+      "slirp4netns",
+      "fuse-overlayfs"
+    ],
+    "userNamespacesEnabled": true
+  },
+  "migrationSchemaPresence": {
+    "serverVersion": "16.15",
+    "tables": {
+      "users": true,
+      "user_quotas": true,
+      "auth_log": true,
+      "builder_projects": false,
+      "identity_links": false,
+      "github_pending": false,
+      "github_exports": false,
+      "ai_runs": false,
+      "ai_calls": false,
+      "ai_price_policies": false,
+      "ai_call_costs": false,
+      "billing_accounts": false,
+      "billing_checkout_attempts": false,
+      "billing_portal_attempts": false,
+      "billing_events": false,
+      "publish_jobs": false,
+      "billing_environment": false
+    },
+    "columns": {
+      "users.plan_expires_at": false,
+      "github_exports.checkpoint": false,
+      "github_exports.reconciled_at": false,
+      "billing_accounts.has_open_subscription": false,
+      "publish_jobs.claim_id": false
+    },
+    "status": "schema_metadata_only_readonly"
+  },
+  "runningApiMigrationFiles": [
+    "001_init.sql"
+  ],
+  "migrationEvidenceScope": "Catalog existence/columns only. The application replays idempotent SQL and has no migration ledger; no user/billing rows were read.",
+  "requiredNewSettingNames": {
+    "cloud": {
+      "present": [],
+      "absent": [
+        "CLOUD_AUTH_ISSUER"
+      ]
+    },
+    "publishAndRunner": {
+      "present": [],
+      "absent": [
+        "PUBLICPUBLISH_ENABLED",
+        "PUBLICPUBLISH_BASE_URL",
+        "PUBLICPUBLISH_APP_URL",
+        "PUBLICPUBLISH_ARTIFACT_DIR",
+        "SANDBOX_MODE",
+        "SANDBOX_RUNNER_URL",
+        "SANDBOX_RUNNER_TOKEN"
+      ]
+    },
+    "billing": {
+      "present": [],
+      "absent": [
+        "BILLING_ENABLED",
+        "BILLING_MODE",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "BILLING_APP_URL",
+        "STRIPE_PRO_MONTHLY_PRICE_ID",
+        "STRIPE_PRO_YEARLY_PRICE_ID",
+        "BILLING_PRO_MONTHLY_EUR_CENTS",
+        "BILLING_PRO_YEARLY_EUR_CENTS"
+      ]
+    }
+  },
+  "readinessGates": [
+    {
+      "id": "isolated_worker_daemon",
+      "status": "not_ready"
+    },
+    {
+      "id": "schema_and_backup",
+      "status": "migration_required"
+    },
+    {
+      "id": "runtime_and_identity_settings",
+      "status": "configuration_required"
+    },
+    {
+      "id": "published_https_host",
+      "status": "not_activated"
+    },
+    {
+      "id": "resource_headroom",
+      "status": "planning_estimate_met_not_runtime_verified"
+    }
+  ],
+  "requiredNextSteps": [
+    "Prepare and verify a dedicated isolated worker service; preserve the shared Docker daemon and other applications.",
+    "Take a fresh restore-verified LOV-only database backup and private rollback snapshot before controlled migrations 001-012 and app-only rollout.",
+    "Configure Cloud issuer, explicit internal identity binding and fixed server-only Basic transport; preserve existing session keys.",
+    "Prepare separate HTTPS publish hostname/listener, verify signatures on the exact Stripe webhook exception, and verify actual resource limits and cleanup."
+  ],
+  "writeActionsPerformed": false,
+  "sourceReceiptSha256": "7bea805df75bb1fcdfd431a0a3adc40f7a870b40edb1fc1afb8445ab988eeb17"
+}

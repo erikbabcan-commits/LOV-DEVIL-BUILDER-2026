@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-06",
+  "status": "frontend_source_synced_and_live_preview_verified_backend_and_public_release_not_activated",
+  "goalStatus": "active",
+  "goalCompletionClaim": false,
+  "runtimeCommit": "7f2b923764e4ec15936ec57abc2a05d8d321c7b7",
+  "localRuntimeReceipt": "PUBLISH-BILLING-VERIFICATION.json",
+  "localRuntimeSourcesUnchanged": 64,
+  "frontend": {
+    "repository": "https://github.com/erikbabcan-commits/vorkeeei",
+    "repositoryVisibility": "private",
+    "pullRequest": "https://github.com/erikbabcan-commits/vorkeeei/pull/1",
+    "implementationCommit": "762f31a5089a0ddc4d6c2175266cb1b1760ca9e3",
+    "mergeCommit": "f7e3361451a443ae57b9473401993e744876ab7e",
+    "operationalRefreshCommit": "96751c31fff33e5f91339c7df266d9c2e2cb7a79",
+    "verifiedTree": "7f9cd337b2ed8abd83976ac2f986071300efa5db",
+    "treeUnchangedByMergeAndRefresh": true,
+    "productionOverlayFiles": 41,
+    "automaticGeneratedRouteFiles": 1,
+    "overlayFileHashesAllVerified": true,
+    "readmeAndExistingDotenvTreeEntryPreserved": true,
+    "dotenvValuesRead": false,
+    "build": "passed client/SSR/Workers in actual clone",
+    "typeScript": "passed in actual clone",
+    "workflowFiles": 0,
+    "hostedSourceTransfer": true,
+    "hostedEditorTwoFileCopiesVerified": {
+      "src/components/forge/ForgePublish.tsx": {
+        "bytes": 12485,
+        "sha256": "23c7e7d344c2d474f6bd05533710c974767e30b06ee4cec7a244d2523532bbdf"
+      },
+      "src/components/forge/TopBar.tsx": {
+        "bytes": 4890,
+        "sha256": "dce47e529ddea6e504e81191545135249591c6d5e198dc089d39077947394459"
+      }
+    },
+    "runtimeLivePreview": true,
+    "publicCanonicalUrl": "https://vorkeeei.lovable.app/",
+    "publicRepublished": false,
+    "liveHonoConnection": "unavailable",
+    "actualPublishedArtifact": false
+  },
+  "auth": {
+    "existingGoogleLoginInNewLivePreview": "passed",
+    "honoIdentityBinding": "not_activated_or_verified"
+  },
+  "cloudTransport": {
+    "HONO_BASE_URL_namePresent": true,
+    "HONO_BASIC_AUTH_namePresent": false,
+    "secretValuesRead": false
+  },
+  "credits": {
+    "availableBeforeTransfer": 0,
+    "agentSubmittedAiPrompt": false,
+    "agentClickedAiBuild": false,
+    "purchases": false,
+    "reserve30Verified": false,
+    "qualification": "Workspace already showed zero available credits before this transfer. No assertion about total workspace consumption or maintenance of the historical 30-credit balance."
+  },
+  "backend": {
+    "productionDeploy": false,
+    "productionMigration": false,
+    "productionSecretsChanged": false,
+    "targetImagesPreparedLocally": 3,
+    "targetPlatform": "linux/amd64",
+    "currentReleaseCapacityPlanningEstimateMet": true,
+    "actualIsolatedRuntimeNotVerifiedOnVps": true,
+    "billingEnabled": false,
+    "publishEnabled": false
+  },
+  "stripe": {
+    "inventoryReadOnly": true,
+    "existingProMonthlyEur": 29,
+    "existingProYearlyEur": 290,
+    "activeDefaultPortalConfigurations": 0,
+    "providerWrites": false,
+    "actualPaymentVerified": false,
+    "liveActivated": false
+  },
+  "nextGates": [
+    "Configure the missing fixed server-only Basic transport and explicit Cloud identity binding without exposing credential values.",
+    "Prepare a dedicated isolated worker daemon, fresh restore-verified backup and controlled backend migrations/deployment; recheck resources immediately beforehand.",
+    "Configure sandbox Customer Portal and signed webhook under an appropriate write authorization, then complete real sandbox purchase/cancel verification.",
+    "Verify the actual hosted Cloud -> Hono -> project -> compile -> artifact workflow; only then update the published frontend and verify its canonical URL."
+  ],
+  "evidence": {
+    "WS19-AMD64-CAPACITY.json": {
+      "sha256": "94dbbff8c646c8d81fbcdd1737781a7bd760306a8e336d6eddfd5e87d257918e"
+    },
+    "WS19-DEPLOYMENT-READINESS.json": {
+      "sha256": "c28afc2516ab8d309e25144fe42109dbebcf44104a34d1ad577870215096cd53"
+    },
+    "WS19-STRIPE-SANDBOX-INVENTORY.json": {
+      "sha256": "d88f55b507fae773e0d5d78cc48e3a0eda3f7d1e04d4de8c6a45ee820dc19500"
+    },
+    "WS19-HOSTED-UI-VERIFICATION.json": {
+      "sha256": "631eb86a7266e1b085d8233438cf0bf722b7dc8372d749453ebef83f1fd7e7db"
+    }
+  },
+  "screenshot": {
+    "file": "release-hosted-publish-unavailable.jpg",
+    "sha256": "467f9f5238ae7104e696f2179d6de7dc071fc7d687a89b8303ce20bc375058a4",
+    "scope": "Hosted live preview: real Publish dialog rendered; backend unavailable, no publication. No account identity, URL/token, financial banner or secret values visible."
+  },
+  "provenance": "Source/tree hashes and prepared operational receipts checked locally. Hosted UI, login and code-copy observations are from the parent CUA workflow. No service calls, new test runs or external writes were performed while preparing this documentation proposal."
+}

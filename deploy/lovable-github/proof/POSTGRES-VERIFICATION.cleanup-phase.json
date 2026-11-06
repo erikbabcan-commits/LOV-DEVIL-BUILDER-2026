@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-06",
+  "phase": "Final local integration gates before Git cleanup and user-requested coding pause",
+  "detailReceipt": "CLEANUP-VERIFICATION.json",
+  "previousPhaseReceipt": "POSTGRES-VERIFICATION.billing-phase.json",
+  "versions": [
+    "16.15",
+    "18.6"
+  ],
+  "passedEach": 135,
+  "workers": 1,
+  "runner": "deploy/test-projects-native.py",
+  "migrations": "001-010",
+  "cleanup": "both final logs confirm stopped_and_removed",
+  "environment": "temporary private loopback SCRAM clusters",
+  "logs": {
+    "pg16": {
+      "file": "cleanup-pg16.log",
+      "sha256": "6abdbd6b15e224f11c1ce81c40ec617e1a33d28ec66c867c2dd40361b210a374",
+      "publicFile": "logs/cleanup-pg16.txt",
+      "publicSha256": "feee82df6ef5061fc3cc6b179de8f078b673d047f3936bf0c5ec4dcdd47f446b"
+    },
+    "pg18": {
+      "file": "cleanup-pg18.log",
+      "sha256": "0f2477aa8e6f0fc0ac8a807555d1af04c0a3596b2c8645e89a843f0bbad52893",
+      "publicFile": "logs/cleanup-pg18.txt",
+      "publicSha256": "f636a8c95444fba74e154cc5aef33751301d95bcc9f01fb65bbd53ab3ee436b4"
+    }
+  }
+}

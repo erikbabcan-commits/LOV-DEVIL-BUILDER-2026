@@ -1,0 +1,39 @@
+[WebServer] (node:58414) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:58415) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:58453) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 22 tests using 1 worker
+
+(node:58478) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/22] tests/e2e/billing.spec.ts:7:1 › billing mobile: skutočných 390px, intervaly, sandbox a dostupný Checkout bez platobnej akcie
+[2/22] tests/e2e/github-oauth.spec.ts:15:3 › GitHub OAuth live boundaries › editor exposes the real GitHub connect action
+[3/22] tests/e2e/github-oauth.spec.ts:24:3 › GitHub OAuth live boundaries › configured server emits a hardened OAuth redirect and cookie
+[4/22] tests/e2e/github-oauth.spec.ts:36:3 › GitHub OAuth live boundaries › invalid callback returns to the app without exposing credentials
+[5/22] tests/e2e/github-oauth.spec.ts:46:3 › GitHub OAuth live boundaries › unauthenticated export fails before contacting GitHub
+[6/22] tests/e2e/m2-ai.spec.ts:35:1 › M2 review: skutočné SSE → odmietnutie bez zmeny → explicitný Instant Draft
+[7/22] tests/e2e/m2-ai.spec.ts:51:1 › M2 persistence: refresh obnoví presnú verziu do pracovného priestoru
+[8/22] tests/e2e/m2-ai.spec.ts:65:1 › M2.1 positive: HTTP/SSE → review → immutable súbory → editor → refresh restore
+[9/22] tests/e2e/m2-ai.spec.ts:93:1 › M2.1 cancel: zruší rozpracovanú HTTP odpoveď bez použitia súborov
+[10/22] tests/e2e/m2-ai.spec.ts:119:1 › M3 sandbox: schválenie kompiluje React → stop → nový skutočný build → stop
+[11/22] tests/e2e/m2-ai.spec.ts:138:1 › M3 sandbox: chýbajúci React entry má viditeľnú chybu
+[12/22] tests/e2e/react.spec.ts:11:1 › landing: načíta sa bez JS chýb, vizuálna baseline desktop
+[13/22] tests/e2e/react.spec.ts:21:1 › generovanie: SaaS template → workspace + preview iframe + agent plán
+[14/22] tests/e2e/react.spec.ts:36:1 › kanban template: prompt → kanban generátor
+[15/22] tests/e2e/react.spec.ts:45:1 › editor: dashboard + VFS súbory + história
+[16/22] tests/e2e/react.spec.ts:64:1 › zoom + viewport segment
+[17/22] tests/e2e/react.spec.ts:78:1 › mobile: mtabs navigácia
+[18/22] tests/e2e/react.spec.ts:93:1 › história: snapshot restore funguje (immutability parita)
+[19/22] tests/e2e/react.spec.ts:112:1 › M1.1 resizer: pointer drag zmení šírku chat panelu (constraints 340-560)
+[20/22] tests/e2e/react.spec.ts:138:1 › M1.1 editor: všetkých 8 tabov prístupných (blueprints/prompts/team/gallery vrátane)
+[21/22] tests/e2e/react.spec.ts:158:1 › M1.1 blueprints: wizard → review → nová funkčná React verzia
+[22/22] tests/e2e/react.spec.ts:178:1 › M1.1 vizuálny checkpoint: workspace po dokončení streamovania (deterministický)
+  22 passed (1.8m)

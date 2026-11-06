@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "preparedAt": "2026-11-06T19:11:12.104587+00:00",
+  "scope": "Read-only inventory of the already authorized matching sandbox account; no provider identifiers, customer data or credentials included.",
+  "mode": "test",
+  "accountMatches": true,
+  "catalogTruncated": false,
+  "portalTruncated": false,
+  "existingProPrices": [
+    {
+      "currency": "eur",
+      "amountCents": 2900,
+      "interval": "month",
+      "intervalCount": 1,
+      "quantity": 1,
+      "billingScheme": "per_unit",
+      "usageType": "licensed",
+      "livemode": false,
+      "taxBehavior": "inclusive"
+    },
+    {
+      "currency": "eur",
+      "amountCents": 29000,
+      "interval": "year",
+      "intervalCount": 1,
+      "quantity": 1,
+      "billingScheme": "per_unit",
+      "usageType": "licensed",
+      "livemode": false,
+      "taxBehavior": "inclusive"
+    }
+  ],
+  "sameActiveProProduct": true,
+  "activeDefaultPortalCount": 0,
+  "trialDays": 14,
+  "runtimeEnabled": false,
+  "configurationPlanStatus": "PROPOSED_ONLY_NOT_EXECUTED",
+  "writesApproved": false,
+  "writesPerformed": false,
+  "actualPaymentVerified": false,
+  "credentialsReadOrCreated": false,
+  "requiredNextSteps": [
+    "Prepare the existing sandbox default Customer Portal using the separately reviewed plan; current authorization remains read-only.",
+    "Configure runtime-only test credentials and signed webhook delivery; verify a real sandbox checkout/cancel before considering live activation."
+  ],
+  "sourceReceiptSha256": "d30b9ed6bcb4b3288908276a68f7bfdd12fea9067b020a0a5a61092f4552edcc"
+}

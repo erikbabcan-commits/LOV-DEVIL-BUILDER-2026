@@ -1,30 +1,35 @@
 {
   "date": "2026-11-06",
-  "phase": "Final local integration gates before Git cleanup and user-requested coding pause",
-  "detailReceipt": "CLEANUP-VERIFICATION.json",
-  "previousPhaseReceipt": "POSTGRES-VERIFICATION.billing-phase.json",
+  "phase": "WS-19 static Publish and Cloud test/live billing; local implementation, not activated in production",
+  "detailReceipt": "PUBLISH-BILLING-VERIFICATION.json",
+  "previousPhaseReceipt": "POSTGRES-VERIFICATION.cleanup-phase.json",
+  "runtimeCommit": "7f2b923764e4ec15936ec57abc2a05d8d321c7b7",
   "versions": [
     "16.15",
     "18.6"
   ],
-  "passedEach": 135,
+  "passedEach": 159,
+  "files": 5,
   "workers": 1,
-  "runner": "deploy/test-projects-native.py",
-  "migrations": "001-010",
-  "cleanup": "both final logs confirm stopped_and_removed",
-  "environment": "temporary private loopback SCRAM clusters",
+  "migrations": "001-012",
+  "newCoverage": "19 billing mode cases including environment race, plus5 native publish ownership/CAS/reclaim/capacity/artifact cases",
+  "cleanup": "both final logs stopped_and_removed",
   "logs": {
     "pg16": {
-      "file": "cleanup-pg16.log",
-      "sha256": "6abdbd6b15e224f11c1ce81c40ec617e1a33d28ec66c867c2dd40361b210a374",
-      "publicFile": "logs/cleanup-pg16.txt",
-      "publicSha256": "feee82df6ef5061fc3cc6b179de8f078b673d047f3936bf0c5ec4dcdd47f446b"
+      "originalSha256": "1ca6d4566f4805779758971649f7357e7925f57c2575b12401739c84a2590251",
+      "publicFile": "logs/release-pg16.txt",
+      "publicSha256": "105b08d98c2a4640ae1b23401568cf30f414b4d09442cfc09f8fb1135c3325b7",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
     },
     "pg18": {
-      "file": "cleanup-pg18.log",
-      "sha256": "0f2477aa8e6f0fc0ac8a807555d1af04c0a3596b2c8645e89a843f0bbad52893",
-      "publicFile": "logs/cleanup-pg18.txt",
-      "publicSha256": "f636a8c95444fba74e154cc5aef33751301d95bcc9f01fb65bbd53ab3ee436b4"
+      "originalSha256": "42a14cc55af2f946f38e972b84a5b29afc0aade7583c5384a8af9cfd342b0fb7",
+      "publicFile": "logs/release-pg18.txt",
+      "publicSha256": "6bf583d39e5d31d1bb46a99cbe4d636ea480fada8877cbe5b094aa786398c567",
+      "redactions": [
+        "local home/workspace prefixes removed; trailing whitespace normalized"
+      ]
     }
   }
 }
