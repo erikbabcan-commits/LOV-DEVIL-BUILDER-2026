@@ -41,6 +41,22 @@
       "redactions": [
         "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
       ]
+    },
+    "deploy/lovable-github/proof/logs/read-isolation-pg16.txt": {
+      "sourceLogSha256": "b76c4f4bf532169d9ff8d48fe743afb476d2548dd63a5e348d12ffe2ff2ddaca",
+      "sha256": "21fdfe9f5fe9e28713f946cb8c6445d591cf7887d9ad64e2cd5b7608661db101",
+      "bytes": 371,
+      "redactions": [
+        "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
+      ]
+    },
+    "deploy/lovable-github/proof/logs/read-isolation-pg18.txt": {
+      "sourceLogSha256": "a47fbddc090ecbb1a265526016c51a489fee22afe56b5bece5728c8a3af96ae4",
+      "sha256": "cb2b314da8f48f91960b63d3b3e0dd4ca79fbf64a32adddb7ca2d91c229ce03d",
+      "bytes": 370,
+      "redactions": [
+        "local home/workspace/temp paths replaced; ANSI and trailing/EOF whitespace normalized; credential and identity patterns excluded"
+      ]
     }
   }
 }

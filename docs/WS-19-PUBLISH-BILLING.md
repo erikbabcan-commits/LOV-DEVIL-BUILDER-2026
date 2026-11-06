@@ -334,7 +334,7 @@ MCP prístup k Stripe sandboxu ostáva iba na čítanie; táto práca ho nerozš
 
 Aktuálny read-isolation addendum pre runtime `d9b279b` má **1 117 passed /
 189 skipped main**, **21/21 Docker**, typy, build a lint PASS (0 chýb / 33
-existujúcich upozornení). Všetkých 301 source witnesses zostalo počas piatich
+existujúcich upozornení). Všetkých 301 source witnesses zostalo počas siedmich
 brán nezmenených. Offline inventár runbooku prešiel **8/8** syntetických
 filesystem prípadov; jeho SQL prešlo **20/20** CAS/flag prípadov na dočasných
 natívnych PG16/18 so schémou 001–013 a odstránením oboch clustrov. Ide o lokálne
@@ -344,8 +344,9 @@ Frontend PR#3 je zlúčený ako `676b8bdf5d7d9dd0d385479c46c55367ee9ca86a`;
 Git push aj merge sú overené v histórii Lovable editora o 21:15:16 UTC. Ide
 o viditeľnú synchronizáciu histórie, nie nové kopírovanie/hash overenie súboru.
 Kanonický verejný frontend zatiaľ nebol znovu publikovaný.
-PG kontrakty/migrácie a moderné UI sa v tejto zmene nemenili; pôvodných 167/167
-a 188 zostáva historickým dôkazom, nie novým behom na tomto runtime.
+Dodatočné čerstvé natívne PG16.15 aj18.6 prešli **167/167** na tom istom
+runtime/witnesses; oba clustre boli zastavené a odstránené. Moderné UI sa
+nemenilo; jeho pôvodných 188 zostáva historickým dôkazom, nie novým behom.
 
 Predchádzajúca implementácia 013 mala úplné lokálne gates PASS: **1 115 passed /
 189 skipped main**, PostgreSQL 16.15 aj 18.6 **167/167** s cleanup, Docker

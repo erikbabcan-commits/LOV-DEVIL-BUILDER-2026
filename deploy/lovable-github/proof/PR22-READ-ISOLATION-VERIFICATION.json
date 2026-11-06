@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "recordedAt": "2026-11-06T21:15:24.198014+00:00",
+  "recordedAt": "2026-11-06T21:17:56.470204+00:00",
   "status": "Separate bounded public read capacity and offline recovery runbook verified locally; production application activation outstanding",
   "runtimeCommit": "d9b279b56f370982b69b43a51827121564c3d52d",
   "runtimeTree": "7a30d9b366df88f0180dc0858aa4ee8a8b58abb8",
@@ -12,14 +12,14 @@
   },
   "sourceWitness": {
     "count": 301,
-    "allFiveMapsIdentical": true,
     "allFilesMatchGitAndDisk": true,
     "canonicalMapSha256": "65147a4b09417fa4056594ad1d6f24bdb2a9305bc8d446a63b23686590319b60",
     "runtimeChangedFiles": {
       "server/publish/artifacts.ts": "e8004f0eedad84feac520844b11b438dc4e78e09aed30542507c2be3ca66d7c7",
       "server/publish/storageGate.ts": "53e6a2f4e723a2369ef01a8f37e3a7f6724b19046fa77dd13d273b10e575d5ad",
       "tests/unit/server/publish-public-isolation.test.ts": "38da7d6ad1fc56fdf429559f95590a518d8e72d3b68c2ff19aefa9b6532c0f92"
-    }
+    },
+    "allSevenMapsIdentical": true
   },
   "gates": {
     "main": {
@@ -51,6 +51,18 @@
       "seconds": 30.7,
       "verifiedAt": "2026-11-06T21:09:12.622448+00:00",
       "sourceChangesDuringRun": []
+    },
+    "pg16": {
+      "exit": 0,
+      "seconds": 20.57,
+      "verifiedAt": "2026-11-06T21:16:51.258215+00:00",
+      "sourceChangesDuringRun": []
+    },
+    "pg18": {
+      "exit": 0,
+      "seconds": 20.92,
+      "verifiedAt": "2026-11-06T21:16:51.394364+00:00",
+      "sourceChangesDuringRun": []
     }
   },
   "results": {
@@ -66,17 +78,25 @@
     "build": "PASS",
     "docker": {
       "passed": 21
+    },
+    "postgres16": {
+      "version": "16.15",
+      "passed": 167,
+      "cleanup": "stopped_and_removed"
+    },
+    "postgres18": {
+      "version": "18.6",
+      "passed": 167,
+      "cleanup": "stopped_and_removed"
     }
   },
   "unchangedHistoricalEvidence": {
     "runtimeCommit": "186eba1223dad2f0a081f2aa524feb5508a144fa",
     "proof": "deploy/lovable-github/proof/PR22-RECOVERY-VERIFICATION.json",
-    "postgres16": 167,
-    "postgres18": 167,
     "modern": 188,
-    "rerunForThisAddendum": false,
-    "dbSchemaContractsAndModernUiSourcesUnchanged": true,
-    "meaning": "Previous results remain historical evidence for the unchanged schema/contracts and modern UI; no fresh PG or modern run is claimed on this runtime."
+    "modernRerunForThisAddendum": false,
+    "modernUiSourcesUnchanged": true,
+    "meaning": "Modern188 remains historical evidence for unchanged modern UI sources; native PG16/18 each167 are fresh runs recorded separately in this addendum."
   },
   "runbook": {
     "path": "docs/WS-19-PUBLISH-BILLING.md#publish-storage-recovery",
@@ -108,8 +128,8 @@
   },
   "publicLogManifest": {
     "path": "deploy/lovable-github/proof/PR22-READ-ISOLATION-LOGS.json",
-    "sha256": "710d0008babca9bc3d24b83e14ec06dc3a17176f06bff86129348c6c4d3b3a77",
-    "logCount": 5
+    "sha256": "4f4e4ce34379350505db783d478bc87d5a9523830f00621fe1d65370f3cf4275",
+    "logCount": 7
   },
   "privacy": "No credential values, personal identities/email, raw private logs or account financial metadata. Public logs are normalized projections; source hashes do not reveal secret values.",
   "trackedHistoricalProofFilesPreserved": 277,
