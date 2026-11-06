@@ -154,22 +154,30 @@ export class PublishService {
         return { row: existing, launch: false };
       }
       if (this.jobs.size >= 8) throw new PublishError("publish_busy", 429);
+      const maxAttempts = this.config.maxArtifacts;
       const usage = (
         await tx.query(
-          "SELECT state,artifact_bytes FROM publish_jobs WHERE owner_id=$1",
-          [owner],
+          "SELECT state,artifact_id,artifact_bytes FROM publish_jobs WHERE owner_id=$1 LIMIT $2",
+          [owner, maxAttempts],
         )
-      ).rows;
-      if (
-        usage.length >= this.config.maxArtifacts ||
-        usage.reduce(
-          (n, r) =>
-            n + Number(r.artifact_bytes ?? this.config.maxArtifactBytes),
-          0,
-        ) +
-          this.config.maxArtifactBytes >
-          this.config.maxOwnerBytes
-      )
+      ).rows as Array<Pick<Row, "state" | "artifact_id" | "artifact_bytes">>;
+      // Failed attempts still count against the durable abuse limit.
+      if (usage.length >= maxAttempts)
+        throw new PublishError("publish_capacity", 413);
+      // The owner lock also fences every artifact writer. A terminal failure's
+      // confirmed empty storage cannot later acquire files from a stale claim.
+      const retained = await this.artifacts.retainedBytes(usage.map(row => row.artifact_id));
+      const usedBytes = usage.reduce((total, row) => {
+        const diskBytes = retained.get(row.artifact_id.toLowerCase())!;
+        if (row.state === "failed") return total + diskBytes;
+        const reservation = row.state === "building"
+          ? this.config.maxArtifactBytes
+          : Number(row.artifact_bytes ?? this.config.maxArtifactBytes);
+        if (!Number.isSafeInteger(reservation) || reservation < 0)
+          throw new PublishError("publish_storage_unavailable");
+        return total + Math.max(reservation, diskBytes);
+      }, 0);
+      if (!Number.isSafeInteger(usedBytes) || usedBytes + this.config.maxArtifactBytes > this.config.maxOwnerBytes)
         throw new PublishError("publish_capacity", 413);
       const project = (
         await tx.query(
@@ -247,6 +255,21 @@ export class PublishService {
     }
     return this.view(prepared.row);
   }
+  /** Same lock order as start: owner first, then the exact durable claim. */
+  private async withClaim(
+    row: Row,
+    work: (tx: DbLike) => Promise<void>,
+  ): Promise<void> {
+    await this.db.transaction!(async tx => {
+      if (!(await tx.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [row.owner_id])).rows.length) return;
+      const current = (await tx.query(
+        "SELECT claim_id,state FROM publish_jobs WHERE owner_id=$1 AND request_id=$2",
+        [row.owner_id, row.request_id],
+      )).rows[0];
+      if (current?.state !== "building" || current.claim_id !== row.claim_id) return;
+      await work(tx);
+    });
+  }
   private async run(row: Row): Promise<void> {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -271,40 +294,34 @@ export class PublishService {
         errors = result.errors;
         throw new PublishError("publish_build_failed", 400);
       }
-      const artifact = await this.artifacts.put(row.artifact_id, result.html);
-      await this.db.query(
-        "UPDATE publish_jobs SET state='published',artifact_sha256=$4,artifact_bytes=$5,error_code=NULL,errors='[]'::jsonb,updated_at=$6 WHERE owner_id=$1 AND request_id=$2 AND claim_id=$3 AND state='building'",
-        [
-          row.owner_id,
-          row.request_id,
-          row.claim_id,
-          artifact.sha256,
-          artifact.bytes,
-          new Date().toISOString(),
-        ],
-      );
+      await this.withClaim(row, async tx => {
+        // Bounded <=3MB I/O stays inside the owner lock, before publication.
+        // Stale or already terminal workers never create even a private orphan.
+        const artifact = await this.artifacts.put(row.artifact_id, result.html!);
+        await tx.query(
+          "UPDATE publish_jobs SET state='published',artifact_sha256=$4,artifact_bytes=$5,error_code=NULL,errors='[]'::jsonb,updated_at=$6 WHERE owner_id=$1 AND request_id=$2 AND claim_id=$3 AND state='building'",
+          [row.owner_id, row.request_id, row.claim_id, artifact.sha256, artifact.bytes, new Date().toISOString()],
+        );
+      });
     } catch (error) {
       const code =
         error instanceof PublishError
           ? error.code
           : "publish_build_unavailable";
       try {
-        await this.db.query(
-          "UPDATE publish_jobs SET state='failed',error_code=$4,errors=$5::jsonb,updated_at=$6 WHERE owner_id=$1 AND request_id=$2 AND claim_id=$3 AND state='building'",
-          [
-            row.owner_id,
-            row.request_id,
-            row.claim_id,
-            code,
-            JSON.stringify(
-              errors.map((e) => ({
+        await this.withClaim(row, async tx => {
+          await tx.query(
+            "UPDATE publish_jobs SET state='failed',error_code=$4,errors=$5::jsonb,updated_at=$6 WHERE owner_id=$1 AND request_id=$2 AND claim_id=$3 AND state='building'",
+            [
+              row.owner_id, row.request_id, row.claim_id, code,
+              JSON.stringify(errors.map(e => ({
                 file: redactSecrets(e.file).slice(0, 200),
                 message: redactSecrets(e.message).slice(0, 800),
-              })),
-            ),
-            new Date().toISOString(),
-          ],
-        );
+              }))),
+              new Date().toISOString(),
+            ],
+          );
+        });
       } catch {
         /* Durable building state is recoverable after the bounded build lease. */
       }

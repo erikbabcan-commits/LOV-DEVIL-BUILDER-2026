@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PublishDialog } from '../../src/features/publish/PublishDialog';
 import { useStore } from '../../src/stores/useAppStore';
 import { selectDatabaseScope } from '../../src/services/persistence/db';
@@ -27,6 +27,83 @@ beforeEach(()=>{
 afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.restoreAllMocks();useStore.setState({persistNow:originalPersist});selectDatabaseScope({kind:'pilot'});});
 async function approve(){await screen.findByText(/Súhlasím so zverejnením/);await waitFor(()=>expect(screen.queryByText('Overujem hosting…')).not.toBeInTheDocument());fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:'Publikovať zvolenú verziu'}));}
 describe('publish dialog with exact server selection',()=>{
+  it('reconciles a definitive revision conflict and creates a fresh saved selection on the next explicit retry',async()=>{
+    const fetch=mockFetch();let first=true;
+    vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>{
+      const response=await fetch(path,init);
+      if(init?.method==='POST'&&first){first=false;return Response.json({error:'publish_project_conflict'},{status:409});}
+      return response;
+    }));
+    mocks.save.mockResolvedValueOnce({id:'project-publish',revision:1}).mockResolvedValueOnce({id:'project-publish',revision:3});
+    render(<PublishDialog userId="alice" onClose={()=>{}}/>);await approve();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Obnov projekt v Moje projekty');
+    expect(sessionStorage.getItem('forge-publish:alice:project-publish')).toBeNull();
+    expect(posts).toHaveLength(1);const oldRequest=posts[0].requestId;
+    // The user reconciles only the server revision; the approved local source fingerprint stays identical.
+    act(()=>useStore.setState({remoteRevision:2}));
+    fireEvent.click(screen.getByRole('button',{name:'Publikovať zvolenú verziu'}));
+    await screen.findByRole('link',{name:'Otvoriť verejnú aplikáciu'});
+    expect(mocks.save).toHaveBeenCalledTimes(2);expect(posts).toHaveLength(2);
+    expect(posts[1].expectedRevision).toBe(3);expect(posts[1].requestId).not.toBe(oldRequest);
+    expect(fetch.mock.calls.some(([path])=>path==='/api/publish/'+oldRequest)).toBe(false);
+  });
+  it.each([
+    ['publish_project_not_found',404],['publish_project_invalid',409],
+    ['publish_snapshot_sources_required',409],['publish_sources_unsupported',400],
+    ['publish_invalid_request',400],['publish_input_limit',413],
+  ] as const)('releases only the rejected input receipt for %s',async(code,status)=>{
+    const fetch=mockFetch();vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>init?.method==='POST'?Response.json({error:code},{status}):fetch(path,init)));
+    render(<PublishDialog userId="alice" onClose={()=>{}}/>);await approve();await screen.findByRole('alert');
+    expect(sessionStorage.getItem('forge-publish:alice:project-publish')).toBeNull();
+    expect(screen.getByRole('button',{name:'Publikovať zvolenú verziu'})).toBeEnabled();
+  });
+  it.each(['network','timeout','request-conflict','unknown-input','server-failure','invalid-response'] as const)('preserves the UUID after %s instead of starting a replacement',async(kind)=>{
+    const fetch=mockFetch();let first=true;
+    vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>{
+      if(init?.method==='POST'&&first){
+        first=false;posts.push(JSON.parse(String(init.body)));
+        if(kind==='network')throw new TypeError('lost response');
+        if(kind==='timeout')throw new DOMException('timed out','TimeoutError');
+        if(kind==='invalid-response')return Response.json({requestId:posts[0].requestId});
+        return Response.json({error:kind==='request-conflict'?'publish_request_conflict':kind==='unknown-input'?'unknown_input':'publish_unavailable'},{status:kind==='request-conflict'?409:kind==='unknown-input'?400:503});
+      }
+      return fetch(path,init);
+    }));
+    render(<PublishDialog userId="alice" onClose={()=>{}}/>);await approve();await screen.findByRole('alert');
+    const receipt=sessionStorage.getItem('forge-publish:alice:project-publish');expect(receipt).not.toBeNull();
+    expect(JSON.parse(receipt!).selection.requestId).toBe(posts[0].requestId);
+    fireEvent.click(screen.getByRole('button',{name:'Overiť rovnakú požiadavku'}));
+    await screen.findByRole('link',{name:'Otvoriť verejnú aplikáciu'});
+    expect(posts).toHaveLength(1);expect(mocks.save).toHaveBeenCalledTimes(1);
+  });
+  it.each(['account','project'] as const)('does not clear a previous receipt after the %s identity changes',async(change)=>{
+    const fetch=mockFetch();let finish!:(r:Response)=>void;
+    vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>{
+      if(init?.method==='POST'){posts.push(JSON.parse(String(init.body)));return new Promise<Response>(resolve=>{finish=resolve;});}
+      return fetch(path,init);
+    }));
+    render(<PublishDialog userId="alice" onClose={()=>{}}/>);await approve();await waitFor(()=>expect(finish).toBeTypeOf('function'));
+    const key='forge-publish:alice:project-publish',receipt=sessionStorage.getItem(key);
+    act(()=>{if(change==='account')selectDatabaseScope({kind:'account',userId:'bob'});else useStore.setState({projectId:'new-project'});});
+    const otherKey=change==='account'?'forge-publish:bob:project-publish':'forge-publish:alice:new-project';sessionStorage.setItem(otherKey,'new-owner-receipt');
+    await act(async()=>finish(Response.json({error:'publish_project_conflict'},{status:409})));
+    expect(sessionStorage.getItem(key)).toBe(receipt);expect(sessionStorage.getItem(otherKey)).toBe('new-owner-receipt');expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+  it('does not remove a replacement receipt when an older rejection arrives',async()=>{
+    const fetch=mockFetch();let finish!:(r:Response)=>void;
+    vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>{
+      if(init?.method==='POST')return new Promise<Response>(resolve=>{finish=resolve;});return fetch(path,init);
+    }));
+    render(<PublishDialog userId="alice" onClose={()=>{}}/>);await approve();await waitFor(()=>expect(finish).toBeTypeOf('function'));
+    const key='forge-publish:alice:project-publish',receipt=JSON.parse(sessionStorage.getItem(key)!);receipt.selection.requestId=crypto.randomUUID();const replacement=JSON.stringify(receipt);sessionStorage.setItem(key,replacement);
+    await act(async()=>finish(Response.json({error:'publish_project_conflict'},{status:409})));
+    expect(sessionStorage.getItem(key)).toBe(replacement);
+  });
+  it('rejects a save response for another project before storing or posting a publication',async()=>{
+    mocks.save.mockResolvedValue({id:'foreign-project',revision:1});
+    render(<PublishDialog userId="alice" onClose={()=>{}}/>);await approve();await screen.findByRole('alert');
+    expect(posts).toHaveLength(0);expect(sessionStorage.getItem('forge-publish:alice:project-publish')).toBeNull();
+  });
   it('restarts an abandoned building job using the same durable selection',async()=>{
     const fetch=mockFetch();let lost=true;
     vi.stubGlobal('fetch',vi.fn(async(path:string,init?:RequestInit)=>{

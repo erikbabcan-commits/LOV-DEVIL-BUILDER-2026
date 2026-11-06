@@ -113,6 +113,9 @@ function PublishDialog() {
         continue;
       }
       if (value.state === "published") publicationUrl(value, ready!.publicOrigin!);
+      // A verified terminal failure is safe to replace. Keep uncertain/building attempts recoverable.
+      if (value.state === "failed" && readPendingPublish(key)?.requestId === selection.requestId)
+        sessionStorage.removeItem(key);
       jobWorkspace.current = captured;
       setJob(value);
       if (value.state !== "building") break;

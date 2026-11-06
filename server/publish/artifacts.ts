@@ -7,6 +7,7 @@ import {
   link,
   unlink,
   statfs,
+  readdir,
 } from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
@@ -66,29 +67,66 @@ export class ArtifactStore {
       0o600,
     );
     try {
-      await handle.writeFile(data);
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-    try {
-      await link(temporary, target);
-      const dir = await open(root, constants.O_RDONLY);
       try {
-        await dir.sync();
+        await handle.writeFile(data);
+        await handle.sync();
       } finally {
-        await dir.close();
+        await handle.close();
       }
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST")
-        throw new PublishError("publish_storage_unavailable");
-      const current = await this.read(id, sha256, data.length);
-      if (!current.equals(data))
-        throw new PublishError("publish_storage_unavailable");
+      try {
+        await link(temporary, target);
+        const dir = await open(root, constants.O_RDONLY);
+        try {
+          await dir.sync();
+        } finally {
+          await dir.close();
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST")
+          throw new PublishError("publish_storage_unavailable");
+        const current = await this.read(id, sha256, data.length);
+        if (!current.equals(data))
+          throw new PublishError("publish_storage_unavailable");
+      }
     } finally {
+      // Only this invocation's O_EXCL-created temporary file is removed. Any
+      // failed cleanup remains visible to retainedBytes; final files never move.
       await unlink(temporary).catch(() => {});
     }
     return { sha256, bytes: data.length };
+  }
+  /** Read-only capacity inventory. Caller holds the matching owner lock. */
+  async retainedBytes(ids: readonly string[]): Promise<Map<string, number>> {
+    if (ids.length > 100 || ids.some(id => !uuid.test(id)))
+      throw new PublishError("publish_storage_unavailable");
+    const bytes = new Map(ids.map(id => [id.toLowerCase(), 0]));
+    if (!bytes.size) return bytes;
+    try {
+      const root = await this.root();
+      const seen = new Map<string, Set<string>>();
+      for (const name of await readdir(root)) {
+        const finalId = name.endsWith(".html") ? name.slice(0, -5).toLowerCase() : "";
+        const temporaryId = name.startsWith(".") ? name.slice(1, 37).toLowerCase() : "";
+        let id: string;
+        if (bytes.has(finalId)) id = finalId;
+        else if (bytes.has(temporaryId)) {
+          if (name[37] !== "." || !name.endsWith(".tmp") || !uuid.test(name.slice(38, -4)))
+            throw new PublishError("publish_storage_unavailable");
+          id = temporaryId;
+        } else continue; // Never inspect another owner's UUID or file contents.
+        const stat = await lstat(path.join(root, name), { bigint: true });
+        if (!stat.isFile() || stat.size < 0n || stat.size > BigInt(Number.MAX_SAFE_INTEGER))
+          throw new PublishError("publish_storage_unavailable");
+        const inode = stat.dev + ":" + stat.ino;
+        const own = seen.get(id) ?? new Set<string>();
+        if (!own.has(inode)) {
+          const total = bytes.get(id)! + Number(stat.size);
+          if (!Number.isSafeInteger(total)) throw new PublishError("publish_storage_unavailable");
+          bytes.set(id, total); own.add(inode); seen.set(id, own);
+        }
+      }
+      return bytes;
+    } catch { throw new PublishError("publish_storage_unavailable"); }
   }
   async read(id: string, sha256: string, size: number): Promise<Buffer> {
     if (

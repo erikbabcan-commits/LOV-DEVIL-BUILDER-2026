@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, rm, readFile, writeFile, symlink } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, readFile, writeFile, symlink, link } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -243,6 +243,99 @@ describe("real static publication from owned saved snapshot", () => {
       403,
     );
     expect(execute).not.toHaveBeenCalled();
+  });
+  const smallHtml = "<main>retained publication</main>";
+  const compiled = { ok: true, html: smallHtml, errors: [], durationMs: 1, moduleCount: 1 };
+  const failed = { ok: false, html: null, errors: [], durationMs: 1, moduleCount: 0 };
+  function smallService(maxOwnerBytes = 1000, database = db, maxArtifacts = 20) {
+    service = new PublishService(database, { ...config, maxArtifacts, maxArtifactBytes: 1000, maxOwnerBytes, minFreeBytes: 0 }, {
+      ready: async () => ({ ready: true, mode: "host" }), execute,
+    });
+    return service;
+  }
+  it("releases compiler failure bytes and preserves a configured attempt cap above twenty", async () => {
+    smallService(1000, db, 21); execute.mockResolvedValue(failed);
+    for (let index = 0; index < 20; index++) {
+      await service.start("alice", { ...selection, requestId: randomUUID() });
+      await service.settled();
+    }
+    expect((await db.query("SELECT state FROM publish_jobs WHERE owner_id='alice'")).rows).toHaveLength(20);
+    expect((await db.query("SELECT state FROM publish_jobs WHERE owner_id='alice'")).rows.every(row => row.state === "failed")).toBe(true);
+    execute.mockResolvedValue(compiled);
+    const next = { ...selection, requestId: randomUUID() };
+    await service.start("alice", next); await service.settled();
+    expect((await service.status("alice", next.requestId)).state).toBe("published");
+    await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
+    expect(execute).toHaveBeenCalledTimes(21);
+  });
+  it("keeps a full byte reservation for an in-flight build", async () => {
+    smallService(); let release!: (value: typeof compiled) => void;
+    execute.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+    try {
+      await service.start("alice", selection);
+      await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
+      expect(execute).toHaveBeenCalledTimes(1);
+    } finally { release(compiled); await service.settled(); }
+  });
+  it("charges published bytes instead of another full artifact reservation", async () => {
+    smallService(1000 + Buffer.byteLength(smallHtml)); execute.mockResolvedValue(compiled);
+    for (let index = 0; index < 2; index++) {
+      await service.start("alice", { ...selection, requestId: randomUUID() }); await service.settled();
+    }
+    await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
+    expect(execute).toHaveBeenCalledTimes(2);
+  });
+  it("keeps a successful put charged after the publication database update fails", async () => {
+    let failPublication = true;
+    const broken: DbLike = { query: db.query, transaction: work => db.transaction!(tx => work({ query: async (sql, params) => {
+      if (failPublication && sql.startsWith("UPDATE publish_jobs SET state='published'")) { failPublication = false; throw new Error("private-db-failure"); }
+      return tx.query(sql, params);
+    } })) };
+    smallService(1000 + Buffer.byteLength(smallHtml) - 1, broken); execute.mockResolvedValue(compiled);
+    await service.start("alice", selection); await service.settled();
+    const orphan = (await db.query("SELECT artifact_id,state,artifact_bytes FROM publish_jobs WHERE request_id=$1", [selection.requestId])).rows[0];
+    expect(orphan).toMatchObject({ state: "failed", artifact_bytes: null });
+    expect(await readFile(path.join(directory, orphan.artifact_id + ".html"), "utf8")).toBe(smallHtml);
+    expect(await service.status("alice", selection.requestId)).toMatchObject({ state: "failed", url: null });
+    await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
+    smallService(1000 + Buffer.byteLength(smallHtml), broken);
+    const next = { ...selection, requestId: randomUUID() };
+    await service.start("alice", next); await service.settled();
+    expect((await service.status("alice", next.requestId)).state).toBe("published");
+  });
+  it("charges retained temporary bytes and counts hardlinked final/temp storage once", async () => {
+    smallService(1079); execute.mockResolvedValueOnce(failed);
+    await service.start("alice", selection); await service.settled();
+    const id = (await db.query("SELECT artifact_id FROM publish_jobs WHERE request_id=$1", [selection.requestId])).rows[0].artifact_id;
+    const temporary = path.join(directory, "." + id + "." + randomUUID() + ".tmp");
+    await writeFile(temporary, Buffer.alloc(80));
+    await link(temporary, path.join(directory, id + ".html"));
+    expect((await service.artifacts.retainedBytes([id])).get(id)).toBe(80);
+    await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
+    smallService(1080); execute.mockResolvedValue(compiled);
+    const next = { ...selection, requestId: randomUUID() };
+    await service.start("alice", next); await service.settled();
+    expect((await service.status("alice", next.requestId)).state).toBe("published");
+    expect(await readFile(temporary)).toHaveLength(80); // No orphan cleanup/deletion.
+  });
+  it.each(["symlink", "directory"])("fails capacity inspection closed for an owned %s", async kind => {
+    smallService(); execute.mockResolvedValueOnce(failed);
+    await service.start("alice", selection); await service.settled();
+    const id = (await db.query("SELECT artifact_id FROM publish_jobs WHERE request_id=$1", [selection.requestId])).rows[0].artifact_id;
+    const target = path.join(directory, id + ".html");
+    if (kind === "directory") await mkdir(target);
+    else { const file = path.join(directory, "unrelated"); await writeFile(file, "private"); await symlink(file, target); }
+    await expect(service.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_storage_unavailable" });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+  it("does not inspect a different owner's unknown or symlinked UUID", async () => {
+    smallService(); execute.mockResolvedValueOnce(failed);
+    await service.start("alice", selection); await service.settled();
+    await symlink("/does-not-exist", path.join(directory, randomUUID() + ".html"));
+    execute.mockResolvedValue(compiled);
+    const next = { ...selection, requestId: randomUUID() };
+    await service.start("alice", next); await service.settled();
+    expect((await service.status("alice", next.requestId)).state).toBe("published");
   });
   it("reserves failed attempts against the same durable account cap", async () => {
     service = new PublishService(

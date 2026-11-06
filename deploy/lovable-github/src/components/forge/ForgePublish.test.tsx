@@ -91,6 +91,95 @@ function consent() {
   fireEvent.click(screen.getByRole("checkbox"));
 }
 describe("real publication dialog", () => {
+  it("clears a verified failed job so the first retry after reopening uses a fresh UUID", async () => {
+    let first = true;
+    mock.hono.mockImplementation(async (path, init) => {
+      if (path === "publish" && !init?.body) return Response.json(ready);
+      if (first) {
+        first = false;
+        return Response.json({
+          ...job(init.body),
+          state: "failed",
+          url: null,
+          error: "publish_build_failed",
+          errors: [{ file: "src/main.tsx", message: "Build failed" }],
+          artifactBytes: null,
+        });
+      }
+      return responseJob(init.body);
+    });
+    show();
+    await open();
+    consent();
+    fireEvent.click(screen.getByRole("button", { name: "Publikovať verejne" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Build failed");
+    const firstBody = mock.hono.mock.calls.find(([, init]) => init?.body)![1].body;
+    expect(sessionStorage.getItem("forge-publish:v1:alice:p1")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await open();
+    consent();
+    fireEvent.click(screen.getByRole("button", { name: "Publikovať verejne" }));
+    await screen.findByRole("link", { name: "Otvoriť publikovanú aplikáciu" });
+    const bodies = mock.hono.mock.calls
+      .filter(([, init]) => init?.body)
+      .map(([, init]) => init.body);
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1].requestId).not.toBe(firstBody.requestId);
+    expect(bodies[1]).toMatchObject({ projectId: "p1", expectedRevision: 2, snapshotId: "v1" });
+    expect(save).toHaveBeenCalledOnce();
+  });
+  it("retains the failed selection when a delayed response belongs to a different revision", async () => {
+    mock.hono.mockImplementation(async (path, init) =>
+      !init?.body
+        ? Response.json(ready)
+        : Response.json({
+            ...job(init.body),
+            revision: 999,
+            state: "failed",
+            url: null,
+            error: "publish_build_failed",
+            artifactBytes: null,
+          }),
+    );
+    show();
+    await open();
+    consent();
+    fireEvent.click(screen.getByRole("button", { name: "Publikovať verejne" }));
+    await screen.findByRole("alert");
+    const body = mock.hono.mock.calls.find(([, init]) => init?.body)![1].body;
+    expect(JSON.parse(sessionStorage.getItem("forge-publish:v1:alice:p1")!)).toEqual(body);
+  });
+  it("keeps a newer receipt if a verified older failed response arrives", async () => {
+    let finish!: (r: Response) => void;
+    mock.hono.mockImplementation(async (path, init) =>
+      !init?.body
+        ? Response.json(ready)
+        : new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+    );
+    show();
+    await open();
+    consent();
+    fireEvent.click(screen.getByRole("button", { name: "Publikovať verejne" }));
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    const body = mock.hono.mock.calls.find(([, init]) => init?.body)![1].body;
+    const replacement = JSON.stringify({ ...body, requestId: crypto.randomUUID() });
+    sessionStorage.setItem("forge-publish:v1:alice:p1", replacement);
+    await act(async () =>
+      finish(
+        Response.json({
+          ...job(body),
+          state: "failed",
+          url: null,
+          error: "publish_build_failed",
+          artifactBytes: null,
+        }),
+      ),
+    );
+    expect(sessionStorage.getItem("forge-publish:v1:alice:p1")).toBe(replacement);
+  });
   it("requires explicit public consent and sends the actual saved project revision and snapshot", async () => {
     show();
     await open();

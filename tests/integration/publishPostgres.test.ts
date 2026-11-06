@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Pool } from "pg";
@@ -140,6 +140,7 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
   it("reclaims a stale build only once and fences the original worker before exposing any artifact", async () => {
     const originalCompiler = deferredCompiler(), replacementCompiler = deferredCompiler();
     const original = service(originalCompiler), replacement = service(replacementCompiler), competitor = service(replacementCompiler);
+    const staleWrite = vi.spyOn(original.artifacts, "put");
     await original.start("alice", selection);
     const previous = (await db.query("SELECT claim_id,artifact_id FROM publish_jobs WHERE owner_id=$1 AND request_id=$2", ["alice", selection.requestId])).rows[0];
     await db.query("UPDATE publish_jobs SET updated_at=$3 WHERE owner_id=$1 AND request_id=$2", ["alice", selection.requestId, new Date(Date.now() - 180000).toISOString()]);
@@ -149,6 +150,8 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect(replacementCompiler.execute).toHaveBeenCalledTimes(1);
     originalCompiler.release();
     await original.settled();
+    expect(staleWrite).not.toHaveBeenCalled();
+    await expect(readFile(path.join(directory, previous.artifact_id + ".html"))).rejects.toMatchObject({ code: "ENOENT" });
     expect((await db.query("SELECT claim_id,state FROM publish_jobs WHERE owner_id=$1 AND request_id=$2", ["alice", selection.requestId])).rows[0]).toEqual({ claim_id: claimed.claim_id, state: "building" });
     const publicApp = publicPublishApp(config, db, original.artifacts);
     expect((await publicApp.request(config.baseUrl + "p/" + previous.artifact_id + "/", { headers: { Host: "127.0.0.1:8791" } })).status).toBe(404);
@@ -158,6 +161,32 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect((await db.query("SELECT COUNT(*)::int AS n FROM publish_jobs")).rows[0].n).toBe(1);
   });
 
+  it("releases failed compiler byte reservations but keeps the durable attempt cap", async () => {
+    const compiler: SandboxExecutor = { ready: async () => ({ ready: true, mode: "isolated" }), execute: vi.fn(async () => ({ ok: false, html: null, errors: [], durationMs: 1, moduleCount: 0 })) };
+    const value = service(compiler, { maxArtifacts: 3, maxArtifactBytes: 1000, maxOwnerBytes: 1000 });
+    for (let index = 0; index < 3; index++) {
+      await value.start("alice", { ...selection, requestId: randomUUID() }); await value.settled();
+    }
+    expect(compiler.execute).toHaveBeenCalledTimes(3);
+    await expect(value.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
+    expect((await db.query("SELECT COUNT(*)::int AS n FROM publish_jobs WHERE state='failed'")).rows[0].n).toBe(3);
+  });
+  it("retains orphan bytes after a real publication transaction rolls back", async () => {
+    let fail = true;
+    const interrupted: DbLike = { query: db.query, transaction: work => db.transaction!(tx => work({ query: async (sql, params) => {
+      if (fail && sql.startsWith("UPDATE publish_jobs SET state='published'")) { fail = false; throw new Error("injected-local-db-failure"); }
+      return tx.query(sql, params);
+    } })) };
+    const compiler: SandboxExecutor = { ready: async () => ({ ready: true, mode: "isolated" }), execute: vi.fn(async () => output) };
+    const value = new PublishService(interrupted, { ...config, maxArtifactBytes: 1000, maxOwnerBytes: 1000 + Buffer.byteLength(output.html!) - 1 }, compiler);
+    services.push(value);
+    await value.start("alice", selection); await value.settled();
+    const row = (await db.query("SELECT artifact_id,artifact_bytes,state FROM publish_jobs WHERE request_id=$1", [selection.requestId])).rows[0];
+    expect(row).toMatchObject({ state: "failed", artifact_bytes: null });
+    expect(await readFile(path.join(directory, row.artifact_id + ".html"), "utf8")).toBe(output.html);
+    await expect(value.start("alice", { ...selection, requestId: randomUUID() })).rejects.toMatchObject({ code: "publish_capacity" });
+    expect(compiler.execute).toHaveBeenCalledTimes(1);
+  });
   it("reserves the owner capacity atomically for concurrent distinct UUIDs across service instances", async () => {
     const compiler = deferredCompiler(), first = service(compiler, { maxArtifacts: 1 }), second = service(compiler, { maxArtifacts: 1 });
     const attempts = await Promise.allSettled(Array.from({ length: 8 }, (_, index) => (index % 2 ? first : second).start("alice", { ...selection, requestId: randomUUID() })));
