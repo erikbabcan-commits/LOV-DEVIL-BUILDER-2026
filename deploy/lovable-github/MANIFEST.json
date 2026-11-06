@@ -77,8 +77,8 @@
     "src/components/forge/BillingPanel.tsx": "cb7c4e4a4866e8a9d3e85a15d38839c903629ee8dddfe75ae011798e77221699",
     "src/components/forge/BillingPanel.test.tsx": "ab895b168b2d805b25e5aa33667a5e6e87ef86e8d44fd88eec97996ef7571d3a",
     "src/lib/billing-client.ts": "983dc72779994f94b3afc4e9f4339c0da85c5710ae558f6651bea0ac899a6c7f",
-    "src/components/forge/AccountMenu.tsx": "5ef77de4e20bd09d9c5862c133a2d580691a1e481d53123d45194682cf023883",
-    "src/components/forge/AccountMenu.test.tsx": "2aaffbe000ac82ada206e5badae8e719f6697f1ede13d982c5546dacc0c0d75c"
+    "src/components/forge/AccountMenu.tsx": "48b1984135370ca931d23f81ddd3a99fb8a13316cf9341f86e72c9fe1edfb2a7",
+    "src/components/forge/AccountMenu.test.tsx": "01cad0f3ecd5e27e9b985e28b12d4c5d5fd1e4d3f0dbc391b37a164aa226aa83"
   },
   "visual_verification": "Previous GitHub/quota fixtures retained; WS-14 hybrid signed local fixture verified desktop/390px: question, patch, immutable review, compile, save/reopen, owner switch, local recovery and reject/history. No live inference or hosted edits. WS-15 desktop/mobile current and historical downloads, focus return, owner isolation; exact ZIP files independently checked with Python. WS-16 real CodeMirror,TS completion,draft refresh/account separation,file CRUD/actual UTF8 picker,inline real build error,manual CAS save/reopen verified desktop/390px.",
   "storageProxy": "Fixed GET /api/project-storage only; no ownership/query override; storage meter UI belongs to the main project, not this overlay.",
@@ -120,5 +120,9 @@
     "productionFile": "src/components/forge/AccountMenu.tsx",
     "regressionTestLocalOnly": "src/components/forge/AccountMenu.test.tsx",
     "proof": "proof/ACCOUNT-MENU-ACCESSIBILITY.json"
+  },
+  "accountLogoutRecovery": {
+    "proof": "proof/ACCOUNT-LOGOUT-RECOVERY.json",
+    "scope": "UI handles failed sign-out, retains cache on auth failure, disables duplicate activation; SDK scope unchanged"
   }
 }

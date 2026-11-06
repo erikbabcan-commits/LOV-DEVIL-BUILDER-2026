@@ -1,0 +1,65 @@
+{
+  "verifiedAt": "2026-11-06T22:04:02.188896+00:00",
+  "scope": "Sign-out failure recovery UI; unchanged Supabase default scope; no real sign-out executed",
+  "frontendMain": "efffe049eab4d49b869d73cafb155d1554e88b58",
+  "uiTests": 196,
+  "gates": {
+    "tests": {
+      "gate": "tests",
+      "exit": 0,
+      "seconds": 12.49,
+      "sourceHashes": {
+        "src/components/forge/AccountMenu.tsx": "48b1984135370ca931d23f81ddd3a99fb8a13316cf9341f86e72c9fe1edfb2a7",
+        "src/components/forge/AccountMenu.test.tsx": "01cad0f3ecd5e27e9b985e28b12d4c5d5fd1e4d3f0dbc391b37a164aa226aa83",
+        "src/components/forge/TopBar.tsx": "4c10de128b834fb460c87263c4e45b874d7b41204345a41d5f8798ea669c8d0c"
+      },
+      "sourceStable": true
+    },
+    "types": {
+      "gate": "types",
+      "exit": 0,
+      "seconds": 5.99,
+      "sourceHashes": {
+        "src/components/forge/AccountMenu.tsx": "48b1984135370ca931d23f81ddd3a99fb8a13316cf9341f86e72c9fe1edfb2a7",
+        "src/components/forge/AccountMenu.test.tsx": "01cad0f3ecd5e27e9b985e28b12d4c5d5fd1e4d3f0dbc391b37a164aa226aa83",
+        "src/components/forge/TopBar.tsx": "4c10de128b834fb460c87263c4e45b874d7b41204345a41d5f8798ea669c8d0c"
+      },
+      "sourceStable": true
+    },
+    "lint": {
+      "gate": "lint",
+      "exit": 0,
+      "seconds": 1.63,
+      "sourceHashes": {
+        "src/components/forge/AccountMenu.tsx": "48b1984135370ca931d23f81ddd3a99fb8a13316cf9341f86e72c9fe1edfb2a7",
+        "src/components/forge/AccountMenu.test.tsx": "01cad0f3ecd5e27e9b985e28b12d4c5d5fd1e4d3f0dbc391b37a164aa226aa83",
+        "src/components/forge/TopBar.tsx": "4c10de128b834fb460c87263c4e45b874d7b41204345a41d5f8798ea669c8d0c"
+      },
+      "sourceStable": true
+    },
+    "build": {
+      "gate": "build",
+      "exit": 0,
+      "seconds": 4.28,
+      "sourceHashes": {
+        "src/components/forge/AccountMenu.tsx": "48b1984135370ca931d23f81ddd3a99fb8a13316cf9341f86e72c9fe1edfb2a7",
+        "src/components/forge/AccountMenu.test.tsx": "01cad0f3ecd5e27e9b985e28b12d4c5d5fd1e4d3f0dbc391b37a164aa226aa83",
+        "src/components/forge/TopBar.tsx": "4c10de128b834fb460c87263c4e45b874d7b41204345a41d5f8798ea669c8d0c"
+      },
+      "sourceStable": true
+    }
+  },
+  "newRegressionCases": [
+    "returned provider error preserves cache/navigation and allows retry",
+    "rejected promise reports generic error without clearing cache",
+    "cancellation error prevents provider call",
+    "pending disables duplicate activation; cache/navigation wait for successful provider result"
+  ],
+  "oldComponentNegativeControl": "FAILED as expected",
+  "liveAuthWrites": 0,
+  "newAccountsOrCredentials": 0,
+  "paidCalls": 0,
+  "providerErrorDetailsExposed": false,
+  "hostedRenderVerification": "not performed for this error branch; auth provider mocked in tests",
+  "canonicalRepublish": false
+}

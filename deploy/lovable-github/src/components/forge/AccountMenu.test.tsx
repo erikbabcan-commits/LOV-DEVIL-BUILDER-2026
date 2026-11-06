@@ -8,7 +8,9 @@ const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
   signOut: vi.fn(),
   navigate: vi.fn(),
+  error: vi.fn(),
 }));
+vi.mock("sonner", () => ({ toast: { error: mocks.error } }));
 vi.mock("@/hooks/use-session", () => ({
   useSession: () => ({ status: mocks.status, email: "synthetic@example.test" }),
 }));
@@ -77,4 +79,77 @@ it("Enter selects sign-out only after explicit keyboard activation", async () =>
   expect(mocks.signOut).toHaveBeenCalledTimes(1);
   expect(mocks.cancel).toHaveBeenCalledTimes(1);
   expect(mocks.clear).toHaveBeenCalledTimes(1);
+});
+
+it("keeps cached data and navigation on a returned provider error, then permits retry", async () => {
+  mocks.signOut.mockResolvedValueOnce({ error: new Error("private-provider-detail") });
+  render(<AccountMenu />);
+  const { item } = await openWithKeyboard();
+  await act(async () => {
+    fireEvent.keyDown(item, { key: "Enter" });
+  });
+  expect(mocks.clear).not.toHaveBeenCalled();
+  expect(mocks.navigate).not.toHaveBeenCalled();
+  expect(mocks.error).toHaveBeenCalledWith("Odhlásenie sa nepodarilo dokončiť. Skús to znova.");
+  const retry = await openWithKeyboard();
+  await act(async () => {
+    fireEvent.keyDown(retry.item, { key: "Enter" });
+  });
+  expect(mocks.signOut).toHaveBeenCalledTimes(2);
+  expect(mocks.clear).toHaveBeenCalledTimes(1);
+  expect(mocks.navigate).toHaveBeenCalledTimes(1);
+});
+it("handles a rejected auth request without discarding cached data or navigating", async () => {
+  mocks.signOut.mockRejectedValueOnce(new Error("network-private-detail"));
+  render(<AccountMenu />);
+  const { item } = await openWithKeyboard();
+  await act(async () => {
+    fireEvent.keyDown(item, { key: "Enter" });
+  });
+  expect(mocks.clear).not.toHaveBeenCalled();
+  expect(mocks.navigate).not.toHaveBeenCalled();
+  expect(mocks.error).toHaveBeenCalledTimes(1);
+});
+it("does not invoke auth if query cancellation failed", async () => {
+  mocks.cancel.mockRejectedValueOnce(new Error("cache-private-detail"));
+  render(<AccountMenu />);
+  const { item } = await openWithKeyboard();
+  await act(async () => {
+    fireEvent.keyDown(item, { key: "Enter" });
+  });
+  expect(mocks.signOut).not.toHaveBeenCalled();
+  expect(mocks.clear).not.toHaveBeenCalled();
+  expect(mocks.navigate).not.toHaveBeenCalled();
+  expect(mocks.error).toHaveBeenCalledTimes(1);
+});
+it("waits for provider confirmation and blocks duplicate actions while pending", async () => {
+  let resolve!: (value: { error: null }) => void;
+  mocks.signOut.mockImplementationOnce(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  render(<AccountMenu />);
+  const { trigger, item } = await openWithKeyboard();
+  await act(async () => {
+    fireEvent.keyDown(item, { key: "Enter" });
+  });
+  expect(trigger).toBeDisabled();
+  expect(trigger).toHaveAttribute("aria-busy", "true");
+  expect(mocks.clear).not.toHaveBeenCalled();
+  expect(mocks.navigate).not.toHaveBeenCalled();
+  fireEvent.keyDown(trigger, { key: "ArrowDown" });
+  expect(screen.getByRole("menuitem", { name: "Odhlásiť sa" })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  expect(mocks.signOut).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    resolve({ error: null });
+  });
+  expect(mocks.signOut).toHaveBeenCalledTimes(1);
+  expect(mocks.clear).toHaveBeenCalledTimes(1);
+  expect(mocks.navigate).toHaveBeenCalledTimes(1);
+  expect(mocks.error).not.toHaveBeenCalled();
 });
