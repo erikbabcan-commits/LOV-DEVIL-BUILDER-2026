@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "documentedAt": "2026-11-06T21:38:40.485463+00:00",
+  "status": "VPS schema, authenticated runner and loopback application verified in STAGED mode; identity apply and full Cloud workflow await specific approval",
+  "source": {
+    "backendMain": "494cd434ed8f847136efc19f54fcc3785353a592",
+    "backendTree": "9267d290ef43bcc93fb364ce896e7581a427e705",
+    "verifiedPrHead": "842b8f7ee82564cde3969fe2837ee692f318065e",
+    "mergedTreeEqualsVerifiedPrHead": true,
+    "runtimeCommit": "d9b279b56f370982b69b43a51827121564c3d52d",
+    "runtimeSourceWitnesses": 301,
+    "sourceGitAndDiskParityVerified": true,
+    "frontendMain": "676b8bdf5d7d9dd0d385479c46c55367ee9ca86a",
+    "frontendEditorHistoryVerifiedAt": "2026-11-06T21:15:16.978702+00:00",
+    "frontendSourceFileHashRevalidatedInEditor": false
+  },
+  "database": {
+    "migrations001Through013": "PASS",
+    "readonlyStructuralPostcheck": "PASS",
+    "freshPreapplyBackup": {
+      "snapshot": "20261106T213102Z",
+      "restoreVerified": true,
+      "tables": 3,
+      "dumpBytes": 5552
+    },
+    "publishRecoveryRunbookExecutedOnVps": false
+  },
+  "runner": {
+    "stage": "STAGED",
+    "authenticatedReadiness": "PASS",
+    "realCompile": "PASS",
+    "workerCleanup": "PASS",
+    "footprintAtAppGate": {
+      "memoryCurrentBytes": 59654144,
+      "memoryMaxBytes": 134217728,
+      "swapMaxBytes": 0
+    }
+  },
+  "application": {
+    "stage": "STAGED",
+    "health": "PASS",
+    "loopbackOnly": true,
+    "apiLoopbackPort": 8788,
+    "artifactListenerLoopbackPort": 8791,
+    "existingProductionProxyPort": 8787,
+    "productionUpstreamSwitched": false,
+    "existingBasicProtectionChanged": false,
+    "billingEnabled": false,
+    "restartPolicy": "no",
+    "productionAvailabilityOrHaEstablished": false,
+    "footprintAtAppGate": {
+      "memoryCurrentBytes": 90206208,
+      "memoryMaxBytes": 335544320,
+      "swapMaxBytes": 0
+    }
+  },
+  "identity": {
+    "dryRun": "PASS",
+    "plannedAction": "new_free_account_and_link",
+    "applyExecuted": false,
+    "persistentAuthAccountOrBindingWrites": 0,
+    "dryRunInvariantChecks": {
+      "sameContainer": true,
+      "oldApiUnchanged": true,
+      "globalRunningContainersUnchanged": true,
+      "nginxProxyUnchanged": true
+    },
+    "approval": "Automatic approval review rejected owner apply before execution because persistent authentication account creation and immutable identity binding require specific user authorization; explicit combined approval remains pending."
+  },
+  "pending": {
+    "cloudBasicTransport": "Specific user approval/manual entry pending; no secret value published",
+    "fullCloudBffHonoWorkflow": "NOT VERIFIED",
+    "syntheticProjectOrPublishSmoke": "NOT EXECUTED",
+    "publicArtifactHttp200FromThisSmoke": "NOT VERIFIED",
+    "stripeActivationOrRealPurchase": "OFF / NOT VERIFIED",
+    "canonicalPublicFrontendRepublish": "NOT PERFORMED",
+    "productionApiProxySwitch": "NOT PERFORMED",
+    "automaticServiceRestartOrHa": "NOT CONFIGURED",
+    "milestonesM1ThroughM6": "OPEN"
+  },
+  "gitCleanup": {
+    "backendLocalMergedBranchesDeleted": 2,
+    "backendRemoteMergedTaskBranchDeleted": 1,
+    "backendReleaseAnchorPreserved": true,
+    "frontendLocalMergedBranchesDeleted": 3,
+    "frontendRemoteMergedBranchesDeleted": 3,
+    "ordinaryDeletionWithoutForce": true,
+    "backendMainCleanAtReceipt": true,
+    "frontendMainCleanAtReceipt": true,
+    "frontendSensitiveEnvStillAbsent": true,
+    "frontendActionsTotal": 0
+  },
+  "evidence": {
+    "actualReceipts": [
+      "lov-runtime-013-schema.json",
+      "lov-runtime-013-preapply-backup.json",
+      "lov-runtime-013-runner.json",
+      "lov-runtime-013-app.json",
+      "lov-runtime-013-owner-dryrun.json",
+      "lov-backend-pr22-cleanup.json",
+      "lov-runtime-013-final-invariants.json"
+    ],
+    "previousLocalVerification": "deploy/lovable-github/proof/PR22-READ-ISOLATION-VERIFICATION.json",
+    "previousInfrastructure": "deploy/lovable-github/proof/WS19-INFRASTRUCTURE.json",
+    "countsMeaning": "Local1117/PG167x2/Docker21 and modern188 historical evidence are unchanged; this record adds actual STAGED operations receipts, not a new end-to-end Cloud or production publish proof."
+  },
+  "privacy": "No email, owner/subject UUID, environment values, keys/tokens, credential digests, private identity-input hashes, host PIDs or raw private operator logs. No operator script is added to the repository.",
+  "finalReadOnlyInvariants": {
+    "status": "PASS",
+    "verifiedAt": "2026-11-06T21:37:58.540324+00:00",
+    "legacyApiHealthyAndAnonymousDenied": true,
+    "newApiHealthyAuthEnabled": true,
+    "newApiUnauthenticated401": true,
+    "legacyNginxExactBaselinePreserved": true,
+    "externalBasic401RealmPreserved": true,
+    "publishedHttpsDefaultTrustRoot404NoCookie": true,
+    "globalDockerServiceBaselinePreserved": true,
+    "globalRunningContainers": 16,
+    "meaning": "The14existing containers plus the new staged API and runner; shared Docker service baseline preserved without publishing its PID.",
+    "rootlessWorkerContainersAfterCompile": 0,
+    "productionProxyStill8787": true,
+    "publishedHttpsObservation": "Default-trust TLS root404, no cookie or Basic challenge. This is not an artifact HTTP200 result.",
+    "newApiAuthHealthAndAnonymousMe401Verified": true,
+    "cloudEndToEndVerified": false,
+    "syntheticPublicationPerformed": false
+  }
+}

@@ -5,6 +5,45 @@ ukážkové publikovanie v hlavnom aj modernom UI a pripája moderný frontend k
 existujúcemu billing backendu. Samotná implementácia nezapína platby, nemigruje
 produkciu a nenahrádza overenie hostovaného nasadenia.
 
+## Aktuálny prevádzkový dodatok — STAGED
+
+Kontrolované VPS kroky overili schému **001–013** vrátane read-only štrukturálnej
+kontroly. Pred nimi bola restore-verified záloha `20261106T213102Z` (3 tabuľky,
+5 552 B). Autentifikovaný runner vykonal skutočný compile a upratal svoj worker;
+nové API prešlo health kontrolou na loopbacku 8788, samostatný artifact listener
+používa 8791. Existujúci produkčný proxy ostáva na starom 8787 a Basic ochrana
+zostáva nezmenená. API aj runner sú **STAGED**, s `restart=no`; tento krok
+neustanovil produkčnú dostupnosť ani HA.
+
+Pri app gate bola spotreba API **90 206 208 / 335 544 320 B**, runnera
+**59 654 144 / 134 217 728 B**, oba so swap limitom 0. Ide o zaznamenané meranie,
+nie trvalý prísľub spotreby. Backend merge `494cd434` má presne overený strom
+`842b8f7` a nezmenených 301 source SHA. Frontend main `676b8bd` je zlúčený a jeho
+Git push/merge bol overený v histórii Lovable editora; kanonický verejný frontend
+nebol znovu publikovaný. Git cleanup vlastných zlúčených vetiev prešiel bez force.
+
+Finálny read-only audit **21:37:58 UTC** potvrdil health oboch API a odmietnutie
+anonymného `/api/auth/me` stavom 401; nové API má auth zapnutú. Pôvodná nginx
+konfigurácia/proxy 8787 aj externá Basic 401 ochrana zostali zachované. Oddelený
+public host má dôveryhodné TLS a root 404 bez cookies/Basic challenge — **nejde
+o artefakt HTTP200**. Beží 16 globálnych kontajnerov (14 pôvodných + nové API/runner),
+baseline zdieľanej Docker služby je zachovaný; po compile ostalo 0 rootless workerov.
+
+Owner dry-run je **PASS s 0 zápismi** a nezmenenými kontajnerovými/proxy
+invariantmi. Automatická kontrola schválenia však odmietla owner apply ešte
+**pred vykonaním**: nový trvalý autentifikačný účet a nemenná identity väzba
+vyžadujú konkrétne schválenie používateľa. Takáto auth DB zmena sa nevykonala.
+Owner binding a Cloud Basic transport sú stále na konkrétnom schválení/manuálnom
+vstupe; žiadne hodnoty tajomstiev tu nie sú uvedené. Syntetický projekt, publish
+job ani verejný HTTP200 smoke sa nespustili. Celý Cloud → BFF → Hono workflow,
+Stripe aktivácia/skutočná platba a kanonický verejný republish zostávajú
+neoverené alebo vypnuté. M1–M6 tým nie sú uzavreté.
+
+[Sanitizovaný STAGED ops dôkaz](../deploy/lovable-github/proof/WS19-STAGED-OPERATIONS-2026-11-06.json)
+obsahuje iba stavové flagy, merania a verejné source/Git referencie. Staršie
+lokálne a infra receipts zostávajú historické a nemenia sa; operátorské skripty
+sa nepridávajú do repozitára. Recovery runbook nižšie sa na VPS nevykonal.
+
 ## Publikovanie
 
 Autentifikované `GET /api/publish` vracia skutočnú dostupnosť; `POST /api/publish`
@@ -287,7 +326,7 @@ Zapojenie je default OFF:
 `deploy/compose.publish.yaml` je voliteľný vzor volume/loopback portu;
 `deploy/ops/publish-nginx.conf.template` je vzor oddeleného HTTPS hosta.
 Samostatný TLS vstup a izolovaný worker už majú vlastný prevádzkový dôkaz;
-nový aplikačný runtime ešte nie je aktivovaný. Existujúca produkcia používa vlastné nginx/lov-net zapojenie;
+nové API/runner sú v režime STAGED podľa prevádzkového dodatku vyššie. Produkčný proxy stále používa pôvodné nginx/lov-net zapojenie;
 ukážkový compose sa cez ňu nesmie spustiť bez prispôsobenia. Globálny existujúci
 startup guard pre `NODE_ENV=production` sa touto funkciou neodstraňuje.
 
@@ -354,10 +393,10 @@ Predchádzajúca implementácia 013 mala úplné lokálne gates PASS: **1 115 pa
 189 skipped main**, PostgreSQL 16.15 aj 18.6 **167/167** s cleanup, Docker
 **21/21**, moderné UI **188/188**, hlavné/strict typy, lint a oba lokálne buildy.
 Dôkaz: [PR22-RECOVERY-VERIFICATION.json](../deploy/lovable-github/proof/PR22-RECOVERY-VERIFICATION.json).
-Ide o lokálne overenie runtime 186eba1; nový backend ani schema na VPS tým nie sú aktivované.
-Produkčná DB má podľa doterajšieho auditu iba schému 001; tento release potrebuje
-kontrolovaný prechod cez **001–013**, čerstvú restore-verified zálohu a nové
-prevádzkové overenie. Billing pin migrácie 012 sa nemení a billing zostáva OFF.
+Ide o historický lokálny cut runtime 186eba1 pred VPS krokmi. Vtedajšia DB mala
+iba schému 001; kontrolovaný prechod **001–013** je teraz overený v samostatnom
+STAGED ops dodatku vyššie. Lokálne gates samy nepotvrdzujú plný Cloud workflow.
+Billing pin migrácie 012 sa nemení a billing zostáva OFF.
 Aktuálnu pripravenosť infraštruktúry opisuje
 [WS19-INFRASTRUCTURE.json](../deploy/lovable-github/proof/WS19-INFRASTRUCTURE.json).
 
