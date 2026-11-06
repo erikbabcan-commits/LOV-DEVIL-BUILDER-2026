@@ -1,0 +1,53 @@
+
+<repo>/server/agent/prompts.ts
+  67:29  warning  'T' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/server/db/pool.ts
+  8:63  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+<repo>/server/index.ts
+  17:10  warning  'z' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/server/routes/github.ts
+   85:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  136:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  157:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  188:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  417:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  614:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  627:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  651:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  668:56  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  722:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  739:51  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  760:54  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  775:51  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  789:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+<repo>/src/stores/useAppStore.ts
+   9:42   warning  'Plan' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+  11:28   warning  'scheduleAutosave' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  11:67   warning  'persistRun' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  12:15   warning  'StoredSnapshot' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  19:155  warning  'GitHubAuthState' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+
+<repo>/tests/unit/export.test.ts
+  5:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  5:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/tests/unit/github-oauth.test.ts
+  12:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  12:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/tests/unit/server/agent.test.ts
+  2:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u                  @typescript-eslint/no-unused-vars
+  3:10  warning  'z' is defined but never used. Allowed unused vars must match /^_/u                   @typescript-eslint/no-unused-vars
+  7:27  warning  'makeFetchTransport' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  8:21  warning  'makeProvider' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+
+<repo>/tests/unit/server/auth.test.ts
+  8:10  warning  'authRouter' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  9:10  warning  'makeAuthMiddleware' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+✖ 33 problems (0 errors, 33 warnings)

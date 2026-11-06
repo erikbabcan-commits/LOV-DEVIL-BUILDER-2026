@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-06T21:15:24.198014+00:00",
+  "status": "Separate bounded public read capacity and offline recovery runbook verified locally; production application activation outstanding",
+  "runtimeCommit": "d9b279b56f370982b69b43a51827121564c3d52d",
+  "runtimeTree": "7a30d9b366df88f0180dc0858aa4ee8a8b58abb8",
+  "backendPullRequest": "https://github.com/erikbabcan-commits/LOV-DEVIL-BUILDER-2026/pull/22",
+  "reviewFindings": {
+    "4497548509": "Explicit offline recovery procedure and no-delete pilot attempt policy",
+    "4497548525": "Anonymous reads use a separate process-wide bounded gate; two new behavioral regressions",
+    "4497548538": "Stop/fence proof, inode/hash inventory outside DB, short owner/claim/timestamp CAS; uncertain writes never released by status alone"
+  },
+  "sourceWitness": {
+    "count": 301,
+    "allFiveMapsIdentical": true,
+    "allFilesMatchGitAndDisk": true,
+    "canonicalMapSha256": "65147a4b09417fa4056594ad1d6f24bdb2a9305bc8d446a63b23686590319b60",
+    "runtimeChangedFiles": {
+      "server/publish/artifacts.ts": "e8004f0eedad84feac520844b11b438dc4e78e09aed30542507c2be3ca66d7c7",
+      "server/publish/storageGate.ts": "53e6a2f4e723a2369ef01a8f37e3a7f6724b19046fa77dd13d273b10e575d5ad",
+      "tests/unit/server/publish-public-isolation.test.ts": "38da7d6ad1fc56fdf429559f95590a518d8e72d3b68c2ff19aefa9b6532c0f92"
+    }
+  },
+  "gates": {
+    "main": {
+      "exit": 0,
+      "seconds": 47.25,
+      "verifiedAt": "2026-11-06T21:09:27.431349+00:00",
+      "sourceChangesDuringRun": []
+    },
+    "types": {
+      "exit": 0,
+      "seconds": 9.3,
+      "verifiedAt": "2026-11-06T21:08:51.131628+00:00",
+      "sourceChangesDuringRun": []
+    },
+    "lint": {
+      "exit": 0,
+      "seconds": 7.22,
+      "verifiedAt": "2026-11-06T21:08:49.040518+00:00",
+      "sourceChangesDuringRun": []
+    },
+    "build": {
+      "exit": 0,
+      "seconds": 6.55,
+      "verifiedAt": "2026-11-06T21:08:48.194600+00:00",
+      "sourceChangesDuringRun": []
+    },
+    "docker": {
+      "exit": 0,
+      "seconds": 30.7,
+      "verifiedAt": "2026-11-06T21:09:12.622448+00:00",
+      "sourceChangesDuringRun": []
+    }
+  },
+  "results": {
+    "main": {
+      "passed": 1117,
+      "skipped": 189
+    },
+    "types": "PASS",
+    "lint": {
+      "errors": 0,
+      "existingWarnings": 33
+    },
+    "build": "PASS",
+    "docker": {
+      "passed": 21
+    }
+  },
+  "unchangedHistoricalEvidence": {
+    "runtimeCommit": "186eba1223dad2f0a081f2aa524feb5508a144fa",
+    "proof": "deploy/lovable-github/proof/PR22-RECOVERY-VERIFICATION.json",
+    "postgres16": 167,
+    "postgres18": 167,
+    "modern": 188,
+    "rerunForThisAddendum": false,
+    "dbSchemaContractsAndModernUiSourcesUnchanged": true,
+    "meaning": "Previous results remain historical evidence for the unchanged schema/contracts and modern UI; no fresh PG or modern run is claimed on this runtime."
+  },
+  "runbook": {
+    "path": "docs/WS-19-PUBLISH-BILLING.md#publish-storage-recovery",
+    "filesystemInventory": {
+      "syntheticLocalCasesPassed": 8
+    },
+    "sql": {
+      "nativePostgresMajors": [
+        16,
+        18
+      ],
+      "migrations": 13,
+      "casesPassed": 20,
+      "sqlSha256": "32aa049b324c28f499a4a6060499e04234c9c9fb202d3f4b592e1e6731661897",
+      "cleanup": "both_stopped_and_removed",
+      "scope": "Synthetic disposable local databases only; no VPS/production SQL execution"
+    },
+    "pilotAttemptPolicy": "Keep every job/request UUID, including failed/empty. Default20, no delete/prune; maxArtifacts custom configuration ceiling100 requires separately reviewed release and abuse/byte audit. No PUBLICPUBLISH_MAX_ARTIFACTS environment override exists.",
+    "automaticCleanupImplemented": false
+  },
+  "activation": {
+    "newApplicationApiActive": false,
+    "productionSchema013Applied": false,
+    "cloudBasicTransportConfigured": false,
+    "stripeEnabled": false,
+    "publicFrontendRepublished": false,
+    "infrastructureReceipt": "deploy/lovable-github/proof/WS19-INFRASTRUCTURE.json",
+    "milestonesClosed": false
+  },
+  "publicLogManifest": {
+    "path": "deploy/lovable-github/proof/PR22-READ-ISOLATION-LOGS.json",
+    "sha256": "710d0008babca9bc3d24b83e14ec06dc3a17176f06bff86129348c6c4d3b3a77",
+    "logCount": 5
+  },
+  "privacy": "No credential values, personal identities/email, raw private logs or account financial metadata. Public logs are normalized projections; source hashes do not reveal secret values.",
+  "trackedHistoricalProofFilesPreserved": 277,
+  "frontend": {
+    "pullRequest": "https://github.com/erikbabcan-commits/vorkeeei/pull/3",
+    "state": "MERGED",
+    "mergeCommit": "676b8bdf5d7d9dd0d385479c46c55367ee9ca86a",
+    "lovableEditorHistoryVerifiedAt": "2026-11-06T21:15:16.978702+00:00",
+    "visibleGitPushAndPr3MergeEntriesConfirmed": true,
+    "sourceFileHashRevalidatedInEditor": false,
+    "canonicalPublicRepublishPerformed": false
+  }
+}
