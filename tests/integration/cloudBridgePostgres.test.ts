@@ -109,6 +109,10 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     await db.query(`INSERT INTO billing_checkout_attempts (request_id, user_id, interval_name,
       config_fingerprint, created_at, requested_expires_at, state, session_url)
       VALUES ($1, 'bob', 'month', 'fixture', now(), 0, 'ready', 'https://fixture.invalid/private-session')`, [randomUUID()]);
+    await db.query(`INSERT INTO publish_jobs (owner_id, request_id, project_id, project_revision,
+      snapshot_id, source_fingerprint, source_files, artifact_id, state, created_at, updated_at, withdrawn_at, storage_phase)
+      VALUES ('bob', $1, 'fixture', 1, 'v1', 'fixture', '[]', $2, 'published', now(), now(), now(), 'retained')`,
+    [randomUUID(), randomUUID()]);
     const ready = queue();
     expect(ready).toMatchObject({ hasMore: true, nextCursor: expect.any(String), requests: [{
       user_id: 'alice', request_id: secondId, cloud_identity: true, open_subscription: true, pending_checkout: false,
@@ -117,6 +121,7 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     const page2 = queue(ready.nextCursor);
     expect(page2).toMatchObject({ hasMore: false, nextCursor: null, requests: [{
       user_id: 'bob', request_id: bobId, cloud_identity: true, open_subscription: false, pending_checkout: true,
+      published_artifacts: false, retained_artifacts: true,
     }] });
     expect(JSON.stringify(page2)).not.toContain('private-session');
     expect(queue()).toEqual(ready);

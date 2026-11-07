@@ -51,10 +51,36 @@ function sameSelection(left: PublishSelection | null, right: PublishSelection) {
     left.publicConsent === right.publicConsent
   );
 }
-function PublicationLink({ url, summary, label }: { url: string; summary: string; label: string }) {
+/** Keep the existing link visible until the owner confirms and the server acknowledges withdrawal. */
+function PublicationLink({
+  url,
+  summary,
+  label,
+  onWithdraw,
+  withdrawing,
+}: {
+  url: string;
+  summary: string;
+  label: string;
+  onWithdraw: () => Promise<void>;
+  withdrawing: boolean;
+}) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied" | "unavailable">(
     "idle",
   );
+  const [confirming, setConfirming] = useState(false);
+  const [withdrawError, setWithdrawError] = useState(false);
+
+  /** Leave the same confirmation available when the server response is uncertain. */
+  async function withdraw() {
+    if (!confirming || withdrawing) return;
+    setWithdrawError(false);
+    try {
+      await onWithdraw();
+    } catch {
+      setWithdrawError(true);
+    }
+  }
 
   async function copy() {
     if (copyStatus === "copying") return;
@@ -78,7 +104,11 @@ function PublicationLink({ url, summary, label }: { url: string; summary: string
         <a className="break-words underline" href={url} target="_blank" rel="noopener noreferrer">
           {label}
         </a>
-        <Btn size="sm" disabled={copyStatus === "copying"} onClick={() => void copy()}>
+        <Btn
+          size="sm"
+          disabled={withdrawing || copyStatus === "copying"}
+          onClick={() => void copy()}
+        >
           <Copy className="h-3.5 w-3.5" aria-hidden="true" />
           Skopírovať odkaz
         </Btn>
@@ -90,6 +120,37 @@ function PublicationLink({ url, summary, label }: { url: string; summary: string
             ? "Kopírovanie zlyhalo. Adresu môžeš označiť a skopírovať ručne."
             : ""}
       </p>
+      {confirming ? (
+        <div className="space-y-2 border-t border-border pt-2">
+          <p className="text-xs text-muted-foreground">
+            Adresa prestane fungovať na serveri. Uložený projekt môžeš znova publikovať.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="danger" size="sm" disabled={withdrawing} onClick={() => void withdraw()}>
+              {withdrawing ? "Odvolávam…" : "Potvrdiť odvolanie"}
+            </Btn>
+            <Btn
+              size="sm"
+              disabled={withdrawing}
+              onClick={() => {
+                setConfirming(false);
+                setWithdrawError(false);
+              }}
+            >
+              Ponechať odkaz
+            </Btn>
+          </div>
+          {withdrawError && (
+            <p role="alert" className="text-xs text-destructive">
+              Odvolanie sa nepodarilo potvrdiť. Skús to znova.
+            </p>
+          )}
+        </div>
+      ) : (
+        <Btn variant="ghost" size="sm" disabled={withdrawing} onClick={() => setConfirming(true)}>
+          Odvolať odkaz
+        </Btn>
+      )}
     </section>
   );
 }
@@ -98,18 +159,21 @@ type PublishAvailability =
   | { status: "checking" | "error" }
   | { status: "checked"; value: ReturnType<typeof PublishReady.parse> };
 
+/** Scope saved publication links and mutations to the current project and owner. */
 function PublishDialog() {
   const { state, controller } = useForge(),
     [availability, setAvailability] = useState<PublishAvailability>({ status: "checking" }),
     [availabilityCheck, setAvailabilityCheck] = useState(0),
     [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
+    [withdrawing, setWithdrawing] = useState(false),
     [error, setError] = useState(""),
     [job, setJob] = useState<PublishedJob | null>(null),
     [savedPublication, setSavedPublication] = useState<{
       key: string;
       path: string;
       url: string;
+      requestId: string;
       controller: typeof controller;
     } | null>(null),
     [pendingSelection, setPendingSelection] = useState<PublishSelection | null>(null);
@@ -132,6 +196,7 @@ function PublishDialog() {
     setError("");
     setConsent(false);
     setBusy(false);
+    setWithdrawing(false);
     running.current = false;
     setPendingSelection(readPendingPublish(key));
     const abort = new AbortController();
@@ -189,7 +254,14 @@ function PublishDialog() {
         )
           return;
         const url = publicationUrl(result, publicOrigin);
-        if (url) setSavedPublication({ key, path: savedPath, url, controller });
+        if (url)
+          setSavedPublication({
+            key,
+            path: savedPath,
+            url,
+            requestId: result.requestId,
+            controller,
+          });
       })
       .catch(() => {
         /* A failed lookup cannot establish a publication or block a new one. */
@@ -235,6 +307,30 @@ function PublishDialog() {
       controller.owner === owner &&
       controller.get().id === state.id
     );
+  }
+  /** Serialize link withdrawal with other publish actions and verify the returned job. */
+  async function withdrawPublication(requestId: string) {
+    if (running.current) return;
+    running.current = true;
+    setWithdrawing(true);
+    const operation = lifetime.current;
+    try {
+      const value = await call("publish/" + requestId + "/withdraw", { confirmed: true });
+      if (
+        value.requestId !== requestId ||
+        value.projectId !== state.id ||
+        value.state !== "withdrawn" ||
+        value.url !== null
+      )
+        throw new Error("publish_withdrawal_unconfirmed");
+      setSavedPublication(null);
+      setJob(value);
+    } finally {
+      if (lifetime.current === operation) {
+        running.current = false;
+        if (current()) setWithdrawing(false);
+      }
+    }
   }
   async function observe(selection: PublishSelection, recovery: boolean) {
     const captured = controller.get(),
@@ -523,7 +619,7 @@ function PublishDialog() {
         <input
           type="checkbox"
           checked={consent}
-          disabled={busy}
+          disabled={busy || withdrawing}
           onChange={(e) => setConsent(e.target.checked)}
         />
         Súhlasím so zverejnením tejto verzie aplikácie na verejnej URL.
@@ -550,6 +646,7 @@ function PublishDialog() {
           ))}
         </div>
       )}
+      {job?.state === "withdrawn" && <p role="status">Verejný odkaz bol odvolaný.</p>}
       {savedPublication?.key === key &&
         savedPublication.path === savedPath &&
         savedPublication.controller === controller && (
@@ -558,6 +655,8 @@ function PublishDialog() {
             url={savedPublication.url}
             summary="Táto uložená verzia je publikovaná."
             label="Otvoriť publikovanú aplikáciu"
+            onWithdraw={() => withdrawPublication(savedPublication.requestId)}
+            withdrawing={withdrawing}
           />
         )}
       {url && job && (
@@ -574,11 +673,13 @@ function PublishDialog() {
               ? "Otvoriť publikáciu predchádzajúcej verzie"
               : "Otvoriť publikovanú aplikáciu"
           }
+          onWithdraw={() => withdrawPublication(job.requestId)}
+          withdrawing={withdrawing}
         />
       )}
       <div className="flex flex-wrap justify-end gap-2">
         {pendingSelection && (
-          <Btn disabled={busy || !ready?.enabled} onClick={() => void recover()}>
+          <Btn disabled={busy || withdrawing || !ready?.enabled} onClick={() => void recover()}>
             Overiť stav
           </Btn>
         )}
@@ -586,6 +687,7 @@ function PublishDialog() {
           variant="primary"
           disabled={
             busy ||
+            withdrawing ||
             state.busy ||
             !!state.editor ||
             !!state.pending ||

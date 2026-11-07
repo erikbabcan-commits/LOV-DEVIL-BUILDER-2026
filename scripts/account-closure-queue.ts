@@ -23,7 +23,8 @@ const queuePage = `SELECT r.user_id, r.request_id, r.requested_at, r.eligible_at
       EXISTS (SELECT 1 FROM billing_accounts WHERE user_id = r.user_id AND
         (has_open_subscription OR subscription_status IN ('active','trialing','past_due','unpaid','paused','incomplete'))) AS open_subscription,
       EXISTS (SELECT 1 FROM billing_checkout_attempts WHERE user_id = r.user_id AND state IN ('pending','ready')) AS pending_checkout,
-      EXISTS (SELECT 1 FROM publish_jobs WHERE owner_id = r.user_id AND state = 'published') AS published_artifacts,
+      EXISTS (SELECT 1 FROM publish_jobs WHERE owner_id = r.user_id AND state = 'published' AND withdrawn_at IS NULL) AS published_artifacts,
+      EXISTS (SELECT 1 FROM publish_jobs WHERE owner_id = r.user_id AND storage_phase IN ('retained','writing','legacy_unknown')) AS retained_artifacts,
       EXISTS (SELECT 1 FROM publish_jobs WHERE owner_id = r.user_id AND state = 'building') AS running_publish,
       EXISTS (SELECT 1 FROM github_pending WHERE owner_id = r.user_id AND connection_cipher IS NOT NULL) AS github_connection,
       EXISTS (SELECT 1 FROM github_exports WHERE owner_id = r.user_id AND status = 'running') AS running_github_export,

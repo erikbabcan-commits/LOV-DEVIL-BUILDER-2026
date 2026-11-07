@@ -38,6 +38,7 @@ interface Row {
   artifact_bytes: number | null;
   storage_phase: StoragePhase;
   state: "building" | "published" | "failed";
+  withdrawn_at: Date | string | null;
   error_code: string | null;
   errors: unknown;
   created_at: Date | string;
@@ -51,6 +52,7 @@ type ViewRow = Pick<
   | "project_revision"
   | "snapshot_id"
   | "state"
+  | "withdrawn_at"
   | "artifact_id"
   | "artifact_bytes"
   | "storage_phase"
@@ -100,15 +102,16 @@ export class PublishService {
       publicOrigin: new URL(this.config.baseUrl).origin,
     };
   }
+  /** Translate the stored job without returning a public URL after withdrawal. */
   private view(row: ViewRow): PublishResult {
     return PublishJob.parse({
       requestId: row.request_id,
       projectId: row.project_id,
       revision: row.project_revision,
       snapshotId: row.snapshot_id,
-      state: row.state,
+      state: row.withdrawn_at ? "withdrawn" : row.state,
       url:
-        row.state === "published"
+        row.state === "published" && !row.withdrawn_at
           ? new URL("p/" + row.artifact_id + "/", this.config.baseUrl).href
           : null,
       error: row.error_code,
@@ -142,6 +145,22 @@ export class PublishService {
       return this.view(row);
     });
   }
+  /** Revoke a published URL under the owner lock while retaining its bytes and history. */
+  async withdraw(owner: string, requestId: string): Promise<PublishResult> {
+    return this.owner(owner, async tx => {
+      const row = (await tx.query(
+        "SELECT * FROM publish_jobs WHERE owner_id=$1 AND request_id=$2", [owner, requestId],
+      )).rows[0] as Row | undefined;
+      if (!row) throw new PublishError("publish_not_found", 404);
+      if (row.state !== "published") throw new PublishError("publish_not_public", 409);
+      if (row.withdrawn_at) return this.view(row);
+      const result = await tx.query(
+        "UPDATE publish_jobs SET withdrawn_at=now() WHERE owner_id=$1 AND request_id=$2 RETURNING *",
+        [owner, requestId],
+      );
+      return this.view(result.rows[0]);
+    });
+  }
   /** Reads the newest successful publication for the owner's current saved revision. */
   async publishedVersion(
     owner: string,
@@ -150,13 +169,13 @@ export class PublishService {
     const row = (
       await this.db.query(
         `SELECT j.request_id, j.project_id, j.project_revision, j.snapshot_id,
-                j.state, j.artifact_id, j.artifact_bytes, j.storage_phase,
+                j.state, j.withdrawn_at, j.artifact_id, j.artifact_bytes, j.storage_phase,
                 j.error_code, j.errors, j.created_at
          FROM publish_jobs AS j
          JOIN builder_projects AS p
            ON p.owner_id = j.owner_id AND p.project_id = j.project_id
          WHERE j.owner_id = $1 AND j.project_id = $2 AND j.project_revision = $3
-           AND j.snapshot_id = $4 AND j.state = 'published'
+           AND j.snapshot_id = $4 AND j.state = 'published' AND j.withdrawn_at IS NULL
            AND p.revision = $3 AND p.deleted_at IS NULL
          ORDER BY j.updated_at DESC, j.request_id DESC LIMIT 1`,
         [owner, version.projectId, version.expectedRevision, version.snapshotId],
@@ -385,10 +404,11 @@ export class PublishService {
     await Promise.all([...this.jobs.values()]);
   }
 }
+/** Refuse to start publication without its storage, lease and withdrawal columns. */
 export async function probePublishSchema(db: DbLike): Promise<boolean> {
   try {
     await db.query(
-      "SELECT owner_id,request_id,artifact_id,claim_id,storage_phase,artifact_bytes,artifact_sha256 FROM publish_jobs LIMIT 0",
+      "SELECT owner_id,request_id,artifact_id,claim_id,storage_phase,artifact_bytes,artifact_sha256,withdrawn_at FROM publish_jobs LIMIT 0",
     );
     return !!db.transaction;
   } catch {

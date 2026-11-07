@@ -5,6 +5,47 @@ ukážkové publikovanie v hlavnom aj modernom UI a pripája moderný frontend k
 existujúcemu billing backendu. Samotná implementácia nezapína platby, nemigruje
 produkciu a nenahrádza overenie hostovaného nasadenia.
 
+## Odvolanie verejného odkazu
+
+Migrácia `018_publish_withdrawal.sql` umožní vlastníkovi odvolať konkrétnu
+publikáciu. Po potvrdení server vráti HTTP 404 pri nových GET a HEAD
+požiadavkách na pôvodnú adresu. Zostavený artefakt aj história publikovania
+zostávajú uložené. Nové publikovanie má nový odkaz.
+
+Verejný listener používa pre nové odpovede `Cache-Control: no-store`.
+Klientom, ktoré už dostali starú odpoveď s ročnou cache, môže uložená kópia
+zostať prístupná až do jej vypršania. Fyzická retencia súborov ostáva samostatný krok.
+
+### Nácvik migrácie 015 → 018 a návratu
+
+Izolovaný PostgreSQL 16 začal na rovnakom odtlačku schémy 015 ako produkcia.
+Pri držanom zámku na `publish_jobs` sa dávka 016–018 po limite 1 s celá vrátila.
+Po uvoľnení zámku prešli všetky tri migrácie v jednej transakcii. Výsledný
+odtlačok `8580b42fa86cd595a88aefd48b63a53e1a149493e3d357d4d5d3a6aac16ed7a8`
+sa zhodoval s čistou referenčnou databázou. Lokálny runtime spustený s týmto
+pinom overil export, podanie a odvolanie žiadosti o zrušenie účtu a odvolanie
+verejného odkazu. Druhý syntetický odkaz zostal dostupný.
+
+Pre návrat po migrácii priprav kompatibilný obraz z produkčnej verzie
+`daf3321` s migráciami 016–018 a aktuálnym `server/publish/public.ts`.
+Pôvodný produkčný obraz na novom pine odmietne štart. Kompatibilný runtime
+musí aj po návrate vracať `404` pre odvolané GET a HEAD a `200` pre druhý
+odkaz, vždy s `Cache-Control: no-store`. Schému 018 ponechaj. Ak kompatibilný
+runtime nie je dostupný, odstav verejný listener až do overeného obnovenia.
+
+Po lokálnom nácviku vznikli na VPS dve overené `linux/amd64` vrstvy.
+Kandidát `lov-devil-api-ws19:withdraw018-reviewed-amd64` má digest
+`sha256:cc9aa317d28d1889f2aa811dba56c8bf2cbd4711f8ea597ca396cfbe55639a0a`.
+Návratový obraz `lov-devil-api-ws19:daf3321-schema018-safe` má digest
+`sha256:8da62fe15bd3ad240f6ea38c57e2c34b18697b46d488f3e11903578b0cb7d75b`.
+Izolovaná sieť bez zverejnených portov a dočasná databáza overili štart
+oboch obrazov aj výsledky GET a HEAD. Testovacie kontajnery a sieť sa
+odstránili. Aktívny produkčný kontajner na schéme 015 zostal zdravý.
+
+Pred výmenou produkcie over obnovu aktuálnej zálohy mimo VPS, cieľový
+odtlačok, diskovú rezervu, izolovaný runner a systemd návrat pod existujúcim
+zámkom.
+
 ## Produkčný obraz `daf3321` a schéma 015 · 7. 11. 2026
 
 Kontrola o 20:19 UTC potvrdila aktívny kontajner `lov-devil-api-013-daf332191dfe`

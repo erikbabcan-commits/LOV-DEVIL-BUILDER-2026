@@ -516,6 +516,49 @@ describe("real publication dialog", () => {
     act(() => controller.rename("Edited current workspace"));
     expect(screen.queryByRole("link", { name: "Otvoriť publikovanú aplikáciu" })).toBeNull();
   });
+  it("confirms and retries withdrawal of the recovered public link without starting a new build", async () => {
+    await controller.save();
+    const stored = job({
+      requestId: crypto.randomUUID(),
+      projectId: "p1",
+      snapshotId: "v1",
+      expectedRevision: 2,
+    });
+    const path = "publish/" + stored.requestId + "/withdraw";
+    let attempts = 0;
+    mock.hono.mockImplementation(async (request) => {
+      if (request === "publish") return Response.json(ready);
+      if (request !== path) return Response.json(stored);
+      attempts++;
+      return attempts === 1
+        ? Response.json({ error: "unavailable" }, { status: 503 })
+        : Response.json({ ...stored, state: "withdrawn", url: null });
+    });
+    show();
+    await open();
+    fireEvent.click(await screen.findByRole("button", { name: "Odvolať odkaz" }));
+    expect(attempts).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: "Potvrdiť odvolanie" }));
+    await screen.findByText("Odvolanie sa nepodarilo potvrdiť. Skús to znova.");
+    expect(screen.getByRole("link", { name: "Otvoriť publikovanú aplikáciu" })).toHaveAttribute(
+      "href",
+      stored.url,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Potvrdiť odvolanie" }));
+    await screen.findByText("Verejný odkaz bol odvolaný.");
+    expect(screen.queryByRole("link", { name: "Otvoriť publikovanú aplikáciu" })).toBeNull();
+    expect(
+      mock.hono.mock.calls
+        .filter(([, init]) => init?.method === "POST")
+        .map(([request, init]) => ({
+          request,
+          body: init?.body,
+        })),
+    ).toEqual([
+      { request: path, body: { confirmed: true } },
+      { request: path, body: { confirmed: true } },
+    ]);
+  });
   it("ignores a publication lookup that belongs to another saved version", async () => {
     await controller.save();
     mock.hono.mockImplementation(async (path) =>
