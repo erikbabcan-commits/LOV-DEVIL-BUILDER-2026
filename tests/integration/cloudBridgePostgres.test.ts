@@ -458,6 +458,21 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     await db.query("INSERT INTO billing_events(event_id,user_id,event_type,processed_at) VALUES($1,'alice','invoice.paid',$2)",
       [randomUUID(), day(5)]);
     expect((await weeklyProductReport(db, week, asOf)).signupCohort.withLiveInvoicePaidEventAfterPublicationInWeek).toBe(1);
+    const positive = (paidAt: Date) => db.query(
+      "INSERT INTO billing_events(event_id,user_id,event_type,processed_at,positive_pro_invoice_paid_at) VALUES($1,'alice','invoice.paid',$2,$3)",
+      [randomUUID(), day(8), paidAt],
+    );
+    const firstPositive = async () => (await weeklyProductReport(db, week, asOf))
+      .signupCohort.withFirstObservedPositiveProInvoiceAfterPublicationInWeek;
+    expect(await firstPositive()).toBe(0);
+    await positive(end);
+    expect(await firstPositive()).toBe(0);
+    await positive(day(5));
+    expect(await firstPositive()).toBe(1);
+    await positive(day(2));
+    expect(await firstPositive()).toBe(0);
+    await db.query('ALTER TABLE billing_events DROP COLUMN positive_pro_invoice_paid_at');
+    expect(await firstPositive()).toBeNull();
     await db.query('ALTER TABLE users DROP COLUMN first_observed_app_save_at');
     expect(await weeklyProductReport(db, week, asOf)).toMatchObject({
       firstAppSaveEvidence: 'unavailable', signupCohort: { withObservedFirstAppSaveInWeek: null },

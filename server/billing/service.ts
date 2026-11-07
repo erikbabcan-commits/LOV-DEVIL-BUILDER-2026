@@ -351,7 +351,10 @@ export class BillingService {
         "UPDATE billing_checkout_attempts SET state='complete',session_url=NULL WHERE user_id=$1 AND state IN ('pending','ready')",
         [userId],
       );
-    return { paid, hasNonterminal, checkoutSubscriptionTerminal };
+    return {
+      paid, hasNonterminal, checkoutSubscriptionTerminal,
+      recognizedSubscriptionIds: recognized.map(sub => sub.id),
+    };
   }
   /** Resumes the user’s recorded Checkout or creates a session under the same idempotency key. */
   async checkout(
@@ -707,9 +710,13 @@ export class BillingService {
             [attempt.request_id, session.status],
           );
       }
+      const positive = event.positiveInvoice;
+      const positivePaidAt = this.expectedLivemode && event.type === "invoice.paid" &&
+        positive && state.recognizedSubscriptionIds.includes(positive.subscriptionId)
+        ? new Date(positive.paidAt * 1000).toISOString() : null;
       await tx.query(
-        "INSERT INTO billing_events(event_id,user_id,event_type,processed_at) VALUES($1,$2,$3,$4)",
-        [event.id, account.user_id, event.type, this.now().toISOString()],
+        "INSERT INTO billing_events(event_id,user_id,event_type,processed_at,positive_pro_invoice_paid_at) VALUES($1,$2,$3,$4,$5)",
+        [event.id, account.user_id, event.type, this.now().toISOString(), positivePaidAt],
       );
     });
   }
@@ -733,7 +740,7 @@ export async function probeBillingSchema(
       "SELECT request_id,user_id,config_fingerprint,created_at,session_url FROM billing_portal_attempts LIMIT 0",
     );
     await db.query(
-      "SELECT event_id,user_id,event_type,processed_at FROM billing_events LIMIT 0",
+      "SELECT event_id,user_id,event_type,processed_at,positive_pro_invoice_paid_at FROM billing_events LIMIT 0",
     );
     if (expectedMode) {
       const pin = (

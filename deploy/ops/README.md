@@ -156,3 +156,10 @@ Po migrácii 014 report doplní `withObservedFirstAppSaveInWeek`. Čas ukladá
 server v transakcii prvého úspešného uloženia neprázdneho snapshotu. Pre staršie
 účty je to prvé uloženie pozorované po migrácii. Historické časy sa nedopočítavajú.
 Na schéme pred 014 vráti report pre túto metriku `null`.
+
+Po migrácii 015 report doplní aj prvú serverom pozorovanú nenulovú živú Pro
+faktúru uhradenú po publikovaní. Berie Stripe čas úhrady aj pri oneskorenom
+doručení webhooku. Počíta iba podpisom overené udalosti pre zákazníka a
+rozpoznané predplatné v EUR. Ukladá sa čas bez sumy a obsahu faktúry.
+Historické a nulové faktúry nemajú tento údaj. Nejde o potvrdenie platby
+kartou ani o výnos po refundáciách.

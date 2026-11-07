@@ -145,6 +145,52 @@ export function billingModeContract(
       };
     }
     it.each(["test", "live"] as const)(
+      "records positive Pro invoice evidence only in live mode (%s)",
+      async (mode) => {
+        const api = application(mode);
+        const live = mode === "live";
+        const customer = await api.customer();
+        api.gateway.data = [billingSubscription(customer, { livemode: live, periodEnd: future() })];
+        const paidAt = Math.floor(Date.now() / 1000) - 10;
+        const delivery = (eventId: string, fields: Record<string, unknown> = {}) => api.event(customer, live, {
+          id: eventId,
+          type: "invoice.paid",
+          created: paidAt + 5,
+          data: { object: {
+            id: "in_contract",
+            object: "invoice",
+            customer,
+            status: "paid",
+            currency: "eur",
+            livemode: live,
+            amount_paid: 2000,
+            status_transitions: { paid_at: paidAt },
+            parent: { type: "subscription_details", subscription_details: { subscription: "sub_contract" } },
+            ...fields,
+          } },
+        });
+        const attempts = [
+          ["evt_positive", {}],
+          ["evt_zero", { amount_paid: 0 }],
+          ["evt_other_currency", { currency: "usd" }],
+          ["evt_other_subscription", { parent: null, subscription: "sub_unrecognized" }],
+          ["evt_mismatch", { subscription: "sub_conflicting" }],
+          ["evt_future_paid", { status_transitions: { paid_at: paidAt + 6 } }],
+          ["evt_legacy", { parent: null, subscription: "sub_contract" }],
+        ] as const;
+        for (const [eventId, fields] of attempts)
+          expect((await delivery(eventId, fields)).status).toBe(200);
+        expect((await delivery("evt_positive")).status).toBe(200);
+        const rows = (await db.query(
+          "SELECT event_id,positive_pro_invoice_paid_at FROM billing_events ORDER BY event_id",
+        )).rows;
+        expect(rows).toHaveLength(attempts.length);
+        const recorded = rows.filter(row => row.positive_pro_invoice_paid_at !== null);
+        expect(recorded.map(row => row.event_id)).toEqual(live ? ["evt_legacy", "evt_positive"] : []);
+        expect(recorded.every(row => new Date(row.positive_pro_invoice_paid_at).getTime() === paidAt * 1000)).toBe(true);
+      },
+    );
+    it.each(["test", "live"] as const)(
       "runs the complete %s-mode lifecycle without resetting monthly usage",
       async (mode) => {
         const api = application(mode),
