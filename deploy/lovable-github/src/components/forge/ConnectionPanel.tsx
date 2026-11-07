@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X, RefreshCw } from "lucide-react";
 import { useSession } from "@/hooks/use-session";
@@ -13,6 +13,7 @@ import {
 import { AiUsageSchema, type AiUsage } from "@/lib/ai-usage";
 import { Btn } from "./ui";
 import { AccountDataExport } from "./AccountDataExport";
+import { AccountClosure } from "./AccountClosure";
 const BillingPanel = lazy(() =>
   import("./BillingPanel").then((module) => ({ default: module.BillingPanel })),
 );
@@ -45,6 +46,7 @@ function Row({ label, value, good }: { label: string; value: string; good?: bool
   );
 }
 
+/** Display connection and account actions only for the currently linked session. */
 export function ConnectionPanel({ onClose }: { onClose: () => void }) {
   const s = useSession();
   const [reach, setReach] = useState<HonoReach | null>(null);
@@ -221,12 +223,18 @@ export function ConnectionPanel({ onClose }: { onClose: () => void }) {
         )}
       {s.status === "signed-in" && userId && s.session?.access_token &&
         acct?.state === "linked" && acct.userId && (
-          <AccountDataExport
-            key={userId + ":" + acct.userId}
-            cloudUserId={userId}
-            honoUserId={acct.userId}
-            accessToken={s.session.access_token}
-          />
+          <Fragment key={userId + ":" + acct.userId}>
+            <AccountDataExport
+              cloudUserId={userId}
+              honoUserId={acct.userId}
+              accessToken={s.session.access_token}
+            />
+            <AccountClosure
+              cloudUserId={userId}
+              honoUserId={acct.userId}
+              accessToken={s.session.access_token}
+            />
+          </Fragment>
         )}
       <div className="mt-3 flex justify-end gap-2">
         {s.status === "signed-out" ? (

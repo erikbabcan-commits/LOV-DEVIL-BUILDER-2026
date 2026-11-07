@@ -34,6 +34,10 @@ const pages = {
     table: 'billing_events', owner: 'user_id', key: 'event_id', type: 'text', limit: 100,
     fields: 'event_id, event_type, processed_at, positive_pro_invoice_paid_at',
   },
+  closure: {
+    table: 'account_closure_requests', owner: 'user_id', key: 'request_id', type: 'uuid', limit: 100,
+    fields: 'request_id, requested_at, eligible_at, cancelled_at',
+  },
 } as const;
 
 type Page = keyof typeof pages;
