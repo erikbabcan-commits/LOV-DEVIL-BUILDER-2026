@@ -10,6 +10,7 @@ import { aiCostContract } from '../helpers/aiCostContract';
 import { aiUsageContract } from '../helpers/aiUsageContract';
 import { generationQuotaContract } from '../helpers/generationQuotaContract';
 import { projectStorageContract } from '../helpers/projectStorageContract';
+import { authLogRetentionWindow, retainAuthLog } from '../../server/auth/logRetention';
 
 const enabled=process.env.PROJECTS_PG_E2E==='1';
 describe.skipIf(!enabled)('dedicated PostgreSQL project storage',()=>{
@@ -44,6 +45,35 @@ describe.skipIf(!enabled)('dedicated PostgreSQL project storage',()=>{
       await db.query('ALTER TABLE github_exports ADD COLUMN structural_drift TEXT');
       await expect(prepareAuthSchema(db, fingerprint)).rejects.toThrow('fingerprint mismatch');
       expect(await readSchemaFingerprint(db)).not.toBe(fingerprint);
+    } finally {
+      await close();
+    }
+  }, 15000);
+  it('retains audit events in bounded batches, skipping locks and preserving the cutoff', async () => {
+    const { db, close } = await connect();
+    try {
+      await prepareAuthSchema(db);
+      const window = authLogRetentionWindow('30', '1', new Date('2026-11-07T20:00:00Z'));
+      expect(window.before.toISOString()).toBe('2026-10-08T20:00:00.000Z');
+      const expired = new Date(window.before.getTime() - 1);
+      await db.query(`INSERT INTO auth_log (id, action, created_at)
+        VALUES ('a', 'login_failed', $1), ('b', 'login_failed', $1), ('boundary', 'login_failed', $2)`,
+      [expired, window.before]);
+      const ids = async () => (await db.query('SELECT id FROM auth_log ORDER BY id')).rows.map(row => row.id);
+
+      await db.transaction!(async tx => {
+        await tx.query('SET TRANSACTION READ ONLY');
+        expect(await retainAuthLog(tx, window, false)).toMatchObject({ mode: 'dry-run', count: 1 });
+      });
+      expect(await ids()).toEqual(['a', 'b', 'boundary']);
+      await db.transaction!(async tx => {
+        await tx.query("SELECT id FROM auth_log WHERE id = 'a' FOR UPDATE");
+        expect(await retainAuthLog(db, window, true)).toMatchObject({ mode: 'apply', count: 1 });
+        expect(await ids()).toEqual(['a', 'boundary']);
+      });
+      expect(await retainAuthLog(db, window, true)).toMatchObject({ count: 1 });
+      expect(await retainAuthLog(db, window, true)).toMatchObject({ count: 0 });
+      expect(await ids()).toEqual(['boundary']);
     } finally {
       await close();
     }

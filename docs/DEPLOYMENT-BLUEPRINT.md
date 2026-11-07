@@ -208,3 +208,19 @@ Ak Render vynúti iný interný port (10000 default pre docker), nastav `PORT` n
 - [ ] GitHub OAuth login round-trip test
 - [ ] Uptime monitor na `/api/health`
 - [ ] Backup: VPS snapshots / Railway volume backups zapnuté
+
+### Retencia auditu Hono
+
+`auth_log` eviduje registráciu, prihlásenie, neúspešné prihlásenie a odhlásenie
+v lokálnom Hono auth. Záznam obsahuje ID udalosti, akciu, čas a pri známom účte
+interné ID používateľa. Audit Lovable Cloud má samostatný životný cyklus.
+
+Po migrácii `016_auth_log_retention.sql` a určení prevádzkovej lehoty nastav
+`DATABASE_URL` pre správnu databázu a spusti `npm run auth:log-retention -- --days N`,
+kde `N` je schválená lehota v dňoch. Predvolený beh číta v read-only transakcii
+a vráti počet záznamov v jednej dávke bez identifikátorov. `--limit` mení veľkosť
+dávky (predvolene 1 000, najviac 10 000).
+
+Až beh s `--apply` odstráni jednu dávku starších záznamov. Riadky presne na hranici
+ostávajú. Zámky na jednotlivých záznamoch sa pri aplikácii preskočia. Po spracovaní
+dávok over zostávajúce záznamy znovu v read-only režime.
