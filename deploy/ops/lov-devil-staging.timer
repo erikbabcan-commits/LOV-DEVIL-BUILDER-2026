@@ -1,0 +1,11 @@
+[Unit]
+Description=Check LOV-DEVIL staging after boot and recover stopped containers
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=30s
+AccuracySec=2s
+Unit=lov-devil-staging.service
+
+[Install]
+WantedBy=timers.target

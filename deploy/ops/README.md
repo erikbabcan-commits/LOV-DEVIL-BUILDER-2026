@@ -100,3 +100,35 @@ Prešlo 395 testov (jeden preskočený, platený live smoke vylúčený) a build
 vrátane TypeScript kontroly. Frontend bol nasadený výmenou indexu až po prenose
 nových assets; staršie assets zostali dostupné otvoreným kartám. Predchádzajúci
 build je v `/root/lov-devil-frontend-rollback/20261105-public-export/dist/`.
+
+## Obnova staging API a runnera
+
+`lov-devil-staging.timer` skúsi obnovu po štarte hosta a následne každých
+30 sekúnd od skončenia poslednej kontroly. Docker restart politika oboch
+staging kontajnerov ostáva `no`. Helper pred štartom kontroluje obraz, rolu,
+loopback porty a rootless socket. API štartuje až po zdravej odpovedi runnera.
+Bežiaci kontajner pri kontrole nezastavuje ani nereštartuje.
+
+Súkromný root-owned `/etc/lov-devil/staging.env` obsahuje iba tieto názvy a
+odtlačky. Použi presné nasadené názvy a celé image ID.
+
+```dotenv
+LOV_STAGING_ROOTLESS_UID=987
+LOV_STAGING_RUNNER=lov-sandbox-runner-013-<release>
+LOV_STAGING_RUNNER_IMAGE=sha256:<image-id>
+LOV_STAGING_API=lov-devil-api-013-<release>
+LOV_STAGING_API_IMAGE=sha256:<image-id>
+```
+
+Pri plánovanej odstávke najprv zastav časovač a počkaj na skončenie služby.
+Pri výmene staging obrazu aktualizuj oba príslušné údaje v konfiguračnom súbore
+pod zámkom `/run/lock/lov-devil-stage-switch.lock`. Odložený beh pri obsadenom
+zámku dobehne pri ďalšej kontrole.
+
+```bash
+systemctl stop lov-devil-staging.timer
+systemctl is-active lov-devil-staging.service
+systemctl start lov-devil-staging.timer
+systemctl list-timers lov-devil-staging.timer --no-pager
+journalctl -u lov-devil-staging.service -n 20 --no-pager
+```

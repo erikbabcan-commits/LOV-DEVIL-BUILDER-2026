@@ -1,0 +1,16 @@
+[Unit]
+Description=Recover the pinned LOV-DEVIL staging runner and API
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/lov-devil/staging.env
+ExecStart=/usr/bin/flock -n -E 75 /run/lock/lov-devil-stage-switch.lock /usr/bin/python3 /usr/local/libexec/lov-devil/recover-staging.py
+SuccessExitStatus=75
+TimeoutStartSec=95
+ReadWritePaths=/run/lock
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
