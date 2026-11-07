@@ -21,12 +21,23 @@ function count(value: unknown): number {
 export async function weeklyProductReport(db: DbLike, week: string, now = new Date()) {
   const { start, end } = productReportWindow(week);
   // Capability check keeps the operator report usable against older API schemas.
-  const schema = await db.query(`SELECT EXISTS (
-    SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass
-      AND attname = 'first_observed_app_save_at' AND NOT attisdropped
-  ) AS present`);
-  const tracksFirstSave = schema.rows[0]?.present === true;
+  const schema = await db.query(`SELECT
+    EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass
+      AND attname = 'first_observed_app_save_at' AND NOT attisdropped) AS first_save,
+    EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'billing_events'::regclass
+      AND attname = 'positive_pro_invoice_paid_at' AND NOT attisdropped) AS positive_invoice`);
+  const tracksFirstSave = schema.rows[0]?.first_save === true;
+  const tracksPositiveInvoice = schema.rows[0]?.positive_invoice === true;
   const firstSaveColumn = tracksFirstSave ? 'first_observed_app_save_at' : 'NULL::timestamptz';
+  const positiveInvoiceCount = tracksPositiveInvoice ? `
+    CASE WHEN billing.mode = 'live' THEN (
+      SELECT COUNT(*) FROM cohort_publications p
+      CROSS JOIN LATERAL (
+        SELECT MIN(e.positive_pro_invoice_paid_at) AS paid_at FROM billing_events e
+        WHERE e.user_id = p.owner_id AND e.event_type = 'invoice.paid'
+      ) first_invoice
+      WHERE first_invoice.paid_at >= p.first_publication AND first_invoice.paid_at < $2
+    ) END` : 'NULL::bigint';
   const result = await db.query(`
     WITH publications AS (
       SELECT owner_id, project_id, updated_at
@@ -65,13 +76,14 @@ export async function weeklyProductReport(db: DbLike, week: string, now = new Da
             AND e.processed_at >= p.first_publication AND e.processed_at < $2
         )
       ) END AS cohort_live_invoice_events,
+      ${positiveInvoiceCount} AS cohort_first_positive_invoice,
       billing.mode AS billing_mode
     FROM billing`, [start, end]);
   const row = result.rows[0];
   if (result.rows.length !== 1 || !['live', 'test', 'unconfigured'].includes(row?.billing_mode))
     throw new Error('invalid_report_result');
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     periodStart: start.toISOString(),
     periodEnd: end.toISOString(),
     generatedAt: now.toISOString(),
@@ -85,8 +97,11 @@ export async function weeklyProductReport(db: DbLike, week: string, now = new Da
       withPublicationInWeek: count(row.cohort_publishers),
       withLiveInvoicePaidEventAfterPublicationInWeek: row.billing_mode === 'live'
         ? count(row.cohort_live_invoice_events) : null,
+      withFirstObservedPositiveProInvoiceAfterPublicationInWeek: tracksPositiveInvoice && row.billing_mode === 'live'
+        ? count(row.cohort_first_positive_invoice) : null,
     },
     firstAppSaveEvidence: tracksFirstSave ? 'server-observed' : 'unavailable',
+    positiveInvoiceEvidence: tracksPositiveInvoice && row.billing_mode === 'live' ? 'live-observed' : 'unavailable',
     billingEvidence: row.billing_mode as 'live' | 'test' | 'unconfigured',
   };
 }

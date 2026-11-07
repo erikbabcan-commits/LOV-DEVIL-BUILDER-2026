@@ -19,6 +19,7 @@ export interface BillingEvent {
   account?: string;
   customerId: string | null;
   checkoutSessionId: string | null;
+  positiveInvoice?: { subscriptionId: string; paidAt: number };
 }
 export interface BillingSubscription {
   id: string;

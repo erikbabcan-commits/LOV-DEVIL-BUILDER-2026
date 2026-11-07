@@ -12,6 +12,40 @@ import {
 const identifier = (value: string | { id: string } | null | undefined) =>
   typeof value === "string" ? value : (value?.id ?? null);
 
+function positiveSubscriptionInvoice(
+  event: Stripe.Event,
+): BillingEvent["positiveInvoice"] {
+  if (event.type !== "invoice.paid" || event.livemode !== true) return;
+  const invoice = event.data.object as Stripe.Invoice & {
+    subscription?: string | { id: string } | null;
+  };
+  const legacy = identifier(invoice.subscription);
+  const current =
+    invoice.parent?.type === "subscription_details"
+      ? identifier(invoice.parent.subscription_details?.subscription)
+      : null;
+  if (legacy && current && legacy !== current) return;
+  const subscriptionId = current ?? legacy;
+  const paidAt = invoice.status_transitions?.paid_at;
+  if (
+    invoice.object !== "invoice" ||
+    invoice.status !== "paid" ||
+    invoice.currency !== "eur" ||
+    invoice.livemode !== true ||
+    !Number.isSafeInteger(invoice.amount_paid) ||
+    invoice.amount_paid <= 0 ||
+    !subscriptionId ||
+    !/^sub_[A-Za-z0-9_]{1,180}$/.test(subscriptionId) ||
+    typeof paidAt !== "number" ||
+    !Number.isSafeInteger(paidAt) ||
+    paidAt <= 0 ||
+    paidAt > 253402300799 ||
+    !Number.isSafeInteger(event.created) ||
+    paidAt > event.created
+  ) return;
+  return { subscriptionId, paidAt };
+}
+
 export function verifyBillingEvent(
   raw: Buffer,
   signature: string,
@@ -27,11 +61,13 @@ export function verifyBillingEvent(
     customer?: string | { id: string };
     id?: string;
   };
+  const positiveInvoice = positiveSubscriptionInvoice(event);
   return {
     id: event.id,
     type: event.type,
     livemode: event.livemode,
     ...(event.account ? { account: event.account } : {}),
+    ...(positiveInvoice ? { positiveInvoice } : {}),
     customerId: identifier(object.customer),
     checkoutSessionId: event.type.startsWith("checkout.session.")
       ? (object.id ?? null)
