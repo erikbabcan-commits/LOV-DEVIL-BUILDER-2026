@@ -1,0 +1,57 @@
+{
+  "documentedAt": "2026-11-07T17:56:21.144622+00:00",
+  "source": "102df3e66e4cee34a471be6a040443a9b2b3d9a6",
+  "vpsCandidate": {
+    "tag": "lov-devil-api-ws19:102df3e-amd64",
+    "imageId": "sha256:47a55f1da1b4c2a547735ea90a630028234b917b8380d4f7295b29cfad067dac",
+    "platform": "linux/amd64",
+    "baseImageId": "sha256:92a4b685dba7eb9eca2672a1cba4ad92e979814a61deaef4bf1bbbd0e5dc1801",
+    "matchingBaseLayers": 10,
+    "addedLayerDiffIds": [
+      "sha256:7962cb5c911f0b269fbc435f2ba94a1bd31087bcf56e36fdf5034d0a4122abf7",
+      "sha256:1b2d908d9a80e94531baa0110aaad58c5c661ce9cbe8b29bba826ae9ccc60955"
+    ],
+    "changedFileHashesMatched": 7,
+    "contextBytes": 71680,
+    "contextSha256": "1b16c9390e3a4b8b578351ba1ad009028f5dcf1480c417258434fca6aadb8806",
+    "builder": "Docker legacy builder with exact local base ID, no pull, no network and only COPY/LABEL",
+    "initialAttempt": "The macOS tar contained provenance xattrs rejected by Linux. The candidate tag was absent after failure. Rebuilt the payload in USTAR without extended headers.",
+    "startedWithServiceConfiguration": false
+  },
+  "disk": {
+    "separateDeltaGateKiB": 2228224,
+    "freeBeforeSuccessfulBuildKiB": 2433488,
+    "freeAfterSuccessfulBuildKiB": 2433188,
+    "freeAfterIsolatedPublishKiB": 2433624,
+    "usedPercentAfter": 94,
+    "fullArchiveTransferred": false
+  },
+  "vpsVerification": {
+    "noNetworkCredentialFreeBootHttp": 200,
+    "isolatedPublish": {
+      "postgresMajor": 16,
+      "databaseStorage": "ephemeral tmpfs",
+      "internalDockerNetwork": true,
+      "publishedHostPorts": 0,
+      "apiMemoryMiB": 224,
+      "databaseMemoryMiB": 144,
+      "apiAndDatabaseCpuEach": 0.35,
+      "availableHostMemoryBeforeMiB": 905,
+      "executor": "host mode in the isolated fixture, trusted synthetic React sources",
+      "billing": "disabled",
+      "anonymousLookup": 401,
+      "ownerLookup": 200,
+      "foreignAccountLookup": null,
+      "artifactHttp": 200,
+      "publishJobs": 1,
+      "fixtureCleanedUp": true
+    },
+    "productionAndStagingContainerIdentityAndStartTimeUnchanged": true,
+    "productionDatabaseContainerUnchanged": true,
+    "productionAndStagingHealth": 200,
+    "productionAndStagingAnonymousAuth": 401,
+    "publicEditorRoot": 401,
+    "publicArtifactHostRoot": 404,
+    "canonicalLovableFlowVerified": false
+  }
+}
