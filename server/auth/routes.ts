@@ -49,7 +49,7 @@ function cookieOpts(maxAgeSeconds: number) {
 
 async function logAuth(db: DbLike, userId: string | null, action: 'register' | 'login' | 'login_failed' | 'logout'): Promise<void> {
   try {
-    await ROW(db)('INSERT INTO auth_log (user_id, action) VALUES ($1, $2)', [userId, action]);
+    await db.query('INSERT INTO auth_log (id, user_id, action) VALUES ($1, $2, $3)', [crypto.randomUUID(), userId, action]);
   } catch { /* audit log nesmie zablokovať auth flow */ }
 }
 

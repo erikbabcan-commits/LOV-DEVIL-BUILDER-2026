@@ -82,6 +82,30 @@ describe('migrácie + základ auth', () => {
     expect((await post(app, '/api/auth/login', { email: 'a@example.com', password: 'zleheslo99' })).status).toBe(401);
   });
 
+  it('records auth activity with distinct IDs and without retaining an unknown email', async () => {
+    const app = authApp(db);
+    const credentials = { email: 'audit@example.test', password: 'heslo1234' };
+    const registered = await post(app, '/api/auth/register', credentials);
+    expect(registered.status).toBe(200);
+    const { user } = await registered.json();
+    expect((await post(app, '/api/auth/login', { ...credentials, password: 'zleheslo99' })).status).toBe(401);
+    expect((await post(app, '/api/auth/login', { ...credentials, email: 'unknown@example.test' })).status).toBe(401);
+    const loggedIn = await post(app, '/api/auth/login', credentials);
+    expect(loggedIn.status).toBe(200);
+    const token = /lov_token=([^;]+)/.exec(loggedIn.headers.get('set-cookie') ?? '')?.[1];
+    expect((await post(app, '/api/auth/logout', {}, { Cookie: `lov_token=${token}` })).status).toBe(200);
+
+    const { rows } = await db.query('SELECT id, user_id, action FROM auth_log');
+    expect(new Set(rows.map(row => row.id)).size).toBe(5);
+    expect(rows.map(({ user_id, action }) => ({ user_id, action }))).toEqual(expect.arrayContaining([
+      { user_id: user.id, action: 'register' },
+      { user_id: user.id, action: 'login' },
+      { user_id: user.id, action: 'login_failed' },
+      { user_id: user.id, action: 'logout' },
+      { user_id: null, action: 'login_failed' },
+    ]));
+  });
+
   it('chránené API bez tokenu → 401; bez CSRF hlavičky → 403; so CSRF → prejde k endpointu', async () => {
     const app = authApp(db);
     const noAuth = await post(app, '/api/sandbox/build', { files: [] });
