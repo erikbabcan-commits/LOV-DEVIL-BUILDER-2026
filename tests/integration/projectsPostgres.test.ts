@@ -1,9 +1,10 @@
 // @vitest-environment node
-import { describe } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { projectContract } from '../helpers/projectContract';
 import { dbFromPool } from '../../server/db/pool';
+import { listMigrations, prepareAuthSchema, readSchemaFingerprint } from '../../server/db/migrate';
 import { providerResilienceContract } from '../helpers/providerResilienceContract';
 import { aiCostContract } from '../helpers/aiCostContract';
 import { aiUsageContract } from '../helpers/aiUsageContract';
@@ -24,6 +25,29 @@ describe.skipIf(!enabled)('dedicated PostgreSQL project storage',()=>{
       await pool.end();try{await admin.query('DROP SCHEMA '+schema+' CASCADE');}finally{await admin.end();}
     }};
   };
+  it('verifies a pinned schema without replaying DDL and rejects structural drift', async () => {
+    const { db, close } = await connect();
+    try {
+      await expect(readSchemaFingerprint(db)).rejects.toThrow('empty application schema');
+      expect(await prepareAuthSchema(db)).toEqual(listMigrations().map(migration => migration.name));
+      const fingerprint = await readSchemaFingerprint(db);
+      expect(fingerprint).toMatch(/^[0-9a-f]{64}$/);
+
+      await db.query("INSERT INTO users(id,email,password_hash) VALUES ('fixture','fixture@example.test','synthetic')");
+      expect(await readSchemaFingerprint(db)).toBe(fingerprint);
+      await db.transaction!(async tx => {
+        await tx.query('LOCK TABLE github_exports IN ACCESS SHARE MODE');
+        expect(await prepareAuthSchema(db, fingerprint)).toBeNull();
+      });
+      await expect(prepareAuthSchema(db, '')).rejects.toThrow('lowercase SHA-256');
+
+      await db.query('ALTER TABLE github_exports ADD COLUMN structural_drift TEXT');
+      await expect(prepareAuthSchema(db, fingerprint)).rejects.toThrow('fingerprint mismatch');
+      expect(await readSchemaFingerprint(db)).not.toBe(fingerprint);
+    } finally {
+      await close();
+    }
+  }, 15000);
   projectContract('real PostgreSQL owner isolation, CAS, history and recovery',connect,true);
   projectStorageContract('real PostgreSQL storage quotas and pinned transaction races',connect,true);
   generationQuotaContract(connect);

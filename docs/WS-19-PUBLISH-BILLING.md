@@ -474,6 +474,27 @@ Dôkazy: [hostovaný prenos a hranice](../deploy/lovable-github/proof/PUBLISH-BI
 [VPS readiness](../deploy/lovable-github/proof/WS19-DEPLOYMENT-READINESS.json),
 [Stripe inventúra](../deploy/lovable-github/proof/WS19-STRIPE-SANDBOX-INVENTORY.json).
 
+## Štart nad pripravenou databázou
+
+Predvolený štart s `AUTH_ENABLED=1` prehráva migrácie. Migrácia 006 počas
+replay vyžaduje zámok na `github_exports`, aj keď výsledná schéma ostáva
+rovnaká. Pre výmenu API nad už migrovanou databázou sa dá nastaviť
+`DATABASE_SCHEMA_SHA256`.
+
+1. V izolovanej referenčnej databáze rovnakej hlavnej verzie PostgreSQL
+   aplikuj migrácie presného release. Použi rovnaký cieľový namespace.
+2. Z referenčnej databázy aj cieľa získaj odtlačok príkazom
+   `npm run db:migrate -- --schema-fingerprint` s príslušným súkromným
+   `DATABASE_URL`. Príkaz používa transakciu iba na čítanie.
+3. Nastav `DATABASE_SCHEMA_SHA256` iba ak sú oba odtlačky zhodné. Pri
+   nesúlade štart skončí pred otvorením listenerov a migrácie sa nespustia.
+   Pri plánovanej migrácii aplikuj SQL samostatne, potom over nový odtlačok.
+
+Odtlačok zahŕňa súbory migrácií, hlavnú verziu PostgreSQL, namespace a
+metadáta tabuliek, stĺpcov, obmedzení a indexov. Neporovnáva obsah tabuliek
+ani prevádzkové oprávnenia. Existujúce readiness kontroly zapnutých
+funkcií ostávajú súčasťou štartu.
+
 ## Reprodukovateľný lokálny browser priechod
 
 Všetky tri kroky sú iba lokálne. Fixture vytvorí dočasnú SQL databázu a adresár
