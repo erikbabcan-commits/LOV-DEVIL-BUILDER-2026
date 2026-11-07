@@ -474,6 +474,14 @@ export class BillingService {
                   "forge-" + this.mode + "-checkout:" + attempt.request_id,
                 );
             this.validateSession(value, customer);
+            if (value.status === "complete") {
+              await this.reconcile(tx, userId, customer);
+              await tx.query(
+                "UPDATE billing_checkout_attempts SET state='complete',session_id=$2,session_url=NULL WHERE request_id=$1",
+                [attempt.request_id, value.id],
+              );
+              return new BillingError("billing_subscription_exists", 409);
+            }
             if (
               value.status === "expired" ||
               value.expiresAt <= seconds(this.now())
@@ -483,14 +491,6 @@ export class BillingService {
                 [attempt.request_id, value.id],
               );
               return new BillingError("billing_checkout_expired", 409);
-            }
-            if (value.status === "complete") {
-              await tx.query(
-                "UPDATE billing_checkout_attempts SET state='complete',session_id=$2,session_url=NULL WHERE request_id=$1",
-                [attempt.request_id, value.id],
-              );
-              await this.reconcile(tx, userId, customer);
-              return new BillingError("billing_subscription_exists", 409);
             }
             const url = trustedUrl(value.url, "checkout.stripe.com");
             await tx.query(
@@ -504,7 +504,7 @@ export class BillingService {
             );
             return { url };
           } catch (error) {
-            return error instanceof BillingError
+            throw error instanceof BillingError
               ? error
               : new BillingError("billing_provider_unavailable");
           }

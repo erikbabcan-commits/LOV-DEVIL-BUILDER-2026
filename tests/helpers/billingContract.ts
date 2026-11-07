@@ -367,6 +367,45 @@ export function billingContract(
       expect((await recovered.json()).userId).toBe("alice");
       expect(gateway.createCheckout).toHaveBeenCalledTimes(1);
     });
+    it("recovers a completed checkout past its expiry deadline after a reconciliation failure", async () => {
+      const { requestId } = await beginCheckout();
+      const [session] = gateway.sessions.values();
+      session.status = "complete";
+      const retry = () =>
+        post("/api/billing/checkout", { interval: "month", requestId });
+      const attempt = async () =>
+        (
+          await db.query(
+            "SELECT state,session_url FROM billing_checkout_attempts WHERE request_id=$1",
+            [requestId],
+          )
+        ).rows[0];
+
+      gateway.checkout.mockImplementationOnce(async () => {
+        gateway.subscriptions.mockRejectedValueOnce(new Error("Stripe offline"));
+        return session;
+      });
+      const unavailable = await retry();
+      expect(unavailable.status).toBe(503);
+      expect(await unavailable.json()).toEqual({
+        error: "billing_provider_unavailable",
+      });
+      expect((await attempt()).state).toBe("ready");
+
+      session.expiresAt = seconds() - 1;
+      gateway.checkout.mockImplementationOnce(async () => {
+        gateway.data = [billingSubscription(session.customerId)];
+        return session;
+      });
+      const completed = await retry();
+      expect(completed.status).toBe(409);
+      expect(await completed.json()).toEqual({
+        error: "billing_subscription_exists",
+      });
+      expect(await attempt()).toEqual({ state: "complete", session_url: null });
+      expect((await quota.usage("alice")).plan).toBe("pro");
+      expect(gateway.createCheckout).toHaveBeenCalledTimes(1);
+    });
     it("never shares a checkout request UUID or customer binding with another account", async () => {
       const { requestId } = await beginCheckout("alice");
       expect(
