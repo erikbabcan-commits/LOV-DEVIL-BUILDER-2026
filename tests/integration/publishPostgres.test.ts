@@ -124,6 +124,116 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect((await db.query("SELECT COUNT(*)::int AS n FROM publish_jobs")).rows[0].n).toBe(1);
   });
 
+  it("keeps the last active publication across newer revisions, failed attempts and withdrawal", async () => {
+    const compiler = {
+      ready: async () => ({ ready: true, mode: "isolated" as const }),
+      execute: vi.fn<SandboxExecutor["execute"]>()
+        .mockResolvedValueOnce(output)
+        .mockResolvedValueOnce(output)
+        .mockResolvedValueOnce({ ...output, ok: false, html: null })
+        .mockResolvedValueOnce(output),
+    };
+    let clock = Date.now();
+    const value = new PublishService(db, config, compiler, { now: () => clock });
+    services.push(value);
+    const app = api(value);
+    const latestPath = "/api/publish/project/project-one/latest";
+    const lookup = (token = alice) => app.request(latestPath, { headers: headers(token) });
+
+    expect(await (await lookup()).json()).toBeNull();
+    await value.start("alice", selection);
+    await value.settled();
+    const first = await value.status("alice", selection.requestId);
+    expect(first.state).toBe("published");
+
+    const other = { ...selection, projectId: "project-other", requestId: randomUUID() };
+    await db.query(
+      `INSERT INTO builder_projects(owner_id,project_id,title,revision,workspace)
+       SELECT owner_id,$3,title,revision,workspace FROM builder_projects WHERE owner_id=$1 AND project_id=$2`,
+      ["alice", selection.projectId, other.projectId],
+    );
+    clock += 1000;
+    await value.start("alice", other);
+    await value.settled();
+    expect(await value.latestPublished("alice", other.projectId)).toMatchObject({
+      projectId: other.projectId, requestId: other.requestId,
+    });
+
+    await db.query("UPDATE builder_projects SET revision=2 WHERE owner_id=$1 AND project_id=$2", ["alice", "project-one"]);
+    clock += 1000;
+    const second = { ...selection, expectedRevision: 2, requestId: randomUUID() };
+    await value.start("alice", second);
+    await value.settled();
+    expect((await value.status("alice", second.requestId)).state).toBe("failed");
+    const response = await lookup();
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual(first);
+    const publicApp = publicPublishApp(config, db, value.artifacts);
+    expect((await publicApp.request(first.url!, {
+      headers: { Host: "127.0.0.1:8791" },
+    })).status).toBe(200);
+    expect(await (await lookup(bob)).json()).toBeNull();
+    const cloud = new Hono();
+    cloud.use("/api/*", makeAuthMiddleware(secret, {
+      resolve: async (token) => token === "fixture.cloud.jwt"
+        ? { id: "alice", email: "alice@publish-native.example.test", plan: "free" }
+        : null,
+    }));
+    cloud.route("/", publishRouter(value, () => true));
+    expect(await (await cloud.request(latestPath, {
+      headers: { Authorization: "Bearer fixture.cloud.jwt" },
+    })).json()).toEqual(first);
+    expect((await app.request(latestPath)).status).toBe(401);
+    expect((await app.request(latestPath + "?owner=bob", { headers: headers(alice) })).status).toBe(400);
+
+    clock += 1000;
+    const third = { ...second, requestId: randomUUID() };
+    await value.start("alice", third);
+    await value.settled();
+    expect(await (await lookup()).json()).toMatchObject({ requestId: third.requestId, revision: 2 });
+    await value.withdraw("alice", third.requestId);
+    expect(await (await lookup()).json()).toEqual(first);
+    await db.query("UPDATE builder_projects SET deleted_at=now() WHERE owner_id=$1 AND project_id=$2", ["alice", "project-one"]);
+    expect(await (await lookup()).json()).toBeNull();
+    expect(compiler.execute).toHaveBeenCalledTimes(4);
+  });
+
+  it("prefers a newer revision when an older build finishes later", async () => {
+    let clock = Date.now();
+    const olderCompiler = deferredCompiler();
+    const newerCompiler = deferredCompiler();
+    const older = new PublishService(db, config, olderCompiler, { now: () => clock });
+    const newer = new PublishService(db, config, newerCompiler, { now: () => clock });
+    services.push(older, newer);
+
+    expect((await older.start("alice", selection)).state).toBe("building");
+    await db.query(
+      "UPDATE builder_projects SET revision=2 WHERE owner_id=$1 AND project_id=$2",
+      ["alice", selection.projectId],
+    );
+    clock += 1000;
+    const newerSelection = { ...selection, expectedRevision: 2, requestId: randomUUID() };
+    expect((await newer.start("alice", newerSelection)).state).toBe("building");
+    newerCompiler.release();
+    await newer.settled();
+    expect(await newer.latestPublished("alice", selection.projectId)).toMatchObject({
+      requestId: newerSelection.requestId, revision: 2,
+    });
+
+    clock += 1000;
+    olderCompiler.release();
+    await older.settled();
+    expect((await older.status("alice", selection.requestId)).state).toBe("published");
+    expect(await older.latestPublished("alice", selection.projectId)).toMatchObject({
+      requestId: newerSelection.requestId, revision: 2,
+    });
+
+    await newer.withdraw("alice", newerSelection.requestId);
+    expect(await older.latestPublished("alice", selection.projectId)).toMatchObject({
+      requestId: selection.requestId, revision: 1,
+    });
+  });
+
   it("withdraws only an owned published URL without changing its artifact or publication history", async () => {
     const compiler = deferredCompiler(), value = service(compiler), app = api(value);
     const first = await value.start("alice", selection);

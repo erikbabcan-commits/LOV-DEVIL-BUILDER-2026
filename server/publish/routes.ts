@@ -84,6 +84,19 @@ export function publishRouter(
       return c.json({ error: "rate_limit" }, 429);
     return c.json(await service.publishedVersion(user.id, version.data));
   });
+  router.get("/api/publish/project/:projectId/latest", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search)
+      return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    if (!project.success)
+      return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-status:" + user.id))
+      return c.json({ error: "rate_limit" }, 429);
+    return c.json(await service.latestPublished(user.id, project.data));
+  });
   router.get("/api/publish/:requestId", async (c) => {
     const user = getUserFromContext(c);
     if (!user) return c.json({ error: "unauthenticated" }, 401);
