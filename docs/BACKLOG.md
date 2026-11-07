@@ -1,6 +1,6 @@
 # 🔥 Forge — kompletný backlog
 
-**Aktualizované 7. 11. 2026:** Produkčný Nginx smeruje Basic-chránené `/api/` na runtime `daf3321` (loopback 8788, schéma 015). Health, anonymná HTTP 401 a systemd obnova prešli. Prihlásený Cloud/BFF tok, verejný Publish cez Lovable a živý Stripe zostávajú otvorené. [Prevádzkový záznam](WS-19-PUBLISH-BILLING.md#produkčný-obraz-daf3321-a-schéma-015--7-11-2026).
+**Aktualizované 7. 11. 2026:** Produkčný Nginx smeruje Basic-chránené `/api/` na runtime `aba5cf4` (loopback 8788, schéma 018). Health, anonymná HTTP 401, systemd obnova a verejná publikačná trasa s `no-store` prešli. Prihlásený Cloud/BFF tok, verejný Publish cez Lovable a živý Stripe zostávajú otvorené. [Prevádzkový záznam](WS-19-PUBLISH-BILLING.md#produkčný-obraz-aba5cf4-a-schéma-018--7-11-2026).
 
 **Mobilná obnova katalógu modelov · FORGE-106/1103/1107:** Kandidát `f99b95d` zobrazuje dôvod nedostupnosti pri zadávaní a umožňuje upraviť rozpísaný text aj pred obnovou katalógu. Lokálny Chromium pri 320, 390 a 1280 px overil simulovanú HTTP 502, ručnú obnovu, zachovanie textu bez automatického AI POST a viditeľné ovládanie. Prešlo 60 testov z čistého Git checkoutu, TypeScript, lint zmenených súborov a lokálny produkčný build. Produkčná chyba zostáva otvorená. [Frontend návrh](https://github.com/erikbabcan-commits/vorkeeei/pull/11).
 
@@ -957,7 +957,7 @@ serverovej konfigurácie; žiadne predplatné sa teraz nepredáva.
 | 1002 | Prompt injection ochrana (P8) + content moderácia uploadov | eval: < 2 % prienik | M | Otvorené |
 | 1003 | Šifrovanie secrets vault (KMS), rotácia kľúčov | audit: secrets nikdy v logoch | M | Otvorené — všeobecný KMS vault a rotácia chýbajú; OAuth session majú samostatné šifrovanie |
 | 1004 | Rate limiting + abuse monitoring per účet/IP | anti-scraper, anti-mining | M | Čiastočne — rate/admission limity; úplný abuse monitoring chýba |
-| 1005 | GDPR: DPA, mazanie účtu + export dát, logs retention | súlad od dňa 1 (EU trh) | M | Čiastočne — audit a retencia Hono, export údajov Hono, podanie a odvolanie žiadosti o zrušenie účtu po dobu najmenej 30 dní. Trvalé zrušenie vrátane externých služieb, produkčné overenie, Cloud logy a DPA zostávajú otvorené. [Prevádzkový postup](DEPLOYMENT-BLUEPRINT.md#žiadosť-o-zrušenie-účtu) |
+| 1005 | GDPR: DPA, mazanie účtu + export dát, logs retention | súlad od dňa 1 (EU trh) | M | Čiastočne — audit a retencia Hono, export údajov Hono, podanie a odvolanie žiadosti o zrušenie účtu po dobu najmenej 30 dní. Backend je nasadený na VPS. Prihlásený Lovable tok, trvalé zrušenie vrátane externých služieb, Cloud logy a DPA zostávajú otvorené. [Prevádzkový postup](DEPLOYMENT-BLUEPRINT.md#žiadosť-o-zrušenie-účtu) |
 | 1006 | SOC 2 Type II cesta (M5) | 12-mesiac observačnosť, security program | XL | Otvorené |
 | 1007 | Zálohy, DR, uptime statusy (99.9 % Enterprise) | RTO/RPO definované, status page | M | Čiastočne — predchádzajúce PG backup/restore overenie; celý DR, RTO/RPO a SLA otvorené |
 
@@ -978,7 +978,7 @@ serverovej konfigurácie; žiadne predplatné sa teraz nepredáva.
 
 | ID | Položka | Akceptačné kritériá | Odhad | Stav k 6. 11. 2026 |
 |---|---|---|---|---|
-| 1201 | Produktová analytika (funnel: signup → 1. appka → publish → platba) | North Star: „publikované appky / týždeň" | M | Čiastočne. Read-only týždenný report a serverový čas prvého pozorovaného uloženia. Migrácia 015 a API daf3321 sú aktívne na VPS. Meranie prvej nenulovej živej Pro faktúry prešlo izolovaným testom. Billing je v produkcii vypnutý. Historické prvé uloženia a živé overenie fakturácie zostávajú otvorené. |
+| 1201 | Produktová analytika (funnel: signup → 1. appka → publish → platba) | North Star: „publikované appky / týždeň" | M | Čiastočne. Read-only týždenný report a serverový čas prvého pozorovaného uloženia. Meranie z migrácie 015 je súčasťou aktívnej schémy 018 na VPS. Meranie prvej nenulovej živej Pro faktúry prešlo izolovaným testom. Billing je v produkcii vypnutý. Historické prvé uloženia a živé overenie fakturácie zostávajú otvorené. |
 | 1202 | Interný dashboard: LLM costy per user/plán | margin > 70 % na Pro pláne | M | Čiastočne — read-only CLI/offline cost dashboard; živé ceny, príjmy a >70 % marža nedoložené |
 | 1203 | Zákaznícke analytiky pre ich appky (opt-in) | Forge = analytics pre end-userov (pridaná hodnota) | M | Otvorené |
 | 1204 | Support: ticketing + znalostná báza + SLA per plán | < 5 % ticketov na chybu AI | M | Otvorené |
