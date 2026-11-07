@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Globe } from "lucide-react";
+import { Globe, RefreshCw } from "lucide-react";
 import { useForge } from "@/lib/forge-context";
 import { honoFetch } from "@/lib/hono-client";
 import {
@@ -27,6 +27,12 @@ const rejectedInput: Record<string, number> = {
   publish_invalid_request: 400,
   publish_input_limit: 413,
 };
+const unavailableMessages = {
+  storage_unavailable:
+    "Publikačné úložisko teraz nie je pripravené alebo nemá dostatok voľného miesta.",
+  sandbox_unavailable: "Izolovaný build teraz nie je pripravený.",
+  disabled: "Publikovanie ešte nie je nakonfigurované. Tvoj projekt zostáva uložený.",
+};
 class PublishCallError extends Error {
   constructor(
     readonly status: number,
@@ -45,9 +51,14 @@ function sameSelection(left: PublishSelection | null, right: PublishSelection) {
     left.publicConsent === right.publicConsent
   );
 }
+type PublishAvailability =
+  | { status: "checking" | "error" }
+  | { status: "checked"; value: ReturnType<typeof PublishReady.parse> };
+
 function PublishDialog() {
   const { state, controller } = useForge(),
-    [ready, setReady] = useState<ReturnType<typeof PublishReady.parse> | null>(null),
+    [availability, setAvailability] = useState<PublishAvailability>({ status: "checking" }),
+    [availabilityCheck, setAvailabilityCheck] = useState(0),
     [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -66,8 +77,8 @@ function PublishDialog() {
     key = "forge-publish:v1:" + encodeURIComponent(owner) + ":" + encodeURIComponent(state.id);
   const activeController = useRef(controller);
   activeController.current = controller;
+  const ready = availability.status === "checked" ? availability.value : null;
   useEffect(() => {
-    setReady(null);
     setJob(null);
     setError("");
     setConsent(false);
@@ -76,18 +87,24 @@ function PublishDialog() {
     setPendingSelection(readPendingPublish(key));
     const abort = new AbortController();
     lifetime.current = abort;
-    void honoFetch("publish", { signal: abort.signal, expectedUserId: owner })
-      .then(async (r) => {
-        if (!r.ok) throw new Error("Prepojenie publikačnej služby nie je dostupné.");
-        const value = PublishReady.parse(await r.json());
-        if (!abort.signal.aborted) setReady(value);
-      })
-      .catch((e) => {
-        if (!abort.signal.aborted)
-          setError(e instanceof Error ? e.message : "Publikovanie sa nepodarilo overiť.");
-      });
     return () => abort.abort();
   }, [owner, controller, key]);
+  useEffect(() => {
+    setAvailability({ status: "checking" });
+    const abort = new AbortController();
+    const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(10000)]);
+    void honoFetch("publish", { signal, expectedUserId: owner })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("publish_readiness_unavailable");
+        const value = PublishReady.parse(await response.json());
+        signal.throwIfAborted();
+        setAvailability({ status: "checked", value });
+      })
+      .catch(() => {
+        if (!abort.signal.aborted) setAvailability({ status: "error" });
+      });
+    return () => abort.abort();
+  }, [owner, controller, key, availabilityCheck]);
   const snapshot = workspace.snapshots.find((s) => s.id === workspace.liveId),
     supported = !!snapshot?.sourceFiles && workspace.files.some((f) => f.name === "src/main.tsx");
   async function call(path: string, body?: unknown, signal = lifetime.current.signal) {
@@ -365,24 +382,48 @@ function PublishDialog() {
         databázy generovanej aplikácie sa týmto krokom nenasadzujú. Po spustení publikovanie
         pokračuje aj po zavretí okna.
       </p>
-      {!ready && !error && <p role="status">Overujem publikačnú službu…</p>}
-      {ready && !ready.ready && (
-        <p role="status">
-          {ready.reason === "storage_unavailable"
-            ? "Publikačné úložisko teraz nie je pripravené alebo nemá dostatok voľného miesta."
-            : ready.enabled
-              ? "Izolovaný build teraz nie je pripravený. Skús to neskôr."
-              : "Publikovanie ešte nie je nakonfigurované. Tvoj projekt zostáva uložený."}
-        </p>
-      )}
+      <section
+        aria-label="Dostupnosť publikovania"
+        className="rounded-lg border border-border bg-muted/30 p-3"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium">Dostupnosť hostingu</p>
+          <Btn
+            variant="ghost"
+            size="sm"
+            disabled={busy || availability.status === "checking"}
+            onClick={() => setAvailabilityCheck((check) => check + 1)}
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            Obnoviť dostupnosť
+          </Btn>
+        </div>
+        {availability.status === "error" ? (
+          <p role="alert" className="mt-1 text-sm text-destructive">
+            Dostupnosť publikačnej služby sa nepodarilo overiť.
+          </p>
+        ) : (
+          <p role="status" className="mt-1 text-sm text-muted-foreground">
+            {!ready
+              ? "Overujem publikačnú službu…"
+              : ready.ready
+                ? "Publikačná služba je pripravená."
+                : unavailableMessages[
+                    ready.reason ?? (ready.enabled ? "sandbox_unavailable" : "disabled")
+                  ]}
+          </p>
+        )}
+        {ready?.publicOrigin && (
+          <p className="mt-1 break-all text-xs text-muted-foreground">
+            Verejný hosting: {ready.publicOrigin}
+          </p>
+        )}
+      </section>
       {!supported && (
         <p role="alert">
           Publikovanie potrebuje schválenú React verziu s úplnými zdrojmi. Najprv vytvor alebo otvor
           projekt.
         </p>
-      )}
-      {ready?.publicOrigin && (
-        <p className="break-all text-xs">Verejný hosting: {ready.publicOrigin}</p>
       )}
       {pendingSelection && (
         <p role="status" className="text-xs">
@@ -437,9 +478,11 @@ function PublishDialog() {
         </div>
       )}
       <div className="flex flex-wrap justify-end gap-2">
-        <Btn disabled={busy || !ready?.enabled} onClick={() => void recover()}>
-          Overiť stav
-        </Btn>
+        {pendingSelection && (
+          <Btn disabled={busy || !ready?.enabled} onClick={() => void recover()}>
+            Overiť stav
+          </Btn>
+        )}
         <Btn
           variant="primary"
           disabled={

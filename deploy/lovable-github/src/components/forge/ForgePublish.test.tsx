@@ -449,6 +449,63 @@ describe("real publication dialog", () => {
     expect(call?.[1].body).not.toHaveProperty("url");
     expect(call?.[1].expectedUserId).toBe("alice");
   });
+  it("rechecks unavailable hosting in place without saving or submitting a publication", async () => {
+    let resolveRetry!: (response: Response) => void;
+    mock.hono.mockRejectedValueOnce(new Error("private upstream response")).mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveRetry = resolve;
+        }),
+    );
+    show();
+    fireEvent.click(screen.getByRole("button", { name: "Publikovať" }));
+    const error = await screen.findByRole("alert");
+    expect(error).toHaveTextContent("Dostupnosť publikačnej služby sa nepodarilo overiť.");
+    expect(error).not.toHaveTextContent("private upstream response");
+    const refresh = screen.getByRole("button", { name: "Obnoviť dostupnosť" });
+    fireEvent.click(refresh);
+    expect(screen.getByText("Overujem publikačnú službu…")).toBeInTheDocument();
+    expect(refresh).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Publikovať verejne" })).toBeDisabled();
+
+    await act(async () => resolveRetry(Response.json(ready)));
+    expect(screen.getByText("Publikačná služba je pripravená.")).toBeInTheDocument();
+    expect(refresh).toBeEnabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Publikovať verejne" })).toBeDisabled();
+    expect(save).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("forge-publish:v1:alice:p1")).toBeNull();
+    expect(mock.hono.mock.calls.map(([path, init]) => [path, init?.body])).toEqual([
+      ["publish", undefined],
+      ["publish", undefined],
+    ]);
+    expect(mock.hono.mock.calls[1]?.[1].expectedUserId).toBe("alice");
+  });
+  it("keeps an earlier receipt separate from hosting refresh and available during a build outage", async () => {
+    const { selection } = await startUncertain();
+    const key = "forge-publish:v1:alice:p1";
+    const receipt = sessionStorage.getItem(key);
+    const callsBeforeRefresh = mock.hono.mock.calls.length;
+    mock.hono.mockImplementation(async (path, init) =>
+      path === "publish" && !init?.body
+        ? Response.json({ ...ready, ready: false, reason: "sandbox_unavailable" })
+        : responseJob(selection),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Obnoviť dostupnosť" }));
+    await screen.findByText("Izolovaný build teraz nie je pripravený.");
+    expect(sessionStorage.getItem(key)).toBe(receipt);
+    expect(mock.hono.mock.calls.slice(callsBeforeRefresh).map(([path]) => path)).toEqual([
+      "publish",
+    ]);
+    expect(screen.getByRole("button", { name: "Publikovať verejne" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Overiť stav" }));
+    await screen.findByRole("link", { name: "Otvoriť publikovanú aplikáciu" });
+    expect(mock.hono.mock.calls.at(-1)?.[0]).toBe("publish/" + selection["requestId"]);
+    expect(sessionStorage.getItem(key)).toBeNull();
+  });
   it("shows disabled hosting honestly and never starts a publication", async () => {
     mock.hono.mockResolvedValue(
       Response.json({
