@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth-state";
 import { AiUsageSchema, type AiUsage } from "@/lib/ai-usage";
 import { Btn } from "./ui";
+import { AccountDataExport } from "./AccountDataExport";
 const BillingPanel = lazy(() =>
   import("./BillingPanel").then((module) => ({ default: module.BillingPanel })),
 );
@@ -217,6 +218,15 @@ export function ConnectionPanel({ onClose }: { onClose: () => void }) {
               accessToken={s.session.access_token}
             />
           </Suspense>
+        )}
+      {s.status === "signed-in" && userId && s.session?.access_token &&
+        acct?.state === "linked" && acct.userId && (
+          <AccountDataExport
+            key={userId + ":" + acct.userId}
+            cloudUserId={userId}
+            honoUserId={acct.userId}
+            accessToken={s.session.access_token}
+          />
         )}
       <div className="mt-3 flex justify-end gap-2">
         {s.status === "signed-out" ? (
