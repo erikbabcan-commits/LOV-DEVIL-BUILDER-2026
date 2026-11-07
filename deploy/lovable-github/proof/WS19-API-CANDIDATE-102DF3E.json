@@ -1,0 +1,57 @@
+{
+  "documentedAt": "2026-11-07T17:47:43.537904+00:00",
+  "source": "102df3e66e4cee34a471be6a040443a9b2b3d9a6",
+  "stageBase": {
+    "source": "d9b279b56f370982b69b43a51827121564c3d52d",
+    "activeVpsImageConfig": "sha256:92a4b685dba7eb9eca2672a1cba4ad92e979814a61deaef4bf1bbbd0e5dc1801",
+    "localManifest": "sha256:f40d9eaf57cc1d143e4bb7d15bb8fe31826848cfc67274258bf2590559688e70",
+    "matchingLayerDiffIds": 10
+  },
+  "candidate": {
+    "platform": "linux/amd64",
+    "manifest": "sha256:302e34986d76e5c8333367baf194d063ffe9d60a117f7b8c363879c382777c28",
+    "imageConfig": "sha256:a4f85a979974172f23ad9cb22ffcffb481c61a8ceb185cc12dfeaaa73067ab5e",
+    "archive": "lov-devil-api-102df3e-amd64.tar.gz",
+    "archiveBytes": 103192120,
+    "archiveSha256": "4065d3ae43f66dcb7096709842704561767398a9c401edf0d4a825b8675eb93f",
+    "verifiedLayerDiffIds": 12,
+    "addedLayerBytesUncompressed": 71680,
+    "allLayerBytesUncompressed": 371496448,
+    "sourceFilesMatchedBySha256": 7,
+    "checkedCredentialEnvironmentKeysInImage": 0,
+    "rootEnvFilesPresent": false
+  },
+  "localContainerSmoke": {
+    "network": "internal Docker network with no published host ports",
+    "database": "disposable PostgreSQL 18",
+    "apiUid": 65532,
+    "apiFilesystem": "read-only with temporary writable storage",
+    "compileExecutor": "host mode inside the isolated test container",
+    "billing": "disabled",
+    "health": 200,
+    "anonymousPublishLookup": 401,
+    "ownerSavedLink": 200,
+    "foreignAccountLookup": null,
+    "artifactHttp": 200,
+    "publishJobs": 1,
+    "fixtureCleanedUp": true
+  },
+  "freshVpsReadOnly": {
+    "freeRootBytes": 2596614144,
+    "rootUsedPercent": 94,
+    "productionHealth": 200,
+    "stagingHealth": 200,
+    "productionAndStagingAnonymousAuth": 401,
+    "publicEditorRoot": 401,
+    "publicArtifactHostRoot": 404,
+    "candidateUploadedOrLoaded": false
+  },
+  "capacityAdmission": {
+    "method": "Archive plus all expanded layer bytes, existing publish free-space floor and an independent operator reserve. Does not assume shared-layer reuse during load.",
+    "publishFreeSpaceFloorBytes": 1073741824,
+    "operatorReserveBytes": 1073741824,
+    "minimumFreeBytes": 2622172216,
+    "shortfallBytes": 25558072,
+    "result": "HOLD"
+  }
+}

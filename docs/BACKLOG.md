@@ -14,6 +14,8 @@
 
 **Obnova publikovaného odkazu · FORGE-606 · 7. 11. 2026.** Lovable po reloade načíta z Hono posledný úspešný Publish aktuálnej uloženej revízie a snapshotu. Overenie je iba na čítanie, bez nového build jobu. Lokálny Chromium test potvrdil rovnakú URL po reloade a nulový výsledok pre iný účet. Prešlo **1 119 backendových a 200 UI testov**, **168/168 integračných testov na PostgreSQL 16 aj 18**, typy, lokálne buildy a lint zmenených UI súborov. Nasadenie na VPS a hostované overenie zostávajú otvorené.
 
+**Kandidát API `102df3e` · 7. 11. 2026.** Lokálny linux/amd64 obraz pridáva sedem zmenených runtime súborov nad staging základom so zhodnými 10 vrstvami. Overili sa všetky vrstvy archívu a reálny Publish v kontajneri s dočasnou PostgreSQL 18. VPS má zdravé pôvodné aj staging API a 94 % zaplnenie disku. Konzervatívna kapacitná brána je **HOLD**. Kandidát ostal lokálny, produkčný aj staging runtime sú bez výmeny. [Odtlačky a presné merania](../deploy/lovable-github/proof/WS19-API-CANDIDATE-102DF3E.json).
+
 **Cieľ:** plnohodnotný AI editor s reálnym hostingom a plateným predplatným.
 **Stav:** lokálne overený pilot a nové UI v hostovanom live preview; žiadny z míľnikov M1–M6 nie je uzavretý.
 **Cieľ je znovu aktívny:** pokračujeme podľa pôvodného backlogu. Aktuálna priorita je
