@@ -12,7 +12,10 @@ import {
   billingLivemode,
   type BillingMode,
 } from "./config";
-import { initializeBillingEnvironment } from "./environment";
+import {
+  assertBillingEnvironment,
+  initializeBillingEnvironment,
+} from "./environment";
 export {
   initializeBillingEnvironment,
   assertBillingEnvironment,
@@ -243,6 +246,7 @@ export class BillingService {
     userId: string,
     customerId: string,
     checkoutSubscriptionId?: string,
+    requireCheckoutSubscription = false,
   ) {
     let list: Awaited<ReturnType<BillingGateway["subscriptions"]>>;
     try {
@@ -284,6 +288,9 @@ export class BillingService {
       )
     )
       throw new BillingError("billing_provider_unavailable");
+    const checkoutSubscription = list.data.find((sub) => sub.id === checkoutSubscriptionId);
+    if (requireCheckoutSubscription && !checkoutSubscription)
+      throw new BillingError("billing_reconciliation_required", 409);
     const recognized = list.data.filter(
       (sub) =>
         sub.itemsCount === 1 &&
@@ -316,9 +323,6 @@ export class BillingService {
     const terminal = (sub: BillingSubscription) =>
       sub.status === "canceled" || sub.status === "incomplete_expired";
     const hasNonterminal = list.data.some((sub) => !terminal(sub));
-    const checkoutSubscriptionTerminal = list.data.some(
-      (sub) => sub.id === checkoutSubscriptionId && terminal(sub),
-    );
     const end = paid ? new Date(endFor(picked) * 1000).toISOString() : null;
     const displayEnd = picked ? endFor(picked) : 0;
     const interval = picked
@@ -352,7 +356,10 @@ export class BillingService {
         [userId],
       );
     return {
-      paid, hasNonterminal, checkoutSubscriptionTerminal,
+      paid,
+      hasNonterminal,
+      checkoutSubscriptionTerminal:
+        checkoutSubscription !== undefined && terminal(checkoutSubscription),
       recognizedSubscriptionIds: recognized.map(sub => sub.id),
     };
   }
@@ -562,6 +569,57 @@ export class BillingService {
       !Number.isSafeInteger(value.expiresAt)
     )
       throw new BillingError("billing_provider_unavailable");
+  }
+  /** Repairs one recorded sandbox Checkout. No Stripe objects are created or changed. */
+  async reconcileKnownCheckout(
+    userId: string,
+    requestId: string,
+  ): Promise<{ state: "open" | "expired" | "complete"; updated: boolean }> {
+    if (this.mode !== "test")
+      throw new BillingError("billing_reconciliation_test_only", 409);
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(userId) || !uuid(requestId))
+      throw new BillingError("billing_invalid_request", 400);
+    return this.locked(userId, async (tx) => {
+      // The operator command must never initialize or switch the provider environment.
+      await assertBillingEnvironment(tx, this.mode);
+      const attempt = (
+        await tx.query(
+          "SELECT * FROM billing_checkout_attempts WHERE request_id=$1 AND user_id=$2",
+          [requestId, userId],
+        )
+      ).rows[0] as Attempt | undefined;
+      if (!attempt)
+        throw new BillingError("billing_checkout_attempt_not_found", 404);
+      if (attempt.config_fingerprint !== this.fingerprint)
+        throw new BillingError("billing_configuration_changed", 409);
+      if (attempt.state === "expired" || attempt.state === "complete")
+        return { state: attempt.state, updated: false };
+
+      const customer = (await this.account(tx, userId))?.customer_id;
+      if (
+        !customer || !id(customer, "cus") ||
+        !attempt.session_id || !id(attempt.session_id, "cs")
+      )
+        throw new BillingError("billing_reconciliation_required", 409);
+      let session: BillingSession;
+      try {
+        session = await this.gateway.checkout(attempt.session_id);
+      } catch {
+        throw new BillingError("billing_provider_unavailable");
+      }
+      this.validateSession(session, customer, attempt.session_id);
+      if (session.status === "open") return { state: "open", updated: false };
+      if (session.status === "complete") {
+        if (!session.subscriptionId)
+          throw new BillingError("billing_reconciliation_required", 409);
+        await this.reconcile(tx, userId, customer, session.subscriptionId, true);
+      }
+      await tx.query(
+        "UPDATE billing_checkout_attempts SET state=$3,session_url=NULL WHERE request_id=$1 AND user_id=$2",
+        [requestId, userId, session.status],
+      );
+      return { state: session.status, updated: true };
+    });
   }
   async portal(userId: string, requestId: string): Promise<{ url: string }> {
     if (!uuid(requestId))

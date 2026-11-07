@@ -533,6 +533,76 @@ export function billingContract(
         gateway.createCheckout.mock.calls[1],
       );
     });
+    it("reconciles one known expired sandbox Checkout without touching Stripe or another owner", async () => {
+      const { requestId } = await beginCheckout();
+      const [session] = gateway.sessions.values();
+      await expect(service.reconcileKnownCheckout("bob", requestId)).rejects.toMatchObject({
+        code: "billing_checkout_attempt_not_found",
+      });
+      expect(gateway.checkout).not.toHaveBeenCalled();
+      expect(await service.reconcileKnownCheckout("alice", requestId)).toEqual({ state: "open", updated: false });
+      session!.status = "expired";
+      expect(await service.reconcileKnownCheckout("alice", requestId)).toEqual({ state: "expired", updated: true });
+      expect(await service.reconcileKnownCheckout("alice", requestId)).toEqual({ state: "expired", updated: false });
+      expect(gateway.checkout).toHaveBeenCalledTimes(2);
+      expect(gateway.createCheckout).toHaveBeenCalledOnce();
+      expect(gateway.createCustomer).toHaveBeenCalledOnce();
+      expect(gateway.createPortal).not.toHaveBeenCalled();
+      expect((await service.status("alice")).pendingCheckout).toBe(false);
+    });
+
+    it("waits for the recorded Checkout subscription before applying canonical access", async () => {
+      const { requestId } = await beginCheckout();
+      const [session] = gateway.sessions.values();
+      Object.assign(session!, { status: "complete", subscriptionId: "sub_checkout" });
+      gateway.data = [billingSubscription(session!.customerId, { id: "sub_unrelated" })];
+      await expect(service.reconcileKnownCheckout("alice", requestId)).rejects.toMatchObject({
+        code: "billing_reconciliation_required",
+      });
+      expect(await service.status("alice")).toMatchObject({ pendingCheckout: true, plan: "free" });
+
+      gateway.data = [billingSubscription(session!.customerId, { id: "sub_checkout" })];
+      expect(await service.reconcileKnownCheckout("alice", requestId)).toEqual({ state: "complete", updated: true });
+      expect(await service.status("alice")).toMatchObject({ pendingCheckout: false, plan: "pro" });
+      expect(await service.reconcileKnownCheckout("alice", requestId)).toEqual({ state: "complete", updated: false });
+      expect(gateway.createCheckout).toHaveBeenCalledOnce();
+      expect(gateway.createPortal).not.toHaveBeenCalled();
+    });
+
+    it("leaves an unknown or mismatched session on hold", async () => {
+      const { requestId } = await beginCheckout();
+      const [session] = gateway.sessions.values();
+      Object.assign(session!, { status: "expired", livemode: true });
+      await expect(service.reconcileKnownCheckout("alice", requestId)).rejects.toMatchObject({
+        code: "billing_provider_unavailable",
+      });
+      await db.query("UPDATE billing_checkout_attempts SET session_id=NULL WHERE request_id=$1", [requestId]);
+      await expect(service.reconcileKnownCheckout("alice", requestId)).rejects.toMatchObject({
+        code: "billing_reconciliation_required",
+      });
+      expect(await service.status("alice")).toMatchObject({ pendingCheckout: true, plan: "free" });
+      expect(gateway.checkout).toHaveBeenCalledOnce();
+      expect(gateway.createCheckout).toHaveBeenCalledOnce();
+    });
+
+    it("requires a pinned sandbox and never initializes it during operator recovery", async () => {
+      const requestId = randomUUID();
+      await expect(service.reconcileKnownCheckout("alice", requestId)).rejects.toMatchObject({
+        code: "billing_environment_mismatch",
+      });
+      expect((await db.query("SELECT mode FROM billing_environment")).rows).toEqual([]);
+      const live = new BillingService(db, {
+        ...BILLING_TEST_CONFIG,
+        mode: "live",
+        secretKey: "sk_live_synthetic_test_fixture_only",
+      }, gateway);
+      await expect(live.reconcileKnownCheckout("alice", requestId)).rejects.toMatchObject({
+        code: "billing_reconciliation_test_only",
+      });
+      expect(gateway.checkout).not.toHaveBeenCalled();
+      expect(gateway.createCheckout).not.toHaveBeenCalled();
+    });
+
     it("does not grant Pro from checkout creation or browser success query parameters", async () => {
       await beginCheckout();
       expect(

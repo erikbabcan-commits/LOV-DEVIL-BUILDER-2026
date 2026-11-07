@@ -74,8 +74,24 @@ Pri sieti alebo nejasnom výsledku sa UUID ani pôvodné parametre nemenia.
 Po 23 hodinách sa neznámy externý výsledok automaticky neopakuje: provider
 mohol po 24 hodinách zabudnúť idempotency cache. Stav
 `billing_reconciliation_required` vyžaduje operátorské overenie existujúceho
-zákazníka/session a lokálneho ledgeru. Tento prírastok ešte neposkytuje
-operátorské opravné CLI; nesmie sa riešiť zmazaním prípravy a slepým novým pokusom.
+zákazníka/session a lokálneho ledgeru. Prípravu neodstraňuj kvôli opakovaniu nákupu.
+
+Ak lokálny ledger už pozná Stripe session a webhook sa nedoručil, operátor
+môže opraviť jeden Checkout v databáze pripnutej na testovací Stripe režim.
+Najprv over správnu konfiguráciu cez `billing:preflight`. V súkromnom prostredí
+so zodpovedajúcim `DATABASE_URL` a existujúcimi billing premennými spusti:
+
+```bash
+pnpm run billing:reconcile-checkout --apply --user-id <owner> --request-id <uuid>
+```
+
+Príkaz vyžaduje explicitný `BILLING_MODE=test`. Načíta už evidovanú session
+od Stripe a pod zámkom účtu opraví lokálny stav. `expired` uvoľní ukončený
+pokus. Pri `complete` musí Stripe vrátiť konkrétne predplatné danej session
+a plán sa prepočíta rovnakými pravidlami ako pri webhooku. `open` a už opravené
+pokusy vracajú `updated: false`. Príkaz nevytvára Stripe objekty ani platby.
+Neznáma session, nesúlad zákazníka alebo chýbajúce predplatné vyžadujú manuálne
+overenie. Výstup neobsahuje identifikátory účtu, Stripe URL ani kľúče.
 
 Trial má 14 dní a jeho použitie sa konzervatívne zaznamená už pri príprave
 prvej Checkout session. Zrušenie, expirácia alebo neistý výsledok nepridelí

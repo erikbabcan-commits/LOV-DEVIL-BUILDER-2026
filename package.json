@@ -26,7 +26,8 @@
     "templates:verify": "tsx scripts/verify-blueprints.ts",
     "ai:intent-eval": "tsx scripts/eval-intent.ts",
     "zip:verify": "tsx scripts/verify-project-zip.ts",
-    "billing:preflight": "tsx scripts/billing-preflight.ts"
+    "billing:preflight": "tsx scripts/billing-preflight.ts",
+    "billing:reconcile-checkout": "tsx scripts/billing-reconcile-checkout.ts"
   },
   "dependencies": {
     "@codemirror/lang-css": "6.3.1",
