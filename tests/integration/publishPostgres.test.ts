@@ -115,12 +115,53 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     const publicApp = publicPublishApp(config, db, value.artifacts);
     const response = await publicApp.request(published.url!, { headers: { Host: "127.0.0.1:8791", Cookie: "lov_token=must-not-be-used" } });
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("set-cookie")).toBeNull();
     expect(response.headers.get("content-security-policy")).toContain("sandbox allow-scripts");
     expect(response.headers.get("content-security-policy")).not.toContain("allow-same-origin");
     expect(await response.text()).toContain('<div id="root">');
     expect((await publicApp.request(published.url!, { headers: { Host: "localhost:5176" } })).status).toBe(404);
     expect((await db.query("SELECT COUNT(*)::int AS n FROM publish_jobs")).rows[0].n).toBe(1);
+  });
+
+  it("withdraws only an owned published URL without changing its artifact or publication history", async () => {
+    const compiler = deferredCompiler(), value = service(compiler), app = api(value);
+    const first = await value.start("alice", selection);
+    const path = "/api/publish/" + first.requestId + "/withdraw";
+    const post = (token: string, body: object) => app.request(path, {
+      method: "POST", headers: headers(token), body: JSON.stringify(body),
+    });
+    expect((await post(alice, { confirmed: true })).status).toBe(409);
+    compiler.release();
+    await value.settled();
+    const published = await value.status("alice", first.requestId);
+    expect(published.state).toBe("published");
+    const publicApp = publicPublishApp(config, db, value.artifacts);
+    const request = (method: "GET" | "HEAD" = "GET") => publicApp.request(published.url!, {
+      method, headers: { Host: "127.0.0.1:8791", "If-Modified-Since": new Date().toUTCString() },
+    });
+    expect((await request()).status).toBe(200);
+    expect((await post(bob, { confirmed: true })).status).toBe(404);
+    expect((await post(alice, { confirmed: false })).status).toBe(400);
+    expect((await request("HEAD")).status).toBe(200);
+
+    const result = await post(alice, { confirmed: true });
+    expect(result.headers.get("cache-control")).toBe("no-store");
+    const withdrawn = await result.json();
+    expect(withdrawn).toMatchObject({ requestId: first.requestId, state: "withdrawn", url: null });
+    expect(await (await post(alice, { confirmed: true })).json()).toEqual(withdrawn);
+    expect(await value.start("alice", selection)).toEqual(withdrawn);
+    expect(compiler.execute).toHaveBeenCalledTimes(1);
+    expect(await value.publishedVersion("alice", selection)).toBeNull();
+    for (const method of ["GET", "HEAD"] as const) {
+      const revoked = await request(method);
+      expect(revoked.status).toBe(404);
+      expect(revoked.headers.get("cache-control")).toBe("no-store");
+    }
+    const receipt = (await db.query(`SELECT artifact_id, artifact_sha256, artifact_bytes, storage_phase, state, withdrawn_at
+      FROM publish_jobs WHERE owner_id='alice' AND request_id=$1`, [first.requestId])).rows[0];
+    expect(receipt).toMatchObject({ state: "published", storage_phase: "retained", withdrawn_at: expect.any(Date) });
+    expect((await value.artifacts.read(receipt.artifact_id, receipt.artifact_sha256, receipt.artifact_bytes)).toString()).toContain("Native publish recovery");
   });
 
   it("serializes the same UUID across independent service instances into one durable job and one build", async () => {

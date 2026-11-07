@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { PublishProjectVersion, PublishRequest } from "../../shared/publish";
+import { PublishProjectVersion, PublishRequest, PublishWithdrawal } from "../../shared/publish";
 import { getUserFromContext } from "../auth/middleware";
 import { PublishService, PublishError } from "./service";
 export function publishRouter(
@@ -98,6 +98,18 @@ export function publishRouter(
     if (!allow("publish-status:" + user.id))
       return c.json({ error: "rate_limit" }, 429);
     return c.json(await service.status(user.id, c.req.param("requestId")));
+  });
+  router.post("/api/publish/:requestId/withdraw", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const requestId = PublishRequest.shape.requestId.safeParse(c.req.param("requestId"));
+    const consent = PublishWithdrawal.safeParse(await c.req.json().catch(() => null));
+    if (!requestId.success || !consent.success)
+      return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-withdraw:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    return c.json(await service.withdraw(user.id, requestId.data));
   });
   return router;
 }

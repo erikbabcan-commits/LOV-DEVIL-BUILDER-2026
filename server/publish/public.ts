@@ -17,6 +17,7 @@ export function publicPublishApp(
       !["GET", "HEAD"].includes(c.req.method)
     )
       return c.notFound();
+    c.header("Cache-Control", "no-store");
     c.header("Referrer-Policy", "no-referrer");
     c.header("X-Content-Type-Options", "nosniff");
     c.header("Cross-Origin-Resource-Policy", "same-origin");
@@ -38,7 +39,7 @@ export function publicPublishApp(
     try {
       const row = (
         await db.query(
-          "SELECT artifact_sha256,artifact_bytes FROM publish_jobs WHERE artifact_id=$1 AND state='published'",
+          "SELECT artifact_sha256,artifact_bytes FROM publish_jobs WHERE artifact_id=$1 AND state='published' AND withdrawn_at IS NULL",
           [id],
         )
       ).rows[0];
@@ -50,7 +51,6 @@ export function publicPublishApp(
       );
       c.header("Content-Type", "text/html; charset=utf-8");
       c.header("Content-Length", String(bytes.byteLength));
-      c.header("Cache-Control", "public, max-age=31536000, immutable");
       return new Response(c.req.method === "HEAD" ? null : bytes, {
         status: 200,
         headers: c.res.headers,

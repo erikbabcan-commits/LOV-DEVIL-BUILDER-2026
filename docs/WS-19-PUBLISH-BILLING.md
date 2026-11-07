@@ -5,6 +5,17 @@ ukážkové publikovanie v hlavnom aj modernom UI a pripája moderný frontend k
 existujúcemu billing backendu. Samotná implementácia nezapína platby, nemigruje
 produkciu a nenahrádza overenie hostovaného nasadenia.
 
+## Odvolanie verejného odkazu
+
+Migrácia `018_publish_withdrawal.sql` umožní vlastníkovi odvolať konkrétnu
+publikáciu. Po potvrdení server vráti HTTP 404 pri nových GET a HEAD
+požiadavkách na pôvodnú adresu. Zostavený artefakt aj história publikovania
+zostávajú uložené. Nové publikovanie má nový odkaz.
+
+Verejný listener používa pre nové odpovede `Cache-Control: no-store`.
+Klientom, ktoré už dostali starú odpoveď s ročnou cache, môže uložená kópia
+zostať prístupná až do jej vypršania. Fyzická retencia súborov ostáva samostatný krok.
+
 ## Produkčný obraz `daf3321` a schéma 015 · 7. 11. 2026
 
 Kontrola o 20:19 UTC potvrdila aktívny kontajner `lov-devil-api-013-daf332191dfe`

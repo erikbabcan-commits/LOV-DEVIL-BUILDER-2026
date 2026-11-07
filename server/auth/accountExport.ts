@@ -24,7 +24,7 @@ const pages = {
   publish: {
     table: 'publish_jobs', owner: 'owner_id', key: 'request_id', type: 'uuid', limit: 1,
     fields: `request_id, project_id, project_revision, snapshot_id, source_files, artifact_id,
-             artifact_bytes, state, error_code, created_at, updated_at`,
+             artifact_bytes, state, error_code, created_at, updated_at, withdrawn_at`,
   },
   github: {
     table: 'github_exports', owner: 'owner_id', key: 'request_id', type: 'text', limit: 100,

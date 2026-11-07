@@ -13,7 +13,7 @@ export const PublishJob = z
     projectId: z.string(),
     revision: z.number().int().positive(),
     snapshotId: z.string(),
-    state: z.enum(["building", "published", "failed"]),
+    state: z.enum(["building", "published", "withdrawn", "failed"]),
     url: z.string().url().nullable(),
     error: z.string().nullable(),
     errors: z.array(z.object({ file: z.string(), message: z.string() }).strict()),

@@ -10,6 +10,7 @@ export const PublishRequest = z
   })
   .strict();
 export type PublishSelection = z.infer<typeof PublishRequest>;
+export const PublishWithdrawal = z.strictObject({ confirmed: z.literal(true) });
 export const PublishProjectVersion = PublishRequest.pick({
   projectId: true,
   expectedRevision: true,
@@ -22,7 +23,7 @@ export const PublishJob = z
     projectId: ProjectId,
     revision: z.number().int().positive(),
     snapshotId: ProjectId,
-    state: z.enum(["building", "published", "failed"]),
+    state: z.enum(["building", "published", "withdrawn", "failed"]),
     url: z.url().nullable(),
     error: z.string().max(100).nullable(),
     errors: z

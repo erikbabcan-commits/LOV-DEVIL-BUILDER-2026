@@ -29,6 +29,12 @@ const ROUTES: RouteDef[] = [
   { method: "GET", re: /^publish$/, upstream: () => "/api/publish", kind: "publish" },
   { method: "POST", re: /^publish$/, upstream: () => "/api/publish", kind: "publish" },
   {
+    method: "POST",
+    re: /^publish\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/withdraw$/i,
+    upstream: (m) => `/api/publish/${m[1]}/withdraw`,
+    kind: "publish",
+  },
+  {
     method: "GET",
     re: /^publish\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i,
     upstream: (m) => `/api/publish/${m[1]}`,
