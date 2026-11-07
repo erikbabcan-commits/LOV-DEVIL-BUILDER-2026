@@ -245,8 +245,10 @@ Po migrácii `017_account_closure.sql` môže prepojený účet podať alebo odv
 Operátor môže v súkromnej relácii nastaviť `DATABASE_URL` a použiť
 `npm run account:closure-queue -- --limit 100`. Príkaz iba číta žiadosti po
 ochrannej lehote a vypíše ich interné identifikátory a príznaky závislostí.
-Výsledok je momentka. Opätovná kontrola žiadosti aj závislostí je potrebná
-pred každým budúcim spracovaním.
+Ak výstup obsahuje `nextCursor`, použi ho v ďalšom behu cez `--cursor`.
+Rozpracovaný Stripe Checkout má vlastný príznak aj bez otvoreného predplatného.
+Výsledok je momentka. Pred spracovaním znovu over žiadosť a pri účte so
+Stripe over priamo u poskytovateľa stav predplatného aj rozpracovaného Checkout.
 
 Samotné podanie ani uplynutie lehoty nič automaticky nemaže. Spracovanie
 musí riešiť Cloud identitu, Stripe, rozbehnuté úlohy, publikácie aj kópie

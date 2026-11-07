@@ -88,24 +88,37 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
 
     const url = new URL(process.env.PROJECTS_TEST_DATABASE_URL!);
     url.searchParams.set('options', '-c search_path=' + schema);
-    const queue = () => {
+    const queue = (cursor?: string) => {
       const output = spawnSync(process.execPath, [
         'node_modules/tsx/dist/cli.mjs', 'scripts/account-closure-queue.ts', '--limit', '1',
+        ...(cursor === undefined ? [] : ['--cursor', cursor]),
       ], { encoding: 'utf8', timeout: 15000, env: { PATH: process.env.PATH, DATABASE_URL: url.href } });
       expect(output.error).toBeUndefined();
       expect(output.status).toBe(0);
       expect(output.stdout).not.toContain(url.password);
       return JSON.parse(output.stdout);
     };
-    expect(queue()).toEqual({ ok: true, hasMore: false, requests: [] });
-    await db.query(`UPDATE account_closure_requests SET requested_at=now() - interval '31 days', eligible_at=now() - interval '1 day'
-      WHERE user_id='alice' AND request_id=$1`, [secondId]);
+    expect(queue()).toEqual({ ok: true, hasMore: false, nextCursor: null, requests: [] });
+    const eligibleAt = '2026-01-01T10:00:00.123456Z', bobId = randomUUID();
+    await db.query(`UPDATE account_closure_requests SET requested_at=$2::timestamptz - interval '720 hours', eligible_at=$2
+      WHERE user_id='alice' AND request_id=$1`, [secondId, eligibleAt]);
+    await db.query(`INSERT INTO account_closure_requests (user_id, request_id, requested_at, eligible_at)
+      VALUES ('bob', $1, $2::timestamptz - interval '720 hours', $2)`, [bobId, eligibleAt]);
     await db.query(`INSERT INTO billing_accounts (user_id, customer_key, created_at, has_open_subscription)
       VALUES ('alice', $1, now(), true)`, [randomUUID()]);
+    await db.query(`INSERT INTO billing_checkout_attempts (request_id, user_id, interval_name,
+      config_fingerprint, created_at, requested_expires_at, state, session_url)
+      VALUES ($1, 'bob', 'month', 'fixture', now(), 0, 'ready', 'https://fixture.invalid/private-session')`, [randomUUID()]);
     const ready = queue();
-    expect(ready).toMatchObject({ requests: [{
-      user_id: 'alice', request_id: secondId, cloud_identity: true, open_subscription: true,
+    expect(ready).toMatchObject({ hasMore: true, nextCursor: expect.any(String), requests: [{
+      user_id: 'alice', request_id: secondId, cloud_identity: true, open_subscription: true, pending_checkout: false,
     }] });
+    expect(JSON.parse(Buffer.from(ready.nextCursor, 'base64url').toString('utf8'))).toEqual([eligibleAt, 'alice']);
+    const page2 = queue(ready.nextCursor);
+    expect(page2).toMatchObject({ hasMore: false, nextCursor: null, requests: [{
+      user_id: 'bob', request_id: bobId, cloud_identity: true, open_subscription: false, pending_checkout: true,
+    }] });
+    expect(JSON.stringify(page2)).not.toContain('private-session');
     expect(queue()).toEqual(ready);
     expect((await alice('projects/hybrid-fixture')).status).toBe(200);
   }, 20000);

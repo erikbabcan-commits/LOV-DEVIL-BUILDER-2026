@@ -79,7 +79,7 @@
     "src/lib/billing-client.ts": "983dc72779994f94b3afc4e9f4339c0da85c5710ae558f6651bea0ac899a6c7f",
     "src/components/forge/AccountDataExport.tsx": "ca29aaea3528d6bb81b5fe2a62decfe342eeaeb40dc005023e16fa766977d58e",
     "src/components/forge/AccountDataExport.test.tsx": "f7005eeef546bc8c2a55ed26e0d90bd93912fe51d2114ab0be9a5620cd53a1fb",
-    "src/components/forge/AccountClosure.tsx": "5f6db5f483e5e46607d322aff2c38474ba6fdf9de706ff1164e4b13ab3f3fccc",
+    "src/components/forge/AccountClosure.tsx": "8da04bcd7d7170dde842fef0f2ca418a97f592cc2c3c2010aaf29e49060f8e21",
     "src/components/forge/AccountClosure.test.tsx": "9d0ccc15a764b7b5d42f2bb681f6ef11cc544d917de8b067d58f6fad82741fdc",
     "src/components/forge/AccountMenu.tsx": "48b1984135370ca931d23f81ddd3a99fb8a13316cf9341f86e72c9fe1edfb2a7",
     "src/components/forge/AccountMenu.test.tsx": "01cad0f3ecd5e27e9b985e28b12d4c5d5fd1e4d3f0dbc391b37a164aa226aa83"

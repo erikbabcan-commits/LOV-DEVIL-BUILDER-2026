@@ -19,6 +19,7 @@ const utc = new Intl.DateTimeFormat("sk-SK", {
 });
 type Action = "load" | "request" | "cancel";
 
+/** Show and change the closure request bound to the current pair of account IDs. */
 export function AccountClosure({
   cloudUserId,
   honoUserId,
@@ -37,6 +38,7 @@ export function AccountClosure({
   const retryId = useRef<string | null>(null);
   useEffect(() => () => inFlight.current?.abort(), [cloudUserId, honoUserId, accessToken]);
 
+  /** Preserve the submission ID across uncertain responses and retry safely. */
   async function run(action: Action) {
     if (inFlight.current && !inFlight.current.signal.aborted) return;
     if (action === "request" && (status?.state !== "none" || !confirmed)) return;

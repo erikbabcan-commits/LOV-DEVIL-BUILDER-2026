@@ -15,6 +15,7 @@ interface PendingRequest {
   eligible_at: Date;
 }
 
+/** Read the one active request for the authenticated owner. */
 async function pending(db: DbLike, owner: string): Promise<PendingRequest | undefined> {
   return (await db.query(
     `SELECT ${fields} FROM account_closure_requests WHERE user_id=$1 AND cancelled_at IS NULL`,
@@ -22,12 +23,14 @@ async function pending(db: DbLike, owner: string): Promise<PendingRequest | unde
   )).rows[0];
 }
 
+/** Expose the active request without internal queue or provider state. */
 function status(accountId: string, row: PendingRequest | undefined) {
   return row
     ? { accountId, state: 'pending', requestId: row.request_id, requestedAt: row.requested_at, eligibleAt: row.eligible_at }
     : { accountId, state: 'none' };
 }
 
+/** Owner-scoped request and cancellation routes mounted behind auth and CSRF. */
 export function accountClosureRouter(db: DbLike, allow: (key: string) => boolean) {
   const router = new Hono();
   router.onError((_error, c) => c.json({ error: 'account_closure_unavailable' }, 503));
