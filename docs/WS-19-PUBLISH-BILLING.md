@@ -5,7 +5,34 @@ ukážkové publikovanie v hlavnom aj modernom UI a pripája moderný frontend k
 existujúcemu billing backendu. Samotná implementácia nezapína platby, nemigruje
 produkciu a nenahrádza overenie hostovaného nasadenia.
 
-## Aktuálny prevádzkový dodatok — STAGED
+## Produkčný API upstream · 7. 11. 2026
+
+Nginx smeruje existujúce Basic-chránené `/api/` na loopback 8788
+(runtime `2b556f9`). Pôvodné API na 8787 zostáva zdravé a pripravené na návrat.
+Prepnutie zmenilo jediný riadok `proxy_pass` v `/etc/nginx/sites-available/lov-devil`.
+`nginx -t` prešlo a po graceful reloade bol pozorovaný nový worker pri rovnakom
+master procese. Kontroly pred aj po zmene potvrdili health HTTP 200 na oboch
+loopbackoch a HTTP 401 s `unauthenticated` na šiestich chránených trasách na
+každom z nich.
+
+Následná nezávislá kontrola o 18:57:11 UTC potvrdila aktívny Nginx, obidva zdravé
+kontajnery a zapnutú systemd obnovu. Z Macu prešlo overenie TLS. Pilot API bez
+Basic prihlásenia vrátilo HTTP 401 a root oddeleného artifact hosta vrátil
+HTTP 404. Ten stále smeruje na loopback 8791. Prepnutie nezanechalo na VPS
+žiadnu novú zálohu a zálohový adresár bol pri následnej kontrole prázdny.
+
+Pri návrate najprv over `GET http://127.0.0.1:8787/api/health` priamo na VPS.
+Pod zámkom `/run/lock/lov-devil-stage-switch.lock` vráť iba `proxy_pass`
+v `location /api/` na 8787, over `nginx -t` a vykonaj `systemctl reload nginx`.
+Znovu over pôvodné API, Basic 401 na verejnej API trase a TLS odpoveď na
+oddelenom artifact hoste. Produkčné API na 8788 závisí od existujúceho časovača
+`lov-devil-staging.timer`, napriek historickému názvu jednotky.
+
+Prihlásený Cloud → BFF → Hono tok a skutočný verejný Publish cez Lovable
+vyžadujú samostatné overenie. Billing je vypnutý. Hosted frontend a Stripe
+nastavenia sa týmto prepnutím nemenili.
+
+## Historický prevádzkový dodatok pred prepnutím API — STAGED
 
 Kontrolované VPS kroky overili schému **001–013** vrátane read-only štrukturálnej
 kontroly. Pred nimi bola restore-verified záloha `20261106T213102Z` (3 tabuľky,
