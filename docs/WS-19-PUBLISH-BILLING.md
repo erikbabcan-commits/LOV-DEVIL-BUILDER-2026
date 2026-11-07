@@ -5,6 +5,30 @@ ukážkové publikovanie v hlavnom aj modernom UI a pripája moderný frontend k
 existujúcemu billing backendu. Samotná implementácia nezapína platby, nemigruje
 produkciu a nenahrádza overenie hostovaného nasadenia.
 
+## Produkčný obraz `2f52d61` a schéma 014 · 7. 11. 2026
+
+O 20:05 UTC prešla samostatná migrácia 014 s krátkym limitom na zámok a dotaz.
+Nové API overuje schému bez replayu na odtlačku
+`56bf339835ac2d5a3f96e54b02fa6ee245b586484e24e98026a0dccefe4c38e6`.
+Beží kontajner `lov-devil-api-013-2f52d6129beb` s digestom
+`sha256:7bea5bebe15cccc86a985b57785c73a0a7a0177a988873196c50a4ec2f74daa3`.
+Health sa obnovil za 3,28 sekundy od začiatku výmeny. Porty, volumes, Nginx,
+Basic ochrana a vypnutý billing boli zachované. Systemd recovery prešiel.
+
+Pred zmenou prešiel na izolovanom PostgreSQL 16 na VPS prechod 013 → 014,
+prihlásené uloženie syntetického projektu a štart návratového obrazu na 014.
+Dočasná databáza aj sieť boli odstránené. Produkčný read-only týždenný report
+zobrazil nový údaj so zdrojom `server-observed`. Prihlásený tok z Lovable sa
+týmto neoveril.
+
+Pri návrate pod zámkom `/run/lock/lov-devil-stage-switch.lock` zastav nový
+kontajner a spusti pripravený `lov-devil-api-013-7f10413e0140` s digestom
+`sha256:e626b9b8287d4761a590c80d5acaa47b87c3315991939b79fceb60a17bb78b90`.
+V `/etc/lov-devil/staging.env` nastav naň `LOV_STAGING_API` aj
+`LOV_STAGING_API_IMAGE`. Over health a ochranu portov 8788/8791, uvoľni zámok
+a over `lov-devil-staging.service`. Schému 014 ponechaj, aby ostali zachované
+zaznamenané časy. Pôvodný obraz s odtlačkom 013 by na nej pri novom štarte zlyhal.
+
 ## Produkčný obraz `7f10413` · 7. 11. 2026
 
 Rozšírenie spotreby publikovaní beží na VPS od 19:40 UTC na API porte 8788
