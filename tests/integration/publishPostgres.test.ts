@@ -104,6 +104,14 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     const published = await value.status("alice", selection.requestId);
     expect(published.state).toBe("published");
     expect(published.artifactBytes).toBeGreaterThan(1000);
+    const versionPath = "/api/publish/project/project-one/1/snapshot-one";
+    const version = await app.request(versionPath, { headers: headers(alice) });
+    expect(version.status).toBe(200);
+    expect(await version.json()).toEqual(published);
+    expect(await (await app.request(versionPath, { headers: headers(bob) })).json()).toBeNull();
+    expect(
+      await (await app.request(versionPath.replace("/1/", "/2/"), { headers: headers(alice) })).json(),
+    ).toBeNull();
     const publicApp = publicPublishApp(config, db, value.artifacts);
     const response = await publicApp.request(published.url!, { headers: { Host: "127.0.0.1:8791", Cookie: "lov_token=must-not-be-used" } });
     expect(response.status).toBe(200);

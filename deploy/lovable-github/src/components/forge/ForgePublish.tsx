@@ -63,6 +63,12 @@ function PublishDialog() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [job, setJob] = useState<PublishedJob | null>(null),
+    [savedPublication, setSavedPublication] = useState<{
+      key: string;
+      path: string;
+      url: string;
+      controller: typeof controller;
+    } | null>(null),
     [pendingSelection, setPendingSelection] = useState<PublishSelection | null>(null);
   const lifetime = useRef(new AbortController()),
     running = useRef(false),
@@ -107,6 +113,46 @@ function PublishDialog() {
   }, [owner, controller, key, availabilityCheck]);
   const snapshot = workspace.snapshots.find((s) => s.id === workspace.liveId),
     supported = !!snapshot?.sourceFiles && workspace.files.some((f) => f.name === "src/main.tsx");
+  const publicOrigin = ready?.publicOrigin;
+  const savedPath =
+    ready?.enabled &&
+    publicOrigin &&
+    snapshot &&
+    state.revision &&
+    !state.dirty &&
+    !state.busy &&
+    !state.editor &&
+    !state.pending &&
+    !busy &&
+    !job &&
+    !pendingSelection
+      ? `publish/project/${state.id}/${state.revision}/${snapshot.id}`
+      : null;
+  useEffect(() => {
+    setSavedPublication(null);
+    if (!savedPath || !publicOrigin) return;
+    const abort = new AbortController();
+    const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(10000)]);
+    void honoFetch(savedPath, { signal, expectedUserId: owner })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const result = PublishJob.nullable().parse(await response.json());
+        if (
+          !result ||
+          signal.aborted ||
+          result.state !== "published" ||
+          `publish/project/${result.projectId}/${result.revision}/${result.snapshotId}` !==
+            savedPath
+        )
+          return;
+        const url = publicationUrl(result, publicOrigin);
+        if (url) setSavedPublication({ key, path: savedPath, url, controller });
+      })
+      .catch(() => {
+        /* A failed lookup cannot establish a publication or block a new one. */
+      });
+    return () => abort.abort();
+  }, [savedPath, publicOrigin, owner, key, controller]);
   async function call(path: string, body?: unknown, signal = lifetime.current.signal) {
     const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(15000)]);
     const response = await honoFetch(path, {
@@ -461,6 +507,21 @@ function PublishDialog() {
           ))}
         </div>
       )}
+      {savedPublication?.key === key &&
+        savedPublication.path === savedPath &&
+        savedPublication.controller === controller && (
+          <div role="status" className="rounded-lg border border-border p-3 text-sm">
+            <p>Táto uložená verzia je publikovaná.</p>
+            <a
+              className="break-all underline"
+              href={savedPublication.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Otvoriť publikovanú aplikáciu
+            </a>
+          </div>
+        )}
       {url && job && (
         <div role="status" className="rounded-lg border border-border p-3 text-sm">
           <p>

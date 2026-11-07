@@ -24,16 +24,19 @@ function setup(overrides: Partial<HonoProxyOptions> = {}) {
 afterEach(() => vi.useRealTimers());
 
 describe('server-only Lovable → Hono proxy', () => {
-  it('allows only authenticated publish preparation and UUID status with a 4KiB body limit', async () => {
+  it('allows only authenticated publish preparation and status with a 4KiB body limit', async () => {
     const {proxy,fetcher}=setup();
     const id='dd4ec3fc-a77b-4af7-baa5-f25ac7228221';
-    for (const [path,body] of [['/publish',undefined],['/publish',{}],['/publish/'+id,undefined]] as const) {
+    const version='/publish/project/demo-project/2/snapshot_one';
+    for (const [path,body] of [['/publish',undefined],['/publish',{}],['/publish/'+id,undefined],[version,undefined]] as const) {
       expect((await proxy(request(path,body))).status).toBe(200);
       expect(fetcher.mock.calls.at(-1)?.[0]).toBe(baseUrl+'/api'+path);
     }
     fetcher.mockClear();
     for (const path of ['/publish?url=https://evil.test','/publish/not-a-uuid','/publish/'+id+'/artifact','/published/'+id+'/index.html']) expect((await proxy(request(path))).status).toBe(404);
     expect((await proxy(request('/publish/'+id,{}))).status).toBe(404);
+    expect((await proxy(request(version,{}))).status).toBe(404);
+    expect((await proxy(request(version+'?owner=bob'))).status).toBe(404);
     expect((await proxy(new Request(origin+'/api/hono/publish',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:' '.repeat(4097)}))).status).toBe(413);
     expect(fetcher).not.toHaveBeenCalled();
   });

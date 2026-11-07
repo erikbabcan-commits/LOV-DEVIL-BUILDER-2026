@@ -23,6 +23,25 @@ fs.mkdirSync('/tmp/lov-release-proof',{recursive:true});
  await page.screenshot({path:'/tmp/lov-release-proof/modern-published.png'});
  const publicPage=await browser.newPage();const response=await publicPage.goto(url);expect(response.status()).toBe(200);expect(response.headers()['content-security-policy']).toContain('sandbox allow-scripts');expect(response.headers()['set-cookie']).toBeUndefined();
  await expect(publicPage.getByRole('heading',{name:'Kontrola cielenej zmeny'})).toBeVisible();await publicPage.screenshot({path:'/tmp/lov-release-proof/public-application.png'});await publicPage.close();
+ await page.reload();
+ await expect(page.getByRole('button', { name: 'Alice', exact: true })).toHaveAttribute('aria-pressed', 'true');
+ await page.getByRole('button', { name: 'Editor', exact: true }).click();
+ await page.getByRole('button', { name: 'Hybridná testovacia aplikácia · r1', exact: true }).click();
+ const versionPath = '/api/hono/publish/project/hybrid-fixture/1/hybrid-v1';
+ const restoredResponse = page.waitForResponse(response => new URL(response.url()).pathname === versionPath);
+ await page.getByRole('button', { name: 'Publikovať', exact: true }).click();
+ expect((await restoredResponse).status()).toBe(200);
+ await expect(dialog.getByText('Táto uložená verzia je publikovaná.')).toBeVisible();
+ await expect(dialog.getByRole('link', { name: 'Otvoriť publikovanú aplikáciu' })).toHaveAttribute('href', url);
+ expect(requests.filter(request => request.path === '/api/hono/publish')).toHaveLength(1);
+ const bobSessionResponse = await page.request.get('http://localhost:5191/__test/session/bob');
+ expect(bobSessionResponse.ok()).toBe(true);
+ const bobSession = await bobSessionResponse.json();
+ const bobPublication = await page.request.get('http://localhost:5191' + versionPath, {
+   headers: { authorization: 'Bearer ' + bobSession.access_token },
+ });
+ expect(bobPublication.status()).toBe(200);
+ expect(await bobPublication.json()).toBeNull();
  await page.keyboard.press('Escape');await page.getByRole('button',{name:'Pripojenie backendov'}).click();
  const card=page.getByRole('region',{name:'Predplatné',exact:true});await expect(card.getByText(/^Forge Free/)).toBeVisible();await expect(card.getByText('Testovací režim Stripe',{exact:true})).toBeVisible();
  await page.route('https://checkout.stripe.com/**',r=>r.fulfill({status:200,contentType:'text/html',body:'<h1>Synthetic Stripe boundary: no payment</h1>'}));
@@ -34,6 +53,6 @@ fs.mkdirSync('/tmp/lov-release-proof',{recursive:true});
  await page.getByRole('button',{name:'Bob',exact:true}).click();await expect(page.getByRole('button',{name:'Bob',exact:true})).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'Pripojenie backendov'}).click();
  await expect(page.getByRole('region',{name:'Predplatné',exact:true}).getByText(/^Forge Free/)).toBeVisible();
  expect(requests.filter(r=>r.path==='/api/hono/publish')).toHaveLength(1);expect(requests.filter(r=>r.path==='/api/hono/billing/checkout')).toHaveLength(1);expect(errors).toEqual([]);
- const result={passed:true,publishUrl:url,publishRequest:requests.find(r=>r.path==='/api/hono/publish'),checkoutRequest:requests.find(r=>r.path==='/api/hono/billing/checkout'),pageErrors:errors,verified:['modern Lovable UI -> explicit public consent -> CloudBFF -> Hono -> owned snapshot -> real compiler -> durable artifact -> publicHTTP200 and renderedReact','public CSP opaque sandbox and no authcookie','Cloud billing -> explicit Checkout -> intercepted synthetic Stripe page, no external Stripe traffic','signed SDK webhook -> DB Pro -> modern UI','Bob remains Free'],limits:['disposable pg-mem; native DB tests separate','Stripe boundary synthetic, not a payment','local mirror not hosted Lovable or VPS deployment']};fs.writeFileSync('/tmp/lov-release-proof/browser-verification.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));
+ const result={passed:true,publishUrl:url,publishRequest:requests.find(r=>r.path==='/api/hono/publish'),checkoutRequest:requests.find(r=>r.path==='/api/hono/billing/checkout'),pageErrors:errors,verified:['reload restores the same public link via GET without a second publish; Bob receives null','modern Lovable UI -> explicit public consent -> CloudBFF -> Hono -> owned snapshot -> real compiler -> durable artifact -> publicHTTP200 and renderedReact','public CSP opaque sandbox and no authcookie','Cloud billing -> explicit Checkout -> intercepted synthetic Stripe page, no external Stripe traffic','signed SDK webhook -> DB Pro -> modern UI','Bob remains Free'],limits:['disposable pg-mem; native DB tests separate','Stripe boundary synthetic, not a payment','local mirror not hosted Lovable or VPS deployment']};fs.writeFileSync('/tmp/lov-release-proof/browser-verification.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));
  }catch(e){console.log('BODY',await page.locator('body').innerText());await page.screenshot({path:'/tmp/lov-release-proof/failure.png'});throw e;}finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -12,6 +12,8 @@
 
 **Obnova dostupnosti pri publikovaní · FORGE-606/1103 · 7. 11. 2026.** Dialóg Lovable má vlastné obnovenie dostupnosti hostingu a oddelenú kontrolu už odoslaného pokusu. **198 UI testov**, TypeScript, lint zmenených súborov a lokálny produkčný build prešli. Chromium pri 390 px overil simulované 503, obnovu cez GET bez POST a následné potvrdenie, reálnu kompiláciu a vykreslenie artefaktu cez lokálne HTTP 200. Použili sa dočasné identity, pg-mem a syntetický Stripe. GitHub zmena frontendu čaká v samostatnom PR, hostovaný Lovable build sa nespustil.
 
+**Obnova publikovaného odkazu · FORGE-606 · 7. 11. 2026.** Lovable po reloade načíta z Hono posledný úspešný Publish aktuálnej uloženej revízie a snapshotu. Overenie je iba na čítanie, bez nového build jobu. Lokálny Chromium test potvrdil rovnakú URL po reloade a nulový výsledok pre iný účet. Prešlo **1 119 backendových a 200 UI testov**, **168/168 integračných testov na PostgreSQL 16 aj 18**, typy, lokálne buildy a lint zmenených UI súborov. Nasadenie na VPS a hostované overenie zostávajú otvorené.
+
 **Cieľ:** plnohodnotný AI editor s reálnym hostingom a plateným predplatným.
 **Stav:** lokálne overený pilot a nové UI v hostovanom live preview; žiadny z míľnikov M1–M6 nie je uzavretý.
 **Cieľ je znovu aktívny:** pokračujeme podľa pôvodného backlogu. Aktuálna priorita je

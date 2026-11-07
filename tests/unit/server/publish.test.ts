@@ -201,6 +201,45 @@ describe("real static publication from owned saved snapshot", () => {
         .byteLength,
     ).toBe(Number(row.artifact_bytes));
   });
+  it("returns a published link only for the owner's current saved revision and snapshot", async () => {
+    const path = "/api/publish/project/project-one/1/snapshot-one";
+    const lookup = (url = path, session = token) =>
+      app.request(url, { headers: { Cookie: "lov_token=" + session } });
+    expect(await (await lookup()).json()).toBeNull();
+    expect((await request()).status).toBe(202);
+    await service.settled();
+    const published = await lookup();
+    expect(published.status).toBe(200);
+    expect(published.headers.get("cache-control")).toBe("no-store");
+    expect(await published.json()).toMatchObject({
+      requestId: selection.requestId,
+      revision: 1,
+      snapshotId: "snapshot-one",
+      state: "published",
+    });
+
+    const bob = await signToken(
+      { sub: "bob", email: "bob@example.test", plan: "free" },
+      secret,
+    );
+    expect((await app.request(path)).status).toBe(401);
+    expect(await (await lookup(path, bob)).json()).toBeNull();
+    expect(await (await lookup(path.replace("snapshot-one", "other"))).json()).toBeNull();
+    expect((await lookup(path.replace("/1/", "/2147483648/"))).status).toBe(400);
+    expect((await lookup(path + "?owner=bob")).status).toBe(400);
+    await db.query(
+      "UPDATE builder_projects SET revision=2 WHERE owner_id=$1 AND project_id=$2",
+      ["alice", "project-one"],
+    );
+    expect(await (await lookup()).json()).toBeNull();
+    expect(await (await lookup(path.replace("/1/", "/2/"))).json()).toBeNull();
+    await db.query(
+      "UPDATE builder_projects SET revision=1, deleted_at=NOW() WHERE owner_id=$1 AND project_id=$2",
+      ["alice", "project-one"],
+    );
+    expect(await (await lookup()).json()).toBeNull();
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
   it("never accepts client HTML, a client URL or missing public consent", async () => {
     for (const body of [
       { ...selection, publicConsent: false },

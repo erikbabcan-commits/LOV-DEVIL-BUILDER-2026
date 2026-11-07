@@ -10,6 +10,12 @@ export const PublishRequest = z
   })
   .strict();
 export type PublishSelection = z.infer<typeof PublishRequest>;
+export const PublishProjectVersion = PublishRequest.pick({
+  projectId: true,
+  expectedRevision: true,
+  snapshotId: true,
+});
+export type PublishProjectVersion = z.infer<typeof PublishProjectVersion>;
 export const PublishJob = z
   .object({
     requestId: z.uuid(),
