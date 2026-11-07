@@ -957,7 +957,7 @@ serverovej konfigurácie; žiadne predplatné sa teraz nepredáva.
 | 1002 | Prompt injection ochrana (P8) + content moderácia uploadov | eval: < 2 % prienik | M | Otvorené |
 | 1003 | Šifrovanie secrets vault (KMS), rotácia kľúčov | audit: secrets nikdy v logoch | M | Otvorené — všeobecný KMS vault a rotácia chýbajú; OAuth session majú samostatné šifrovanie |
 | 1004 | Rate limiting + abuse monitoring per účet/IP | anti-scraper, anti-mining | M | Čiastočne — rate/admission limity; úplný abuse monitoring chýba |
-| 1005 | GDPR: DPA, mazanie účtu + export dát, logs retention | súlad od dňa 1 (EU trh) | M | Čiastočne — audit Hono prihlásení, lokálne overená dávková retencia a export údajov Hono po častiach. Produkčné overenie, dáta služieb mimo Hono, Cloud logy, mazanie účtu a DPA zostávajú otvorené. [Prevádzkový postup](DEPLOYMENT-BLUEPRINT.md#retencia-auditu-hono) |
+| 1005 | GDPR: DPA, mazanie účtu + export dát, logs retention | súlad od dňa 1 (EU trh) | M | Čiastočne — audit a retencia Hono, export údajov Hono, podanie a odvolanie žiadosti o zrušenie účtu po dobu najmenej 30 dní. Trvalé zrušenie vrátane externých služieb, produkčné overenie, Cloud logy a DPA zostávajú otvorené. [Prevádzkový postup](DEPLOYMENT-BLUEPRINT.md#žiadosť-o-zrušenie-účtu) |
 | 1006 | SOC 2 Type II cesta (M5) | 12-mesiac observačnosť, security program | XL | Otvorené |
 | 1007 | Zálohy, DR, uptime statusy (99.9 % Enterprise) | RTO/RPO definované, status page | M | Čiastočne — predchádzajúce PG backup/restore overenie; celý DR, RTO/RPO a SLA otvorené |
 
