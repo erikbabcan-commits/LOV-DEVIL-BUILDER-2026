@@ -47,6 +47,7 @@ function session(value: Stripe.Checkout.Session): BillingSession {
   return {
     id: value.id,
     customerId,
+    subscriptionId: identifier(value.subscription) ?? undefined,
     url: value.url,
     expiresAt: value.expires_at,
     status,

@@ -393,6 +393,37 @@ export function billingContract(
       expect((await attempt()).state).toBe("ready");
 
       session.expiresAt = seconds() - 1;
+      session.subscriptionId = "sub_contract";
+      gateway.data = [
+        billingSubscription(session.customerId, {
+          id: "sub_unrelated",
+          status: "canceled",
+        }),
+      ];
+      expect(
+        (
+          await event({
+            type: "checkout.session.completed",
+            data: { object: { id: session.id, customer: session.customerId } },
+          })
+        ).status,
+      ).toBe(200);
+      expect((await attempt()).state).toBe("ready");
+      const unconfirmed = await retry();
+      expect(unconfirmed.status).toBe(409);
+      expect(await unconfirmed.json()).toEqual({
+        error: "billing_reconciliation_required",
+      });
+      const another = await post("/api/billing/checkout", {
+        interval: "month",
+        requestId: randomUUID(),
+      });
+      expect(another.status).toBe(409);
+      expect(await another.json()).toEqual({
+        error: "billing_reconciliation_required",
+      });
+      expect(gateway.createCheckout).toHaveBeenCalledTimes(1);
+
       gateway.checkout.mockImplementationOnce(async () => {
         gateway.data = [billingSubscription(session.customerId)];
         return session;
@@ -405,6 +436,18 @@ export function billingContract(
       expect(await attempt()).toEqual({ state: "complete", session_url: null });
       expect((await quota.usage("alice")).plan).toBe("pro");
       expect(gateway.createCheckout).toHaveBeenCalledTimes(1);
+
+      gateway.data = [
+        billingSubscription(session.customerId, { status: "canceled" }),
+      ];
+      const closed = await retry();
+      expect(closed.status).toBe(409);
+      expect(await closed.json()).toEqual({ error: "billing_checkout_expired" });
+      expect(await attempt()).toEqual({ state: "complete", session_url: null });
+      expect((await quota.usage("alice")).plan).toBe("free");
+      await beginCheckout("alice", randomUUID(), "year");
+      expect(gateway.createCheckout).toHaveBeenCalledTimes(2);
+      expect(gateway.createCheckout.mock.calls[1][0].trialDays).toBeNull();
     });
     it("never shares a checkout request UUID or customer binding with another account", async () => {
       const { requestId } = await beginCheckout("alice");

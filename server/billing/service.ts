@@ -241,7 +241,8 @@ export class BillingService {
     tx: DbLike,
     userId: string,
     customerId: string,
-  ): Promise<{ paid: boolean; hasNonterminal: boolean }> {
+    checkoutSubscriptionId?: string,
+  ) {
     let list: Awaited<ReturnType<BillingGateway["subscriptions"]>>;
     try {
       list = await this.gateway.subscriptions(customerId);
@@ -311,8 +312,11 @@ export class BillingService {
       eligible.sort((a, b) => endFor(b) - endFor(a))[0] ??
       recognized.sort((a, b) => (b.periodEnd ?? 0) - (a.periodEnd ?? 0))[0];
     const paid = eligible.length > 0;
-    const hasNonterminal = list.data.some(
-      (sub) => !["canceled", "incomplete_expired"].includes(sub.status),
+    const terminal = (sub: BillingSubscription) =>
+      sub.status === "canceled" || sub.status === "incomplete_expired";
+    const hasNonterminal = list.data.some((sub) => !terminal(sub));
+    const checkoutSubscriptionTerminal = list.data.some(
+      (sub) => sub.id === checkoutSubscriptionId && terminal(sub),
     );
     const end = paid ? new Date(endFor(picked) * 1000).toISOString() : null;
     const displayEnd = picked ? endFor(picked) : 0;
@@ -346,7 +350,7 @@ export class BillingService {
         "UPDATE billing_checkout_attempts SET state='complete',session_url=NULL WHERE user_id=$1 AND state IN ('pending','ready')",
         [userId],
       );
-    return { paid, hasNonterminal };
+    return { paid, hasNonterminal, checkoutSubscriptionTerminal };
   }
   async checkout(
     userId: string,
@@ -386,7 +390,9 @@ export class BillingService {
         if (same?.state === "expired")
           return new BillingError("billing_checkout_expired", 409);
         if (same?.state === "complete")
-          return new BillingError("billing_subscription_exists", 409);
+          return same.session_id
+            ? same
+            : new BillingError("billing_reconciliation_required", 409);
         const active = (
           await tx.query(
             "SELECT * FROM billing_checkout_attempts WHERE user_id=$1 AND state IN ('pending','ready') ORDER BY created_at DESC",
@@ -446,8 +452,8 @@ export class BillingService {
             return new BillingError("billing_configuration_changed", 409);
           if (attempt.state === "expired")
             return new BillingError("billing_checkout_expired", 409);
-          if (attempt.state === "complete")
-            return new BillingError("billing_subscription_exists", 409);
+          if (attempt.state === "complete" && !attempt.session_id)
+            return new BillingError("billing_reconciliation_required", 409);
           if (
             this.now().getTime() - new Date(attempt.created_at).getTime() >
               23 * 3600_000 &&
@@ -473,14 +479,34 @@ export class BillingService {
                   },
                   "forge-" + this.mode + "-checkout:" + attempt.request_id,
                 );
-            this.validateSession(value, customer);
+            this.validateSession(value, customer, attempt.session_id);
             if (value.status === "complete") {
-              await this.reconcile(tx, userId, customer);
+              const state = await this.reconcile(
+                tx,
+                userId,
+                customer,
+                value.subscriptionId,
+              );
+              if (
+                !state.hasNonterminal && !state.checkoutSubscriptionTerminal
+              ) {
+                // A completed session can precede its subscription in the list.
+                await tx.query(
+                  "UPDATE billing_checkout_attempts SET session_id=$2,session_url=NULL WHERE request_id=$1",
+                  [attempt.request_id, value.id],
+                );
+                return new BillingError("billing_reconciliation_required", 409);
+              }
               await tx.query(
                 "UPDATE billing_checkout_attempts SET state='complete',session_id=$2,session_url=NULL WHERE request_id=$1",
                 [attempt.request_id, value.id],
               );
-              return new BillingError("billing_subscription_exists", 409);
+              return new BillingError(
+                !state.hasNonterminal && value.expiresAt <= seconds(this.now())
+                  ? "billing_checkout_expired"
+                  : "billing_subscription_exists",
+                409,
+              );
             }
             if (
               value.status === "expired" ||
@@ -492,6 +518,8 @@ export class BillingService {
               );
               return new BillingError("billing_checkout_expired", 409);
             }
+            if (attempt.state === "complete")
+              return new BillingError("billing_reconciliation_required", 409);
             const url = trustedUrl(value.url, "checkout.stripe.com");
             await tx.query(
               "UPDATE billing_checkout_attempts SET state='ready',session_id=$2,session_url=$3,expires_at=$4 WHERE request_id=$1",
@@ -512,9 +540,16 @@ export class BillingService {
       ),
     );
   }
-  private validateSession(value: BillingSession, customer: string): void {
+  private validateSession(
+    value: BillingSession,
+    customer: string,
+    expectedId: string | null,
+  ): void {
     if (
       !id(value.id, "cs") ||
+      (expectedId !== null && value.id !== expectedId) ||
+      (value.subscriptionId !== undefined &&
+        !id(value.subscriptionId, "sub")) ||
       value.customerId !== customer ||
       value.livemode !== this.expectedLivemode ||
       !["open", "complete", "expired"].includes(value.status) ||
@@ -632,6 +667,7 @@ export class BillingService {
         ).rows.length
       )
         return;
+      let checkout: { attempt: Attempt; session: BillingSession } | undefined;
       if (event.checkoutSessionId) {
         const attempt = (
           await tx.query(
@@ -640,19 +676,33 @@ export class BillingService {
           )
         ).rows[0] as Attempt | undefined;
         if (attempt) {
-          const actual = await this.gateway.checkout(event.checkoutSessionId);
-          this.validateSession(actual, event.customerId!);
-          if (actual.status !== "open")
-            await tx.query(
-              "UPDATE billing_checkout_attempts SET state=$2,session_url=NULL WHERE request_id=$1",
-              [
-                attempt.request_id,
-                actual.status === "complete" ? "complete" : "expired",
-              ],
-            );
+          const session = await this.gateway.checkout(event.checkoutSessionId);
+          this.validateSession(
+            session,
+            event.customerId!,
+            event.checkoutSessionId,
+          );
+          checkout = { attempt, session };
         }
       }
-      await this.reconcile(tx, account.user_id, event.customerId!);
+      const state = await this.reconcile(
+        tx,
+        account.user_id,
+        event.customerId!,
+        checkout?.session.subscriptionId,
+      );
+      if (checkout) {
+        const { attempt, session } = checkout;
+        if (
+          session.status === "expired" ||
+          (session.status === "complete" &&
+            (state.hasNonterminal || state.checkoutSubscriptionTerminal))
+        )
+          await tx.query(
+            "UPDATE billing_checkout_attempts SET state=$2,session_url=NULL WHERE request_id=$1",
+            [attempt.request_id, session.status],
+          );
+      }
       await tx.query(
         "INSERT INTO billing_events(event_id,user_id,event_type,processed_at) VALUES($1,$2,$3,$4)",
         [event.id, account.user_id, event.type, this.now().toISOString()],
