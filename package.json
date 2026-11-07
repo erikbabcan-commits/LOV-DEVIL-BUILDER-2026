@@ -20,6 +20,7 @@
     "db:migrate": "tsx server/db/migrate.ts",
     "github:preflight": "tsx scripts/check-cloud-github.ts",
     "ai:usage-report": "tsx scripts/ai-usage-report.ts",
+    "product:weekly-report": "tsx scripts/product-weekly-report.ts",
     "templates:verify": "tsx scripts/verify-blueprints.ts",
     "ai:intent-eval": "tsx scripts/eval-intent.ts",
     "zip:verify": "tsx scripts/verify-project-zip.ts",

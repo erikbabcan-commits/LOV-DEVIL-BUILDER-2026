@@ -23,6 +23,7 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import type { DbLike } from '../../server/db/pool';
 import { dbFromPool } from '../../server/db/pool';
+import { productReportWindow, weeklyProductReport } from '../../server/usage/productReport';
 import {hybridAiBackend} from '../fixtures/hybridAiBackend';
 import {ForgeController} from '../../deploy/lovable-github/src/lib/forge-controller';
 import type {ForgeTransport} from '../../deploy/lovable-github/src/lib/forge-agent';
@@ -369,6 +370,56 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     expect(remote.api.mock.calls.slice(before).every(([, init]) => init?.method === 'GET')).toBe(true);
     expect(await (await call('confirm', { requestId, fingerprint: review.fingerprint, publicConfirmed: true })).json()).toEqual(completed);
     expect(remote.api.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1);
+  });
+  it('reports distinct weekly apps and the signup cohort without leaking identifiers', async () => {
+    const week = '2026-10-12';
+    const { start, end } = productReportWindow(week);
+    const day = (offset: number) => new Date(start.getTime() + offset * 86_400_000);
+    const asOf = new Date('2026-10-20T00:00:00Z');
+    expect(() => productReportWindow('2026-10-13')).toThrow('invalid_report_week');
+    expect(() => productReportWindow('2026-02-30')).toThrow('invalid_report_week');
+
+    await db.query('UPDATE users SET created_at=$2 WHERE id=$1', ['alice', day(1)]);
+    await db.query('UPDATE users SET created_at=$2 WHERE id=$1', ['bob', day(-2)]);
+    for (const id of ['saved', 'empty', 'trashed'])
+      await db.query('INSERT INTO users(id,email,password_hash,created_at) VALUES($1,$2,$3,$4)',
+        [id, id + '@example.test', 'fixture', start]);
+    for (const [owner, snapshots, deleted] of [['saved', [{}], null], ['empty', {}, null], ['trashed', [{}], day(5)]])
+      await db.query('INSERT INTO builder_projects(owner_id,project_id,title,revision,workspace,deleted_at) VALUES($1,$2,$3,1,$4,$5)',
+        [owner, 'fixture', 'Private fixture', JSON.stringify({ snapshots }), deleted]);
+    const publish = (owner: string, project: string, at: Date, state = 'published') => db.query(
+      `INSERT INTO publish_jobs(owner_id,request_id,project_id,project_revision,snapshot_id,source_fingerprint,source_files,artifact_id,state,created_at,updated_at)
+       VALUES($1,$2,$3,1,'v1','fixture','[]',$4,$5,$6,$6)`,
+      [owner, randomUUID(), project, randomUUID(), state, at],
+    );
+    await publish('alice', 'same-id', day(0));
+    await publish('alice', 'same-id', day(3));
+    await publish('alice', 'same-id', day(4));
+    await publish('bob', 'same-id', start);
+    await publish('bob', 'excluded-at-end', end);
+    await publish('bob', 'failed', day(4), 'failed');
+    for (const [owner, type, at] of [
+      ['alice', 'invoice.paid', day(2)], ['alice', 'invoice.paid', end],
+      ['bob', 'invoice.paid', day(5)], ['alice', 'invoice.payment_failed', day(4)],
+    ]) await db.query('INSERT INTO billing_events(event_id,user_id,event_type,processed_at) VALUES($1,$2,$3,$4)',
+      [randomUUID(), owner, type, at]);
+
+    const unconfigured = await weeklyProductReport(db, week, asOf);
+    expect(unconfigured).toMatchObject({
+      completeWeek: true, publishedApps: 2, successfulPublications: 4, billingEvidence: 'unconfigured',
+      signupCohort: {
+        backendAccounts: 4, withCurrentSavedOrWeeklyPublishedApp: 2,
+        withPublicationInWeek: 1, withLiveInvoicePaidEventAfterPublicationInWeek: null,
+      },
+    });
+    expect(JSON.stringify(unconfigured)).not.toMatch(/alice|bob|fixture|@example/);
+    await db.query("INSERT INTO billing_environment(id,mode) VALUES('stripe','test')");
+    expect((await weeklyProductReport(db, week, asOf)).signupCohort.withLiveInvoicePaidEventAfterPublicationInWeek).toBeNull();
+    await db.query("UPDATE billing_environment SET mode='live' WHERE id='stripe'");
+    expect((await weeklyProductReport(db, week, asOf)).signupCohort.withLiveInvoicePaidEventAfterPublicationInWeek).toBe(0);
+    await db.query("INSERT INTO billing_events(event_id,user_id,event_type,processed_at) VALUES($1,'alice','invoice.paid',$2)",
+      [randomUUID(), day(5)]);
+    expect((await weeklyProductReport(db, week, asOf)).signupCohort.withLiveInvoicePaidEventAfterPublicationInWeek).toBe(1);
   });
   it('reports only the signed owner’s successful publications inside the UTC usage period', async () => {
     const backend = await hybridAiBackend(db, true);

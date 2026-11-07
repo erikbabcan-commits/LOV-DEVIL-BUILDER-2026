@@ -132,3 +132,22 @@ systemctl start lov-devil-staging.timer
 systemctl list-timers lov-devil-staging.timer --no-pager
 journalctl -u lov-devil-staging.service -n 20 --no-pager
 ```
+
+## Týždenný produktový report
+
+`product:weekly-report` berie pondelok v UTC a vracia iba agregované JSON.
+Pri spustení z repo použi `DATABASE_URL` alebo explicitný súkromný súbor s právami
+`0600`. Report použije read-only pripojenie s časovým limitom dotazu.
+
+```bash
+npm run --silent product:weekly-report -- --week 2026-11-02 --env-file /path/to/private.env
+```
+
+`publishedApps` počíta rôzne dvojice účet/projekt s úspešnou publikáciou v týždni.
+`successfulPublications` zahŕňa aj opakované publikácie. Cohort vychádza z nových
+backendových účtov. Prvý stupeň aplikácie používa uložený snapshot, ktorý je dostupný
+v čase čítania, alebo úspešnú publikáciu v týždni. Preto sa môže zmeniť aj spätne.
+Účet, ktorý existuje iba v Lovable Cloud, sa do cohortu dostane až cez backendový
+záznam. Pri Stripe mimo live režimu je ukazovateľ `invoice.paid` nedostupný.
+V live režime ide o spracovanú udalosť po publikovaní v danom týždni. Report
+neobsahuje sumu, potvrdenie platby kartou, mená, e-maily ani ID účtov.
