@@ -5,6 +5,28 @@ ukážkové publikovanie v hlavnom aj modernom UI a pripája moderný frontend k
 existujúcemu billing backendu. Samotná implementácia nezapína platby, nemigruje
 produkciu a nenahrádza overenie hostovaného nasadenia.
 
+## Produkčný obraz `7f10413` · 7. 11. 2026
+
+Rozšírenie spotreby publikovaní beží na VPS od 19:40 UTC na API porte 8788
+a artifact porte 8791. Obraz má digest
+`sha256:7cc54062d2db37a4008323dd7a5c9afe72cf9ccd07ab5e07ca5a8e5dee7bb922`.
+Obsah dvoch zmenených súborov súhlasí s Git commitom. Izolovaný VPS smoke
+použil dočasnú PostgreSQL v RAM, úspešne overil účty, UTC hranice aj dostupnosť
+AI metrík pri nedostupnej publish tabuľke a odstránil testovacie kontajnery.
+
+Pri výmene kontajnera prešli health HTTP 200, anonymný auth a usage HTTP 401,
+verejná Basic ochrana 401 a artifact root 404. Konfigurácia Nginx sa nemenila.
+`lov-devil-staging.service` overila nový pin s výsledkom `success`. Schéma sa
+overuje existujúcim odtlačkom bez replay migrácií. Billing zostáva vypnutý.
+
+Pri návrate použi zámok `/run/lock/lov-devil-stage-switch.lock`, zastav
+`lov-devil-api-013-7f10413e6a55`, spusti ponechaný
+`lov-devil-api-013-2b556f916f92` a over health aj auth na 8788 a artifact
+listener na 8791. V `/etc/lov-devil/staging.env` obnov jeho názov a digest
+`sha256:43a40c1572988d62b68284e886c9b8da7ebfd3f7cc035cd3380be723c8b35186`.
+Po uvoľnení zámku over `lov-devil-staging.service`. Táto výmena sama nepotvrdzuje
+produkčný prihlásený tok z Lovable.
+
 ## Produkčný API upstream · 7. 11. 2026
 
 Nginx smeruje existujúce Basic-chránené `/api/` na loopback 8788
