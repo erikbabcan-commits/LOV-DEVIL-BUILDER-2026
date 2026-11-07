@@ -198,6 +198,42 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect(compiler.execute).toHaveBeenCalledTimes(4);
   });
 
+  it("prefers a newer revision when an older build finishes later", async () => {
+    let clock = Date.now();
+    const olderCompiler = deferredCompiler();
+    const newerCompiler = deferredCompiler();
+    const older = new PublishService(db, config, olderCompiler, { now: () => clock });
+    const newer = new PublishService(db, config, newerCompiler, { now: () => clock });
+    services.push(older, newer);
+
+    expect((await older.start("alice", selection)).state).toBe("building");
+    await db.query(
+      "UPDATE builder_projects SET revision=2 WHERE owner_id=$1 AND project_id=$2",
+      ["alice", selection.projectId],
+    );
+    clock += 1000;
+    const newerSelection = { ...selection, expectedRevision: 2, requestId: randomUUID() };
+    expect((await newer.start("alice", newerSelection)).state).toBe("building");
+    newerCompiler.release();
+    await newer.settled();
+    expect(await newer.latestPublished("alice", selection.projectId)).toMatchObject({
+      requestId: newerSelection.requestId, revision: 2,
+    });
+
+    clock += 1000;
+    olderCompiler.release();
+    await older.settled();
+    expect((await older.status("alice", selection.requestId)).state).toBe("published");
+    expect(await older.latestPublished("alice", selection.projectId)).toMatchObject({
+      requestId: newerSelection.requestId, revision: 2,
+    });
+
+    await newer.withdraw("alice", newerSelection.requestId);
+    expect(await older.latestPublished("alice", selection.projectId)).toMatchObject({
+      requestId: selection.requestId, revision: 1,
+    });
+  });
+
   it("withdraws only an owned published URL without changing its artifact or publication history", async () => {
     const compiler = deferredCompiler(), value = service(compiler), app = api(value);
     const first = await value.start("alice", selection);

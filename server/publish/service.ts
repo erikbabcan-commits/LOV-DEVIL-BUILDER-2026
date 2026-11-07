@@ -194,7 +194,7 @@ export class PublishService {
            ON p.owner_id = j.owner_id AND p.project_id = j.project_id
          WHERE j.owner_id = $1 AND j.project_id = $2
            AND j.state = 'published' AND j.withdrawn_at IS NULL AND p.deleted_at IS NULL
-         ORDER BY j.updated_at DESC, j.request_id DESC LIMIT 1`,
+         ORDER BY j.project_revision DESC, j.updated_at DESC, j.request_id DESC LIMIT 1`,
         [owner, projectId],
       )
     ).rows[0] as ViewRow | undefined;
