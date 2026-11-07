@@ -46,6 +46,33 @@ Pred výmenou produkcie over obnovu aktuálnej zálohy mimo VPS, cieľový
 odtlačok, diskovú rezervu, izolovaný runner a systemd návrat pod existujúcim
 zámkom.
 
+## Produkčný obraz `aba5cf4` a schéma 018 · 7. 11. 2026
+
+Pred výmenou sa záloha `20261107T213941Z` preniesla priamo na Mac.
+Obnova potvrdila 17 tabuliek a rovnaký odtlačok schémy 015 ako produkcia.
+Adresár záloh na VPS zostal prázdny.
+
+Pod zámkom `/run/lock/lov-devil-stage-switch.lock` prešli migrácie 016–018
+v jednej transakcii. Od 21:43 UTC beží `lov-devil-api-013-aba5cf4a8ef3`
+s digestom `sha256:cc9aa317d28d1889f2aa811dba56c8bf2cbd4711f8ea597ca396cfbe55639a0a`
+a odtlačkom `8580b42fa86cd595a88aefd48b63a53e1a149493e3d357d4d5d3a6aac16ed7a8`.
+Priame kontroly API, schémy a runnera prešli za 4,6 s od začiatku výmeny.
+Nasledovala úspešná kontrola `lov-devil-staging.service`.
+
+Health vrátil HTTP 200, anonymné čítanie účtu a spotreby HTTP 401.
+Verejná neexistujúca trasa `/p/…/` vrátila pri GET aj HEAD HTTP 404
+s `Cache-Control: no-store`. Operátorský front žiadostí vrátil 0 položiek
+na spracovanie. Živý billing je vypnutý. Prihlásený Lovable tok a odvolanie
+reálnej verejnej publikácie zatiaľ čakajú na overenie.
+
+Pri návrate pod tým istým zámkom zastav nový kontajner a spusti pripravený
+`lov-devil-api-013-daf3321e0180` s digestom
+`sha256:8da62fe15bd3ad240f6ea38c57e2c34b18697b46d488f3e11903578b0cb7d75b`.
+V `/etc/lov-devil/staging.env` nastav `LOV_STAGING_API` a `LOV_STAGING_API_IMAGE`
+na tento kontajner. Over zdravie API, runner a ochranu verejnej trasy, potom
+uvoľni zámok a spusti `lov-devil-staging.service`. Ponechaj schému 018, aby
+návrat zachoval odvolané odkazy.
+
 ## Produkčný obraz `daf3321` a schéma 015 · 7. 11. 2026
 
 Kontrola o 20:19 UTC potvrdila aktívny kontajner `lov-devil-api-013-daf332191dfe`
