@@ -151,3 +151,8 @@ v čase čítania, alebo úspešnú publikáciu v týždni. Preto sa môže zmen
 záznam. Pri Stripe mimo live režimu je ukazovateľ `invoice.paid` nedostupný.
 V live režime ide o spracovanú udalosť po publikovaní v danom týždni. Report
 neobsahuje sumu, potvrdenie platby kartou, mená, e-maily ani ID účtov.
+
+Po migrácii 014 report doplní `withObservedFirstAppSaveInWeek`. Čas ukladá
+server v transakcii prvého úspešného uloženia neprázdneho snapshotu. Pre staršie
+účty je to prvé uloženie pozorované po migrácii. Historické časy sa nedopočítavajú.
+Na schéme pred 014 vráti report pre túto metriku `null`.

@@ -371,6 +371,40 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     expect(await (await call('confirm', { requestId, fingerprint: review.fingerprint, publicConfirmed: true })).json()).toEqual(completed);
     expect(remote.api.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1);
   });
+  it('records only the first accepted nonempty save and retains it after project deletion', async () => {
+    const backend = await hybridAiBackend(db, true);
+    const alice = hybridTransport(backend.proxy, backend.tokens.alice);
+    const savedAt = async (id: string) =>
+      (await db.query('SELECT first_observed_app_save_at FROM users WHERE id=$1', [id])).rows[0].first_observed_app_save_at;
+    const empty = { title: 'Draft', isPublic: false, liveId: null, snapshots: [], files: [] };
+    const app = {
+      ...empty,
+      liveId: 'v1',
+      snapshots: [{ id: 'v1', v: 1, prompt: '', kind: 'manual', time: '2000-01-01', html: '<main>App</main>' }],
+      files: [{ name: 'index.html', content: '<main>App</main>' }],
+    };
+    // A populated pre-upgrade database stays unknown until a qualifying save.
+    await db.query('ALTER TABLE users DROP COLUMN first_observed_app_save_at');
+    await db.query(listMigrations().find(migration => migration.name === '014_first_app_save.sql')!.sql);
+    expect(await savedAt('alice')).toBeNull();
+
+    expect((await alice('projects/milestone', { method: 'POST', body: { expectedRevision: 0, workspace: empty } })).status).toBe(201);
+    expect((await alice('projects/milestone', { method: 'POST', body: { expectedRevision: 0, workspace: app } })).status).toBe(409);
+    expect(await savedAt('alice')).toBeNull();
+
+    const first = await Promise.all([
+      alice('projects/milestone', { method: 'POST', body: { expectedRevision: 1, workspace: app } }),
+      alice('projects/second-app', { method: 'POST', body: { expectedRevision: 0, workspace: app } }),
+    ]);
+    expect(first.map(response => response.status)).toEqual([200, 201]);
+    const timestamp = await savedAt('alice');
+    expect(timestamp).toBeInstanceOf(Date);
+    expect(timestamp.getUTCFullYear()).toBeGreaterThan(2000);
+    expect(await savedAt('bob')).toBeNull();
+    expect((await alice('projects/milestone', { method: 'POST', body: { expectedRevision: 2, workspace: app } })).status).toBe(200);
+    await db.query('DELETE FROM builder_projects WHERE owner_id=$1', ['alice']);
+    expect(await savedAt('alice')).toEqual(timestamp);
+  });
   it('reports distinct weekly apps and the signup cohort without leaking identifiers', async () => {
     const week = '2026-10-12';
     const { start, end } = productReportWindow(week);
@@ -392,6 +426,9 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
        VALUES($1,$2,$3,1,'v1','fixture','[]',$4,$5,$6,$6)`,
       [owner, randomUUID(), project, randomUUID(), state, at],
     );
+    await db.query('UPDATE users SET first_observed_app_save_at=$2 WHERE id=$1', ['alice', day(2)]);
+    await db.query('UPDATE users SET first_observed_app_save_at=$2 WHERE id=$1', ['saved', day(1)]);
+    await db.query('UPDATE users SET first_observed_app_save_at=$2 WHERE id=$1', ['trashed', end]);
     await publish('alice', 'same-id', day(0));
     await publish('alice', 'same-id', day(3));
     await publish('alice', 'same-id', day(4));
@@ -407,8 +444,9 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     const unconfigured = await weeklyProductReport(db, week, asOf);
     expect(unconfigured).toMatchObject({
       completeWeek: true, publishedApps: 2, successfulPublications: 4, billingEvidence: 'unconfigured',
+      firstAppSaveEvidence: 'server-observed',
       signupCohort: {
-        backendAccounts: 4, withCurrentSavedOrWeeklyPublishedApp: 2,
+        backendAccounts: 4, withCurrentSavedOrWeeklyPublishedApp: 2, withObservedFirstAppSaveInWeek: 2,
         withPublicationInWeek: 1, withLiveInvoicePaidEventAfterPublicationInWeek: null,
       },
     });
@@ -420,6 +458,10 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     await db.query("INSERT INTO billing_events(event_id,user_id,event_type,processed_at) VALUES($1,'alice','invoice.paid',$2)",
       [randomUUID(), day(5)]);
     expect((await weeklyProductReport(db, week, asOf)).signupCohort.withLiveInvoicePaidEventAfterPublicationInWeek).toBe(1);
+    await db.query('ALTER TABLE users DROP COLUMN first_observed_app_save_at');
+    expect(await weeklyProductReport(db, week, asOf)).toMatchObject({
+      firstAppSaveEvidence: 'unavailable', signupCohort: { withObservedFirstAppSaveInWeek: null },
+    });
   });
   it('reports only the signed owner’s successful publications inside the UTC usage period', async () => {
     const backend = await hybridAiBackend(db, true);
