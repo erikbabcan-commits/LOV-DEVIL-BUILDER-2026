@@ -71,7 +71,7 @@
     "src/routes/github.callback.tsx": "ec9a59226ad29a51fca07a93063bef09ce6749b55afa76553d1c1cfd57f2796a",
     "src/routes/index.tsx": "c105e8c1675de2e836a133ebba6bca369e0f21d5d52ae5de26741a48529ea54e",
     "src/styles.css": "542385f7405403a7beebf106cc3e00c5cc9493693e3746011b6f637abcc32833",
-    "src/components/forge/ForgePublish.tsx": "d9c232fc27e24e80576e2a291cc2a05a55137dcc163eb07915cdf9a256ff3c44",
+    "src/components/forge/ForgePublish.tsx": "9f922fb86e1bf9e7b4698224d5bfca8a6b06b2411af2bb676a239c4e2a615152",
     "src/components/forge/ForgePublish.test.tsx": "d2bc57dabcadc4f3d1144e93623738449965f539d183ba4d74d045847433f288",
     "src/lib/forge-publish.ts": "028230ab1d2d649762448a5a2e2f092188c2a901ddd2bfa2a5956ccacd68aad2",
     "src/components/forge/BillingPanel.tsx": "cb7c4e4a4866e8a9d3e85a15d38839c903629ee8dddfe75ae011798e77221699",

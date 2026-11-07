@@ -51,6 +51,7 @@ function sameSelection(left: PublishSelection | null, right: PublishSelection) {
     left.publicConsent === right.publicConsent
   );
 }
+/** Keep the existing link visible until the owner confirms and the server acknowledges withdrawal. */
 function PublicationLink({
   url,
   summary,
@@ -70,6 +71,7 @@ function PublicationLink({
   const [confirming, setConfirming] = useState(false);
   const [withdrawError, setWithdrawError] = useState(false);
 
+  /** Leave the same confirmation available when the server response is uncertain. */
   async function withdraw() {
     if (!confirming || withdrawing) return;
     setWithdrawError(false);
@@ -157,6 +159,7 @@ type PublishAvailability =
   | { status: "checking" | "error" }
   | { status: "checked"; value: ReturnType<typeof PublishReady.parse> };
 
+/** Scope saved publication links and mutations to the current project and owner. */
 function PublishDialog() {
   const { state, controller } = useForge(),
     [availability, setAvailability] = useState<PublishAvailability>({ status: "checking" }),
@@ -305,6 +308,7 @@ function PublishDialog() {
       controller.get().id === state.id
     );
   }
+  /** Serialize link withdrawal with other publish actions and verify the returned job. */
   async function withdrawPublication(requestId: string) {
     if (running.current) return;
     running.current = true;

@@ -48,6 +48,7 @@ function sourceBinding() {
   return JSON.stringify({workspace:workspacePayload(state),snapshot:state.viewing?.id??state.liveId});
 }
 async function digest(text:string) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text))),b=>b.toString(16).padStart(2,'0')).join(''); }
+/** Publish the selected project and recover the result of a previous submission. */
 export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}) {
   const state=useStore(),dialog=useRef<HTMLDialogElement>(null),controller=useRef<AbortController|null>(null),alive=useRef(false);
   const [ready,setReady]=useState<PublishReady|null>(null),[busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[error,setError]=useState(''),[result,setResult]=useState<PublishResult|null>(null);
@@ -65,6 +66,7 @@ export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}
     return()=>{alive.current=false;controller.current?.abort();node?.close?.();previous?.focus();};
   },[userId,key,projectId]);
   const current=()=>alive.current&&persistenceScope().epoch===epoch&&useStore.getState().projectId===projectId;
+  /** Keep a receipt for uncertain requests and clear it on terminal job states. */
   async function publish() {
     if(busy||blocked||!consent||!ready?.ready||!userId||!current()||!snapshot)return;
     const pending=new AbortController();controller.current?.abort();controller.current=pending;setBusy(true);setError('');setResult(null);setHistoricalResult(false);

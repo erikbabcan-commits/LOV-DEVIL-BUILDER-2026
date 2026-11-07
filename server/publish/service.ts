@@ -102,6 +102,7 @@ export class PublishService {
       publicOrigin: new URL(this.config.baseUrl).origin,
     };
   }
+  /** Translate the stored job without returning a public URL after withdrawal. */
   private view(row: ViewRow): PublishResult {
     return PublishJob.parse({
       requestId: row.request_id,
@@ -144,6 +145,7 @@ export class PublishService {
       return this.view(row);
     });
   }
+  /** Revoke a published URL under the owner lock while retaining its bytes and history. */
   async withdraw(owner: string, requestId: string): Promise<PublishResult> {
     return this.owner(owner, async tx => {
       const row = (await tx.query(
@@ -402,6 +404,7 @@ export class PublishService {
     await Promise.all([...this.jobs.values()]);
   }
 }
+/** Refuse to start publication without its storage, lease and withdrawal columns. */
 export async function probePublishSchema(db: DbLike): Promise<boolean> {
   try {
     await db.query(

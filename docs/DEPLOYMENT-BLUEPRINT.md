@@ -242,7 +242,8 @@ Po migrácii `017_account_closure.sql` môže prepojený účet podať alebo odv
 žiadosť. Ochranná lehota trvá 30 dní. Žiadosť je súčasťou exportu a počas
 čakania ostávajú prístup, predplatné, projekty a publikácie dostupné.
 
-Operátor môže v súkromnej relácii nastaviť `DATABASE_URL` a použiť
+Po migrácii `018_publish_withdrawal.sql` môže operátor v súkromnej relácii
+nastaviť `DATABASE_URL` a použiť
 `npm run account:closure-queue -- --limit 100`. Príkaz iba číta žiadosti po
 ochrannej lehote a vypíše ich interné identifikátory a príznaky závislostí.
 Ak výstup obsahuje `nextCursor`, použi ho v ďalšom behu cez `--cursor`.
