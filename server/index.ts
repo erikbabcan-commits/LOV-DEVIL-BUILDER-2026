@@ -164,12 +164,24 @@ export function createApp(
 
   app.get('/api/ai-usage', async c => {
     c.header('Cache-Control', 'no-store');
-    const user = opts?.auth ? getUserFromContext(c) : null;
-    if (!user || !usageStore) return c.json({ error: 'usage_unavailable' }, 503);
+    const auth = opts?.auth;
+    const user = getUserFromContext(c);
+    if (!auth || !user || !usageStore) return c.json({ error: 'usage_unavailable' }, 503);
     if (new URL(c.req.url).search) return c.json({ error: 'invalid_query' }, 400);
     if (!rateLimit('ai-usage:' + user.id)) return c.json({ error: 'rate_limit' }, 429);
-    try { return c.json(await usageStore.report(user.id)); }
-    catch { return c.json({ error: 'usage_unavailable' }, 503); }
+    try {
+      const report = await usageStore.report(user.id);
+      // A successful job's last transition is publication. Use the same UTC
+      // window and keep the AI report readable if the publish read fails.
+      const result = await auth.db.query(
+        `SELECT COUNT(*) AS deployments FROM publish_jobs
+         WHERE owner_id = $1 AND state = 'published' AND updated_at >= $2 AND updated_at < $3`,
+        [user.id, new Date(report.periodStart + 'T00:00:00Z'), new Date(report.periodEnd + 'T00:00:00Z')],
+      ).catch(() => null);
+      const publishedDeployments = Number(result?.rows[0]?.deployments);
+      return c.json(Number.isSafeInteger(publishedDeployments) && publishedDeployments >= 0
+        ? { ...report, publishedDeployments } : report);
+    } catch { return c.json({ error: 'usage_unavailable' }, 503); }
   });
 
   app.get('/api/ai-models', c => {
