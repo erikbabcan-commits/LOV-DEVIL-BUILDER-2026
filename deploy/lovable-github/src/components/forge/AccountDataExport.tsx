@@ -12,6 +12,7 @@ const sections = {
   publish: "Publikácie",
   github: "Exporty do GitHubu",
   billing: "Udalosti predplatného",
+  closure: "Žiadosti o zrušenie účtu",
 } as const;
 type Section = keyof typeof sections;
 

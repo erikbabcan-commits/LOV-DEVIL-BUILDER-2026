@@ -157,6 +157,16 @@ describe("routing", () => {
     expect((await run(req("account/export/tokens"), d)).status).toBe(404);
     expect(d.fetch).toHaveBeenCalledOnce();
   });
+  it("proxies only the fixed account closure operations and caps their input", async () => {
+    const d = deps();
+    expect((await run(req("account/closure"), d)).status).toBe(200);
+    expect((await run(post("account/closure/cancel"), d)).status).toBe(200);
+    expect(d.fetch.mock.calls[1]![0]).toBe(`${BASE}/api/account/closure/cancel`);
+    expect((await run(post("account/closure", "{}", { origin: "https://other.test" }), d)).status).toBe(403);
+    expect((await run(post("account/closure", "x".repeat(513)), d)).status).toBe(413);
+    expect((await run(post("account/closure/apply"), d)).status).toBe(404);
+    expect(d.fetch).toHaveBeenCalledTimes(2);
+  });
   it("unknown path 404, wrong method 405", async () => {
     expect((await run(req("agent/autofix"))).status).toBe(404);
     expect((await run(req("sandbox/build"))).status).toBe(405);

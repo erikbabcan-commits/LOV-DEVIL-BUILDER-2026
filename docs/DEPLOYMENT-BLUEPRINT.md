@@ -235,3 +235,20 @@ Pri väčšom objeme pokračuje tlačidlo ďalšou časťou tej istej sekcie.
 Každé čítanie vychádza z aktuálnej relácie. Pri zmene projektov počas sťahovania
 možno export sekcie zopakovať. Súbory nepokrývajú logy Cloud služieb, Stripe
 faktúry, repozitáre na GitHube ani neuložené lokálne koncepty.
+
+### Žiadosť o zrušenie účtu
+
+Po migrácii `017_account_closure.sql` môže prepojený účet podať alebo odvolať
+žiadosť. Ochranná lehota trvá 30 dní. Žiadosť je súčasťou exportu a počas
+čakania ostávajú prístup, predplatné, projekty a publikácie dostupné.
+
+Operátor môže v súkromnej relácii nastaviť `DATABASE_URL` a použiť
+`npm run account:closure-queue -- --limit 100`. Príkaz iba číta žiadosti po
+ochrannej lehote a vypíše ich interné identifikátory a príznaky závislostí.
+Výsledok je momentka. Opätovná kontrola žiadosti aj závislostí je potrebná
+pred každým budúcim spracovaním.
+
+Samotné podanie ani uplynutie lehoty nič automaticky nemaže. Spracovanie
+musí riešiť Cloud identitu, Stripe, rozbehnuté úlohy, publikácie aj kópie
+u externých služieb. Verejné artefakty už vydané s ročnou cache môžu
+zostať uložené v klientoch po zrušení prístupu na pôvodnej adrese.

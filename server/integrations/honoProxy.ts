@@ -79,6 +79,7 @@ export function makeHonoProxy(options: HonoProxyOptions): (request: Request) => 
 
     const billing = path === '/api/billing' || path === '/api/billing/checkout' || path === '/api/billing/portal';
     const publishing = path === '/api/publish' || path.startsWith('/api/publish/');
+    const closure = path === '/api/account/closure' || path === '/api/account/closure/cancel';
     const timeoutMs = path === '/api/agent/generate' || path === '/api/sandbox/autofix' ? 130_000 : path === '/api/sandbox/build' ? 35_000 : billing ? 60_000 : 20_000;
     const controller = new AbortController();
     const onClientAbort = () => controller.abort(new DOMException('Client disconnected', 'AbortError'));
@@ -100,7 +101,8 @@ export function makeHonoProxy(options: HonoProxyOptions): (request: Request) => 
       }
       if (!session) return jsonError('unauthenticated', 401);
       if (!session.accessToken || session.accessToken.length > 16_384 || !/^[A-Za-z0-9_.-]+$/.test(session.accessToken)) return jsonError('cloud_auth_unavailable', 503);
-      const body = request.method === 'POST' ? await boundedBody(request, controller.signal, billing ? 8192 : publishing ? 4096 : MAX_BODY) : undefined;
+      const bodyLimit = closure ? 512 : billing ? 8192 : publishing ? 4096 : MAX_BODY;
+      const body = request.method === 'POST' ? await boundedBody(request, controller.signal, bodyLimit) : undefined;
       const headers = new Headers({ Authorization: 'Bearer ' + session.accessToken, Accept: path === '/api/agent/generate' ? 'text/event-stream' : 'application/json' });
       if (options.basicAuth !== undefined) {
         headers.set('Authorization', 'Basic ' + btoa(options.basicAuth));

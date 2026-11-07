@@ -34,6 +34,7 @@ import { LocalBudgetGuard } from './security/budget';
 import { containsPotentialSecret, redactSecrets } from './security/secrets';
 import { authRouter } from './auth/routes';
 import { accountExportRouter } from './auth/accountExport';
+import { accountClosureRouter } from './auth/accountClosure';
 import { makeAuthMiddleware, getUserFromContext } from './auth/middleware';
 import { makeCloudAuth, validateCloudIssuer, type CloudAuth } from './auth/cloud';
 import { readCloudGitHubConfig, makeCloudGitHubWiring } from './integrations/githubRuntime';
@@ -158,6 +159,7 @@ export function createApp(
     app.use('/api/*', makeAuthMiddleware(opts.auth.jwtSecret, opts.auth.cloudAuth, opts.auth.cloudGitHub ? isCloudGitHubRoute : undefined, opts.auth.db));
     app.route('/', authRouter(opts.auth));
     app.route('/', accountExportRouter(opts.auth.db, opts?.rateLimit ?? makeRateLimiter(60)));
+    app.route('/', accountClosureRouter(opts.auth.db, rateLimit));
     app.route('/', projectRouter(opts.auth.db, rateLimit, cfg.projectStorage));
     if (opts.auth.cloudGitHub) app.route('/', githubCloudRouter(opts.auth.cloudGitHub, rateLimit));
   }

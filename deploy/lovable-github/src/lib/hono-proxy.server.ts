@@ -7,14 +7,25 @@ export const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 const ID = "[A-Za-z0-9_-]{1,128}";
 const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
-type Kind = "crud" | "build" | "ai" | "billing" | "publish";
+type Kind = "crud" | "build" | "ai" | "billing" | "publish" | "closure";
 const TIMEOUTS: Record<Kind, number> = {
   crud: 20_000,
   build: 35_000,
   ai: 130_000,
   billing: 60_000,
   publish: 20_000,
+  closure: 20_000,
 };
+
+function requestBudget(kind: Kind) {
+  return kind === "closure"
+    ? 512
+    : kind === "billing"
+      ? 8192
+      : kind === "publish"
+        ? 4096
+        : MAX_REQUEST_BYTES;
+}
 
 interface RouteDef {
   method: "GET" | "POST";
@@ -57,9 +68,27 @@ const ROUTES: RouteDef[] = [
   { method: "GET", re: /^ai-usage$/, upstream: () => "/api/ai-usage", kind: "crud" },
   {
     method: "GET",
-    re: /^account\/export\/(profile|(?:projects|auth|ai|publish|github|billing)(?:\/[A-Za-z0-9_-]{1,512})?)$/,
+    re: /^account\/export\/(profile|(?:projects|auth|ai|publish|github|billing|closure)(?:\/[A-Za-z0-9_-]{1,512})?)$/,
     upstream: (m) => `/api/account/export/${m[1]}`,
     kind: "crud",
+  },
+  {
+    method: "GET",
+    re: /^account\/closure$/,
+    upstream: () => "/api/account/closure",
+    kind: "closure",
+  },
+  {
+    method: "POST",
+    re: /^account\/closure$/,
+    upstream: () => "/api/account/closure",
+    kind: "closure",
+  },
+  {
+    method: "POST",
+    re: /^account\/closure\/cancel$/,
+    upstream: () => "/api/account/closure/cancel",
+    kind: "closure",
   },
   { method: "GET", re: /^project-storage$/, upstream: () => "/api/project-storage", kind: "crud" },
   { method: "GET", re: /^auth\/me$/, upstream: () => "/api/auth/me", kind: "crud" },
@@ -287,12 +316,7 @@ export async function handleHonoProxy(
     if (ct !== "application/json") return jsonError(415, "unsupported_media_type");
     const cl = request.headers.get("content-length");
     if (cl !== null && !/^\d+$/.test(cl)) return jsonError(400, "invalid_content_length");
-    if (
-      cl &&
-      Number(cl) >
-        (def.kind === "billing" ? 8192 : def.kind === "publish" ? 4096 : MAX_REQUEST_BYTES)
-    )
-      return jsonError(413, "payload_too_large");
+    if (cl && Number(cl) > requestBudget(def.kind)) return jsonError(413, "payload_too_large");
   }
 
   const auth = request.headers.get("authorization") ?? "";
@@ -328,11 +352,7 @@ export async function handleHonoProxy(
     let body: Uint8Array | undefined;
     if (def.method === "POST") {
       body = request.body
-        ? await readLimited(
-            request.body,
-            ctrl.signal,
-            def.kind === "billing" ? 8192 : def.kind === "publish" ? 4096 : MAX_REQUEST_BYTES,
-          )
+        ? await readLimited(request.body, ctrl.signal, requestBudget(def.kind))
         : new Uint8Array();
     }
 

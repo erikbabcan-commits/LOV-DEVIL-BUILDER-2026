@@ -52,6 +52,63 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     GITHUB_CLOUD_ALLOWED_ORIGIN: 'https://lovable.test', GITHUB_CLOUD_CALLBACK_URL: 'https://lovable.test/github/callback', GITHUB_CLOUD_ENCRYPTION_KEY: 'ab'.repeat(32), GITHUB_BRIDGE_SECRET: 'ef'.repeat(32) });
   const localDrafts=():DraftStorage=>{const owners=new Map<string,Draft>();return{read:async owner=>structuredClone(owners.get(owner)??null),write:async(owner,draft)=>{owners.set(owner,structuredClone(draft));}};};
   function hybridTransport(proxy:(request:Request)=>Promise<Response>,token:string):ForgeTransport{return(path,init)=>proxy(new Request('https://lovable.test/api/hono/'+path,{method:init?.method??'GET',headers:{Origin:'https://lovable.test',Authorization:'Bearer '+token,'Content-Type':'application/json'},...(init?.body===undefined?{}:{body:JSON.stringify(init.body)}),...(init?.signal?{signal:init.signal}:{})}));}
+  it('records, retries and cancels closure requests without changing the account or other tenants', async () => {
+    const backend = await hybridAiBackend(db, true);
+    const alice = hybridTransport(backend.proxy, backend.tokens.alice);
+    const bob = hybridTransport(backend.proxy, backend.tokens.bob);
+    const endpoint = 'account/closure';
+    const post = (transport: ForgeTransport, path: string, body: object) => transport(path, { method: 'POST', body });
+    const firstId = randomUUID(), secondId = randomUUID();
+    expect((await post(alice, endpoint, { requestId: firstId })).status).toBe(400);
+    expect((await post(alice, endpoint, { requestId: firstId, confirmed: true, owner: 'bob' })).status).toBe(400);
+    expect((await post(alice, endpoint, { requestId: firstId, confirmed: true, extra: 'a'.repeat(512) })).status).toBe(413);
+    const [created, retry] = await Promise.all([1, 2].map(async () =>
+      (await post(alice, endpoint, { requestId: firstId, confirmed: true })).json(),
+    ));
+    expect(created).toMatchObject({ accountId: 'alice', state: 'pending', requestId: firstId });
+    expect(retry).toEqual(created);
+    expect(Date.parse(created.eligibleAt) - Date.parse(created.requestedAt)).toBe(30 * 86_400_000);
+    expect(await (await post(bob, endpoint + '/cancel', { requestId: firstId })).json())
+      .toEqual({ accountId: 'bob', state: 'none' });
+    expect(await (await alice(endpoint)).json()).toEqual(created);
+    expect(await (await post(alice, endpoint + '/cancel', { requestId: firstId })).json())
+      .toEqual({ accountId: 'alice', state: 'none' });
+    expect(await (await post(alice, endpoint, { requestId: firstId, confirmed: true })).json())
+      .toEqual({ accountId: 'alice', state: 'none' });
+    const next = await (await post(alice, endpoint, { requestId: secondId, confirmed: true })).json();
+    expect(await (await post(alice, endpoint + '/cancel', { requestId: firstId })).json()).toEqual(next);
+    const exportData = await (await alice('account/export/closure')).json();
+    expect(exportData.records).toEqual(expect.arrayContaining([
+      expect.objectContaining({ request_id: firstId, cancelled_at: expect.any(String) }),
+      expect.objectContaining({ request_id: secondId, cancelled_at: null }),
+    ]));
+    expect((await alice('projects/hybrid-fixture')).status).toBe(200);
+    expect((await alice('auth/me')).status).toBe(200);
+    expect((await backend.app.request('/api/account/closure')).status).toBe(401);
+
+    const url = new URL(process.env.PROJECTS_TEST_DATABASE_URL!);
+    url.searchParams.set('options', '-c search_path=' + schema);
+    const queue = () => {
+      const output = spawnSync(process.execPath, [
+        'node_modules/tsx/dist/cli.mjs', 'scripts/account-closure-queue.ts', '--limit', '1',
+      ], { encoding: 'utf8', timeout: 15000, env: { PATH: process.env.PATH, DATABASE_URL: url.href } });
+      expect(output.error).toBeUndefined();
+      expect(output.status).toBe(0);
+      expect(output.stdout).not.toContain(url.password);
+      return JSON.parse(output.stdout);
+    };
+    expect(queue()).toEqual({ ok: true, hasMore: false, requests: [] });
+    await db.query(`UPDATE account_closure_requests SET requested_at=now() - interval '31 days', eligible_at=now() - interval '1 day'
+      WHERE user_id='alice' AND request_id=$1`, [secondId]);
+    await db.query(`INSERT INTO billing_accounts (user_id, customer_key, created_at, has_open_subscription)
+      VALUES ('alice', $1, now(), true)`, [randomUUID()]);
+    const ready = queue();
+    expect(ready).toMatchObject({ requests: [{
+      user_id: 'alice', request_id: secondId, cloud_identity: true, open_subscription: true,
+    }] });
+    expect(queue()).toEqual(ready);
+    expect((await alice('projects/hybrid-fixture')).status).toBe(200);
+  }, 20000);
   it('exports only owner data through the signed Cloud bridge and includes trashed projects', async () => {
     const backend = await hybridAiBackend(db, true);
     const alice = hybridTransport(backend.proxy, backend.tokens.alice);
