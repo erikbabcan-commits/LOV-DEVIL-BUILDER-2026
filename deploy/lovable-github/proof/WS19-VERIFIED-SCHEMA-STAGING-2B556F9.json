@@ -1,0 +1,47 @@
+{
+  "documentedAt": "2026-11-07T18:29:06.238372+00:00",
+  "runtimeCommit": "2b556f916f92986606e15b7f7e62d5620e312be2",
+  "runtimeImage": "sha256:43a40c1572988d62b68284e886c9b8da7ebfd3f7cc035cd3380be723c8b35186",
+  "mergePr": 25,
+  "artifact": {
+    "portableContextBytes": 51200,
+    "verifiedChangedFiles": 2,
+    "matchingBaseLayers": 12
+  },
+  "migrationRehearsal": {
+    "sourceSnapshot": "20261107T030320Z",
+    "restoreLocation": "temporary PostgreSQL 16 on Mac",
+    "restoredTables": 17,
+    "defaultReplayPreservedSchemaAndRows": true,
+    "defaultReplayBlockedAtMigration": "006_github_export_lifecycle.sql",
+    "verifiedStartupSucceededUnderReadLock": true,
+    "mismatchRejectedBeforeListening": true,
+    "liveCatalogMatchedFreshMigratedReferenceReadOnly": true
+  },
+  "staging": {
+    "activeContainer": "lov-devil-api-013-2b556f916f92",
+    "apiLoopbackPort": 8788,
+    "artifactLoopbackPort": 8791,
+    "health": 200,
+    "anonymousAuth": 401,
+    "dockerHealth": "healthy",
+    "runtimeFingerprintMatches": true,
+    "migrationReplay": false,
+    "runnerReady": true,
+    "runnerMode": "isolated",
+    "previousContainerRetainedStopped": "lov-devil-api-013-d9b279b56f37",
+    "restartPolicy": "no",
+    "logDriver": "none",
+    "firstAttempt": "Rollback restored the original staging container. Its log driver cannot serve docker logs, so a log-based gate could not validate the otherwise healthy candidate.",
+    "secondAttempt": "Verified live configuration, read-only PostgreSQL fingerprint, HTTP health and the upstream invariants."
+  },
+  "production": {
+    "apiLoopbackPort": 8787,
+    "health": 200,
+    "anonymousAuth": 401,
+    "containerRunnerDatabaseAndNginxConfigurationUnchanged": true,
+    "publicEditorRoot": 401,
+    "publicArtifactHostRoot": 404,
+    "canonicalLovableEndToEndVerified": false
+  }
+}
