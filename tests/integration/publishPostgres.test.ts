@@ -129,10 +129,14 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
       ready: async () => ({ ready: true, mode: "isolated" as const }),
       execute: vi.fn<SandboxExecutor["execute"]>()
         .mockResolvedValueOnce(output)
+        .mockResolvedValueOnce(output)
         .mockResolvedValueOnce({ ...output, ok: false, html: null })
         .mockResolvedValueOnce(output),
     };
-    const value = service(compiler), app = api(value);
+    let clock = Date.now();
+    const value = new PublishService(db, config, compiler, { now: () => clock });
+    services.push(value);
+    const app = api(value);
     const latestPath = "/api/publish/project/project-one/latest";
     const lookup = (token = alice) => app.request(latestPath, { headers: headers(token) });
 
@@ -142,7 +146,21 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     const first = await value.status("alice", selection.requestId);
     expect(first.state).toBe("published");
 
+    const other = { ...selection, projectId: "project-other", requestId: randomUUID() };
+    await db.query(
+      `INSERT INTO builder_projects(owner_id,project_id,title,revision,workspace)
+       SELECT owner_id,$3,title,revision,workspace FROM builder_projects WHERE owner_id=$1 AND project_id=$2`,
+      ["alice", selection.projectId, other.projectId],
+    );
+    clock += 1000;
+    await value.start("alice", other);
+    await value.settled();
+    expect(await value.latestPublished("alice", other.projectId)).toMatchObject({
+      projectId: other.projectId, requestId: other.requestId,
+    });
+
     await db.query("UPDATE builder_projects SET revision=2 WHERE owner_id=$1 AND project_id=$2", ["alice", "project-one"]);
+    clock += 1000;
     const second = { ...selection, expectedRevision: 2, requestId: randomUUID() };
     await value.start("alice", second);
     await value.settled();
@@ -150,6 +168,10 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     const response = await lookup();
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual(first);
+    const publicApp = publicPublishApp(config, db, value.artifacts);
+    expect((await publicApp.request(first.url!, {
+      headers: { Host: "127.0.0.1:8791" },
+    })).status).toBe(200);
     expect(await (await lookup(bob)).json()).toBeNull();
     const cloud = new Hono();
     cloud.use("/api/*", makeAuthMiddleware(secret, {
@@ -164,6 +186,7 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect((await app.request(latestPath)).status).toBe(401);
     expect((await app.request(latestPath + "?owner=bob", { headers: headers(alice) })).status).toBe(400);
 
+    clock += 1000;
     const third = { ...second, requestId: randomUUID() };
     await value.start("alice", third);
     await value.settled();
@@ -172,7 +195,7 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect(await (await lookup()).json()).toEqual(first);
     await db.query("UPDATE builder_projects SET deleted_at=now() WHERE owner_id=$1 AND project_id=$2", ["alice", "project-one"]);
     expect(await (await lookup()).json()).toBeNull();
-    expect(compiler.execute).toHaveBeenCalledTimes(3);
+    expect(compiler.execute).toHaveBeenCalledTimes(4);
   });
 
   it("withdraws only an owned published URL without changing its artifact or publication history", async () => {
