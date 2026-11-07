@@ -20,6 +20,13 @@ function count(value: unknown): number {
 /** One statement gives all aggregates the same database snapshot. */
 export async function weeklyProductReport(db: DbLike, week: string, now = new Date()) {
   const { start, end } = productReportWindow(week);
+  // Capability check keeps the operator report usable against older API schemas.
+  const schema = await db.query(`SELECT EXISTS (
+    SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass
+      AND attname = 'first_observed_app_save_at' AND NOT attisdropped
+  ) AS present`);
+  const tracksFirstSave = schema.rows[0]?.present === true;
+  const firstSaveColumn = tracksFirstSave ? 'first_observed_app_save_at' : 'NULL::timestamptz';
   const result = await db.query(`
     WITH publications AS (
       SELECT owner_id, project_id, updated_at
@@ -27,7 +34,8 @@ export async function weeklyProductReport(db: DbLike, week: string, now = new Da
       WHERE state = 'published' AND updated_at >= $1 AND updated_at < $2
     ),
     cohort AS (
-      SELECT id, created_at FROM users WHERE created_at >= $1 AND created_at < $2
+      SELECT id, created_at, ${firstSaveColumn} AS first_save_at
+      FROM users WHERE created_at >= $1 AND created_at < $2
     ),
     cohort_publications AS (
       SELECT p.owner_id, MIN(p.updated_at) AS first_publication
@@ -48,6 +56,7 @@ export async function weeklyProductReport(db: DbLike, week: string, now = new Da
           AND CASE WHEN jsonb_typeof(p.workspace->'snapshots') = 'array'
             THEN jsonb_array_length(p.workspace->'snapshots') > 0 ELSE FALSE END
       )) AS saved_or_published_apps,
+      (SELECT COUNT(*) FROM cohort WHERE first_save_at >= created_at AND first_save_at < $2) AS observed_first_saves,
       (SELECT COUNT(*) FROM cohort_publications) AS cohort_publishers,
       CASE WHEN billing.mode = 'live' THEN (
         SELECT COUNT(*) FROM cohort_publications p WHERE EXISTS (
@@ -62,7 +71,7 @@ export async function weeklyProductReport(db: DbLike, week: string, now = new Da
   if (result.rows.length !== 1 || !['live', 'test', 'unconfigured'].includes(row?.billing_mode))
     throw new Error('invalid_report_result');
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     periodStart: start.toISOString(),
     periodEnd: end.toISOString(),
     generatedAt: now.toISOString(),
@@ -72,10 +81,12 @@ export async function weeklyProductReport(db: DbLike, week: string, now = new Da
     signupCohort: {
       backendAccounts: count(row.signups),
       withCurrentSavedOrWeeklyPublishedApp: count(row.saved_or_published_apps),
+      withObservedFirstAppSaveInWeek: tracksFirstSave ? count(row.observed_first_saves) : null,
       withPublicationInWeek: count(row.cohort_publishers),
       withLiveInvoicePaidEventAfterPublicationInWeek: row.billing_mode === 'live'
         ? count(row.cohort_live_invoice_events) : null,
     },
+    firstAppSaveEvidence: tracksFirstSave ? 'server-observed' : 'unavailable',
     billingEvidence: row.billing_mode as 'live' | 'test' | 'unconfigured',
   };
 }

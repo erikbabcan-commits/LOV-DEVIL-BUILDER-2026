@@ -84,14 +84,15 @@ export function projectRouter(db: DbLike, allow: (key: string) => boolean, polic
       const oldBytes = existing.rows[0] ? Number(existing.rows[0].bytes) : 0;
       if (!fitsProjectStorage(usage, usage.usedBytes - oldBytes + bytes, usage.usedProjects + (row ? 0 : 1)))
         return { body: { error: 'project_storage_quota', usage }, status: 413 as const };
-      if (expectedRevision === 0) {
-        const inserted = await tx.query(`INSERT INTO builder_projects (owner_id, project_id, title, revision, workspace)
-          VALUES ($1, $2, $3, 1, $4::jsonb) ON CONFLICT (owner_id, project_id) DO NOTHING RETURNING revision`, [owner, id, workspace.title, serialized]);
-        return inserted.rows.length ? { body: { id, revision: 1 }, status: 201 as const } : { body: { error: 'project_conflict' }, status: 409 as const };
-      }
-      const updated = await tx.query(`UPDATE builder_projects SET title = $3, workspace = $4::jsonb, revision = revision + 1, updated_at = now()
-        WHERE owner_id = $1 AND project_id = $2 AND revision = $5 AND deleted_at IS NULL RETURNING revision`, [owner, id, workspace.title, serialized, expectedRevision]);
-      return updated.rows.length ? { body: { id, revision: updated.rows[0].revision }, status: 200 as const } : { body: { error: 'project_conflict' }, status: 409 as const };
+      const saved = expectedRevision === 0
+        ? await tx.query(`INSERT INTO builder_projects (owner_id, project_id, title, revision, workspace)
+          VALUES ($1, $2, $3, 1, $4::jsonb) ON CONFLICT (owner_id, project_id) DO NOTHING RETURNING revision`, [owner, id, workspace.title, serialized])
+        : await tx.query(`UPDATE builder_projects SET title = $3, workspace = $4::jsonb, revision = revision + 1, updated_at = now()
+          WHERE owner_id = $1 AND project_id = $2 AND revision = $5 AND deleted_at IS NULL RETURNING revision`, [owner, id, workspace.title, serialized, expectedRevision]);
+      if (!saved.rows.length) return { body: { error: 'project_conflict' }, status: 409 as const };
+      if (workspace.liveId && workspace.files.length > 0)
+        await tx.query('UPDATE users SET first_observed_app_save_at = now() WHERE id = $1 AND first_observed_app_save_at IS NULL', [owner]);
+      return { body: { id, revision: saved.rows[0].revision }, status: expectedRevision === 0 ? 201 as const : 200 as const };
     });
     return c.json(result.body, result.status);
   });
