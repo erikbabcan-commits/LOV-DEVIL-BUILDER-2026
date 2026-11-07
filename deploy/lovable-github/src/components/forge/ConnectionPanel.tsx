@@ -46,6 +46,7 @@ function Row({ label, value, good }: { label: string; value: string; good?: bool
   );
 }
 
+/** Display connection and account actions only for the currently linked session. */
 export function ConnectionPanel({ onClose }: { onClose: () => void }) {
   const s = useSession();
   const [reach, setReach] = useState<HonoReach | null>(null);

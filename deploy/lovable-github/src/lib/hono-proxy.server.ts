@@ -17,6 +17,7 @@ const TIMEOUTS: Record<Kind, number> = {
   closure: 20_000,
 };
 
+/** Bound account and billing mutations below the general project upload limit. */
 function requestBudget(kind: Kind) {
   return kind === "closure"
     ? 512
@@ -276,6 +277,7 @@ function withDeadline<T>(p: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
+/** Forward allowlisted requests after verifying the Cloud token and applying route limits. */
 export async function handleHonoProxy(
   request: Request,
   splat: string,

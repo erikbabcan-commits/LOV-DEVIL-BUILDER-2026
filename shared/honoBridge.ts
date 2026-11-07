@@ -1,6 +1,7 @@
 /** The complete Cloud-to-Hono surface. Keep the Lovable proxy allowlist identical. */
 const accountExportPath = /^\/api\/account\/export\/(?:profile|(?:projects|auth|ai|publish|github|billing|closure)(?:\/[A-Za-z0-9_-]{1,512})?)$/;
 
+/** Match a fixed method and path before accepting a Cloud bearer on Hono. */
 export function isCloudApiRoute(method: string, path: string): boolean {
   if (method === 'GET') return path === '/api/auth/me' || path === '/api/sandbox/ready' ||
     accountExportPath.test(path) || path === '/api/account/closure' ||

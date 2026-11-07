@@ -105,6 +105,7 @@ export function makeRateLimiter(maxPerMin: number) {
   };
 }
 
+/** Mount the pilot and authenticated API routes according to the supplied runtime wiring. */
 export function createApp(
   cfg: ServerConfig,
   provider: AIProvider | null,
