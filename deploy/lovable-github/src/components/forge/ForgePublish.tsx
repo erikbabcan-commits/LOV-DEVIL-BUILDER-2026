@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Globe, RefreshCw } from "lucide-react";
+import { Copy, Globe, RefreshCw } from "lucide-react";
 import { useForge } from "@/lib/forge-context";
 import { honoFetch } from "@/lib/hono-client";
 import {
@@ -51,6 +51,49 @@ function sameSelection(left: PublishSelection | null, right: PublishSelection) {
     left.publicConsent === right.publicConsent
   );
 }
+function PublicationLink({ url, summary, label }: { url: string; summary: string; label: string }) {
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied" | "unavailable">(
+    "idle",
+  );
+
+  async function copy() {
+    if (copyStatus === "copying") return;
+    setCopyStatus("copying");
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("unavailable");
+    }
+  }
+
+  return (
+    <section
+      aria-label="Verejný odkaz"
+      className="space-y-2 rounded-lg border border-border p-3 text-sm"
+    >
+      <p role="status">{summary}</p>
+      <p className="select-all break-all text-xs text-muted-foreground">{url}</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <a className="break-words underline" href={url} target="_blank" rel="noopener noreferrer">
+          {label}
+        </a>
+        <Btn size="sm" disabled={copyStatus === "copying"} onClick={() => void copy()}>
+          <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+          Skopírovať odkaz
+        </Btn>
+      </div>
+      <p role="status" className="text-xs text-muted-foreground">
+        {copyStatus === "copied"
+          ? "Odkaz je skopírovaný."
+          : copyStatus === "unavailable"
+            ? "Kopírovanie zlyhalo. Adresu môžeš označiť a skopírovať ručne."
+            : ""}
+      </p>
+    </section>
+  );
+}
+
 type PublishAvailability =
   | { status: "checking" | "error" }
   | { status: "checked"; value: ReturnType<typeof PublishReady.parse> };
@@ -417,7 +460,7 @@ function PublishDialog() {
         Zverejní sa obsah aplikácie vrátane klientského kódu z uloženej verzie. Účet a konverzácia
         sa nezverejňujú.
       </DialogDescription>
-      <p className="break-all text-sm">
+      <p className="break-words text-sm">
         <b>{workspace.title}</b> · verzia v{snapshot?.v ?? "—"} ·{" "}
         {state.revision && !state.dirty
           ? "serverová revízia " + state.revision
@@ -510,33 +553,28 @@ function PublishDialog() {
       {savedPublication?.key === key &&
         savedPublication.path === savedPath &&
         savedPublication.controller === controller && (
-          <div role="status" className="rounded-lg border border-border p-3 text-sm">
-            <p>Táto uložená verzia je publikovaná.</p>
-            <a
-              className="break-all underline"
-              href={savedPublication.url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Otvoriť publikovanú aplikáciu
-            </a>
-          </div>
+          <PublicationLink
+            key={savedPublication.url}
+            url={savedPublication.url}
+            summary="Táto uložená verzia je publikovaná."
+            label="Otvoriť publikovanú aplikáciu"
+          />
         )}
       {url && job && (
-        <div role="status" className="rounded-lg border border-border p-3 text-sm">
-          <p>
-            {previousSources
+        <PublicationLink
+          key={url}
+          url={url}
+          summary={
+            (previousSources
               ? "Publikovaná bola predchádzajúca uložená verzia. Aktuálne zdroje tým nie sú publikované."
-              : "Verzia bola publikovaná"}{" "}
-            · serverová revízia {job.revision}.
-          </p>
-          <a className="break-all underline" href={url} target="_blank" rel="noopener noreferrer">
-            {previousSources
+              : "Verzia bola publikovaná") + ` · serverová revízia ${job.revision}.`
+          }
+          label={
+            previousSources
               ? "Otvoriť publikáciu predchádzajúcej verzie"
-              : "Otvoriť publikovanú aplikáciu"}
-          </a>
-          <p className="break-all text-xs">{url}</p>
-        </div>
+              : "Otvoriť publikovanú aplikáciu"
+          }
+        />
       )}
       <div className="flex flex-wrap justify-end gap-2">
         {pendingSelection && (

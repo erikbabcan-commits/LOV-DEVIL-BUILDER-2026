@@ -4,6 +4,7 @@ import { ForgeController } from "@/lib/forge-controller";
 import { ForgeContext } from "@/lib/forge-context";
 import { ForgePublish } from "./ForgePublish";
 const mock = vi.hoisted(() => ({ hono: vi.fn() }));
+const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
 vi.mock("@/lib/hono-client", () => ({ honoFetch: mock.hono }));
 let controller: ForgeController,
   save: ReturnType<typeof vi.fn<(path: string, init?: unknown) => Promise<Response>>>;
@@ -79,6 +80,8 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   controller.dispose();
+  if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard);
+  else Reflect.deleteProperty(navigator, "clipboard");
   vi.restoreAllMocks();
   vi.resetAllMocks();
 });
@@ -448,6 +451,44 @@ describe("real publication dialog", () => {
     expect(call?.[1].body).not.toHaveProperty("html");
     expect(call?.[1].body).not.toHaveProperty("url");
     expect(call?.[1].expectedUserId).toBe("alice");
+  });
+  it("copies the verified public URL and reports success after the clipboard write", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    show();
+    await open();
+    consent();
+    fireEvent.click(screen.getByRole("button", { name: "Publikovať verejne" }));
+    const link = await screen.findByRole("link", { name: "Otvoriť publikovanú aplikáciu" });
+    fireEvent.click(screen.getByRole("button", { name: "Skopírovať odkaz" }));
+    await screen.findByText("Odkaz je skopírovaný.");
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(link.getAttribute("href"));
+  });
+
+  it("keeps a reopened URL selectable if the browser refuses clipboard access", async () => {
+    await controller.save();
+    const published = job({
+      requestId: crypto.randomUUID(),
+      projectId: "p1",
+      expectedRevision: 2,
+      snapshotId: "v1",
+    });
+    const writeText = vi.fn().mockRejectedValue(new Error("clipboard denied"));
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    mock.hono.mockImplementation(async (path) =>
+      path === "publish" ? Response.json(ready) : Response.json(published),
+    );
+    show();
+    await open();
+    await screen.findByRole("link", { name: "Otvoriť publikovanú aplikáciu" });
+    fireEvent.click(screen.getByRole("button", { name: "Skopírovať odkaz" }));
+    await screen.findByText(/Adresu môžeš označiť/);
+    expect(screen.getByText(published.url)).toHaveClass("select-all");
+    expect(screen.getByRole("link", { name: "Otvoriť publikovanú aplikáciu" })).toHaveAttribute(
+      "href",
+      published.url,
+    );
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(published.url);
   });
   it("reopens the current saved version with its verified public link and hides it after editing", async () => {
     await controller.save();

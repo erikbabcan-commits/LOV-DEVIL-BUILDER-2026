@@ -18,6 +18,10 @@
 
 **Bezpečný štart API nad hotovou schémou · 7. 11. 2026.** Predvolený replay migrácií pri obsadenej tabuľke narazil na zámok v migrácii 006. Nový voliteľný štart s `DATABASE_SCHEMA_SHA256` overuje pripravenú schému bez DDL. Čerstvá PostgreSQL 16, offsite záloha obnovená na Macu a VPS katalóg čítaný v read-only transakcii majú zhodný odtlačok. Hono sa lokálne spustilo pri držanom zámku, nesprávny odtlačok zastavil štart pred otvorením portu. **1 119 lokálnych testov** a **169/169 natívnych PostgreSQL 16 aj 18** prešlo. Staging na loopbacku 8788 beží na `2b556f9` v režime overenia schémy bez DDL. Existujúci izolovaný runner je pripravený. Pôvodný staging kontajner je zastavený a zachovaný na rollback. Produkčný upstream 8787 zostáva na pôvodnom obraze. [Prevádzkový postup](WS-19-PUBLISH-BILLING.md#štart-nad-pripravenou-databázou) · [Dôkaz stagingu](../deploy/lovable-github/proof/WS19-VERIFIED-SCHEMA-STAGING-2B556F9.json).
 
+**Zdieľanie publikácie · FORGE-606/1103 · 7. 11. 2026.** Nový aj obnovený verejný odkaz možno skopírovať priamo z dialógu. Pri odmietnutí schránky zostáva adresa označiteľná a odkaz funkčný. **202 UI testov**, typy, lint zmenených súborov a lokálny build prešli. Chromium pri 390 px overil presnú adresu v schránke bez ďalšieho publish POST. Zmena je v otvorenom frontend PR #5.
+
+**Kontrola stagingu pred promóciou · 7. 11. 2026.** Staging aj produkcia sú zdravé. Spoločné hodnoty runtime nastavení sa zhodujú. Staging dopĺňa Cloud, izolovaný runner a Publish, pričom billing je vypnutý. Skutočný izolovaný build syntetického React zdroja prešiel a rootless worker po builde nezostal. Staging API aj runner majú `restart=no`. Runner po štarte hosta potrebuje dostupný rootless Docker socket. Produkčný upstream ostáva na 8787.
+
 **Cieľ:** plnohodnotný AI editor s reálnym hostingom a plateným predplatným.
 **Stav:** lokálne overený pilot a nové UI v hostovanom live preview; žiadny z míľnikov M1–M6 nie je uzavretý.
 **Cieľ je znovu aktívny:** pokračujeme podľa pôvodného backlogu. Aktuálna priorita je
