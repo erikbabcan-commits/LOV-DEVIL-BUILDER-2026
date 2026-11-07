@@ -183,6 +183,23 @@ export class PublishService {
     ).rows[0] as ViewRow | undefined;
     return row ? this.view(row) : null;
   }
+  async latestPublished(owner: string, projectId: string): Promise<PublishResult | null> {
+    const row = (
+      await this.db.query(
+        `SELECT j.request_id, j.project_id, j.project_revision, j.snapshot_id,
+                j.state, j.withdrawn_at, j.artifact_id, j.artifact_bytes, j.storage_phase,
+                j.error_code, j.errors, j.created_at
+         FROM publish_jobs AS j
+         JOIN builder_projects AS p
+           ON p.owner_id = j.owner_id AND p.project_id = j.project_id
+         WHERE j.owner_id = $1 AND j.project_id = $2
+           AND j.state = 'published' AND j.withdrawn_at IS NULL AND p.deleted_at IS NULL
+         ORDER BY j.updated_at DESC, j.request_id DESC LIMIT 1`,
+        [owner, projectId],
+      )
+    ).rows[0] as ViewRow | undefined;
+    return row ? this.view(row) : null;
+  }
   private reservedBytes(row: Pick<Row, "state" | "storage_phase" | "artifact_bytes">): number {
     if (row.storage_phase === "empty" && row.state === "failed") return 0;
     if (row.storage_phase === "legacy_unknown")
