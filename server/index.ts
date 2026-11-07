@@ -481,6 +481,9 @@ if (
   /* WS-1: AUTH_ENABLED=1 → Postgres + JWT + trvalé kvóty + Redis limiter (fail-fast). */
   let authWiring: { db: DbLike; jwtSecret: string; quota: QuotaStore; usage?: AiUsageStore; cloudAuth?: CloudAuth; cloudGitHub?: CloudGitHubWiring; billing?: BillingService; publish?: PublishService } | undefined;
   let agentLimiter: AsyncRateLimiter | undefined;
+  const expectedSchema = process.env.DATABASE_SCHEMA_SHA256;
+  if (expectedSchema !== undefined && process.env.AUTH_ENABLED !== '1')
+    throw new Error('DATABASE_SCHEMA_SHA256 requires AUTH_ENABLED=1.');
   if (process.env.CLOUD_AUTH_ISSUER && process.env.AUTH_ENABLED !== '1')
     throw new Error('CLOUD_AUTH_ISSUER requires AUTH_ENABLED=1.');
   if (process.env.AUTH_ENABLED === '1') {
@@ -489,12 +492,14 @@ if (
     if (!databaseUrl || !jwtSecret || jwtSecret.length < 32)
       throw new Error('AUTH_ENABLED=1 vyžaduje DATABASE_URL a JWT_SECRET (min 32 znakov).');
     const { makeDb } = await import('./db/pool');
-    const { applyMigrations } = await import('./db/migrate');
+    const { prepareAuthSchema } = await import('./db/migrate');
     const { PostgresQuotaStore } = await import('./security/quotaStore');
     const { loadRedis, makeRedisRateLimiter, makeInMemoryRateLimiter } = await import('./security/rateLimit');
     const db = makeDb(databaseUrl);
-    const applied = await applyMigrations(db);
-    console.log(`[Forge AI] auth: ON · migrácie: ${applied.join(', ') || '(žiadne)'}`);
+    const applied = await prepareAuthSchema(db, expectedSchema);
+    console.log(applied === null
+      ? '[Forge AI] auth: ON · schéma overená bez migrácií'
+      : `[Forge AI] auth: ON · migrácie: ${applied.join(', ') || '(žiadne)'}`);
     if (cloudGitHubConfig && !(await probeCloudGitHubSchema(db, cloudGitHubConfig.exportsEnabled)).ready)
       throw new Error('Cloud GitHub schema is not ready. Run the read-only preflight.');
     if (billingConfig && !(await probeBillingSchema(db, billingMode(billingConfig))).ready)
