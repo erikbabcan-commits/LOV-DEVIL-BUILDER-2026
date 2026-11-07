@@ -370,6 +370,37 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     expect(await (await call('confirm', { requestId, fingerprint: review.fingerprint, publicConfirmed: true })).json()).toEqual(completed);
     expect(remote.api.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1);
   });
+  it('reports only the signed owner’s successful publications inside the UTC usage period', async () => {
+    const backend = await hybridAiBackend(db, true);
+    const alice = hybridTransport(backend.proxy, backend.tokens.alice);
+    const bob = hybridTransport(backend.proxy, backend.tokens.bob);
+    const period = await backend.usage.report('alice');
+    const start = new Date(period.periodStart + 'T00:00:00Z');
+    const end = new Date(period.periodEnd + 'T00:00:00Z');
+
+    const insert = (owner: string, state: string, updated: Date) => db.query(
+      `INSERT INTO publish_jobs(owner_id, request_id, project_id, project_revision, snapshot_id,
+        source_fingerprint, source_files, artifact_id, state, created_at, updated_at)
+        VALUES($1,$2,'fixture',1,'v1','fixture','[]',$3,$4,$5,$6)`,
+      [owner, randomUUID(), randomUUID(), state, new Date(updated.getTime() - 5000), updated],
+    );
+    await insert('alice', 'published', start);
+    await insert('alice', 'published', new Date(end.getTime() - 1));
+    await insert('alice', 'published', new Date(start.getTime() - 1));
+    await insert('alice', 'published', end);
+    await insert('alice', 'building', start);
+    await insert('alice', 'failed', start);
+    await insert('bob', 'published', start);
+
+    const aliceReport = await alice('ai-usage');
+    expect(aliceReport.status).toBe(200);
+    expect(aliceReport.headers.get('cache-control')).toBe('no-store');
+    expect(await aliceReport.json()).toMatchObject({ publishedDeployments: 2 });
+    expect(await (await bob('ai-usage')).json()).toMatchObject({ publishedDeployments: 1 });
+    await db.query('ALTER TABLE publish_jobs RENAME TO fixture_unavailable_publish_jobs');
+    expect(await (await alice('ai-usage')).json()).toMatchObject({ calls: 0, periodStart: period.periodStart });
+    expect(await (await alice('ai-usage')).json()).not.toHaveProperty('publishedDeployments');
+  });
   it('runs verified JWT → proxy → Hono → PostgreSQL save/CAS/recovery and immediate link revocation', async () => {
     const pair = await generateKeyPair('ES256'), jwk = await exportJWK(pair.publicKey);
     const cloudAuth = makeCloudAuth(db, issuer, createLocalJWKSet({ keys: [{ ...jwk, kid: 'pg-test', alg: 'ES256' }] }));

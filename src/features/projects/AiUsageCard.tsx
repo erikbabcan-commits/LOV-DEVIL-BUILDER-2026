@@ -29,6 +29,7 @@ export function AiUsageCard() {
     {report ? <>
       <p>{report.promptTokens.toLocaleString('sk-SK')} vstupných · {report.completionTokens.toLocaleString('sk-SK')} výstupných</p>
       <small>Provider nahlásil spotrebu pre {report.reportedCalls} z {report.calls} AI volaní. Jedna úloha môže zahŕňať viac volaní. Obdobie {report.periodStart} – {report.periodEnd} (UTC). Zobrazuje iba volania od zapnutia merania. Obnovuje sa každých 15 sekúnd.</small>
+      <p>Úspešné publikovania: {report.publishedDeployments?.toLocaleString('sk-SK') ?? 'údaj nie je dostupný'}</p>
       {report.unknownCalls > 0 && <p role="status">Počet volaní bez údajov o spotrebe: {report.unknownCalls}{report.pendingCalls ? `; na výsledok čaká: ${report.pendingCalls}` : ''}. Súčet je preto neúplný.</p>}
     </> : <p role="status">{error ? 'Spotrebu tokenov sa nepodarilo načítať. Projekty môžeš ďalej upravovať.' : 'Načítavam spotrebu tokenov…'}</p>}
     <button onClick={() => setRevision(value => value + 1)}>Obnoviť spotrebu</button>
