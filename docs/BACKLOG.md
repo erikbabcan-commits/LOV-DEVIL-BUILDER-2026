@@ -1,5 +1,7 @@
 # 🔥 Forge — kompletný backlog
 
+**Rootless Publish a obnova modelov · FORGE-106/601/606/1103 · 8. 11. 2026:** Existujúci rootless runner prešiel platnou aj chybnou kompiláciou. Deväť súborov klienta sandboxu sa zhoduje v aktívnom API a neaktívnom kandidátovi `0b416e1`. Pred výmenou zostáva obnovou overiť čerstvú kópiu schémy 018 mimo VPS. Frontendový draft `cae1470` má 80 testov a overenú diagnostiku modelov pri 320, 390 a 1280 px. Živý tok blokuje chýbajúce prepojenie Cloud identity a nasadenie frontendu. [Kontrola runnera](WS-19-PUBLISH-BILLING.md#prevádzková-kontrola-izolovaného-runnera) · [Frontend draft](https://github.com/erikbabcan-commits/vorkeeei/pull/11).
+
 **Aktualizované 7. 11. 2026:** Produkčný Nginx smeruje Basic-chránené `/api/` na runtime `aba5cf4` (loopback 8788, schéma 018). Health, anonymná HTTP 401, systemd obnova a verejná publikačná trasa s `no-store` prešli. Prihlásený Cloud/BFF tok, verejný Publish cez Lovable a živý Stripe zostávajú otvorené. [Prevádzkový záznam](WS-19-PUBLISH-BILLING.md#produkčný-obraz-aba5cf4-a-schéma-018--7-11-2026).
 
 **Izolovaný VPS kandidát · FORGE-601/606 · 8. 11. 2026:** Backend `0b416e1` je pripravený ako neaktívny amd64 obraz na VPS. Syntetický test nad PostgreSQL 16 na tmpfs potvrdil správne poradie revízií, zachovanie posledného odkazu po neúspešnom builde, odvolanie a návrat na predchádzajúci odkaz. Produkčný runtime ostáva `aba5cf4`. [Záznam kandidáta](WS-19-PUBLISH-BILLING.md#neaktívny-vps-kandidát-0b416e1--8-11-2026).
