@@ -67,6 +67,23 @@ produkčného API, PostgreSQL a runnera sa zhodovali pred a po teste. Produkčn�
 health prešlo a adresár záloh na VPS zostal prázdny. Kandidát ostáva neaktívny.
 Živý Cloud/BFF a produkčný izolovaný executor sa týmto testom neoverovali.
 
+### Prevádzková kontrola izolovaného runnera
+
+Následná kontrola porovnala SHA-256 všetkých deviatich súborov
+`server/sandbox/` v aktívnom API `aba5cf4` a kandidátskom obraze `0b416e1`.
+Súbory sa zhodujú. Aktívne API cez existujúci izolovaný executor skompilovalo
+syntetický React vstup a pre chybný vstup vrátilo diagnostiku. Docker potvrdil
+rootless režim a po teste nezostal žiadny worker s označením `lov-devil.sandbox=ws4`.
+
+Pred testom sedel produkčný pin schémy 018. Počet rozpracovaných publikačných
+jobov bol pred aj po teste nula. Health prešlo a ID, digest aj čas štartu API,
+databázy a runnera sa nezmenili. Zálohový adresár na VPS ostal prázdny.
+
+Test používal aktívny executor a zhodu jeho súborov s kandidátom. Samostatný
+štart kandidáta nad produkčnými dátami ani prihlásený Lovable Publish sa
+neuskutočnili. Na výmenu stále treba čerstvú obnovou overenú kópiu schémy 018
+mimo VPS a potvrdenie návratu pod prevádzkovým zámkom.
+
 ## Produkčný obraz `aba5cf4` a schéma 018 · 7. 11. 2026
 
 Pred výmenou sa záloha `20261107T213941Z` preniesla priamo na Mac.
