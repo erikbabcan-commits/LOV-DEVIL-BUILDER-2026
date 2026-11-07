@@ -1,0 +1,35 @@
+{
+  "documentedAt": "2026-11-07T18:46:50.866017+00:00",
+  "recoverySourceHead": "a51f4535170ea4d544c9a52ecbb15698fa86186e",
+  "reviewPr": 26,
+  "deployment": {
+    "unit": "lov-devil-staging.service",
+    "timer": "lov-devil-staging.timer",
+    "enabled": true,
+    "active": true,
+    "loopbackApiPort": 8788,
+    "configuredApiImage": "sha256:43a40c1572988d62b68284e886c9b8da7ebfd3f7cc035cd3380be723c8b35186",
+    "configuredRunnerImage": "sha256:18c3410355857a4ac279600ed027d249d9c0d1b8f2456b6050d4d010662a948b",
+    "rootlessSocketOwnerUid": 987,
+    "dockerRestartPolicies": "no"
+  },
+  "validation": {
+    "localGuardTestsPassed": 5,
+    "systemdAnalyzeVerify": true,
+    "healthyFirstReconcileDidNotRestartContainers": true,
+    "deploymentLockContentionSkippedSuccessfully": true,
+    "manualStagingStopThenTimerTriggeredRecovery": true,
+    "runnerStartedBeforeApi": true,
+    "elapsedSecondsFromTimerActivation": 37,
+    "realIsolatedCompileAfterRecovery": true,
+    "workerCleanup": true,
+    "productionContainerAndDatabaseIdentityUnchanged": true,
+    "nginxConfigurationUnchanged": true,
+    "productionHealth": 200,
+    "stagingHealth": 200,
+    "publicEditorRoot": 401,
+    "publicArtifactRoot": 404,
+    "fullVpsRebootPerformed": false,
+    "canonicalLovableEndToEndVerified": false
+  }
+}
