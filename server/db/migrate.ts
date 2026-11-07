@@ -61,7 +61,7 @@ const schemaMetadata = `
 export async function readSchemaFingerprint(db: DbLike): Promise<string> {
   if (!db.transaction) throw new Error('Schema verification requires PostgreSQL transactions.');
   const migrations = listMigrations().map(({ name, sql }) =>
-    [name, createHash('sha256').update(sql).digest('hex')],
+    [name, createHash('sha256').update(sql.replace(/\r\n/g, '\n')).digest('hex')],
   );
   return db.transaction(async tx => {
     await tx.query('SET TRANSACTION READ ONLY');
