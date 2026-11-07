@@ -239,8 +239,16 @@ export class BillingService {
       }),
     );
   }
-  /** Call ONLY with the owner lock held; never fetch then acquire the lock. */
-  /** Refreshes entitlement and checks whether the subscription from this Checkout is terminal. */
+  /**
+   * Refreshes entitlement and the local billing ledger from canonical Stripe state.
+   *
+   * @param tx - Transaction that already holds the owner lock, including during Stripe reads.
+   * @param userId - Owner of the linked billing account.
+   * @param customerId - Stripe customer ID already bound to the owner.
+   * @param checkoutSubscriptionId - Subscription reported by the recorded Checkout, if available.
+   * @param requireCheckoutSubscription - Require that exact subscription before any local writes.
+   * @returns The reconciled entitlement and whether the Checkout subscription is terminal.
+   */
   private async reconcile(
     tx: DbLike,
     userId: string,
@@ -570,7 +578,15 @@ export class BillingService {
     )
       throw new BillingError("billing_provider_unavailable");
   }
-  /** Repairs one recorded sandbox Checkout. No Stripe objects are created or changed. */
+  /**
+   * Repairs an existing Checkout in a database pinned to Stripe test mode.
+   * Reads Stripe without creating or changing provider objects.
+   *
+   * @param userId - Owner of the recorded billing attempt.
+   * @param requestId - Existing Checkout request UUID in the local ledger.
+   * @returns The confirmed attempt state and whether the local ledger changed.
+   * @throws BillingError if the provider state, configuration or ownership cannot be verified.
+   */
   async reconcileKnownCheckout(
     userId: string,
     requestId: string,
