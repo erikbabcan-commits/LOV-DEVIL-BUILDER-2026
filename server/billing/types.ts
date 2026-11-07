@@ -44,6 +44,7 @@ export interface BillingSubscription {
 export interface BillingSession {
   id: string;
   customerId: string;
+  subscriptionId?: string;
   url: string | null;
   expiresAt: number;
   status: "open" | "complete" | "expired";
