@@ -46,6 +46,27 @@ Pred výmenou produkcie over obnovu aktuálnej zálohy mimo VPS, cieľový
 odtlačok, diskovú rezervu, izolovaný runner a systemd návrat pod existujúcim
 zámkom.
 
+## Neaktívny VPS kandidát `0b416e1` · 8. 11. 2026
+
+Obraz `lov-devil-api-ws19:0b416e1-schema018-candidate` na VPS má digest
+`sha256:7e3354accd81e87eb6132fe04da0e1959bc470b903f74c3a4c763ce54588eb2b`.
+Tri zmenené súbory a aktuálny `server/.env.example` doplnili existujúci amd64
+obraz. Kontrolné súčty všetkých 119 súborov v `server/` a `shared/` sedia
+s Gitom. Voľný disk bol približne 2,066 GB pred aj po teste.
+
+V dočasnej internej sieti bez zverejnených portov prešli migrácie do PostgreSQL 16
+na tmpfs a štart s produkčným pinom schémy 018. Dve platné React revízie sa
+skompilovali lokálnym testovacím executorom. Pri simulovanom neskoršom dokončení
+prvej revízie aj po zlyhaní tretej ostal hlavným odkazom výsledok druhej.
+Anonymná požiadavka vrátila 401 a iný účet dostal prázdny výsledok. Druhá
+revízia pred odvolaním vrátila 200, po odvolaní GET aj HEAD vrátili 404
+s `no-store` a prvá revízia vrátila 200.
+
+Dočasné kontajnery aj sieť sa odstránili. Identita, čas štartu a obrazy
+produkčného API, PostgreSQL a runnera sa zhodovali pred a po teste. Produkčné
+health prešlo a adresár záloh na VPS zostal prázdny. Kandidát ostáva neaktívny.
+Živý Cloud/BFF a produkčný izolovaný executor sa týmto testom neoverovali.
+
 ## Produkčný obraz `aba5cf4` a schéma 018 · 7. 11. 2026
 
 Pred výmenou sa záloha `20261107T213941Z` preniesla priamo na Mac.
