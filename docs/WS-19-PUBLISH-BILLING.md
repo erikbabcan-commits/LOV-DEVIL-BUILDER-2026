@@ -5,6 +5,27 @@ ukážkové publikovanie v hlavnom aj modernom UI a pripája moderný frontend k
 existujúcemu billing backendu. Samotná implementácia nezapína platby, nemigruje
 produkciu a nenahrádza overenie hostovaného nasadenia.
 
+## Produkčný obraz `daf3321` a schéma 015 · 7. 11. 2026
+
+Kontrola o 20:19 UTC potvrdila aktívny kontajner `lov-devil-api-013-daf332191dfe`
+s digestom `sha256:88a3805823b5af94cc75c3b6fdb7d45395bda8d324c22e21c5eb791aad1fa55c`
+a odtlačkom schémy `d89a35628e26fd83f3f762ff841a52400f486e81f9e4f8f0d8c73bd9dcc64051`.
+Systemd recovery prešiel. Loopback health vrátil HTTP 200, anonymné API
+HTTP 401 a root hosta publikácií HTTP 404. Adresár záloh na VPS bol prázdny.
+
+Izolovaný test na PostgreSQL 16 započítal jednu podpísanú syntetickú Pro faktúru.
+Nulová faktúra, neznáme predplatné a opakované doručenie počet nezvýšili.
+Test nevykonal žiadne sieťové volania na Stripe a overil štart návratového obrazu
+na schéme 015. V produkcii je `BILLING_ENABLED=0`. Týždenný report uviedol
+`positiveInvoiceEvidence: unavailable` a `billingEvidence: unconfigured`.
+
+Pri návrate pod zámkom `/run/lock/lov-devil-stage-switch.lock` zastav nový
+kontajner a spusti `lov-devil-api-013-2f52d61e0150` s digestom
+`sha256:7747feb2bde7d42f954ca5a35fee51dac39fc8c40fe061026bf59f6b5f24a627`.
+V `/etc/lov-devil/staging.env` nastav `LOV_STAGING_API` na názov kontajnera
+a `LOV_STAGING_API_IMAGE` na jeho digest. Over health a ochranu portov
+8788/8791, uvoľni zámok a over `lov-devil-staging.service`. Schému 015 ponechaj.
+
 ## Produkčný obraz `2f52d61` a schéma 014 · 7. 11. 2026
 
 O 20:05 UTC prešla samostatná migrácia 014 s krátkym limitom na zámok a dotaz.

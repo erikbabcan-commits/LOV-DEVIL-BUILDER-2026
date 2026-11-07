@@ -975,7 +975,7 @@ serverovej konfigurácie; žiadne predplatné sa teraz nepredáva.
 
 | ID | Položka | Akceptačné kritériá | Odhad | Stav k 6. 11. 2026 |
 |---|---|---|---|---|
-| 1201 | Produktová analytika (funnel: signup → 1. appka → publish → platba) | North Star: „publikované appky / týždeň" | M | Čiastočne. Read-only týždenný report a serverový čas prvého pozorovaného uloženia. Migrácia 014 a API 2f52d61 sú aktívne na VPS. Migrácia 015 pripravuje meranie prvej nenulovej živej Pro faktúry. Historické prvé uloženia a živé overenie fakturácie zostávajú otvorené. |
+| 1201 | Produktová analytika (funnel: signup → 1. appka → publish → platba) | North Star: „publikované appky / týždeň" | M | Čiastočne. Read-only týždenný report a serverový čas prvého pozorovaného uloženia. Migrácia 015 a API daf3321 sú aktívne na VPS. Meranie prvej nenulovej živej Pro faktúry prešlo izolovaným testom. Billing je v produkcii vypnutý. Historické prvé uloženia a živé overenie fakturácie zostávajú otvorené. |
 | 1202 | Interný dashboard: LLM costy per user/plán | margin > 70 % na Pro pláne | M | Čiastočne — read-only CLI/offline cost dashboard; živé ceny, príjmy a >70 % marža nedoložené |
 | 1203 | Zákaznícke analytiky pre ich appky (opt-in) | Forge = analytics pre end-userov (pridaná hodnota) | M | Otvorené |
 | 1204 | Support: ticketing + znalostná báza + SLA per plán | < 5 % ticketov na chybu AI | M | Otvorené |
