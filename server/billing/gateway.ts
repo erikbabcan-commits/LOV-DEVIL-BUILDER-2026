@@ -38,6 +38,7 @@ export function verifyBillingEvent(
       : null,
   };
 }
+/** Preserves the Stripe subscription reference for Checkout reconciliation. */
 function session(value: Stripe.Checkout.Session): BillingSession {
   const customerId = identifier(value.customer);
   const statuses: BillingSession["status"][] = ["open", "complete", "expired"];

@@ -237,6 +237,7 @@ export class BillingService {
     );
   }
   /** Call ONLY with the owner lock held; never fetch then acquire the lock. */
+  /** Refreshes entitlement and checks whether the subscription from this Checkout is terminal. */
   private async reconcile(
     tx: DbLike,
     userId: string,
@@ -352,6 +353,7 @@ export class BillingService {
       );
     return { paid, hasNonterminal, checkoutSubscriptionTerminal };
   }
+  /** Resumes the user’s recorded Checkout or creates a session under the same idempotency key. */
   async checkout(
     userId: string,
     interval: BillingInterval,
@@ -540,6 +542,7 @@ export class BillingService {
       ),
     );
   }
+  /** Checks that Stripe returned the expected customer, environment and session. */
   private validateSession(
     value: BillingSession,
     customer: string,
@@ -620,6 +623,7 @@ export class BillingService {
       ),
     );
   }
+  /** Reconciles signed events against current Stripe state before recording delivery. */
   async webhook(raw: Buffer, signature: string): Promise<void> {
     if (raw.byteLength > 256 * 1024)
       throw new BillingError("billing_webhook_size", 413);
