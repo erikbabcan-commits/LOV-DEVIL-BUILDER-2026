@@ -148,6 +148,15 @@ describe("routing", () => {
     await run(req("auth/me"), d);
     expect(d.fetch.mock.calls[0]![0]).toBe(`${BASE}/api/auth/me`);
   });
+  it("allows only read-only account export sections and fixed cursor paths", async () => {
+    const d = deps();
+    expect((await run(req("account/export/projects/cHJvamVjdA"), d)).status).toBe(200);
+    expect(d.fetch.mock.calls[0]![0]).toBe(`${BASE}/api/account/export/projects/cHJvamVjdA`);
+    expect((await run(req("account/export/profile?owner=bob"), d)).status).toBe(400);
+    expect((await run(post("account/export/profile"), d)).status).toBe(405);
+    expect((await run(req("account/export/tokens"), d)).status).toBe(404);
+    expect(d.fetch).toHaveBeenCalledOnce();
+  });
   it("unknown path 404, wrong method 405", async () => {
     expect((await run(req("agent/autofix"))).status).toBe(404);
     expect((await run(req("sandbox/build"))).status).toBe(405);

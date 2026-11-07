@@ -52,6 +52,69 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     GITHUB_CLOUD_ALLOWED_ORIGIN: 'https://lovable.test', GITHUB_CLOUD_CALLBACK_URL: 'https://lovable.test/github/callback', GITHUB_CLOUD_ENCRYPTION_KEY: 'ab'.repeat(32), GITHUB_BRIDGE_SECRET: 'ef'.repeat(32) });
   const localDrafts=():DraftStorage=>{const owners=new Map<string,Draft>();return{read:async owner=>structuredClone(owners.get(owner)??null),write:async(owner,draft)=>{owners.set(owner,structuredClone(draft));}};};
   function hybridTransport(proxy:(request:Request)=>Promise<Response>,token:string):ForgeTransport{return(path,init)=>proxy(new Request('https://lovable.test/api/hono/'+path,{method:init?.method??'GET',headers:{Origin:'https://lovable.test',Authorization:'Bearer '+token,'Content-Type':'application/json'},...(init?.body===undefined?{}:{body:JSON.stringify(init.body)}),...(init?.signal?{signal:init.signal}:{})}));}
+  it('exports only owner data through the signed Cloud bridge and includes trashed projects', async () => {
+    const backend = await hybridAiBackend(db, true);
+    const alice = hybridTransport(backend.proxy, backend.tokens.alice);
+    const bob = hybridTransport(backend.proxy, backend.tokens.bob);
+    await db.query(`INSERT INTO builder_projects (owner_id, project_id, title, revision, workspace, deleted_at)
+      VALUES ('alice', 'trashed', 'Alice in trash', 2, '{"files":[]}', now()),
+             ('bob', 'private-bob', 'Bob only', 1, '{"files":[]}', NULL)`);
+    await db.query(`INSERT INTO auth_log (id, user_id, action) VALUES
+      ('alice-audit', 'alice', 'login'), ('bob-audit', 'bob', 'logout'), ('unknown', NULL, 'login_failed')`);
+    const run = '12345678-0000-4000-8000-000000000001';
+    await db.query(`INSERT INTO ai_runs (user_id, id, kind, period_start, plan, started_at, call_count)
+      VALUES ('alice', $1, 'generation', now(), 'free', now(), 1),
+             ('bob', $1, 'generation', now(), 'free', now(), 1)`, [run]);
+    await db.query(`INSERT INTO ai_calls (user_id, run_id, call_no, provider, requested_model, started_at)
+      VALUES ('alice', $1, 1, 'mistral', 'alice-model', now()),
+             ('bob', $1, 1, 'mistral', 'bob-model', now())`, [run]);
+    await db.query(`INSERT INTO publish_jobs (owner_id, request_id, project_id, project_revision, snapshot_id,
+      source_fingerprint, source_files, artifact_id, state, created_at, updated_at)
+      VALUES ('alice', $1, 'hybrid-fixture', 1, 'hybrid-v1', 'fixture', '[{"path":"index.html","content":"Alice source"}]',
+              '12345678-0000-4000-8000-000000000002', 'published', now(), now())`, [run]);
+    await db.query(`INSERT INTO github_exports (owner_id, request_id, repo_name, github_username, selection,
+      source_hash, fingerprint, connection_hash)
+      VALUES ('alice', $1, 'alice-repo', 'alice-github', '{}', 'source', 'fingerprint', 'internal-connection-hash')`, [run]);
+    await db.query(`INSERT INTO billing_accounts (user_id, customer_id, customer_key, created_at)
+      VALUES ('alice', 'cus_alice', $1, now())`, [run]);
+    await db.query(`INSERT INTO billing_events (event_id, user_id, event_type, processed_at)
+      VALUES ('evt_alice', 'alice', 'invoice.paid', now()), ('evt_bob', 'bob', 'invoice.paid', now())`);
+    const profile = await alice('account/export/profile');
+    expect(profile.headers.get('Cache-Control')).toBe('no-store');
+    const body = await profile.text();
+    expect(JSON.parse(body)).toMatchObject({
+      version: 1, accountId: 'alice', section: 'profile', nextCursor: null,
+      records: [{ email: 'alice@example.com', identities: [{ subject: 'cloud-alice' }], billing: { customer_id: 'cus_alice' } }],
+    });
+    expect(body).not.toMatch(/unused-test-hash|bob@example.com|cloud-bob|customer_key/);
+    const first = await (await alice('account/export/projects')).json();
+    expect(first.records.map((row: { project_id: string }) => row.project_id)).toEqual(['hybrid-fixture']);
+    expect(first.nextCursor).toMatch(/^[A-Za-z0-9_-]+$/);
+    const second = await (await alice('account/export/projects/' + first.nextCursor)).json();
+    expect(second).toMatchObject({ nextCursor: null, records: [{ project_id: 'trashed', deleted_at: expect.any(String) }] });
+    expect(await (await bob('account/export/projects/' + first.nextCursor)).json()).toMatchObject({
+      accountId: 'bob', records: [{ project_id: 'private-bob' }],
+    });
+    expect(await (await alice('account/export/auth')).json()).toMatchObject({
+      records: [{ id: 'alice-audit', action: 'login' }],
+    });
+    expect(await (await alice('account/export/ai')).json()).toMatchObject({
+      records: [{ id: run, calls: [{ requested_model: 'alice-model' }] }],
+    });
+    expect(await (await alice('account/export/publish')).json()).toMatchObject({
+      records: [{ request_id: run, source_files: [{ content: 'Alice source' }] }],
+    });
+    const github = await (await alice('account/export/github')).text();
+    expect(JSON.parse(github)).toMatchObject({ records: [{ repo_name: 'alice-repo' }] });
+    expect(github).not.toContain('internal-connection-hash');
+    expect(await (await alice('account/export/billing')).json()).toMatchObject({
+      records: [{ event_id: 'evt_alice', event_type: 'invoice.paid' }],
+    });
+    expect((await alice('account/export/ai/YWJj')).status).toBe(400);
+    expect((await alice('account/export/profile?owner=bob')).status).toBe(404);
+    expect((await alice('account/export/profile', { method: 'POST' })).status).toBe(404);
+    expect((await backend.app.request('/api/account/export/profile')).status).toBe(401);
+  });
   it('runs the portable Lovable controller through signed Cloud/proxy/PG, read-only streaming, exact review, compile and save/reopen',async()=>{
     const backend=await hybridAiBackend(db,true),transport=hybridTransport(backend.proxy,backend.tokens.alice),controller=new ForgeController('cloud-alice',transport,localDrafts());await controller.start();await controller.open('hybrid-fixture');const original=structuredClone(controller.get().workspace);
     await controller.generate('Prečo má tento projekt dve tlačidlá? Iba vysvetli.');expect(controller.get().pending).toBeNull();expect(controller.get().workspace.files).toEqual(original.files);expect(controller.get().workspace.conversation?.at(-1)?.content).toBe('Toto je lokálna testovacia odpoveď k projektu. Súbory sa nemenili.');

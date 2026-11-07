@@ -224,3 +224,14 @@ dávky (predvolene 1 000, najviac 10 000).
 Až beh s `--apply` odstráni jednu dávku starších záznamov. Riadky presne na hranici
 ostávajú. Zámky na jednotlivých záznamoch sa pri aplikácii preskočia. Po spracovaní
 dávok over zostávajúce záznamy znovu v read-only režime.
+
+### Export údajov účtu
+
+Prihlásený a prepojený účet môže v paneli účtu stiahnuť údaje Hono ako
+verziované JSON súbory. Panel ponúka profil, projekty vrátane koša, históriu
+Hono prihlásení, spotrebu AI, publikácie, GitHub exporty a billing udalosti.
+Pri väčšom objeme pokračuje tlačidlo ďalšou časťou tej istej sekcie.
+
+Každé čítanie vychádza z aktuálnej relácie. Pri zmene projektov počas sťahovania
+možno export sekcie zopakovať. Súbory nepokrývajú logy Cloud služieb, Stripe
+faktúry, repozitáre na GitHube ani neuložené lokálne koncepty.

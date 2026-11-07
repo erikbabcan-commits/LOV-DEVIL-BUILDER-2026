@@ -55,6 +55,12 @@ const ROUTES: RouteDef[] = [
   },
   { method: "GET", re: /^ai-models$/, upstream: () => "/api/ai-models", kind: "crud" },
   { method: "GET", re: /^ai-usage$/, upstream: () => "/api/ai-usage", kind: "crud" },
+  {
+    method: "GET",
+    re: /^account\/export\/(profile|(?:projects|auth|ai|publish|github|billing)(?:\/[A-Za-z0-9_-]{1,512})?)$/,
+    upstream: (m) => `/api/account/export/${m[1]}`,
+    kind: "crud",
+  },
   { method: "GET", re: /^project-storage$/, upstream: () => "/api/project-storage", kind: "crud" },
   { method: "GET", re: /^auth\/me$/, upstream: () => "/api/auth/me", kind: "crud" },
   { method: "GET", re: /^projects$/, upstream: () => "/api/projects", kind: "crud", listing: true },
