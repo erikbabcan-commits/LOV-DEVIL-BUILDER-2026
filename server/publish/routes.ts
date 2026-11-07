@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { PublishRequest } from "../../shared/publish";
+import { PublishProjectVersion, PublishRequest } from "../../shared/publish";
 import { getUserFromContext } from "../auth/middleware";
 import { PublishService, PublishError } from "./service";
 export function publishRouter(
@@ -64,6 +64,24 @@ export function publishRouter(
       return c.json({ error: "publish_invalid_request" }, 400);
     const value = await service.start(user.id, parsed.data);
     return c.json(value, value.state === "building" ? 202 : 200);
+  });
+  router.get("/api/publish/project/:projectId/:revision/:snapshotId", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search)
+      return c.json({ error: "invalid_query" }, 400);
+    const revision = c.req.param("revision");
+    const version = PublishProjectVersion.safeParse({
+      projectId: c.req.param("projectId"),
+      expectedRevision: /^[1-9][0-9]{0,9}$/.test(revision) ? Number(revision) : null,
+      snapshotId: c.req.param("snapshotId"),
+    });
+    if (!version.success)
+      return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-status:" + user.id))
+      return c.json({ error: "rate_limit" }, 429);
+    return c.json(await service.publishedVersion(user.id, version.data));
   });
   router.get("/api/publish/:requestId", async (c) => {
     const user = getUserFromContext(c);

@@ -449,6 +449,51 @@ describe("real publication dialog", () => {
     expect(call?.[1].body).not.toHaveProperty("url");
     expect(call?.[1].expectedUserId).toBe("alice");
   });
+  it("reopens the current saved version with its verified public link and hides it after editing", async () => {
+    await controller.save();
+    save.mockClear();
+    const storedJob = job({
+      requestId: crypto.randomUUID(),
+      projectId: "p1",
+      snapshotId: "v1",
+      expectedRevision: 2,
+    });
+    mock.hono.mockImplementation(async (path) =>
+      path === "publish" ? Response.json(ready) : Response.json(storedJob),
+    );
+    show();
+    await open();
+    const restored = await screen.findByRole("link", { name: "Otvoriť publikovanú aplikáciu" });
+    expect(restored).toHaveAttribute("href", storedJob.url);
+    expect(mock.hono.mock.calls.map(([path]) => path)).toEqual([
+      "publish",
+      "publish/project/p1/2/v1",
+    ]);
+    expect(mock.hono.mock.calls[1]?.[1]).toMatchObject({ expectedUserId: "alice" });
+    expect(mock.hono.mock.calls.every(([, init]) => !init?.body)).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+    act(() => controller.rename("Edited current workspace"));
+    expect(screen.queryByRole("link", { name: "Otvoriť publikovanú aplikáciu" })).toBeNull();
+  });
+  it("ignores a publication lookup that belongs to another saved version", async () => {
+    await controller.save();
+    mock.hono.mockImplementation(async (path) =>
+      path === "publish"
+        ? Response.json(ready)
+        : responseJob({
+            requestId: crypto.randomUUID(),
+            projectId: "p1",
+            snapshotId: "another-snapshot",
+            expectedRevision: 2,
+          }),
+    );
+    show();
+    await open();
+    await waitFor(() => expect(mock.hono).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("link", { name: "Otvoriť publikovanú aplikáciu" })).toBeNull();
+    consent();
+    expect(screen.getByRole("button", { name: "Publikovať verejne" })).toBeEnabled();
+  });
   it("rechecks unavailable hosting in place without saving or submitting a publication", async () => {
     let resolveRetry!: (response: Response) => void;
     mock.hono.mockRejectedValueOnce(new Error("private upstream response")).mockImplementationOnce(

@@ -38,7 +38,13 @@ describe("routing", () => {
   it("allows authenticated publish preparation and UUID status without proxying public artifacts", async () => {
     const d = deps(),
       id = "dd4ec3fc-a77b-4af7-baa5-f25ac7228221";
-    for (const request of [req("publish"), post("publish", "{}"), req("publish/" + id)]) {
+    const versionPath = "publish/project/demo-project/2/snapshot_one";
+    for (const request of [
+      req("publish"),
+      post("publish", "{}"),
+      req("publish/" + id),
+      req(versionPath),
+    ]) {
       expect((await run(request, d)).status).toBe(200);
       expect(d.fetch.mock.calls.at(-1)![0]).toBe(
         BASE + new URL(request.url).pathname.replace("/api/hono/", "/api/"),
@@ -48,11 +54,15 @@ describe("routing", () => {
     expect((await run(req("publish?url=https://evil.test"), d)).status).toBe(400);
     for (const path of [
       "publish/not-a-uuid",
+      "publish/project/demo-project/0/snapshot_one",
+      versionPath + "/artifact",
       "publish/" + id + "/artifact",
       "published/" + id + "/index.html",
     ])
       expect((await run(req(path), d)).status).toBe(404);
     expect((await run(post("publish/" + id), d)).status).toBe(405);
+    expect((await run(post(versionPath), d)).status).toBe(405);
+    expect((await run(req(versionPath + "?owner=bob"), d)).status).toBe(400);
     expect((await run(post("publish", " ".repeat(4097)), d)).status).toBe(413);
     expect(d.fetch).not.toHaveBeenCalled();
   });
