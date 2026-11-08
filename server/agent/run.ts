@@ -1,5 +1,5 @@
 import {requestPatch,patchBase,isPatchPath,PatchError} from './patches';
-import {resolveIntent} from './intent';
+import {resolveIntent,type IntentPromptVersion} from './intent';
 import {explainProject} from './explain';
 import {prepareContext,preflightContext} from './context';
 import {contextGuardedProvider,ContextBudgetError} from '../providers/contextBudget';
@@ -19,6 +19,7 @@ export interface RunOptions {
   provider: AIProvider;
   signal?: AbortSignal;
   maxFiles: number;
+  intentPromptVersion?: IntentPromptVersion;
 }
 
 /* Only inspect schema-validated, bounded JSON data. Keep the original strings
@@ -52,13 +53,17 @@ export async function* runAgent(req: unknown, opts: RunOptions): AsyncGenerator<
 
   if (opts.signal?.aborted) { yield interrupted(opts); return; }
 
-  yield { type: 'run_started', runId: opts.runId, model: opts.provider.model };
+  yield {
+    type: 'run_started', runId: opts.runId, model: opts.provider.model,
+    ...(opts.intentPromptVersion && request.mode === 'auto'
+      ? { intentPromptVersion: opts.intentPromptVersion } : {}),
+  };
   if (opts.signal?.aborted) { yield interrupted(opts); return; }
 
   try {
     preflightContext(request,opts.provider);
     const provider=contextGuardedProvider(opts.provider);
-    let intent=await resolveIntent(request,provider,opts.signal);
+    let intent=await resolveIntent(request,provider,opts.signal,opts.intentPromptVersion);
     // A missing project cannot be fixed/edited safely by inventing replacement files.
     if(!request.context.files.length&&(intent==='fix'||intent==='iterate'))intent='explain';
     request={...request,mode:intent};preflightContext(request,provider);

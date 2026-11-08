@@ -21,6 +21,7 @@ import { readProjectStoragePolicy, type ProjectStoragePolicy } from './projects/
 import { MistralProvider, makeFetchTransport } from './providers/mistral';
 import type { AIProvider, ProviderTransport } from './providers/types';
 import { runAgent, parseAgentRequest } from './agent/run';
+import { readIntentPolicyPath, selectIntentPrompt } from './agent/intentPolicy';
 import { consumeGenerationQuota, QuotaAdmissionError } from './security/generationQuota';
 import { AgentEventSchema } from './agent/schemas';
 import { SandboxFileSchema } from './sandbox/builder';
@@ -73,6 +74,7 @@ export interface ServerConfig {
   sandboxMode?: 'host' | 'isolated';
   projectStorage?: ProjectStoragePolicy;
   aiPricing?: PricePolicy | null;
+  intentPolicyFile?: string;
 }
 
 export function makeProvider(cfg: ServerConfig, transport?: ProviderTransport): AIProvider | null {
@@ -346,7 +348,10 @@ export function createApp(
         };
         providerUpdate = event => { const checked=AgentEventSchema.safeParse(event); if(checked.success) send(checked.data); };
         try {
-          for await (const event of runAgent(input.request, { runId, provider: meter.provider, signal: abortController.signal, maxFiles: 40 })) {
+          const intentPromptVersion = cfg.intentPolicyFile && authUser && input.request.mode === 'auto'
+            ? await selectIntentPrompt(cfg.intentPolicyFile, authUser.id)
+            : undefined;
+          for await (const event of runAgent(input.request, { runId, provider: meter.provider, signal: abortController.signal, maxFiles: 40, intentPromptVersion })) {
             if (['done', 'error', 'cancelled'].includes(event.type) && meter) {
               const status: RunStatus = event.type === 'done' ? 'succeeded' : event.type === 'cancelled' ? 'cancelled' : 'failed';
               await meter.finish(status); finished = true;
@@ -506,6 +511,7 @@ if (
   const publishConfig = readPublishConfig(process.env);
   cfg.projectStorage = readProjectStoragePolicy(process.env);
   cfg.aiPricing = readAiPricePolicy(process.env);
+  cfg.intentPolicyFile = readIntentPolicyPath(process.env);
   if (process.env.CLOUD_AUTH_ISSUER) validateCloudIssuer(process.env.CLOUD_AUTH_ISSUER);
   const registry = process.env.MOCK_AI === '1' ? new ProviderRegistry([{id:'default',label:'AI test',provider:makeMockProvider()}]) : configuredProviders(process.env);
   const provider = registry.defaultProvider;
