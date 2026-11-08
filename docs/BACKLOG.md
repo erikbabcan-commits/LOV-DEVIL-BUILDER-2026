@@ -917,8 +917,8 @@ Pravidlá:
 |---|---|---|---|---|
 | 601 | Reálny deploy na CDN + `*.forge.app` subdoména | publish z demo → reálna URL, HTTP 200, SSL, global CDN | L | Čiastočne — lokálny statický Publish z oboch UI, compiler/artefakt/HTTP 200; produkčné HTTPS, CDN a doména neaktivované |
 | 602 | Custom domains + auto SSL (Let's Encrypt) | „pripoj doménu" = 2 DNS záznamy, validácia, cert automaticky | M | Otvorené |
-| 603 | Preview deployments (per commit/branch) | každá verzia má vlastnú URL; produkcia sa mení len „Promote" | M | Otvorené |
-| 604 | Rollback deployment na predchádzajúcu verziu | 1 klik, < 30 s | S | Čiastočne — prehľad dvoch verejných verzií a odvolanie novšej; stabilná adresa a meranie času zostávajú otvorené |
+| 603 | Preview deployments (per commit/branch) | každá verzia má vlastnú URL; produkcia sa mení len „Promote" | M | Čiastočne — zverejnené snapshoty majú vlastnú URL a cieľ stálej adresy sa prepína výslovne. Automatické buildy vetiev a produkčný tok zostávajú otvorené. |
+| 604 | Rollback deployment na predchádzajúcu verziu | 1 klik, < 30 s | S | Čiastočne — lokálny návrat jedným kliknutím na stálej adrese prešiel aj pri plnej verejnej fronte. Lovable draft umožňuje adresu skopírovať, vrátane ručnej možnosti pri odmietnutí schránky. Produkčné meranie zostáva otvorené. |
 | 605 | Export: ZIP + GitHub (push do repo) | súčasný „Export ZIP" musí vrátiť reálny projekt | M | Čiastočne — skutočný ZIP oboch UI, lokálny GitHub ledger/recovery; nový hosted/live export neoverený |
 | 606 | Build statusy + logy v publish flow | súčasný modal so 4 krokmi napojený na reálny pipeline stav | S | Čiastočne — Lovable draft zobrazuje štyri kroky podľa overeného stavu Hono a sanitizovanú diagnostiku kompilátora. Produkčný tok a prevádzkové logy zostávajú otvorené. |
 

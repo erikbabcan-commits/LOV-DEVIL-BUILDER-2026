@@ -256,8 +256,25 @@ export class PublishService {
         : null,
     });
   }
+  /** Read the receipt only for an active publication belonging to this project. */
+  private async promotionTarget(db: DbLike, owner: string, projectId: string, requestId: string) {
+    return (await db.query(
+      `SELECT j.artifact_id, j.artifact_sha256, j.artifact_bytes
+       FROM publish_jobs AS j JOIN builder_projects AS p USING (owner_id, project_id)
+       WHERE j.owner_id=$1 AND j.project_id=$2 AND j.request_id=$3
+         AND j.state='published' AND j.withdrawn_at IS NULL AND p.deleted_at IS NULL`,
+      [owner, projectId, requestId],
+    )).rows[0];
+  }
   /** Point the stable address at an existing artifact without starting a build. */
   async promote(owner: string, projectId: string, selection: PublishPromotion): Promise<PublishLiveAddress> {
+    const verified = await this.promotionTarget(this.db, owner, projectId, selection.requestId);
+    if (!verified) throw new PublishError("publish_not_found", 404);
+    try {
+      await this.artifacts.verifyForPromotion(verified.artifact_id, verified.artifact_sha256, Number(verified.artifact_bytes));
+    } catch {
+      throw new PublishError("publish_live_artifact_unavailable", 503);
+    }
     return this.owner(owner, async tx => {
       const project = await tx.query(
         "SELECT project_id FROM builder_projects WHERE owner_id=$1 AND project_id=$2 AND deleted_at IS NULL FOR UPDATE",
@@ -267,17 +284,12 @@ export class PublishService {
       const current = await this.liveAddress(owner, projectId, tx);
       if ((current?.version ?? null) !== selection.expectedVersion)
         throw new PublishError("publish_live_conflict", 409);
-      const target = (await tx.query(
-        `SELECT artifact_id, artifact_sha256, artifact_bytes FROM publish_jobs
-         WHERE owner_id=$1 AND project_id=$2 AND request_id=$3 AND state='published' AND withdrawn_at IS NULL`,
-        [owner, projectId, selection.requestId],
-      )).rows[0];
+      // Withdrawal, deletion or a newer selection can win while verification is in flight.
+      const target = await this.promotionTarget(tx, owner, projectId, selection.requestId);
       if (!target) throw new PublishError("publish_not_found", 404);
-      try {
-        await this.artifacts.read(target.artifact_id, target.artifact_sha256, Number(target.artifact_bytes));
-      } catch {
+      if (target.artifact_id !== verified.artifact_id || target.artifact_sha256 !== verified.artifact_sha256 ||
+          target.artifact_bytes !== verified.artifact_bytes)
         throw new PublishError("publish_live_artifact_unavailable", 503);
-      }
       if (current?.current?.requestId === selection.requestId) return current;
       const previous = current?.current?.requestId ?? current?.previous?.requestId;
       await tx.query(
