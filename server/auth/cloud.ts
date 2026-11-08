@@ -57,6 +57,7 @@ export function makeCloudAuth(db: DbLike, issuer: string, keys?: JWTVerifyGetKey
   }
   return {
     inspect,
+    /** Resolve only linked identities on protected routes. */
     async resolve(token) {
       const result = await inspect(token);
       return result.state === 'linked' ? result.user : null;

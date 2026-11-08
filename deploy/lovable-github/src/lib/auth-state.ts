@@ -51,6 +51,7 @@ export interface HonoAccountInfo {
   quota?: AiQuota | undefined;
 }
 
+/** Translate the account probe while keeping a verified unlinked identity distinct. */
 export async function mapMe(res: Response): Promise<HonoAccountInfo> {
   const code = await errCode(res);
   if (res.ok) {
