@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'admin-crud', title: 'CRM a kontakty', description: 'Vytváranie, vyhľadávanie, úprava a mazanie kontaktov v lokálnom prehľade.',
   category: 'Biznis', icon: '▤', tags: ['crm', 'crud', 'kontakty', 'admin'],
+  features: ['Vytváranie a úprava kontaktov', 'Vyhľadávanie kontaktov', 'Mazanie kontaktov'],
   followups: ['Pridaj triedenie kontaktov podľa mena a firmy.', 'Pridaj CSV import s kontrolou duplicitných e-mailov.', 'Navrhni databázovú schému kontaktov s oddelením používateľských dát.'],
   types: 'export interface Contact {id:number;name:string;email:string;company:string}',
   data: 'import type {Contact} from "./types";export const initialContacts:Contact[]=[{id:1,name:"Alex Novák",email:"alex@example.com",company:"Studio North"},{id:2,name:"Nina Malá",email:"nina@example.com",company:"Local Shop"}];',

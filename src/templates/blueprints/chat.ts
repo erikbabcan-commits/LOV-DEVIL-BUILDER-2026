@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'chat', title: 'Chat rozhranie', description: 'Konverzácia s lokálnymi odpoveďami, históriou správ a novým rozhovorom.',
   category: 'Aplikácie', icon: '◌', tags: ['chat', 'správy', 'asistent'],
+  features: ['Lokálne odpovede', 'História správ', 'Nový rozhovor'],
   followups: ['Pridaj čitateľné stavy odosielania a opakovania správy.', 'Priprav serverové rozhranie pre AI bez vloženia kľúčov do klienta.', 'Pridaj export konverzácie do textového súboru.'],
   types: 'export interface Message {id:number;role:"assistant"|"user";text:string}',
   data: 'import type {Message} from "./types";export const welcome:Message={id:1,role:"assistant",text:"Ahoj. Toto je lokálna ukážka chatu bez AI služby. Čo chceš v ďalšom kroku vytvoriť?"};',

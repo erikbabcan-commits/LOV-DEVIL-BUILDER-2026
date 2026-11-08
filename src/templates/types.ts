@@ -8,6 +8,7 @@ export interface Blueprint {
   category: BlueprintCategory;
   icon: string;
   tags: string[];
+  features: readonly [string, string, string];
   followups: [string, string, string, ...string[]];
   files: GeneratedFile[];
 }

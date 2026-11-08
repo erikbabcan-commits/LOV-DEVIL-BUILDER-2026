@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'analytics-dashboard', title: 'Analytický dashboard', description: 'Metriky, dostupný stĺpcový graf a prehľad zdrojov návštevnosti.',
   category: 'Biznis', icon: '▥', tags: ['metriky', 'grafy', 'reporty'],
+  features: ['Výber obdobia', 'Stĺpcový graf', 'Zdroje návštevnosti'],
   followups: ['Pridaj porovnanie s predchádzajúcim obdobím.', 'Pridaj CSV export zobrazených metrík.', 'Priprav prázdny stav pre ešte nepripojené analytické dáta.'],
   data: 'export const channels=[{name:"Organické vyhľadávanie",visits:1480},{name:"Priamy prístup",visits:920},{name:"Odporúčania",visits:540},{name:"Sociálne siete",visits:310}];',
   app: String.raw`import {useState} from 'react';import {Header} from './components/Header';import {channels} from './data';

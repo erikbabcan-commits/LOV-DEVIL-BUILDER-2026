@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'blog', title: 'Blog a magazín', description: 'Vyhľadávanie článkov, kategórie a čítanie detailu bez opustenia aplikácie.',
   category: 'Obsah', icon: '✎', tags: ['blog', 'články', 'magazín'],
+  features: ['Vyhľadávanie článkov', 'Filter kategórií', 'Detail článku'],
   followups: ['Pridaj dátum publikovania a čitateľský čas.', 'Pridaj stránku autora s jeho článkami.', 'Priprav formulár odberu noviniek bez predstieraného odosielania.'],
   data: 'export const posts=[{id:1,title:"Ako začať s prvým projektom",category:"Sprievodca",text:"Začni jedným konkrétnym problémom. Spíš, komu pomáhaš a čo potrebuje tento človek urobiť. Potom navrhni najkratšiu cestu k výsledku. Každý ďalší prvok pridávaj až vtedy, keď tejto ceste pomáha."},{id:2,title:"Dobrý dizajn začína obsahom",category:"Dizajn",text:"Zrozumiteľné pomenovanie tlačidla má väčšiu hodnotu ako ďalší vizuálny efekt. Daj používateľovi vedieť, čo sa stane po kliknutí. Pri chybách vysvetli, čo môže urobiť ďalej."},{id:3,title:"Malé kroky, pravidelný pokrok",category:"Produktivita",text:"Rozdeľ veľkú úlohu na overiteľné kroky. Na konci každého z nich skontroluj výsledok so skutočným používateľom. Tým znížiš množstvo práce, ktorú bude treba neskôr prerábať."}];',
   app: String.raw`import {useState} from 'react';import {Header} from './components/Header';import {EmptyState} from './components/EmptyState';import {posts} from './data';

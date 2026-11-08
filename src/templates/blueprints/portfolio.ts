@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'portfolio', title: 'Osobné portfólio', description: 'Vybrané práce, filtre podľa zamerania a kontaktný e-mailový odkaz.',
   category: 'Obsah', icon: '◇', tags: ['portfólio', 'osobný web', 'projekty'],
+  features: ['Filter projektov', 'Detaily vybraných prác', 'Kontaktný odkaz'],
   followups: ['Pridaj samostatnú prípadovú štúdiu projektu.', 'Uprav portfólio pre moje konkrétne služby.', 'Doplň SEO title a description bez vymýšľania referencií.'],
   data: 'export const projects=[{id:1,title:"Priestor pre malú značku",category:"Web",description:"Ukážková produktová stránka s jasnou navigáciou a responzívnym obsahom."},{id:2,title:"Nástroj pre lepší prehľad",category:"Aplikácie",description:"Ukážkový dashboard, ktorý mení množstvo údajov na prehľadné rozhodnutia."},{id:3,title:"Jednotný vizuálny jazyk",category:"Dizajn",description:"Ukážková sada typografie, farieb a komponentov pre konzistentný produkt."}];',
   app: String.raw`import {useState} from 'react';import {Header} from './components/Header';import {projects} from './data';

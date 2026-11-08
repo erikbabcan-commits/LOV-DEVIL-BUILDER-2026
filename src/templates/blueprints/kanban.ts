@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'kanban', title: 'Kanban board', description: 'Úlohy, priority a presúvanie medzi tromi stavmi bez ďalších balíčkov.',
   category: 'Produktivita', icon: '▦', tags: ['úlohy', 'tím', 'board'],
+  features: ['Pridávanie úloh', 'Presun kariet medzi stavmi', 'Zobrazenie priorít'],
   followups: ['Pridaj filtrovanie úloh podľa priority.', 'Pridaj termín dokončenia ku každej úlohe.', 'Ulož úlohy do lokálneho úložiska s možnosťou exportu.'],
   types: 'export interface Task {id:number;title:string;status:number;priority:string}',
   data: 'import type {Task} from "./types"; export const initialTasks:Task[]=[{id:1,title:"Pripraviť zadanie",status:0,priority:"Vysoká"},{id:2,title:"Navrhnúť úvodnú stránku",status:1,priority:"Stredná"},{id:3,title:"Overiť mobilné zobrazenie",status:2,priority:"Stredná"}];',

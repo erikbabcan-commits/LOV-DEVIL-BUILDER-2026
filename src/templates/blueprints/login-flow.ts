@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'login-flow', title: 'Prihlasovací tok', description: 'Prístupný login a registrácia s validáciou a jasným označením lokálnej ukážky.',
   category: 'Aplikácie', icon: '⌑', tags: ['login', 'registrácia', 'formulár'],
+  features: ['Prihlasovací formulár', 'Registračný formulár', 'Ukážková relácia'],
   followups: ['Priprav serverové prihlasovanie s httpOnly session cookie.', 'Pridaj obrazovku obnovy hesla bez predstieraného odoslania e-mailu.', 'Pridaj prístupný prepínač zobrazenia hesla.'],
   app: String.raw`import {useState} from 'react';import {Header} from './components/Header';
 export default function App(){const [mode,setMode]=useState<'login'|'register'>('login');const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [session,setSession]=useState<string|null>(null);const [show,setShow]=useState(false);

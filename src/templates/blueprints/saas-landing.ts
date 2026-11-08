@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'saas-landing', title: 'SaaS landing', description: 'Produktová stránka s porovnaním plánov, FAQ a formulárom záujmu.',
   category: 'Biznis', icon: '↗', tags: ['startup', 'pricing', 'landing'],
+  features: ['Mesačné a ročné plány', 'Časté otázky', 'Formulár záujmu'],
   followups: ['Prispôsob texty tejto landing page mojej značke.', 'Pridaj sekciu často kladených otázok.', 'Pridaj prístupný prepínač svetlej a tmavej témy.'],
   data: 'export const benefits = ["Jeden prehľadný pracovný priestor", "Menej rutiny, viac času pre zákazníkov", "Začni s tým, čo práve potrebuješ"];',
   app: String.raw`import {useState} from 'react';
