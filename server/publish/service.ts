@@ -7,6 +7,7 @@ import {
   type SandboxFile,
 } from "../sandbox/policy";
 import { redactSecrets } from "../security/secrets";
+import { blueprintOrigin } from "../projects/blueprints";
 import { WorkspaceSchema } from "../../shared/projectSchema";
 import {
   PublishJob,
@@ -34,6 +35,7 @@ interface Row {
   project_id: string;
   project_revision: number;
   snapshot_id: string;
+  blueprint_start_snapshot_id: string | null;
   source_files: unknown;
   artifact_id: string;
   artifact_sha256: string | null;
@@ -405,8 +407,13 @@ export class PublishService {
       const at = new Date(this.now()).toISOString(),
         artifact = randomUUID(),
         claim = randomUUID();
+      const origin = blueprintOrigin(workspace.data);
+      const attributed = origin ? (await tx.query(
+        "SELECT snapshot_id FROM blueprint_uses WHERE owner_id=$1 AND snapshot_id=$2 AND blueprint_id=$3",
+        [owner, origin.snapshotId, origin.blueprintId],
+      )).rows[0] : null;
       await tx.query(
-        "INSERT INTO publish_jobs(owner_id,request_id,project_id,project_revision,snapshot_id,source_fingerprint,source_files,artifact_id,state,created_at,updated_at,claim_id,artifact_bytes,storage_phase) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,'building',$9,$9,$10,$11,'compiling')",
+        "INSERT INTO publish_jobs(owner_id,request_id,project_id,project_revision,snapshot_id,source_fingerprint,source_files,artifact_id,state,created_at,updated_at,claim_id,artifact_bytes,storage_phase,blueprint_start_snapshot_id) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,'building',$9,$9,$10,$11,'compiling',$12)",
         [
           owner,
           selection.requestId,
@@ -419,6 +426,7 @@ export class PublishService {
           at,
           claim,
           this.config.maxArtifactBytes,
+          attributed?.snapshot_id ?? null,
         ],
       );
       return {
@@ -468,7 +476,13 @@ export class PublishService {
       if (current.state !== "building" || current.storage_phase !== "writing") return;
       if (current.artifact_sha256 !== receipt.sha256 || receipt.bytes > this.reservedBytes(current))
         throw new PublishError("publish_storage_unavailable");
-      await tx.query("UPDATE publish_jobs SET state='published',storage_phase='retained',artifact_bytes=$4,error_code=NULL,errors='[]'::jsonb,updated_at=$5 WHERE owner_id=$1 AND request_id=$2 AND claim_id=$3", [row.owner_id, row.request_id, row.claim_id, receipt.bytes, new Date(this.now()).toISOString()]);
+      const publishedAt = new Date(this.now()).toISOString();
+      await tx.query("UPDATE publish_jobs SET state='published',storage_phase='retained',artifact_bytes=$4,error_code=NULL,errors='[]'::jsonb,updated_at=$5 WHERE owner_id=$1 AND request_id=$2 AND claim_id=$3", [row.owner_id, row.request_id, row.claim_id, receipt.bytes, publishedAt]);
+      if (current.blueprint_start_snapshot_id) {
+        await tx.query(`UPDATE blueprint_uses SET first_published_at=$3 WHERE owner_id=$1 AND snapshot_id=$2
+          AND recorded_at <= $3 AND (first_published_at IS NULL OR first_published_at > $3)`,
+        [current.owner_id, current.blueprint_start_snapshot_id, publishedAt]);
+      }
     });
   }
   private async fail(row: Row, error: unknown, errors: Array<{file: string; message: string}>, receipt?: Receipt): Promise<void> {

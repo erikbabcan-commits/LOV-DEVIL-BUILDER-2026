@@ -37,7 +37,7 @@ import { accountExportRouter } from './auth/accountExport';
 import { accountClosureRouter } from './auth/accountClosure';
 import { makeAuthMiddleware, getUserFromContext } from './auth/middleware';
 import { makeCloudAuth, validateCloudIssuer, type CloudAuth } from './auth/cloud';
-import { blueprintRouter } from './projects/blueprints';
+import { blueprintConversion, blueprintRouter } from './projects/blueprints';
 import { readCloudGitHubConfig, makeCloudGitHubWiring } from './integrations/githubRuntime';
 import { probeCloudGitHubSchema } from './integrations/githubSchema';
 import type { DbLike } from './db/pool';
@@ -180,19 +180,24 @@ export function createApp(
       const report = await usageStore.report(user.id);
       // A successful job's last transition is publication. Use the same UTC
       // window and keep the AI report readable if the publish read fails.
-      const window = [user.id, new Date(report.periodStart + 'T00:00:00Z'), new Date(report.periodEnd + 'T00:00:00Z')];
-      const [publications, starters] = await Promise.all([
+      const start = new Date(report.periodStart + 'T00:00:00Z');
+      const end = new Date(report.periodEnd + 'T00:00:00Z');
+      const window = [user.id, start, end];
+      const [publications, conversion] = await Promise.all([
         auth.db.query(`SELECT COUNT(*) AS deployments FROM publish_jobs
           WHERE owner_id = $1 AND state = 'published' AND updated_at >= $2 AND updated_at < $3`, window).catch(() => null),
-        auth.db.query(`SELECT COUNT(*) AS count FROM blueprint_uses
-          WHERE owner_id=$1 AND recorded_at >= $2 AND recorded_at < $3`, window).catch(() => null),
+        blueprintConversion(auth.db, user.id, start, end).catch(() => null),
       ]);
       const publishedDeployments = Number(publications?.rows[0]?.deployments);
-      const blueprintStarts = Number(starters?.rows[0]?.count);
+      const blueprintStarts = conversion
+        ? conversion.reduce((total, row) => total + row.started, 0)
+        : Number((await auth.db.query(`SELECT COUNT(*) AS count FROM blueprint_uses
+            WHERE owner_id=$1 AND recorded_at >= $2 AND recorded_at < $3`, window).catch(() => null))?.rows[0]?.count);
       return c.json({
         ...report,
         ...(Number.isSafeInteger(publishedDeployments) && publishedDeployments >= 0 ? { publishedDeployments } : {}),
         ...(Number.isSafeInteger(blueprintStarts) && blueprintStarts >= 0 ? { blueprintStarts } : {}),
+        ...(conversion ? { blueprintConversion: conversion } : {}),
       });
     } catch { return c.json({ error: 'usage_unavailable' }, 503); }
   });
