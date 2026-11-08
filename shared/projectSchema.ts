@@ -8,7 +8,7 @@ const File = z.object({ name: z.string().max(200), content: z.string().max(200_0
 const filesValid = (files: z.infer<typeof File>[]) => new Set(files.map(file => file.name)).size === files.length &&
   files.every(file => isSafePath(file.name) || ['styles.css', 'app.js'].includes(file.name)) &&
   withinSizeLimits(files.map(file => ({ path: file.name, content: file.content }))).ok;
-const Files = File.array().max(40).refine(filesValid, 'invalid_files');
+export const Files = File.array().max(40).refine(filesValid, 'invalid_files');
 export const SnapshotSchema = z.object({
   id: ProjectId, v: z.number().int().positive(), prompt: z.string().max(20_000), kind: z.string().max(50),
   time: z.string().max(100), html: z.string().max(2_000_000), pinned: z.boolean().optional(), msg: z.string().max(2000).optional(),
