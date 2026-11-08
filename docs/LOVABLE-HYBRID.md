@@ -133,6 +133,9 @@ treba overiť vlastníctvo oboch identít. Na produkcii nebol spustený.
 Staré heslové prihlásenie naďalej používa cookie a CSRF; neplatný Bearer nesmie
 spadnúť späť na cookie. Cloud tokeny nesmú volať cookie-bound GitHub/export routy.
 Výpadok JWKS alebo identity DB vracia 503, neplatný/neprepojený token 401.
+Iba `GET /api/auth/me` rozlišuje overený Cloud účet bez väzby kódom
+`cloud_identity_unlinked`. Dialóg pripojenia nasmeruje používateľa na správcu.
+Odpoveď neobsahuje identifikátor Cloud identity ani detaily databázy.
 
 Samostatný Cloud GitHub router a BFF factory sú pripravené v hlavnom repozitári,
 default startup ich nezapína. Explicitné runtime prepínače a read-only preflight

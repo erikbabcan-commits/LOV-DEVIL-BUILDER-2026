@@ -113,7 +113,16 @@ export function authRouter(deps: AuthDeps) {
   router.get('/api/auth/me', async (c) => {
     c.header('Cache-Control', 'no-store');
     try {
-      const user = await currentUser(c, deps.jwtSecret, deps.cloudAuth, deps.db);
+      const bearer = cloudBearer(c.req.header('Authorization'), c.req.header(CLOUD_AUTH_HEADER));
+      let user: AuthUser | null;
+      if (bearer.token && deps.cloudAuth?.inspect) {
+        const identity = await deps.cloudAuth.inspect(bearer.token);
+        if (identity.state === 'unlinked')
+          return c.json({ error: 'cloud_identity_unlinked' }, 401);
+        user = identity.state === 'linked' ? identity.user : null;
+      } else {
+        user = await currentUser(c, deps.jwtSecret, deps.cloudAuth, deps.db);
+      }
       if (!user) return c.json({ error: 'unauthenticated' }, 401);
       const quota = await deps.quota.usage(user.id);
       return c.json({ user, quota });

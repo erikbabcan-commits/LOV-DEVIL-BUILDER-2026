@@ -30,6 +30,7 @@ const REACH: Record<HonoReach, string> = {
 const ACCOUNT: Record<HonoAccount, string> = {
   linked: "Prepojený",
   "auth-incomplete": "Prihlásenie, prepojenie alebo transportné overenie neúplné",
+  "identity-unlinked": "Účet čaká na prepojenie s VPS",
   "identity-unavailable": "Identity DB nedostupná",
   "not-configured": "Nenakonfigurovaný",
   unreachable: "Nedostupný",
