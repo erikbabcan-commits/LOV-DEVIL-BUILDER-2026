@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { DbLike } from "../db/pool";
 import { ArtifactStore } from "./artifacts";
 import { validatePublishConfig, type PublishConfig } from "./config";
@@ -27,9 +27,8 @@ export function publicPublishApp(
     );
     return next();
   });
-  app.on(["GET", "HEAD"], "/p/:artifactId/", async (c) => {
+  async function serve(c: Context, id: string, query: string) {
     if (new URL(c.req.url).search) return c.notFound();
-    const id = c.req.param("artifactId");
     if (
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         id,
@@ -37,15 +36,10 @@ export function publicPublishApp(
     )
       return c.notFound();
     try {
-      const row = (
-        await db.query(
-          "SELECT artifact_sha256,artifact_bytes FROM publish_jobs WHERE artifact_id=$1 AND state='published' AND withdrawn_at IS NULL",
-          [id],
-        )
-      ).rows[0];
+      const row = (await db.query(query, [id])).rows[0];
       if (!row) return c.notFound();
       const bytes = await artifacts.read(
-        id,
+        row.artifact_id,
         row.artifact_sha256,
         Number(row.artifact_bytes),
       );
@@ -58,6 +52,16 @@ export function publicPublishApp(
     } catch {
       return c.notFound();
     }
-  });
+  }
+  app.on(["GET", "HEAD"], "/p/:artifactId/", (c) => serve(c, c.req.param("artifactId"),
+    `SELECT artifact_id, artifact_sha256, artifact_bytes FROM publish_jobs
+     WHERE artifact_id=$1 AND state='published' AND withdrawn_at IS NULL`));
+  app.on(["GET", "HEAD"], "/p/live/:aliasId/", (c) => serve(c, c.req.param("aliasId"),
+    `SELECT j.artifact_id, j.artifact_sha256, j.artifact_bytes
+     FROM publish_live_addresses AS a
+     JOIN builder_projects AS p USING (owner_id, project_id)
+     JOIN publish_jobs AS j
+       ON j.owner_id=a.owner_id AND j.project_id=a.project_id AND j.request_id=a.request_id
+     WHERE a.alias_id=$1 AND p.deleted_at IS NULL AND j.state='published' AND j.withdrawn_at IS NULL`));
   return app;
 }

@@ -17,7 +17,7 @@ import type { PublishConfig } from "../../server/publish/config";
 import { HostExecutor, type SandboxExecutor } from "../../server/sandbox/executor";
 import type { BuildResult } from "../../server/sandbox/policy";
 import { BLUEPRINT_REGISTRY } from "../../src/templates/registry";
-import type { PublishSelection } from "../../shared/publish";
+import { PublishLiveAddress, type PublishSelection } from "../../shared/publish";
 
 const secret = "native-publish-test-secret-01234567890123456789";
 const output: BuildResult = {
@@ -244,6 +244,84 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect(await lookup()).toEqual([second.requestId, selection.requestId]);
     await value.withdraw("alice", second.requestId);
     expect(await lookup()).toEqual([selection.requestId]);
+  });
+
+  it("promotes and rolls back a stable address without rebuilding or replacing version URLs", async () => {
+    const execute = vi.fn<SandboxExecutor["execute"]>()
+      .mockResolvedValueOnce({ ...output, html: "<main>Release one</main>" })
+      .mockResolvedValueOnce({ ...output, html: "<main>Release two</main>" });
+    const value = service({ ready: async () => ({ ready: true, mode: "isolated" }), execute });
+    await value.start("alice", selection);
+    await value.settled();
+    const firstJob = await value.status("alice", selection.requestId);
+    const { workspace } = (await db.query("SELECT workspace FROM builder_projects WHERE owner_id='alice' AND project_id=$1", [selection.projectId])).rows[0];
+    const snapshot = { ...workspace.snapshots[0], id: "snapshot-two", v: 2, parentId: selection.snapshotId };
+    await db.query("UPDATE builder_projects SET revision=2,workspace=$2::jsonb WHERE owner_id='alice' AND project_id=$1", [
+      selection.projectId, JSON.stringify({ ...workspace, liveId: snapshot.id, snapshots: [...workspace.snapshots, snapshot] }),
+    ]);
+    const second = { ...selection, expectedRevision: 2, snapshotId: snapshot.id, requestId: randomUUID() };
+    await value.start("alice", second);
+    await value.settled();
+    const secondJob = await value.status("alice", second.requestId);
+    const app = api(value);
+    const route = "/api/publish/project/project-one/live";
+    const get = (token = alice) => app.request(route, { headers: headers(token) });
+    const promote = (requestId: string, expectedVersion: string | null, token = alice, confirmed = true) =>
+      app.request(route, { method: "POST", headers: headers(token), body: JSON.stringify({ requestId, expectedVersion, confirmed }) });
+    expect(await (await get()).json()).toBeNull();
+    expect((await app.request(route)).status).toBe(401);
+    expect((await app.request(route, { method: "POST" })).status).toBe(401);
+    expect((await promote(selection.requestId, null, bob)).status).toBe(404);
+    expect((await promote(selection.requestId, null, alice, false)).status).toBe(400);
+    await db.query(
+      "INSERT INTO builder_projects(owner_id,project_id,title,revision,workspace) SELECT owner_id,'other-project',title,revision,workspace FROM builder_projects WHERE owner_id='alice' AND project_id=$1",
+      [selection.projectId],
+    );
+    expect((await app.request(route.replace("project-one", "other-project"), {
+      method: "POST", headers: headers(alice),
+      body: JSON.stringify({ requestId: selection.requestId, expectedVersion: null, confirmed: true }),
+    })).status).toBe(404);
+    const [create, conflict] = await Promise.all([promote(selection.requestId, null), promote(selection.requestId, null)]);
+    expect([create.status, conflict.status].sort()).toEqual([200, 409]);
+    const initial = PublishLiveAddress.parse(await (create.ok ? create : conflict).json());
+    expect(initial).toMatchObject({ current: { requestId: selection.requestId, revision: 1 }, previous: null });
+    expect(await (await get(bob)).json()).toBeNull();
+    expect((await get()).headers.get("cache-control")).toBe("no-store");
+    const publicApp = publicPublishApp(config, db, value.artifacts);
+    const open = (url: string, method = "GET", host = "127.0.0.1:8791") =>
+      publicApp.request(url, { method, headers: { Host: host } });
+    const first = await open(initial.url);
+    expect(first.status).toBe(200);
+    expect(first.headers.get("cache-control")).toBe("no-store");
+    expect(first.headers.get("content-security-policy")).toContain("sandbox allow-scripts");
+    expect(await first.text()).toContain("Release one");
+    expect((await open(initial.url, "GET", "localhost:5176")).status).toBe(404);
+    expect((await open(initial.url + "?v=2")).status).toBe(404);
+    expect((await open(initial.url, "POST")).status).toBe(404);
+    const next = PublishLiveAddress.parse(await (await promote(second.requestId, initial.version)).json());
+    expect(next).toMatchObject({ url: initial.url, current: { requestId: second.requestId, revision: 2 }, previous: initial.current });
+    expect(await (await open(next.url)).text()).toContain("Release two");
+    const head = await open(next.url, "HEAD");
+    expect(head.status).toBe(200);
+    expect(await head.text()).toBe("");
+    expect((await promote(selection.requestId, initial.version)).status).toBe(409);
+    const reverted = PublishLiveAddress.parse(await (await promote(selection.requestId, next.version)).json());
+    expect(reverted).toMatchObject({ url: next.url, current: initial.current, previous: next.current });
+    expect(reverted.version).not.toBe(initial.version);
+    expect(await (await open(reverted.url)).text()).toContain("Release one");
+    expect(await (await open(firstJob.url!)).text()).toContain("Release one");
+    expect(await (await open(secondJob.url!)).text()).toContain("Release two");
+    expect(execute).toHaveBeenCalledTimes(2);
+    await value.withdraw("alice", selection.requestId);
+    expect((await open(reverted.url)).status).toBe(404);
+    expect((await open(firstJob.url!)).status).toBe(404);
+    expect(await (await get()).json()).toMatchObject({ current: null, previous: next.current });
+    expect((await promote(selection.requestId, reverted.version)).status).toBe(404);
+    expect((await promote(second.requestId, reverted.version)).status).toBe(200);
+    await db.query("UPDATE builder_projects SET deleted_at=now() WHERE owner_id='alice' AND project_id=$1", [selection.projectId]);
+    expect((await open(reverted.url)).status).toBe(404);
+    expect(await (await get()).json()).toBeNull();
+    expect((await open(secondJob.url!)).status).toBe(200);
   });
 
   it("prefers a newer revision when an older build finishes later", async () => {

@@ -11,6 +11,23 @@ export const PublishRequest = z
   .strict();
 export type PublishSelection = z.infer<typeof PublishRequest>;
 export const PublishWithdrawal = z.strictObject({ confirmed: z.literal(true) });
+export const PublishPromotion = z.strictObject({
+  requestId: PublishRequest.shape.requestId,
+  expectedVersion: z.uuid().nullable(),
+  confirmed: z.literal(true),
+});
+export type PublishPromotion = z.infer<typeof PublishPromotion>;
+const LiveRelease = z.strictObject({
+  requestId: PublishRequest.shape.requestId,
+  revision: z.number().int().positive(),
+});
+export const PublishLiveAddress = z.strictObject({
+  url: z.url(),
+  version: z.uuid(),
+  current: LiveRelease.nullable(),
+  previous: LiveRelease.nullable(),
+});
+export type PublishLiveAddress = z.infer<typeof PublishLiveAddress>;
 export const PublishProjectVersion = PublishRequest.pick({
   projectId: true,
   expectedRevision: true,

@@ -10,7 +10,9 @@ import { redactSecrets } from "../security/secrets";
 import { WorkspaceSchema } from "../../shared/projectSchema";
 import {
   PublishJob,
+  PublishLiveAddress,
   PublishRequest,
+  type PublishPromotion,
   type PublishResult,
   type PublishProjectVersion,
   type PublishSelection,
@@ -219,6 +221,69 @@ export class PublishService {
       [owner, projectId],
     )).rows as ViewRow[];
     return rows.map((row) => this.view(row));
+  }
+  async liveAddress(owner: string, projectId: string, db = this.db): Promise<PublishLiveAddress | null> {
+    const row = (await db.query(
+      `SELECT a.alias_id, a.version,
+              j.request_id, j.project_revision,
+              prev.request_id AS previous_request_id, prev.project_revision AS previous_revision
+       FROM publish_live_addresses AS a
+       JOIN builder_projects AS p USING (owner_id, project_id)
+       LEFT JOIN publish_jobs AS j
+         ON j.owner_id = a.owner_id AND j.project_id = a.project_id AND j.request_id = a.request_id
+         AND j.state = 'published' AND j.withdrawn_at IS NULL
+       LEFT JOIN publish_jobs AS prev
+         ON prev.owner_id = a.owner_id AND prev.project_id = a.project_id
+         AND prev.request_id = a.previous_request_id AND prev.state = 'published' AND prev.withdrawn_at IS NULL
+       WHERE a.owner_id = $1 AND a.project_id = $2 AND p.deleted_at IS NULL`,
+      [owner, projectId],
+    )).rows[0];
+    if (!row) return null;
+    return PublishLiveAddress.parse({
+      url: new URL("p/live/" + row.alias_id + "/", this.config.baseUrl).href,
+      version: row.version,
+      current: row.request_id ? { requestId: row.request_id, revision: row.project_revision } : null,
+      previous: row.previous_request_id
+        ? { requestId: row.previous_request_id, revision: row.previous_revision }
+        : null,
+    });
+  }
+  /** Point the stable address at an existing artifact without starting a build. */
+  async promote(owner: string, projectId: string, selection: PublishPromotion): Promise<PublishLiveAddress> {
+    return this.owner(owner, async tx => {
+      const project = await tx.query(
+        "SELECT project_id FROM builder_projects WHERE owner_id=$1 AND project_id=$2 AND deleted_at IS NULL FOR UPDATE",
+        [owner, projectId],
+      );
+      if (!project.rows.length) throw new PublishError("publish_project_not_found", 404);
+      const current = await this.liveAddress(owner, projectId, tx);
+      if ((current?.version ?? null) !== selection.expectedVersion)
+        throw new PublishError("publish_live_conflict", 409);
+      const target = (await tx.query(
+        `SELECT artifact_id, artifact_sha256, artifact_bytes FROM publish_jobs
+         WHERE owner_id=$1 AND project_id=$2 AND request_id=$3 AND state='published' AND withdrawn_at IS NULL`,
+        [owner, projectId, selection.requestId],
+      )).rows[0];
+      if (!target) throw new PublishError("publish_not_found", 404);
+      try {
+        await this.artifacts.read(target.artifact_id, target.artifact_sha256, Number(target.artifact_bytes));
+      } catch {
+        throw new PublishError("publish_live_artifact_unavailable", 503);
+      }
+      if (current?.current?.requestId === selection.requestId) return current;
+      const previous = current?.current?.requestId ?? current?.previous?.requestId;
+      await tx.query(
+        `INSERT INTO publish_live_addresses (owner_id, project_id, alias_id, version, request_id, previous_request_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (owner_id, project_id) DO UPDATE SET version = EXCLUDED.version,
+           request_id = EXCLUDED.request_id, previous_request_id = EXCLUDED.previous_request_id`,
+        [owner, projectId, randomUUID(), randomUUID(), selection.requestId,
+          previous === selection.requestId ? null : previous ?? null],
+      );
+      const address = await this.liveAddress(owner, projectId, tx);
+      if (!address) throw new PublishError("publish_unavailable");
+      return address;
+    });
   }
   private reservedBytes(row: Pick<Row, "state" | "storage_phase" | "artifact_bytes">): number {
     if (row.storage_phase === "empty" && row.state === "failed") return 0;

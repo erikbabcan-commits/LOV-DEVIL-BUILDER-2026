@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { PublishProjectVersion, PublishRequest, PublishWithdrawal } from "../../shared/publish";
+import { PublishProjectVersion, PublishPromotion, PublishRequest, PublishWithdrawal } from "../../shared/publish";
 import { getUserFromContext } from "../auth/middleware";
 import { PublishService, PublishError } from "./service";
 /** Mount authenticated publication, status and owner withdrawal operations. */
@@ -84,7 +84,7 @@ export function publishRouter(
       return c.json({ error: "rate_limit" }, 429);
     return c.json(await service.publishedVersion(user.id, version.data));
   });
-  for (const endpoint of ["latest", "releases"] as const) {
+  for (const endpoint of ["latest", "releases", "live"] as const) {
     router.get(`/api/publish/project/:projectId/${endpoint}`, async (c) => {
       const user = getUserFromContext(c);
       if (!user) return c.json({ error: "unauthenticated" }, 401);
@@ -96,11 +96,23 @@ export function publishRouter(
         return c.json({ error: "publish_invalid_request" }, 400);
       if (!allow("publish-status:" + user.id))
         return c.json({ error: "rate_limit" }, 429);
-      return c.json(endpoint === "releases"
-        ? await service.recentPublications(user.id, project.data)
-        : await service.latestPublished(user.id, project.data));
+      if (endpoint === "releases") return c.json(await service.recentPublications(user.id, project.data));
+      if (endpoint === "live") return c.json(await service.liveAddress(user.id, project.data));
+      return c.json(await service.latestPublished(user.id, project.data));
     });
   }
+  router.post("/api/publish/project/:projectId/live", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    const selection = PublishPromotion.safeParse(await c.req.json().catch(() => null));
+    if (!project.success || !selection.success)
+      return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-live:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    return c.json(await service.promote(user.id, project.data, selection.data));
+  });
   router.get("/api/publish/:requestId", async (c) => {
     const user = getUserFromContext(c);
     if (!user) return c.json({ error: "unauthenticated" }, 401);
