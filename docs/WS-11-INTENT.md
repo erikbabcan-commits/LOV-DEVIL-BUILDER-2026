@@ -91,9 +91,11 @@ label, očakávaný label alebo datasetový report. Chybná modelová odpoveď m
 prediction `null`, nesmie sa vynechať z menovateľa. Import kontroluje odtlačky,
 známe/unikátne ID a formát. Vždy skóruje všetkých 150 prípadov, uvádza confusion
 matrix, recall per intent a výsledky podľa jazyka. Presnosť musí byť **striktne
->90 %**: 135/150 neprejde, 136/150 prejde. Baseline musí mať ten istý dataset;
-viac ako 5 % nových regresií (8 zo 150) neprejde. Baseline správnosť sa znovu
-vypočíta z predicted/expected, nedôveruje sa deklarovanému correct.
+>90 %**. Výsledok 135/150 neprejde, 136/150 prejde. Ako baseline použi úplný
+report z toho istého datasetu, s rovnakým druhom pozorovaní, poskytovateľom a
+modelom. Pri zmene odtlačku promptu musí byť jeho verzia odlišná. Nový report
+uvádza verziu a odtlačok promptu v baseline. Viac ako 5 % nových regresií
+(8 zo 150) neprejde. Správnosť baseline sa znovu vypočíta z predicted/expected.
 
 Exit 0 = metrické brány prešli/export sa podaril, 2 = metrická brána neprešla,
 1 = chybné vstupy/IO. Voliteľný výstup je nový súbor 0600, bez prepisovania.

@@ -34,6 +34,36 @@ describe('versioned 150-prompt intent evaluation',()=>{
   const old=scoreIntent(dataset,predictions());expect(scoreIntent(dataset,predictions(142),old).regression).toMatchObject({withinFivePercent:false});expect(scoreIntent(dataset,predictions(143),old).regression).toMatchObject({withinFivePercent:true});
   expect(()=>scoreIntent(dataset,predictions(),{...old,datasetHash:'stale'})).toThrow('intent_eval_baseline_mismatch');
  });
+ it.each([
+  ['kind', 'recorded'],
+  ['provider', 'other-provider'],
+  ['model', 'other-model'],
+ ])('rejects baseline with different %s', (field, value) => {
+  const input = predictions();
+  const old = scoreIntent(dataset, input);
+  expect(() => scoreIntent(dataset, input, {
+   ...old,
+   provenance: { ...old.provenance, [field]: value },
+  })).toThrow('intent_eval_baseline_provenance_mismatch');
+ });
+ it('requires a real report shape and each baseline case exactly once', () => {
+  const input = predictions();
+  const old = scoreIntent(dataset, input);
+  expect(() => scoreIntent(dataset, input, { datasetHash: old.datasetHash, results: old.results }))
+   .toThrow('intent_eval_baseline_mismatch');
+  expect(() => scoreIntent(dataset, input, {
+   ...old,
+   results: [...old.results.slice(0, -1), old.results[0]],
+  })).toThrow('intent_eval_baseline_mismatch');
+ });
+ it('rejects reused prompt versions with different hashes and records an older baseline', () => {
+  const input = predictions();
+  const old = scoreIntent(dataset, input);
+  const previous = { ...old, promptHash: 'c'.repeat(64) };
+  expect(() => scoreIntent(dataset, input, previous)).toThrow('intent_eval_baseline_prompt_version_conflict');
+  expect(scoreIntent(dataset, input, { ...previous, promptVersion: 'older-version' }).regression)
+   .toMatchObject({ baselinePromptVersion: 'older-version', baselinePromptHash: previous.promptHash });
+ });
  it('exports the exact classifier contract without performing inference',()=>{
   const result=exportIntentRequests(dataset);expect(result.inferencePerformed).toBe(false);expect(result.requests).toHaveLength(150);expect(JSON.parse(result.requests[0].messages[1].content)).toEqual({prompt:dataset.cases[0].prompt,hasProject:dataset.cases[0].hasProject});
  });
@@ -43,6 +73,10 @@ describe('versioned 150-prompt intent evaluation',()=>{
   try{const input=join(directory,'predictions.json'),output=join(directory,'report.json');writeFileSync(input,JSON.stringify(predictions(135)));writeFileSync(join(directory,'.env'),'MISTRAL_API_KEY=unused-private-marker');
    const result=invoke(['--predictions',input,'--output',output]);expect(result.status).toBe(2);expect(JSON.parse(readFileSync(output,'utf8'))).toMatchObject({mode:'offline-scoring',correct:135,inferenceVerified:false});expect(statSync(output).mode&0o777).toBe(0o600);
    expect(invoke(['--predictions',input,'--output',output]).status).toBe(1);expect(invoke(['--live']).status).toBe(1);
+   const baseline=join(directory,'baseline.json');
+   writeFileSync(baseline,JSON.stringify(scoreIntent(dataset,{...predictions(),provenance:{kind:'recorded',provider:'fixture',model:'synthetic-only'}})));
+   const mismatch=invoke(['--predictions',input,'--baseline',baseline]);
+   expect(mismatch.status).toBe(1);expect(mismatch.stderr).toContain('rovnaký druh pozorovaní');expect(mismatch.stdout).toBe('');
    expect(invoke(['--export-requests','--output',join(directory,'requests.json')]).status).toBe(0);expect(JSON.parse(readFileSync(join(directory,'requests.json'),'utf8')).requests).toHaveLength(150);
   }finally{rmSync(directory,{recursive:true,force:true});}
  },15000);
