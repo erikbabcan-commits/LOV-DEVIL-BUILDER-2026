@@ -582,9 +582,22 @@ Nový `npm run --silent billing:preflight -- --help` ponúka:
 Existujúca API doména je chránená HTTP Basic Auth. Stripe musí mať prístup iba
 k presnému podpísanému POST `/api/billing/webhook`; výnimku ukazuje
 `deploy/ops/billing-webhook-nginx.conf.template`. Iné API cesty zostávajú chránené.
+Pred vložením nahraď `__LOV_API_PORT__` portom z aktívneho `proxy_pass` v existujúcom
+`location /api/`. Pri kontrole 8. 11. 2026 smeroval na loopback 8788. Pri zmene
+upstreamu sa musia zhodovať oba porty. Over konfiguráciu príkazom `nginx -t`.
+Výnimka kontroluje aj pôvodnú URI, preto odmietne query a varianty, ktoré Nginx
+pri hľadaní lokácie normalizuje. Upstream dostane `Stripe-Signature`, typ obsahu,
+host a pôvodné bajty tela. Hlavičky identity klienta sa nepreposielajú.
 Pred registráciou endpointu treba overiť: nepodpísaný POST odmietnutý, platný
 podpis prijatý, GET odmietnutý a ostatné chránené API bez prihlásenia stále 401.
 Výnimka sa neinštaluje pred nasadením podpisového handlera a sama platby nezapína.
+
+Šablóna prešla `nginx -t` aj HTTP kontrolou v oddelenej inštancii Nginx 1.24
+bez root práv. Oba dočasné listenery boli iba na loopbacku. Syntetický upstream
+overil rovnaký podpis a telo pri bežnom aj chunked prenose, filtrovanie hlavičiek
+a skrytie `Set-Cookie`. Štyri nepovolené metódy dostali 405, štyri varianty URI
+404 a telo nad 512 KiB dostalo 413. Susedné API bez Basic Auth dostalo 401.
+Produkčná konfigurácia sa pri tomto teste nemenila.
 
 Preflight nepotvrdzuje správnosť webhook secretu, nastavenie portálu, právne/
 daňové toky ani skutočnú platbu. Live účet musí byť pripravený na prijímanie
