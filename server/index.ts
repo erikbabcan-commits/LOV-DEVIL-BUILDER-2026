@@ -3,7 +3,7 @@ import {ContextBudgetError,contextWindow} from './providers/contextBudget';
 import { ProviderError } from './providers/errors';
 import { ModelSelectionSchema } from '../shared/aiModels';
 import { ProviderRegistry, type ModelEntry } from './providers/registry';
-import { configuredProviders } from './providers/runtime';
+import { configuredProvidersWithMistralCatalog } from './providers/runtime';
 import { createProviderRun } from './providers/run';
 import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
 import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
@@ -507,7 +507,7 @@ if (
   cfg.projectStorage = readProjectStoragePolicy(process.env);
   cfg.aiPricing = readAiPricePolicy(process.env);
   if (process.env.CLOUD_AUTH_ISSUER) validateCloudIssuer(process.env.CLOUD_AUTH_ISSUER);
-  const registry = process.env.MOCK_AI === '1' ? new ProviderRegistry([{id:'default',label:'AI test',provider:makeMockProvider()}]) : configuredProviders(process.env);
+  const registry = process.env.MOCK_AI === '1' ? new ProviderRegistry([{id:'default',label:'AI test',provider:makeMockProvider()}]) : await configuredProvidersWithMistralCatalog(process.env);
   const provider = registry.defaultProvider;
 
   /* WS-1: AUTH_ENABLED=1 → Postgres + JWT + trvalé kvóty + Redis limiter (fail-fast). */
