@@ -77,6 +77,27 @@ GitHub, JWKS, AI ani Lovable build. `ok:true` bez DB kontroly znamená iba platn
 konfiguráciu; aj s DB kontrolou zostávajú live login, issuer/JWKS, provider
 credentials a hostované prepojenie samostatným overením.
 
+## Spoločný test exportu a obnovy
+
+Backend `6280ca30163382c34ba15f872b833e82fbb58c52` a Lovable draft
+`bae90723f6f034eaa2fb7d672bbfbd41f1b74734` prešli pri šírke 390 px v Chromium
+na lokálnom HTTPS. Test použil skutočný BFF, Hono, PostgreSQL 16 so schémou 018
+a podpisovanie ES256 s dočasným kľúčom. GitHub API a grant `public_repo` poskytla
+lokálna simulácia. BFF preniesol overenú Cloud reláciu cez Basic transport a
+OAuth stav spároval cez zabezpečenú cookie.
+
+- Po strate odpovede na prípravu bol v databáze jeden pokus a GitHub evidoval
+  nula zápisov. Po reloade sa obnovil ten istý identifikátor aj zoznam súborov.
+- Potvrdenie si vyžiadalo súhlas s verejným repozitárom. Simulácia zaznamenala
+  jedno vytvorenie repozitára, jeden posun vetvy a obsah presne z vybranej verzie.
+- Simulácia zahodila odpoveď po posune vetvy a prehliadač nedostal ani odpoveď
+  na potvrdenie. Kontrola výsledku po reloade overila commit, strom a hash súboru.
+  Lokálny záznam prešiel do `succeeded` bez ďalšieho zápisu na GitHube.
+- Druhý účet dostal pri čítaní identifikátora prvého účtu HTTP 404. Dočasná
+  databáza a certifikát sa odstránili.
+
+Živé OAuth a vytvorenie repozitára v schválenom GitHub účte zostávajú otvorené.
+
 ## Štart a neskoršie zapojenie
 
 `server/index.ts` parsuje konfiguráciu pred providerom a DB vedľajšími účinkami.
