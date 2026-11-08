@@ -179,3 +179,25 @@ fixture; nevykonal sa žiadny POST ani platobná akcia. Autoritatívny screensho
 nespustila, existujúce Secrets ani Lovable kredity sa nemenili.
 Dokončenie tejto fázy predchádza používateľom vyžiadanému usporiadaniu commitov
 a merge; celý M1–M6 zostáva neukončený a nové funkcie sa po usporiadaní pozastavia.
+
+## Spoločný test návratu zo Stripe
+
+Chromium pri 390 px prešiel návratom zo Stripe s Lovable draftom `929cefd`
+a backendom `8026ec1`. Použil lokálne HTTPS, serverovú proxy Lovable, Hono,
+podpísané syntetické ES256 relácie, skutočné mapovanie Cloud identity na účet
+a dočasnú PostgreSQL 16 so schémou 018. Stripe gateway aj stránky Checkoutu
+a portálu boli syntetické. Podpis webhooku vytvoril Stripe SDK a overila ho
+skutočná webhook trasa.
+
+- Po návrate z Checkoutu sa panel otvoril na Free. Overenie stavu poslalo iba
+  GET. Výslovné pokračovanie poslalo ten istý identifikátor. Dva POSTy viedli
+  k jednému vytvoreniu Checkoutu a jedinému riadku pokusu.
+- Webhook s nesprávnym podpisom vrátil HTTP 400. Plán zostal Free a tabuľka
+  udalostí prázdna. Platná udalosť prepla pôvodný účet na Pro, uzavrela pokus
+  a po opätovnom doručení zostala v tabuľke raz. Druhý účet videl iba vlastný
+  plán Free a žiadny čakajúci pokus.
+- Po jednom výslovnom otvorení portálu sa po návrate zobrazilo ukončenie
+  obnovovania na konci obdobia. Návraty ani obnovenia stavu neposlali ďalší POST.
+
+Dočasná databáza a certifikát sa po teste odstránili. Živý Stripe, produkčné
+prihlásenie, doručenie webhooku na VPS a stiahnuteľná faktúra zostávajú otvorené.
