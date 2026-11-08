@@ -30,6 +30,7 @@ const REACH: Record<HonoReach, string> = {
 const ACCOUNT: Record<HonoAccount, string> = {
   linked: "Prepojený",
   "auth-incomplete": "Prihlásenie, prepojenie alebo transportné overenie neúplné",
+  "identity-unlinked": "Účet čaká na prepojenie s VPS",
   "identity-unavailable": "Identity DB nedostupná",
   "not-configured": "Nenakonfigurovaný",
   unreachable: "Nedostupný",
@@ -137,6 +138,14 @@ export function ConnectionPanel({ onClose }: { onClose: () => void }) {
           good={acct?.state === "linked"}
         />
       </div>
+      {acct?.state === "identity-unlinked" && (
+        <p
+          role="status"
+          className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-xs text-secondary-foreground"
+        >
+          Prihlásenie prešlo. Správca musí prepojiť tento účet s VPS. Potom obnov stav pripojenia.
+        </p>
+      )}
       {acct?.state === "linked" && (
         <section
           className="mt-3 rounded-lg border border-border p-3 text-[12px]"

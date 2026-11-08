@@ -926,7 +926,7 @@ Pravidlá:
 
 | ID | Položka | Akceptačné kritériá | Odhad | Stav k 6. 11. 2026 |
 |---|---|---|---|---|
-| 701 | Registrácia/login: e-mail+heslo, Google, GitHub | heslá bcrypt/argon2, e-mail verify, reset hesla | M | Čiastočne — cookie auth a Cloud Google login; verify/reset a celý hybrid tok otvorený |
+| 701 | Registrácia/login: e-mail+heslo, Google, GitHub | heslá bcrypt/argon2, e-mail verify, reset hesla | M | Čiastočne — cookie auth a Cloud Google login. Lovable draft rozlíši platný účet bez väzby na VPS. Mobilný sandbox overil načítanie modelov po explicitnom prepojení syntetickej identity v rovnakej relácii. Živý hybrid tok a overenie všetkých prihlasovacích metód zostávajú otvorené. |
 | 702 | 2FA (TOTP) | Pro+ feature | S | Otvorené |
 | 703 | Organizácie & tímy, role (owner/admin/editor/viewer) | pozvánky e-mailom, RBAC na projektoch | L | Otvorené — tímy, pozvánky a role nad rámec jednotlivého vlastníka chýbajú |
 | 704 | Prenos vlastníctva projektu, mazanie s grace period | soft-delete 30 dní | S | Čiastočne — 30-dňový kôš/obnova; prenos vlastníctva a fyzická retencia chýbajú |

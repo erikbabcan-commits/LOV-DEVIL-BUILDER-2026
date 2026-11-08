@@ -17,6 +17,7 @@ export type HonoReach =
 export type HonoAccount =
   | "linked"
   | "auth-incomplete"
+  | "identity-unlinked"
   | "identity-unavailable"
   | "not-configured"
   | "unreachable"
@@ -50,6 +51,7 @@ export interface HonoAccountInfo {
   quota?: AiQuota | undefined;
 }
 
+/** Translate the account probe while keeping a verified unlinked identity distinct. */
 export async function mapMe(res: Response): Promise<HonoAccountInfo> {
   const code = await errCode(res);
   if (res.ok) {
@@ -75,6 +77,7 @@ export async function mapMe(res: Response): Promise<HonoAccountInfo> {
   if (code === "hono_not_configured") return { state: "not-configured" };
   if (res.status === 502 || res.status === 504) return { state: "unreachable" };
   if (res.status === 503) return { state: "identity-unavailable" };
-  if (res.status === 401) return { state: "auth-incomplete" };
+  if (res.status === 401)
+    return { state: code === "cloud_identity_unlinked" ? "identity-unlinked" : "auth-incomplete" };
   return { state: "error" };
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConnectionPanel } from "./ConnectionPanel";
 import { honoFetch } from "@/lib/hono-client";
 const state = vi.hoisted(() => ({ id: "alice" }));
@@ -27,6 +27,25 @@ afterEach(() => {
   state.id = "alice";
 });
 describe("account-bound token reporting", () => {
+  it("guides a verified unlinked account until the next successful connection check", async () => {
+    vi.mocked(honoFetch).mockImplementation(async (path) =>
+      path === "auth/me"
+        ? Response.json({ error: "cloud_identity_unlinked" }, { status: 401 })
+        : Response.json({ error: "unauthenticated" }, { status: 401 }),
+    );
+    render(<ConnectionPanel onClose={() => {}} />);
+    expect(await screen.findByText("Účet čaká na prepojenie s VPS")).toBeInTheDocument();
+    expect(screen.getByText(/Správca musí prepojiť tento účet s VPS/)).toBeInTheDocument();
+    expect(screen.getByText(/Potom obnov stav pripojenia/)).toBeInTheDocument();
+    vi.mocked(honoFetch).mockImplementation(async (path) =>
+      Response.json(
+        path === "sandbox/ready" ? { ready: true } : path === "auth/me" ? me("alice") : usage,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Overiť znova" }));
+    expect(await screen.findByText("Prepojený (free)")).toBeInTheDocument();
+    expect(screen.queryByText(/Správca musí prepojiť/)).not.toBeInTheDocument();
+  });
   it("shows token coverage and keeps unknown calls visible", async () => {
     vi.mocked(honoFetch).mockImplementation(async (path) =>
       Response.json(

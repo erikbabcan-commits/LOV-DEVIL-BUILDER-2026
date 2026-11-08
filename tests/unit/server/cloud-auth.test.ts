@@ -82,21 +82,41 @@ describe('Lovable Cloud identity bridge', () => {
   });
   it('revokes a binding immediately and never links another subject by identical email', async () => {
     await db.query('DELETE FROM identity_links WHERE user_id=$1', ['alice']);
-    expect((await app.request('/api/auth/me', { headers: { Authorization: 'Bearer ' + await token() } })).status).toBe(401);
+    const access = 'Bearer ' + await token();
+    for (const headers of [
+      { Authorization: access },
+      { Authorization: 'Basic Zml4dHVyZTp0cmFuc3BvcnQ=', 'X-LOV-Cloud-Authorization': access },
+    ] as Record<string, string>[]) {
+      const response = await app.request('/api/auth/me', { headers });
+      expect(response.status).toBe(401);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      expect(await response.json()).toEqual({ error: 'cloud_identity_unlinked' });
+      expect(await (await app.request('/api/ai-models', { headers })).json()).toEqual({ error: 'unauthenticated' });
+    }
     expect((await db.query('SELECT id FROM users')).rows).toHaveLength(2);
   });
   it('rejects forged, wrong-issuer, wrong-audience, expired, anonymous and service-role tokens', async () => {
     const invalid = [await token({}, 'https://other.supabase.co/auth/v1'), await token({ aud: 'other' }),
       await token({ role: 'service_role' }), await token({ is_anonymous: true }), await token({ exp: 1 }),
       await token({ exp: undefined }), await token({ sub: undefined }), await token({ iat: undefined }),
-      await token({ iat: Math.floor(Date.now() / 1000) + 300 }), await token({ sub: 'unlinked', email: 'alice@example.com' })];
+      await token({ iat: Math.floor(Date.now() / 1000) + 300 })];
     invalid.push(await new SignJWT({ role: 'authenticated' }).setProtectedHeader({ alg: 'HS256' }).setIssuer(issuer).setAudience('authenticated').setSubject('cloud-alice').setIssuedAt().setExpirationTime('5m').sign(new TextEncoder().encode(secret)));
     const forgedKey = await generateKeyPair('ES256');
     invalid.push(await new SignJWT({ role: 'authenticated' }).setProtectedHeader({ alg: 'ES256', kid: 'test-key' }).setIssuer(issuer).setAudience('authenticated').setSubject('cloud-alice').setIssuedAt().setExpirationTime('5m').sign(forgedKey.privateKey));
     invalid.push('invalid.token.signature');
     // Invalid Bearer must never fall back to a valid cookie.
     const cookie = await signToken({ sub: 'bob', email: 'bob@example.com', plan: 'pro' }, secret);
-    for (const value of invalid) expect((await app.request('/api/projects', { headers: { Authorization: 'Bearer ' + value, Cookie: 'lov_token=' + cookie } })).status).toBe(401);
+    for (const value of invalid) {
+      const headers = { Authorization: 'Bearer ' + value, Cookie: 'lov_token=' + cookie };
+      expect((await app.request('/api/projects', { headers })).status).toBe(401);
+      const diagnostic = await app.request('/api/auth/me', { headers });
+      expect(diagnostic.status).toBe(401);
+      expect(await diagnostic.json()).toEqual({ error: 'unauthenticated' });
+    }
+    const sameEmail = await token({ sub: 'unlinked', email: 'alice@example.com' });
+    const headers = { Authorization: 'Bearer ' + sameEmail, Cookie: 'lov_token=' + cookie };
+    expect((await app.request('/api/projects', { headers })).status).toBe(401);
+    expect(await (await app.request('/api/auth/me', { headers })).json()).toEqual({ error: 'cloud_identity_unlinked' });
   });
   it('fails closed without Cloud wiring or with missing identity storage', async () => {
     const disabled = createApp({}, null, { auth: { db, jwtSecret: secret, quota: new InMemoryQuotaStore() } });
