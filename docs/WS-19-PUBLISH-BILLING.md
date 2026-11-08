@@ -84,6 +84,27 @@ Test používal aktívny executor a zhodu jeho súborov s kandidátom. Samostatn
 neuskutočnili. Na výmenu stále treba čerstvú obnovou overenú kópiu schémy 018
 mimo VPS a potvrdenie návratu pod prevádzkovým zámkom.
 
+## Aktuálny spoločný test od cenníka po odvolanie odkazu
+
+Overené revízie boli backend `6456fd935bdbf32daeb05e0e8cdcb618b06c7f31`
+a Lovable frontend `53948127ed3af375a947376feac3e0ecc00e68f0`. Test bežal
+na loopbacku v Chromium pri šírke 390 px. Čerstvý PostgreSQL 16 mal zhodný
+odtlačok schémy 018. Testoval sa aplikačný Cloud resolver s dočasným ES256
+kľúčom, skutočným overením podpisu a dvoma testovacími prepojeniami v databáze.
+
+- Vzorové CRM zadanie sa obnovilo po návšteve cenníka, testovacom prihlásení
+  aj reloade. Pred potvrdením používateľom nevznikol projekt ani AI úloha.
+- Po jednom odoslaní pribudla jedna kvótovaná AI úloha, jeden projekt a jedna
+  publikácia. Schválený React zdroj skompiloval lokálny host executor.
+- Oddelený listener vrátil HTTP 200 a Chromium vykreslil aplikáciu za 12,27 s
+  od otvorenia úvodu. Vlastník načítal odkaz po reloade a cudzí účet dostal `null`.
+  Anonymná požiadavka, neprepojená identita aj sfalšovaný podpis dostali HTTP 401.
+- Po odvolaní vrátili GET aj HEAD HTTP 404 s `Cache-Control: no-store`.
+  Dočasná databáza a artefakty sa odstránili.
+
+Test nepoužíval živý Lovable login, externého poskytovateľa AI, Stripe ani
+produkčný VPS. Produkčný čas do prvej aplikácie a živé nasadenie zostávajú otvorené.
+
 ## Produkčný obraz `aba5cf4` a schéma 018 · 7. 11. 2026
 
 Pred výmenou sa záloha `20261107T213941Z` preniesla priamo na Mac.
