@@ -20,6 +20,7 @@ import { HostExecutor, type SandboxExecutor } from "../../server/sandbox/executo
 import type { BuildResult } from "../../server/sandbox/policy";
 import { BLUEPRINT_REGISTRY } from "../../src/templates/registry";
 import { PublishLiveAddress, type PublishSelection } from "../../shared/publish";
+import { blueprintConversion } from "../../server/projects/blueprints";
 
 const secret = "native-publish-test-secret-01234567890123456789";
 const output: BuildResult = {
@@ -97,6 +98,47 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     return app;
   }
   const headers = (token: string) => ({ Cookie: "lov_token=" + token + "; lov_csrf=publish-native-csrf", "X-CSRF-Token": "publish-native-csrf", "Content-Type": "application/json" });
+
+  it("attributes the first verified successful publish to the starter, even when a copy publishes first", async () => {
+    const template = BLUEPRINT_REGISTRY[1];
+    const from = new Date(Date.now() - 60_000), end = new Date(Date.now() + 60_000);
+    const { rows } = await db.query("SELECT workspace FROM builder_projects WHERE owner_id='alice' AND project_id='project-one'");
+    const workspace = rows[0].workspace;
+    const first = { ...workspace.snapshots[0], kind: "blueprint:" + template.id };
+    workspace.snapshots = [first, { ...first, id: "branded", v: 2, kind: "edit", parentId: first.id }];
+    workspace.liveId = "branded";
+    await db.query("UPDATE builder_projects SET workspace=$1 WHERE owner_id='alice' AND project_id='project-one'", [JSON.stringify(workspace)]);
+    await db.query("INSERT INTO builder_projects(owner_id,project_id,title,revision,workspace) VALUES('alice','copy','Copy',1,$1)", [JSON.stringify(workspace)]);
+    await db.query(`INSERT INTO blueprint_uses(owner_id,snapshot_id,blueprint_id,recorded_at)
+      VALUES ('alice','snapshot-one',$1,$2), ('alice','never-published',$1,$2), ('bob','snapshot-one',$1,$2),
+      ('alice','outside-window',$1,$3)`, [template.id, new Date(from.getTime() + 1), new Date(from.getTime() - 1)]);
+    const counts = (owner: string) => blueprintConversion(db, owner, from, end);
+    const failed = service({ ready: async () => ({ ready: true, mode: "isolated" }), execute: async () => ({
+      ...output, ok: false, html: null, errors: [{ file: "src/main.tsx", message: "Fixture failed" }],
+    }) });
+    const selected = { ...selection, snapshotId: "branded" };
+    await failed.start("alice", selected);
+    await failed.settled();
+    expect((await failed.status("alice", selected.requestId)).state).toBe("failed");
+    expect(await counts("alice")).toEqual([{ id: template.id, title: template.title, started: 2, published: 0 }]);
+    const publisher = service({ ready: async () => ({ ready: true, mode: "isolated" }), execute: async () => output });
+    const copy = { ...selected, projectId: "copy", requestId: randomUUID() };
+    await publisher.start("alice", copy);
+    await publisher.settled();
+    expect((await publisher.status("alice", copy.requestId)).state).toBe("published");
+    const readFirst = async () => (await db.query("SELECT first_published_at FROM blueprint_uses WHERE owner_id='alice' AND snapshot_id='snapshot-one'")).rows[0].first_published_at;
+    const firstPublished = await readFirst();
+    expect(firstPublished).toBeInstanceOf(Date);
+    await publisher.start("alice", { ...selected, requestId: randomUUID() });
+    await publisher.settled();
+    await publisher.withdraw("alice", copy.requestId);
+    expect(await readFirst()).toEqual(firstPublished);
+    expect(await counts("alice")).toEqual([{ id: template.id, title: template.title, started: 2, published: 1 }]);
+    expect(await counts("bob")).toEqual([{ id: template.id, title: template.title, started: 1, published: 0 }]);
+    expect(await blueprintConversion(db, "alice", from, firstPublished)).toEqual([
+      { id: template.id, title: template.title, started: 2, published: 0 },
+    ]);
+  });
 
   it("builds real saved React sources and serves the verified artifact from the separate public listener", async () => {
     const host = new HostExecutor(), value = service(host), app = api(value);

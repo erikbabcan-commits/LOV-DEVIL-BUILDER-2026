@@ -649,8 +649,15 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     expect((await save('original')).status).toBe(409);
     expect((await save('original', 1)).status).toBe(200);
     expect((await save('copy')).status).toBe(201);
-    expect(await (await alice('ai-usage')).json()).toMatchObject({ blueprintStarts: 1, calls: 0 });
-    expect(await (await bob('ai-usage')).json()).toMatchObject({ blueprintStarts: 0 });
+    expect(await (await alice('ai-usage')).json()).toMatchObject({
+      blueprintStarts: 1, calls: 0,
+      blueprintConversion: [{ id: detail.id, title: detail.title, started: 1, published: 0 }],
+    });
+    expect(await (await bob('ai-usage')).json()).toMatchObject({ blueprintStarts: 0, blueprintConversion: [] });
+    await db.query('ALTER TABLE blueprint_uses DROP COLUMN first_published_at');
+    const legacy = await (await alice('ai-usage')).json();
+    expect(legacy).toMatchObject({ blueprintStarts: 1 });
+    expect(legacy).not.toHaveProperty('blueprintConversion');
     const { periodStart } = await backend.usage.report('alice');
     await db.query("UPDATE blueprint_uses SET recorded_at=$1::timestamptz - interval '1 second' WHERE owner_id='alice'", [periodStart + 'T00:00:00Z']);
     expect(await (await alice('ai-usage')).json()).toMatchObject({ blueprintStarts: 0 });
