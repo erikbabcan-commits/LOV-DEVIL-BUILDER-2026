@@ -139,12 +139,19 @@ export class PublishService {
       [owner, new Date(this.now() - 120000).toISOString(), new Date(this.now()).toISOString()],
     );
   }
+  /** Read the existing job response without pipeline metadata. */
   async status(owner: string, requestId: string): Promise<PublishResult> {
+    return (await this.progress(owner, requestId)).job;
+  }
+  /** Read the public job view and its last durable processing stage from one owner-scoped row. */
+  async progress(owner: string, requestId: string) {
     return this.owner(owner, async tx => {
       await this.expireCompiling(tx, owner);
       const row = (await tx.query("SELECT * FROM publish_jobs WHERE owner_id=$1 AND request_id=$2", [owner, requestId])).rows[0] as Row | undefined;
       if (!row) throw new PublishError("publish_not_found", 404);
-      return this.view(row);
+      const stage = row.state !== "building" ? null
+        : row.storage_phase === "compiling" || row.storage_phase === "writing" ? row.storage_phase : null;
+      return { job: this.view(row), stage };
     });
   }
   /** Revoke a published URL under the owner lock while retaining its bytes and history. */

@@ -120,6 +120,10 @@ export function makeHonoProxy(options: HonoProxyOptions): (request: Request) => 
       const responseHeaders = new Headers({ 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
       const retry = upstream.headers.get('Retry-After');
       if (retry) responseHeaders.set('Retry-After', retry);
+      const publishStage = upstream.headers.get('X-LOV-Publish-Stage');
+      if (upstream.ok && request.method === 'GET' && /^\/api\/publish\/[0-9a-f-]{36}$/i.test(path) &&
+          (publishStage === 'compiling' || publishStage === 'writing'))
+        responseHeaders.set('X-LOV-Publish-Stage', publishStage);
       if (sse) responseHeaders.set('X-Accel-Buffering', 'no');
       if (!upstream.body) return new Response(null, { status: upstream.status, headers: responseHeaders });
       const reader = upstream.body.getReader();

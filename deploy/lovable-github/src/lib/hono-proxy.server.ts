@@ -438,6 +438,14 @@ export async function handleHonoProxy(
     });
     const retryAfter = up.headers.get("retry-after");
     if (retryAfter) outHeaders.set("retry-after", retryAfter);
+    const publishStage = up.headers.get("x-lov-publish-stage");
+    if (
+      up.ok &&
+      def.method === "GET" &&
+      /^\/api\/publish\/[0-9a-f-]{36}$/i.test(upstreamPath) &&
+      (publishStage === "compiling" || publishStage === "writing")
+    )
+      outHeaders.set("x-lov-publish-stage", publishStage);
     if (isSse) outHeaders.set("x-accel-buffering", "no");
     if (!up.body) {
       cleanup();

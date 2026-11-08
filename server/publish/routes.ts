@@ -127,7 +127,9 @@ export function publishRouter(
       return c.json({ error: "publish_invalid_request" }, 400);
     if (!allow("publish-status:" + user.id))
       return c.json({ error: "rate_limit" }, 429);
-    return c.json(await service.status(user.id, c.req.param("requestId")));
+    const progress = await service.progress(user.id, c.req.param("requestId"));
+    if (progress.stage) c.header("X-LOV-Publish-Stage", progress.stage);
+    return c.json(progress.job);
   });
   router.post("/api/publish/:requestId/withdraw", async (c) => {
     const user = getUserFromContext(c);
