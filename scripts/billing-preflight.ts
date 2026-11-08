@@ -19,19 +19,23 @@ try {
       "env-file": { type: "string" },
       "check-db": { type: "boolean", default: false },
       "check-stripe": { type: "boolean", default: false },
+      "check-portal": { type: "boolean", default: false },
       help: { type: "boolean", default: false },
     },
     allowPositionals: false,
   });
   if (values.help) {
     console.log(
-      "Usage: tsx scripts/billing-preflight.ts [--env-file <private-file>] [--check-db] [--check-stripe]\n" +
+      "Usage: tsx scripts/billing-preflight.ts [--env-file <private-file>] [--check-db] [--check-stripe [--check-portal]]\n" +
         "Default: configuration only, no network. Explicit dotenv file only; process environment wins.\n" +
         "--check-db: read-only schema/environment-pin checks; explicit DATABASE_URL required.\n" +
         "--check-stripe: read-only account and configured monthly/yearly EUR prices. Optional BILLING_EXPECTED_STRIPE_ACCOUNT_ID verifies the intended account.\n" +
+        "--check-portal: also verify the active default Portal and invoice, payment method and cancellation features. Requires --check-stripe.\n" +
         "No migrations, pin initialization, Stripe writes, Checkout/Portal creation, or payment attempts. No secrets as arguments.",
     );
   } else {
+    if (values["check-portal"] && !values["check-stripe"])
+      throw new BillingError("billing_portal_check_requires_stripe");
     let env = { ...process.env };
     if (values["env-file"]) {
       try {
@@ -74,7 +78,7 @@ try {
       }
       // Fail closed before provider reads if a requested DB probe failed.
       const provider = values["check-stripe"] && (database?.ready ?? true)
-        ? await inspectBillingProvider(config, makeStripeBillingReadOnlyProvider(config), env.BILLING_EXPECTED_STRIPE_ACCOUNT_ID)
+        ? await inspectBillingProvider(config, makeStripeBillingReadOnlyProvider(config), env.BILLING_EXPECTED_STRIPE_ACCOUNT_ID, values["check-portal"])
         : undefined;
       const ok = (database?.ready ?? true) && (provider?.ready ?? true);
       console.log(JSON.stringify({
@@ -91,6 +95,7 @@ try {
   const allowed = new Set([
     "billing_configuration", "billing_env_file_unavailable", "billing_database_url_required",
     "billing_expected_account_invalid", "billing_account_mismatch", "billing_price_unavailable",
+    "billing_portal_check_requires_stripe",
   ]);
   const code = error instanceof BillingError && allowed.has(error.code) ? error.code : "billing_preflight_failed";
   console.log(JSON.stringify({ ok: false, issues: [code] }));

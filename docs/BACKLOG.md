@@ -940,8 +940,8 @@ Pravidlá:
 | 802 | Pricing page (SK/EN) + plán porovnanie | jasné limity, FAQ, „najpopulárnejší" badge | S | Čiastočne — serverové ceny/karta plánu; úplná SK/EN pricing stránka a FAQ chýbajú |
 | 803 | Feature gating + usage limits (middleware) | limit dosiahnutý = upsell, nie tvrdá stena (soft limit + upozornenie) | M | Čiastočne — Free 10 / Pro 200, čerstvý DB plán, kapacita a 80 % warning; ostatné entitlements otvorené |
 | 804 | Usage metering dashboard (generácie, tokeny, blueprinty, deploys) | zákazník vidí spotrebu v reálnom čase (rozšíri /editor) | M | Čiastočne — AI úlohy/tokeny a cost coverage; deploy/blueprint metering chýba |
-| 805 | Fakturácie: DPH/EU B2B reverse charge, IČO/DIČ, stiahnutie faktúr | daňovo korektné pre SK/EU | M | Otvorené |
-| 806 | Dunning (neúspešné platby), refund flow, legal (GDPR, ToS, DPA) | automatické e-maily, compliance | M | Otvorené |
+| 805 | Fakturácie: DPH/EU B2B reverse charge, IČO/DIČ, stiahnutie faktúr | daňovo korektné pre SK/EU | M | Čiastočne — read-only preflight kontroluje históriu faktúr v Stripe portáli. Schválený sandbox zatiaľ nemá aktívnu predvolenú konfiguráciu. DPH a overenie stiahnutia faktúry zostávajú otvorené. |
+| 806 | Dunning (neúspešné platby), refund flow, legal (GDPR, ToS, DPA) | automatické e-maily, compliance | M | Čiastočne — Lovable draft pri nezaplatenej faktúre nasmeruje používateľa do portálu Stripe. Automatické e-maily a refundy zostávajú otvorené. |
 | 807 | Seat billing pre Business plán | pridať/odobrať člena mení fakturu pro rata | M | Otvorené |
 | 808 | Affiliate/partner rabaty (M6) | referral link, provízia 20 % 12 mesiacov | M | Otvorené |
 

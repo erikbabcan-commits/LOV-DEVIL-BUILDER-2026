@@ -97,6 +97,24 @@ Trial má 14 dní a jeho použitie sa konzervatívne zaznamená už pri príprav
 prvej Checkout session. Zrušenie, expirácia alebo neistý výsledok nepridelí
 nový trial. Ide o pravidlo na interný účet, nie globálnu identifikáciu osoby.
 
+### Kontrola Stripe portálu
+
+Operátor môže ku kontrole Stripe účtu a cien pridať `--check-portal`:
+
+```bash
+pnpm run billing:preflight --check-stripe --check-portal
+```
+
+Kontrola číta aktívnu predvolenú konfiguráciu v zvolenom režime. Vyžaduje
+históriu faktúr, úpravu spôsobu platby a samoobslužné zrušenie. Možnosť upraviť
+fakturačnú adresu a daňové identifikačné číslo uvádza samostatne. Pri chýbajúcej
+alebo nevyhovujúcej konfigurácii skončí s nenulovým kódom a bez vytvorenia
+session. Overenie DPH, testovacej faktúry a živého toku je samostatné.
+[Stripe konfigurácia portálu](https://docs.stripe.com/customer-management/configure-portal)
+
+Read-only kontrola schváleného sandboxu Eab-EU s.r.o. 8. 11. 2026 vrátila
+0 aktívnych predvolených konfigurácií.
+
 ## Canonical reconciliation a webhooky
 
 Podpísaná udalosť je iba signál na opätovné načítanie aktuálnych provider dát.
