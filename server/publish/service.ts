@@ -200,6 +200,26 @@ export class PublishService {
     ).rows[0] as ViewRow | undefined;
     return row ? this.view(row) : null;
   }
+  /** Return at most two distinct, still-public snapshots in release order. */
+  async recentPublications(owner: string, projectId: string): Promise<PublishResult[]> {
+    const rows = (await this.db.query(
+      `SELECT * FROM (
+         SELECT DISTINCT ON (j.snapshot_id)
+                j.request_id, j.project_id, j.project_revision, j.snapshot_id,
+                j.state, j.withdrawn_at, j.artifact_id, j.artifact_bytes, j.storage_phase,
+                j.error_code, j.errors, j.created_at, j.updated_at
+         FROM publish_jobs AS j
+         JOIN builder_projects AS p
+           ON p.owner_id = j.owner_id AND p.project_id = j.project_id
+         WHERE j.owner_id = $1 AND j.project_id = $2
+           AND j.state = 'published' AND j.withdrawn_at IS NULL AND p.deleted_at IS NULL
+         ORDER BY j.snapshot_id, j.project_revision DESC, j.updated_at DESC, j.request_id DESC
+       ) AS releases
+       ORDER BY project_revision DESC, updated_at DESC, request_id DESC LIMIT 2`,
+      [owner, projectId],
+    )).rows as ViewRow[];
+    return rows.map((row) => this.view(row));
+  }
   private reservedBytes(row: Pick<Row, "state" | "storage_phase" | "artifact_bytes">): number {
     if (row.storage_phase === "empty" && row.state === "failed") return 0;
     if (row.storage_phase === "legacy_unknown")

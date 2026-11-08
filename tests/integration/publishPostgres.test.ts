@@ -198,6 +198,54 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect(compiler.execute).toHaveBeenCalledTimes(4);
   });
 
+  it("lists at most two distinct active snapshots in release order for the owner", async () => {
+    const value = service({ ready: async () => ({ ready: true, mode: "isolated" }), execute: async () => output });
+    await value.start("alice", selection);
+    await value.settled();
+    const { workspace } = (await db.query("SELECT workspace FROM builder_projects WHERE owner_id=$1 AND project_id=$2", ["alice", selection.projectId])).rows[0];
+    const snapshot = { ...workspace.snapshots[0], id: "snapshot-two", v: 2, parentId: selection.snapshotId };
+    await db.query("UPDATE builder_projects SET revision=2,workspace=$3::jsonb WHERE owner_id=$1 AND project_id=$2", [
+      "alice", selection.projectId, JSON.stringify({ ...workspace, liveId: snapshot.id, snapshots: [...workspace.snapshots, snapshot] }),
+    ]);
+    const second = { ...selection, expectedRevision: 2, snapshotId: snapshot.id, requestId: randomUUID() };
+    await value.start("alice", second);
+    await value.settled();
+    await db.query("UPDATE builder_projects SET revision=3 WHERE owner_id=$1 AND project_id=$2", ["alice", selection.projectId]);
+    const duplicate = { ...second, expectedRevision: 3, requestId: randomUUID() };
+    await value.start("alice", duplicate);
+    await value.settled();
+
+    const path = "/api/publish/project/project-one/releases";
+    const app = api(value);
+    const lookup = async (token = alice) => {
+      const response = await app.request(path, { headers: headers(token) });
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      return (await response.json()).map(({ requestId }: { requestId: string }) => requestId);
+    };
+    expect(await lookup()).toEqual([duplicate.requestId, selection.requestId]);
+    const [newest, previous] = await value.recentPublications("alice", selection.projectId);
+    const publicApp = publicPublishApp(config, db, value.artifacts);
+    const open = (url: string) => publicApp.request(url, { headers: { Host: "127.0.0.1:8791" } });
+    expect((await open(newest!.url!)).status).toBe(200);
+    expect((await open(previous!.url!)).status).toBe(200);
+    expect(await lookup(bob)).toEqual([]);
+    expect((await app.request(path)).status).toBe(401);
+    expect((await app.request(path + "?owner=bob", { headers: headers(alice) })).status).toBe(400);
+    const cloud = new Hono();
+    cloud.use("/api/*", makeAuthMiddleware(secret, {
+      resolve: async () => ({ id: "alice", email: "alice@publish-native.example.test", plan: "free" }),
+    }));
+    cloud.route("/", publishRouter(value, () => true));
+    expect((await cloud.request(path, { headers: { Authorization: "Bearer fixture.cloud.jwt" } })).status).toBe(200);
+    await value.withdraw("alice", duplicate.requestId);
+    expect((await open(newest!.url!)).status).toBe(404);
+    expect((await open(previous!.url!)).status).toBe(200);
+    expect(await lookup()).toEqual([second.requestId, selection.requestId]);
+    await value.withdraw("alice", second.requestId);
+    expect(await lookup()).toEqual([selection.requestId]);
+  });
+
   it("prefers a newer revision when an older build finishes later", async () => {
     let clock = Date.now();
     const olderCompiler = deferredCompiler();
