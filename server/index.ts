@@ -37,6 +37,7 @@ import { accountExportRouter } from './auth/accountExport';
 import { accountClosureRouter } from './auth/accountClosure';
 import { makeAuthMiddleware, getUserFromContext } from './auth/middleware';
 import { makeCloudAuth, validateCloudIssuer, type CloudAuth } from './auth/cloud';
+import { blueprintRouter } from './projects/blueprints';
 import { readCloudGitHubConfig, makeCloudGitHubWiring } from './integrations/githubRuntime';
 import { probeCloudGitHubSchema } from './integrations/githubSchema';
 import type { DbLike } from './db/pool';
@@ -162,6 +163,7 @@ export function createApp(
     app.route('/', accountExportRouter(opts.auth.db, opts?.rateLimit ?? makeRateLimiter(60)));
     app.route('/', accountClosureRouter(opts.auth.db, rateLimit));
     app.route('/', projectRouter(opts.auth.db, rateLimit, cfg.projectStorage));
+    app.route('/', blueprintRouter(rateLimit));
     if (opts.auth.cloudGitHub) app.route('/', githubCloudRouter(opts.auth.cloudGitHub, rateLimit));
   }
   app.route('/', billingRouter(opts?.auth?.billing ?? null, rateLimit));
@@ -178,14 +180,20 @@ export function createApp(
       const report = await usageStore.report(user.id);
       // A successful job's last transition is publication. Use the same UTC
       // window and keep the AI report readable if the publish read fails.
-      const result = await auth.db.query(
-        `SELECT COUNT(*) AS deployments FROM publish_jobs
-         WHERE owner_id = $1 AND state = 'published' AND updated_at >= $2 AND updated_at < $3`,
-        [user.id, new Date(report.periodStart + 'T00:00:00Z'), new Date(report.periodEnd + 'T00:00:00Z')],
-      ).catch(() => null);
-      const publishedDeployments = Number(result?.rows[0]?.deployments);
-      return c.json(Number.isSafeInteger(publishedDeployments) && publishedDeployments >= 0
-        ? { ...report, publishedDeployments } : report);
+      const window = [user.id, new Date(report.periodStart + 'T00:00:00Z'), new Date(report.periodEnd + 'T00:00:00Z')];
+      const [publications, starters] = await Promise.all([
+        auth.db.query(`SELECT COUNT(*) AS deployments FROM publish_jobs
+          WHERE owner_id = $1 AND state = 'published' AND updated_at >= $2 AND updated_at < $3`, window).catch(() => null),
+        auth.db.query(`SELECT COUNT(*) AS count FROM blueprint_uses
+          WHERE owner_id=$1 AND recorded_at >= $2 AND recorded_at < $3`, window).catch(() => null),
+      ]);
+      const publishedDeployments = Number(publications?.rows[0]?.deployments);
+      const blueprintStarts = Number(starters?.rows[0]?.count);
+      return c.json({
+        ...report,
+        ...(Number.isSafeInteger(publishedDeployments) && publishedDeployments >= 0 ? { publishedDeployments } : {}),
+        ...(Number.isSafeInteger(blueprintStarts) && blueprintStarts >= 0 ? { blueprintStarts } : {}),
+      });
     } catch { return c.json({ error: 'usage_unavailable' }, 503); }
   });
 

@@ -616,6 +616,45 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
       firstAppSaveEvidence: 'unavailable', signupCohort: { withObservedFirstAppSaveInWeek: null },
     });
   });
+  it('serves signed-in starter sources and counts the first verified save once per owner', async () => {
+    const backend = await hybridAiBackend(db, true);
+    const alice = hybridTransport(backend.proxy, backend.tokens.alice);
+    const bob = hybridTransport(backend.proxy, backend.tokens.bob);
+    expect((await backend.app.request('/api/blueprints')).status).toBe(401);
+    expect((await alice('blueprints?owner=bob')).status).toBe(404);
+    expect((await alice('blueprints', { method: 'POST', body: {} })).status).toBe(404);
+    expect((await alice('blueprints/unknown')).status).toBe(404);
+    const listing = await alice('blueprints');
+    expect(listing.headers.get('cache-control')).toBe('no-store');
+    const { blueprints } = await listing.json();
+    expect(blueprints).toHaveLength(12);
+    expect(blueprints[0]).not.toHaveProperty('files');
+    const detail = await (await alice('blueprints/' + blueprints[0].id)).json();
+    expect(detail.files).toHaveLength(blueprints[0].fileCount);
+    const snapshot = { id: randomUUID(), v: 1, kind: 'blueprint:' + detail.id, prompt: 'Starter', time: 'fixture', html: '' };
+    const workspace = {
+      title: detail.title, liveId: snapshot.id, isPublic: false, files: detail.files,
+      snapshots: [{ ...snapshot, sourceFiles: JSON.stringify(detail.files) }],
+    };
+    const save = (name: string, revision = 0, value = workspace) =>
+      alice('projects/' + name, { method: 'POST', body: { expectedRevision: revision, workspace: value } });
+    const modified = detail.files.map((file: { name: string; content: string }) =>
+      file.name === 'README.md' ? { ...file, content: 'different starter' } : file);
+    expect((await save('different', 0, {
+      ...workspace, files: modified,
+      snapshots: [{ ...snapshot, sourceFiles: JSON.stringify(modified) }],
+    })).status).toBe(201);
+    expect(await (await alice('ai-usage')).json()).toMatchObject({ blueprintStarts: 0 });
+    expect((await save('original')).status).toBe(201);
+    expect((await save('original')).status).toBe(409);
+    expect((await save('original', 1)).status).toBe(200);
+    expect((await save('copy')).status).toBe(201);
+    expect(await (await alice('ai-usage')).json()).toMatchObject({ blueprintStarts: 1, calls: 0 });
+    expect(await (await bob('ai-usage')).json()).toMatchObject({ blueprintStarts: 0 });
+    const { periodStart } = await backend.usage.report('alice');
+    await db.query("UPDATE blueprint_uses SET recorded_at=$1::timestamptz - interval '1 second' WHERE owner_id='alice'", [periodStart + 'T00:00:00Z']);
+    expect(await (await alice('ai-usage')).json()).toMatchObject({ blueprintStarts: 0 });
+  });
   it('reports only the signed owner’s successful publications inside the UTC usage period', async () => {
     const backend = await hybridAiBackend(db, true);
     const alice = hybridTransport(backend.proxy, backend.tokens.alice);

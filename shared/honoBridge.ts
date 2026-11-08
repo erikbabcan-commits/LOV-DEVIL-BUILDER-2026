@@ -4,6 +4,7 @@ const accountExportPath = /^\/api\/account\/export\/(?:profile|(?:projects|auth|
 /** Match a fixed method and path before accepting a Cloud bearer on Hono. */
 export function isCloudApiRoute(method: string, path: string): boolean {
   if (method === 'GET') return path === '/api/auth/me' || path === '/api/sandbox/ready' ||
+    /^\/api\/blueprints(?:\/[a-z0-9-]{1,40})?$/.test(path) ||
     accountExportPath.test(path) || path === '/api/account/closure' ||
     path === '/api/ai-models' || path === '/api/ai-usage' || path === '/api/billing' || path === '/api/publish' || /^\/api\/publish\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(path) ||
     /^\/api\/publish\/project\/[A-Za-z0-9_-]{1,128}\/(?:latest|releases|live|[1-9][0-9]{0,9}\/[A-Za-z0-9_-]{1,128})$/.test(path) || path === '/api/project-storage' || path === '/api/projects' || /^\/api\/projects\/[A-Za-z0-9_-]{1,128}$/.test(path);
