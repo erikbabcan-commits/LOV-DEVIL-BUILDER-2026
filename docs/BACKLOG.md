@@ -1,5 +1,7 @@
 # 🔥 Forge — kompletný backlog
 
+**Predchádzajúca verejná verzia · FORGE-604/606 · 8. 11. 2026.** Publikačný dialóg môže zobraziť poslednú a predchádzajúcu stále verejnú verziu vedľa seba. Server vracia najviac dve rôzne verzie iba vlastníkovi a vynecháva odvolané odkazy. Po odvolaní novšieho odkazu ostáva starší dostupný na svojej pôvodnej adrese. Stabilná adresa s prepínaním verzií a produkčné meranie rollbacku zostávajú otvorené. [Lovable draft](https://github.com/erikbabcan-commits/vorkeeei/pull/11)
+
 **Súhlas s publikovaním konkrétnej verzie · FORGE-601/606/1103 · 8. 11. 2026.** Lovable draft `78dc2eb` zobrazí vybranú verziu a serverovú revíziu. Zmena výberu alebo hostingu vyžaduje nový súhlas. Pri kontrole staršieho pokusu dialóg ukáže jeho pôvodnú revíziu. Prešlo 106 frontendových testov, typy, lint upravených súborov, build a šesť scenárov Chromium so simulovaným API. Spoločný test na 390 px s backendom `6d25e15`, Hono, PostgreSQL 16 a skutočným kompilátorom vytvoril jednu publikáciu. Oddelený lokálny host vrátil 200, odkaz sa obnovil po reloade a po odvolaní vrátil 404 pri GET aj HEAD. Prihlasovacie identity a AI boli syntetické. Nasadenie a produkčný test zostávajú otvorené. [Lovable draft](https://github.com/erikbabcan-commits/vorkeeei/pull/11)
 
 **Kontrola zmien a beh náhľadu · FORGE-104/305/1107 · 8. 11. 2026.** Lovable draft `4cb0c41` ukazuje zmenené riadky s krátkym kontextom a číslami. Návrh bez zmeny nevytvorí novú verziu. Konzola oddeľuje kompiláciu od výpisov, upozornení a chýb z aktívneho iframe. Pri prechode z náhľadu do konzoly iframe pokračuje v behu. Chromium pri 320, 390 a 1280 px použil výstup skutočného kompilátora. Overil synchrónnu aj asynchrónnu chybu, odmietnutie cudzej správy a limit 60 záznamov. Pri zablokovanej sieti sa zobrazilo pravidlo CSP a požiadavka neopustila iframe. Prešlo 105 frontendových testov, typy, lint upravených súborov a lokálny build. Hostované overenie zostáva otvorené. [Lovable draft](https://github.com/erikbabcan-commits/vorkeeei/pull/11)
@@ -912,7 +914,7 @@ Pravidlá:
 | 601 | Reálny deploy na CDN + `*.forge.app` subdoména | publish z demo → reálna URL, HTTP 200, SSL, global CDN | L | Čiastočne — lokálny statický Publish z oboch UI, compiler/artefakt/HTTP 200; produkčné HTTPS, CDN a doména neaktivované |
 | 602 | Custom domains + auto SSL (Let's Encrypt) | „pripoj doménu" = 2 DNS záznamy, validácia, cert automaticky | M | Otvorené |
 | 603 | Preview deployments (per commit/branch) | každá verzia má vlastnú URL; produkcia sa mení len „Promote" | M | Otvorené |
-| 604 | Rollback deployment na predchádzajúcu verziu | 1 klik, < 30 s | S | Otvorené |
+| 604 | Rollback deployment na predchádzajúcu verziu | 1 klik, < 30 s | S | Čiastočne — prehľad dvoch verejných verzií a odvolanie novšej; stabilná adresa a meranie času zostávajú otvorené |
 | 605 | Export: ZIP + GitHub (push do repo) | súčasný „Export ZIP" musí vrátiť reálny projekt | M | Čiastočne — skutočný ZIP oboch UI, lokálny GitHub ledger/recovery; nový hosted/live export neoverený |
 | 606 | Build statusy + logy v publish flow | súčasný modal so 4 krokmi napojený na reálny pipeline stav | S | Čiastočne — obe UI čítajú skutočný building/published/failed job a compile chyby; produkčný pipeline a prevádzkové logy neoverené |
 
