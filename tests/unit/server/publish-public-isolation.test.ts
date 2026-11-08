@@ -17,7 +17,7 @@ async function fixture() {
   const store = new ArtifactStore(directory, 10000, 0, writeGate, readGate);
   const id = randomUUID(), html = "<main>public gate isolation</main>", receipt = await store.put(id, html);
   const config: PublishConfig = { baseUrl: "http://127.0.0.1:8791/", appUrl: "http://localhost:5176/", artifactDir: directory, bind: "127.0.0.1", port: 8791, maxArtifacts: 20, maxOwnerBytes: 100000, maxArtifactBytes: 10000, allowHostTest: true };
-  const app = publicPublishApp(config, { query: async () => ({ rows: [{ artifact_sha256: receipt.sha256, artifact_bytes: receipt.bytes }], rowCount: 1 }) }, store);
+  const app = publicPublishApp(config, { query: async () => ({ rows: [{ artifact_id: id, artifact_sha256: receipt.sha256, artifact_bytes: receipt.bytes }], rowCount: 1 }) }, store);
   const request = () => app.request(config.baseUrl + "p/" + id + "/", { headers: { Host: "127.0.0.1:8791" } });
   function occupy(gate: FilesystemGate) {
     let release!: () => void;

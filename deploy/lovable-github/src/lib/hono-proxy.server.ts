@@ -52,9 +52,15 @@ const ROUTES: RouteDef[] = [
     upstream: (m) => `/api/publish/${m[1]}`,
     kind: "publish",
   },
+{
+    method: "POST",
+    re: /^publish\/project\/([A-Za-z0-9_-]{1,128})\/live$/,
+    upstream: (m) => `/api/publish/project/${m[1]}/live`,
+    kind: "publish",
+  },
   {
     method: "GET",
-    re: /^publish\/project\/([A-Za-z0-9_-]{1,128})\/(latest|releases)$/,
+    re: /^publish\/project\/([A-Za-z0-9_-]{1,128})\/(latest|releases|live)$/,
     upstream: (m) => `/api/publish/project/${m[1]}/${m[2]}`,
     kind: "publish",
   },

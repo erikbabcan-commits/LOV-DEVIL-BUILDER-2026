@@ -103,3 +103,5 @@ export class FilesystemGate {
 export const publishFilesystemGate = new FilesystemGate();
 // Anonymous reads cannot occupy the slots required to admit or settle a publish.
 export const publicArtifactReadGate = new FilesystemGate();
+// Owners retain bounded verification capacity even when the public read queue is full.
+export const promotionArtifactReadGate = new FilesystemGate();
