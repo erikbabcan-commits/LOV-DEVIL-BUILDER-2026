@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Pool } from "pg";
@@ -13,6 +13,8 @@ import { signToken } from "../../server/auth/tokens";
 import { PublishService } from "../../server/publish/service";
 import { publishRouter } from "../../server/publish/routes";
 import { publicPublishApp } from "../../server/publish/public";
+import { ArtifactStore } from "../../server/publish/artifacts";
+import { FilesystemGate } from "../../server/publish/storageGate";
 import type { PublishConfig } from "../../server/publish/config";
 import { HostExecutor, type SandboxExecutor } from "../../server/sandbox/executor";
 import type { BuildResult } from "../../server/sandbox/policy";
@@ -250,7 +252,12 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     const execute = vi.fn<SandboxExecutor["execute"]>()
       .mockResolvedValueOnce({ ...output, html: "<main>Release one</main>" })
       .mockResolvedValueOnce({ ...output, html: "<main>Release two</main>" });
-    const value = service({ ready: async () => ({ ready: true, mode: "isolated" }), execute });
+    const publicReads = new FilesystemGate(2, 8);
+    const artifacts = new ArtifactStore(directory, config.maxArtifactBytes, 0, undefined, publicReads);
+    const value = new PublishService(db, config, {
+      ready: async () => ({ ready: true, mode: "isolated" }), execute,
+    }, { artifacts });
+    services.push(value);
     await value.start("alice", selection);
     await value.settled();
     const firstJob = await value.status("alice", selection.requestId);
@@ -281,6 +288,12 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
       method: "POST", headers: headers(alice),
       body: JSON.stringify({ requestId: selection.requestId, expectedVersion: null, confirmed: true }),
     })).status).toBe(404);
+    const firstArtifact = path.join(directory, path.basename(new URL(firstJob.url!).pathname) + ".html");
+    const original = await readFile(firstArtifact);
+    await writeFile(firstArtifact, Buffer.alloc(original.length, 0x20));
+    expect((await promote(selection.requestId, null)).status).toBe(503);
+    expect(await (await get()).json()).toBeNull();
+    await writeFile(firstArtifact, original);
     const [create, conflict] = await Promise.all([promote(selection.requestId, null), promote(selection.requestId, null)]);
     expect([create.status, conflict.status].sort()).toEqual([200, 409]);
     const initial = PublishLiveAddress.parse(await (create.ok ? create : conflict).json());
@@ -305,7 +318,20 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect(head.status).toBe(200);
     expect(await head.text()).toBe("");
     expect((await promote(selection.requestId, initial.version)).status).toBe(409);
+    let releaseReads!: () => void;
+    const holdReads = new Promise<void>((resolve) => { releaseReads = resolve; });
+    releases.push(releaseReads);
+    const blockers = [0, 1].map(() => publicReads.submit(async (lease) => {
+      expect(lease.beginIO()).toBe(true);
+      await holdReads;
+    }));
+    const anonymousReads = Array.from({ length: 8 }, () => open(next.url));
+    await vi.waitFor(() => expect(publicReads.stats).toEqual({ active: 2, queued: 8 }));
+    expect((await open(next.url)).status).toBe(404);
     const reverted = PublishLiveAddress.parse(await (await promote(selection.requestId, next.version)).json());
+    releaseReads();
+    await Promise.all(blockers.map(({ settled }) => settled));
+    expect((await Promise.all(anonymousReads)).every((response) => response.ok)).toBe(true);
     expect(reverted).toMatchObject({ url: next.url, current: initial.current, previous: next.current });
     expect(reverted.version).not.toBe(initial.version);
     expect(await (await open(reverted.url)).text()).toContain("Release one");
@@ -322,6 +348,34 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect((await open(reverted.url)).status).toBe(404);
     expect(await (await get()).json()).toBeNull();
     expect((await open(secondJob.url!)).status).toBe(200);
+  });
+
+  it("does not publish an artifact withdrawn while its verified receipt is being checked", async () => {
+    const value = service({ ready: async () => ({ ready: true, mode: "isolated" }), execute: async () => output });
+    await value.start("alice", selection);
+    await value.settled();
+    let releaseVerification!: () => void;
+    const holdVerification = new Promise<void>((resolve) => { releaseVerification = resolve; });
+    let notifyVerified!: () => void;
+    const verified = new Promise<void>((resolve) => { notifyVerified = resolve; });
+    releases.push(releaseVerification);
+    const verify = value.artifacts.verifyForPromotion.bind(value.artifacts);
+    vi.spyOn(value.artifacts, "verifyForPromotion").mockImplementationOnce(async (...args) => {
+      await verify(...args);
+      notifyVerified();
+      await holdVerification;
+    });
+    const app = api(value);
+    const route = "/api/publish/project/project-one/live";
+    const raced = app.request(route, {
+      method: "POST", headers: headers(alice),
+      body: JSON.stringify({ requestId: selection.requestId, expectedVersion: null, confirmed: true }),
+    });
+    await verified;
+    await value.withdraw("alice", selection.requestId);
+    releaseVerification();
+    expect((await raced).status).toBe(404);
+    expect(await (await app.request(route, { headers: headers(alice) })).json()).toBeNull();
   });
 
   it("prefers a newer revision when an older build finishes later", async () => {

@@ -12,7 +12,7 @@ import {
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { PublishError } from "./config";
-import { FilesystemGate, publishFilesystemGate, publicArtifactReadGate, type StorageOperation } from "./storageGate";
+import { FilesystemGate, publishFilesystemGate, publicArtifactReadGate, promotionArtifactReadGate, type StorageOperation } from "./storageGate";
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export class ArtifactStore {
@@ -159,12 +159,22 @@ export class ArtifactStore {
       return bytes;
     } catch { throw new PublishError("publish_storage_unavailable"); }
   }
-  async read(id: string, sha256: string, size: number): Promise<Buffer> {
-    return this.readGate.submit(async lease => {
+  /** Read and verify an artifact on the anonymous download queue. */
+  read(id: string, sha256: string, size: number): Promise<Buffer> {
+    return this.readVerified(this.readGate, id, sha256, size);
+  }
+  /** Verify a selected release without using anonymous download slots. */
+  async verifyForPromotion(id: string, sha256: string, size: number): Promise<void> {
+    await this.readVerified(promotionArtifactReadGate, id, sha256, size);
+  }
+  /** Use the same size and hash validation for public and owner-controlled reads. */
+  private readVerified(gate: FilesystemGate, id: string, sha256: string, size: number): Promise<Buffer> {
+    return gate.submit(async lease => {
       if (!lease.beginIO()) throw new PublishError("publish_storage_timeout");
       return this.physicalRead(id, sha256, size);
     }).result;
   }
+  /** Open the artifact without following symlinks and verify its receipt. */
   private async physicalRead(id: string, sha256: string, size: number): Promise<Buffer> {
     if (
       !uuid.test(id) ||
