@@ -8,7 +8,9 @@ import { containsPotentialSecret } from '../../server/security/secrets';
 
 describe('real project blueprints', () => {
   it('contains distinct, complete and policy-compliant projects for the supported workflows', () => {
-    expect(BLUEPRINT_REGISTRY.map(t => t.id)).toEqual(expect.arrayContaining(['booking', 'invoice', 'event-registration']));
+    expect(BLUEPRINT_REGISTRY.map(t => t.id)).toEqual(expect.arrayContaining([
+      'booking', 'invoice', 'event-registration', 'job-board', 'recipes', 'members-area', 'blog-cms',
+    ]));
     expect(new Set(BLUEPRINT_REGISTRY.map(t => t.id)).size).toBe(BLUEPRINT_REGISTRY.length);
     expect(new Set(BLUEPRINT_REGISTRY.map(t => t.files.find(f => f.path === 'src/App.tsx')?.content)).size).toBe(BLUEPRINT_REGISTRY.length);
     for (const template of BLUEPRINT_REGISTRY) {

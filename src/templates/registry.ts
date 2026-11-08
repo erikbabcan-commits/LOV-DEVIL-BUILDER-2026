@@ -13,8 +13,15 @@ import login from './blueprints/login-flow';
 import booking from './blueprints/booking';
 import invoice from './blueprints/invoice';
 import eventRegistration from './blueprints/event-registration';
+import jobBoard from './blueprints/job-board';
+import recipes from './blueprints/recipes';
+import membersArea from './blueprints/members-area';
+import blogCms from './blueprints/blog-cms';
 
-export const BLUEPRINT_REGISTRY = [saas, kanban, settings, analytics, blog, todo, chat, ecommerce, portfolio, admin, calendar, login, booking, invoice, eventRegistration];
+export const BLUEPRINT_REGISTRY = [
+  saas, kanban, settings, analytics, blog, todo, chat, ecommerce, portfolio, admin, calendar, login,
+  booking, invoice, eventRegistration, jobBoard, recipes, membersArea, blogCms,
+];
 const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('sk');
 export function searchBlueprints(query: string, category = 'Všetky') {
   const terms = normalize(query).trim().split(/\s+/).filter(Boolean);
