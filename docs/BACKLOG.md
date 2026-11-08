@@ -1,5 +1,8 @@
 # 🔥 Forge — kompletný backlog
 
+**Kontrakt publikovania · FORGE-601/606 · 8. 11. 2026.** [PR #72](https://github.com/erikbabcan-commits/LOV-DEVIL-BUILDER-2026/pull/72) zosúlaďuje Hono s klientom ForgePublish. Nový pokus vyžaduje UUID v4, súhlas a aktívnu uloženú verziu so vstupom `src/main.tsx`. API vracia `201` pri vytvorení, `413 publish_quota_exceeded` pri prekročení kvóty a `404 not_found` pri nedostupnej úlohe. Prešlo 58 cielených testov a TypeScript. Produkčnou bránou zostáva prihlásený tok Lovable → Cloud → Hono → verejný artefakt s HTTP 200.
+
+
 **Obnova načítania modelov · FORGE-106/1103 · 8. 11. 2026.** Samostatný Lovable hotfix zachová rozpísané zadanie pri odmietnutí požiadavky a rozlíši serverový Basic Auth od odmietnutej relácie. Prešlo 38 testov, typy, build a mobilný sandbox pri 390 px. Po obnove katalógu odoslal presne jednu AI požiadavku na testovacieho poskytovateľa. Verejný bundle stále obsahuje starú hlášku. Serverový secret a produkčný tok treba overiť s prihláseným účtom. [Lovable hotfix](https://github.com/erikbabcan-commits/vorkeeei/pull/12)
 
 **Ochrana AI výstupu · FORGE-508/1002 · 8. 11. 2026.** Ochrana preveruje odpoveď pred jej ďalším použitím v pokračovaní či novom batchi. Mobilný sandbox pri 320 px overil, že sa syntetický kľúč nedostal do SSE, ďalšej požiadavky ani navrhnutých súborov a zadanie sa dalo obnoviť. Backend 1 141 testov prešiel, 220 bolo preskočených. Živá úspešnosť proti prompt injection ostáva otvorená. [Backend review](https://github.com/erikbabcan-commits/LOV-DEVIL-BUILDER-2026/pull/68) · [Lovable draft](https://github.com/erikbabcan-commits/vorkeeei/pull/11)

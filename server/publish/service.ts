@@ -350,20 +350,6 @@ export class PublishService {
         return { row: existing, launch: false };
       }
       if (this.jobs.size >= 8) throw new PublishError("publish_busy", 429);
-      const maxAttempts = this.config.maxArtifacts;
-      const usage = (
-        await tx.query(
-          "SELECT state,storage_phase,artifact_bytes FROM publish_jobs WHERE owner_id=$1 LIMIT $2",
-          [owner, maxAttempts],
-        )
-      ).rows as Array<Pick<Row, "state" | "storage_phase" | "artifact_bytes">>;
-      // Failed attempts still count against the durable abuse limit.
-      if (usage.length >= maxAttempts)
-        throw new PublishError("publish_capacity", 413);
-      // Capacity is durable metadata only. No disk inspection can pin this pool.
-      const usedBytes = usage.reduce((total, row) => total + this.reservedBytes(row), 0);
-      if (!Number.isSafeInteger(usedBytes) || usedBytes + this.config.maxArtifactBytes > this.config.maxOwnerBytes)
-        throw new PublishError("publish_capacity", 413);
       const project = (
         await tx.query(
           "SELECT revision,workspace,deleted_at FROM builder_projects WHERE owner_id=$1 AND project_id=$2",
@@ -380,7 +366,7 @@ export class PublishService {
       const snapshot = workspace.data.snapshots.find(
         (s) => s.id === selection.snapshotId,
       );
-      if (!snapshot?.sourceFiles)
+      if (workspace.data.liveId !== selection.snapshotId || !snapshot?.sourceFiles)
         throw new PublishError("publish_snapshot_sources_required", 409);
       const source = JSON.parse(snapshot.sourceFiles) as Array<{
         name: string;
@@ -391,10 +377,25 @@ export class PublishService {
         content,
       }));
       if (
+        !workspace.data.files.some((f) => f.name === "src/main.tsx") ||
         validateFiles(files).length ||
         !files.some((f) => f.path === "src/main.tsx")
       )
         throw new PublishError("publish_sources_unsupported", 400);
+      const maxAttempts = this.config.maxArtifacts;
+      const usage = (
+        await tx.query(
+          "SELECT state,storage_phase,artifact_bytes FROM publish_jobs WHERE owner_id=$1 LIMIT $2",
+          [owner, maxAttempts],
+        )
+      ).rows as Array<Pick<Row, "state" | "storage_phase" | "artifact_bytes">>;
+      // Failed attempts still count against the durable abuse limit.
+      if (usage.length >= maxAttempts)
+        throw new PublishError("publish_capacity", 413);
+      // Capacity is durable metadata only. No disk inspection can pin this pool.
+      const usedBytes = usage.reduce((total, row) => total + this.reservedBytes(row), 0);
+      if (!Number.isSafeInteger(usedBytes) || usedBytes + this.config.maxArtifactBytes > this.config.maxOwnerBytes)
+        throw new PublishError("publish_capacity", 413);
       const fingerprint = createHash("sha256")
         .update(
           JSON.stringify(

@@ -146,9 +146,30 @@ describe("real static publication from owned saved snapshot", () => {
       }),
     ).toThrow();
   });
+  it("uses the client contract for invalid IDs, unknown jobs and exhausted capacity", async () => {
+    const invalid = await request({ ...selection, requestId: "11111111-1111-7111-8111-111111111111" });
+    expect(invalid.status).toBe(400);
+    const missing = await app.request("/api/publish/" + selection.requestId, {
+      headers: { Cookie: "lov_token=" + token },
+    });
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({ error: "not_found" });
+
+    smallService(1000, db, 1);
+    app = new Hono();
+    app.use("/api/*", makeAuthMiddleware(secret, undefined, undefined, db));
+    app.route("/", publishRouter(service, () => true));
+    execute.mockResolvedValue(failed);
+    expect((await request()).status).toBe(201);
+    await service.settled();
+    const quota = await request({ ...selection, requestId: randomUUID() });
+    expect(quota.status).toBe(413);
+    expect(await quota.json()).toEqual({ error: "publish_quota_exceeded" });
+    expect(execute).toHaveBeenCalledOnce();
+  });
   it("compiles saved React sources, persists an immutable artifact and serves a real public HTML response", async () => {
     const response = await request();
-    expect(response.status).toBe(202);
+    expect(response.status).toBe(201);
     const started = await response.json();
     expect(started).toMatchObject({
       state: "building",
@@ -206,7 +227,7 @@ describe("real static publication from owned saved snapshot", () => {
     const lookup = (url = path, session = token) =>
       app.request(url, { headers: { Cookie: "lov_token=" + session } });
     expect(await (await lookup()).json()).toBeNull();
-    expect((await request()).status).toBe(202);
+    expect((await request()).status).toBe(201);
     await service.settled();
     const published = await lookup();
     expect(published.status).toBe(200);
@@ -250,12 +271,29 @@ describe("real static publication from owned saved snapshot", () => {
     expect(execute).not.toHaveBeenCalled();
   });
   it("rejects unowned, stale revision or missing snapshot selections before building", async () => {
-    for (const body of [
-      { ...selection, projectId: "foreign" },
-      { ...selection, expectedRevision: 2 },
-      { ...selection, snapshotId: "missing" },
-    ])
-      expect([404, 409]).toContain((await request(body)).status);
+    const { workspace } = (await db.query(
+      "SELECT workspace FROM builder_projects WHERE owner_id=$1 AND project_id=$2",
+      ["alice", selection.projectId],
+    )).rows[0];
+    const history = {
+      ...workspace.snapshots[0],
+      id: "snapshot-history",
+      v: 2,
+    };
+    await db.query("UPDATE builder_projects SET workspace=$1::jsonb WHERE project_id=$2", [
+      JSON.stringify({ ...workspace, snapshots: [...workspace.snapshots, history] }),
+      selection.projectId,
+    ]);
+    for (const [fields, status, error] of [
+      [{ projectId: "foreign" }, 404, "publish_project_not_found"],
+      [{ expectedRevision: 2 }, 409, "publish_project_conflict"],
+      [{ snapshotId: "missing" }, 409, "publish_snapshot_sources_required"],
+      [{ snapshotId: history.id }, 409, "publish_snapshot_sources_required"],
+    ] as const) {
+      const response = await request({ ...selection, ...fields });
+      expect(response.status).toBe(status);
+      expect(await response.json()).toEqual({ error });
+    }
     expect(execute).not.toHaveBeenCalled();
     const bob = await signToken(
       { sub: "bob", email: "bob@example.test", plan: "free" },

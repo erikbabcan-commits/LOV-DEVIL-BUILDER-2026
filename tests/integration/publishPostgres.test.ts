@@ -143,7 +143,7 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
   it("builds real saved React sources and serves the verified artifact from the separate public listener", async () => {
     const host = new HostExecutor(), value = service(host), app = api(value);
     const started = await app.request("/api/publish", { method: "POST", headers: headers(alice), body: JSON.stringify(selection) });
-    expect(started.status).toBe(202);
+    expect(started.status).toBe(201);
     await value.settled();
     const published = await value.status("alice", selection.requestId);
     expect(published.state).toBe("published");
