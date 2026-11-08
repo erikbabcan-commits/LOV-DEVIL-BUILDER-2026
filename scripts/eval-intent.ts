@@ -12,4 +12,13 @@ async function main(){
  const text=JSON.stringify(result,null,2)+'\n';if(options.has('--output'))await writeFile(options.get('--output')!,text,{flag:'wx',mode:0o600});else process.stdout.write(text);
  if('accuracyGatePassed' in result&&(!result.accuracyGatePassed||result.regression&&!result.regression.withinFivePercent))process.exitCode=2;
 }
-main().catch(()=>{process.stderr.write('Vyhodnotenie sa nepodarilo. Over argumenty, odtlačky datasetu/promptu, formát súborov a voľný výstupný názov.\n');process.exitCode=1;});
+main().catch((error: unknown) => {
+ const code = error instanceof Error ? error.message : '';
+ const detail = code === 'intent_eval_baseline_provenance_mismatch'
+  ? 'Baseline musí mať rovnaký druh pozorovaní, poskytovateľa a model.'
+  : code === 'intent_eval_baseline_prompt_version_conflict'
+    ? 'Rovnaká verzia promptu má rozdielne odtlačky. Over verziu pred porovnaním.'
+    : 'Over argumenty, odtlačky datasetu a promptu, formát súborov a voľný výstupný názov.';
+ process.stderr.write(`Vyhodnotenie sa nepodarilo. ${detail}\n`);
+ process.exitCode = 1;
+});
