@@ -126,6 +126,45 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     expect((await db.query("SELECT COUNT(*)::int AS n FROM publish_jobs")).rows[0].n).toBe(1);
   });
 
+  it("reports compiler and storage stages without changing the existing status JSON", async () => {
+    const compiler = deferredCompiler();
+    const value = service(compiler);
+    const write = value.artifacts.writeOperation.bind(value.artifacts);
+    let notifyWriting!: () => void;
+    const writing = new Promise<void>((resolve) => { notifyWriting = resolve; });
+    let resumeWriting!: () => void;
+    const resume = new Promise<void>((resolve) => { resumeWriting = resolve; });
+    releases.push(resumeWriting);
+    vi.spyOn(value.artifacts, "writeOperation").mockImplementation((id, html, prepare) =>
+      write(id, html, async () => {
+        const armed = await prepare();
+        notifyWriting();
+        await resume;
+        return armed;
+      }),
+    );
+    await value.start("alice", selection);
+    const app = api(value);
+    const url = "/api/publish/" + selection.requestId;
+    const check = (token = alice) => app.request(url, { headers: headers(token) });
+    const compiling = await check();
+    expect(compiling.headers.get("x-lov-publish-stage")).toBe("compiling");
+    const original = await compiling.json();
+    expect(original).toMatchObject({ state: "building", url: null });
+    compiler.release();
+    await writing;
+    const storing = await check();
+    expect(storing.headers.get("x-lov-publish-stage")).toBe("writing");
+    expect(await storing.json()).toEqual(original);
+    expect((await check(bob)).headers.has("x-lov-publish-stage")).toBe(false);
+    expect((await app.request(url)).headers.has("x-lov-publish-stage")).toBe(false);
+    resumeWriting();
+    await value.settled();
+    const completed = await check();
+    expect(completed.headers.has("x-lov-publish-stage")).toBe(false);
+    expect(await completed.json()).toMatchObject({ state: "published", url: expect.any(String) });
+  });
+
   it("keeps the last active publication across newer revisions, failed attempts and withdrawal", async () => {
     const compiler = {
       ready: async () => ({ ready: true, mode: "isolated" as const }),

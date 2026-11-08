@@ -65,7 +65,7 @@
     "src/lib/github-export.ts": "31f374accdb6e9a77d38a9331ff8f721d365bc58a60f523744a4531efc246c05",
     "src/lib/hono-client.test.ts": "c1112bac168ac1ad74f0215636b6a6894dfb22b542eed5c86a06ade91698e5fb",
     "src/lib/hono-client.ts": "df5935ced1d57da34170aadf4a99016f835a48296634af6e1ad8107fc2c2f1aa",
-    "src/lib/hono-proxy.server.ts": "337e219e24ee19a177b57bdf3d97b5d16d323697c226124ba98e245cc34ab339",
+    "src/lib/hono-proxy.server.ts": "96c400ebfc248e5db9949b31b1d717ee3dbae857be61e269b9dc7a8577ab9d77",
     "src/lib/hono-proxy.test.ts": "d2f804d3388d1d35e1900bc2bd7d8ad5ad5c01d4ce2838545edc02c479553938",
     "src/routes/api/github-connect/$.ts": "13d1b4e5b9ab0612aece5fa85bad25dedf07221fc17b844a47de13a6dd2ef33c",
     "src/routes/github.callback.tsx": "ec9a59226ad29a51fca07a93063bef09ce6749b55afa76553d1c1cfd57f2796a",

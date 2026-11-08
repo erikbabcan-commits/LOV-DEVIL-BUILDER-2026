@@ -1,5 +1,7 @@
 # 🔥 Forge — kompletný backlog
 
+**Priebeh publikovania · FORGE-606 · 8. 11. 2026.** Lovable dialóg ukazuje uloženie verzie, zostavenie, zápis na hosting a pridelenie adresy. Pri každej kontrole existujúcej požiadavky môže Hono poslať skutočnú fázu bez zmeny formátu JSON. Staršie nasadenia ďalej zobrazujú všeobecný stav. Pri zlyhaní dialóg zachováva diagnostiku kompilátora. Mobilný Chromium pri 390 px overil kompiláciu, zápis a následnú odpoveď HTTP 200 na oddelenom hoste, s jednou publish požiadavkou. Produkčný tok a prevádzkové logy zostávajú otvorené. [Lovable draft](https://github.com/erikbabcan-commits/vorkeeei/pull/11)
+
 **Stála adresa a rollback · FORGE-603/604 · 8. 11. 2026.** Vlastník vytvorí stálu adresu pre už publikovanú verziu a novšiu revíziu na ňu prepne výslovne. Návrat na predchádzajúcu verziu mení iba cieľ adresy. Odkazy jednotlivých verzií zostávajú samostatné. Súbežná zmena zo starého stavu sa odmietne a odvolanie aktívnej verzie zneprístupní stálu adresu do ďalšieho výslovného prepnutia. Migrácia 019 pridáva tabuľku stálych adries. Na PostgreSQL 16 aj 18 prešlo po 186 integračných testov. Pri 390 px Chromium overil dva skutočné buildy a návrat jedným kliknutím za 90 ms na rovnakej lokálnej URL. Identita a AI boli syntetické. Nasadenie migrácie, hostovaný Lovable a produkčné meranie zostávajú otvorené. [Lovable draft](https://github.com/erikbabcan-commits/vorkeeei/pull/11)
 
 **Predchádzajúca verejná verzia · FORGE-604/606 · 8. 11. 2026.** Publikačný dialóg môže zobraziť poslednú a predchádzajúcu stále verejnú verziu vedľa seba. Server vracia najviac dve rôzne verzie iba vlastníkovi a vynecháva odvolané odkazy. Po odvolaní novšieho odkazu ostáva starší dostupný na svojej pôvodnej adrese. [Backend PR](https://github.com/erikbabcan-commits/LOV-DEVIL-BUILDER-2026/pull/56)
@@ -915,10 +917,10 @@ Pravidlá:
 |---|---|---|---|---|
 | 601 | Reálny deploy na CDN + `*.forge.app` subdoména | publish z demo → reálna URL, HTTP 200, SSL, global CDN | L | Čiastočne — lokálny statický Publish z oboch UI, compiler/artefakt/HTTP 200; produkčné HTTPS, CDN a doména neaktivované |
 | 602 | Custom domains + auto SSL (Let's Encrypt) | „pripoj doménu" = 2 DNS záznamy, validácia, cert automaticky | M | Otvorené |
-| 603 | Preview deployments (per commit/branch) | každá verzia má vlastnú URL; produkcia sa mení len „Promote" | M | Otvorené |
-| 604 | Rollback deployment na predchádzajúcu verziu | 1 klik, < 30 s | S | Čiastočne — prehľad dvoch verejných verzií a odvolanie novšej; stabilná adresa a meranie času zostávajú otvorené |
+| 603 | Preview deployments (per commit/branch) | každá verzia má vlastnú URL; produkcia sa mení len „Promote" | M | Čiastočne — zverejnené snapshoty majú vlastnú URL a cieľ stálej adresy sa prepína výslovne. Automatické buildy vetiev a produkčný tok zostávajú otvorené. |
+| 604 | Rollback deployment na predchádzajúcu verziu | 1 klik, < 30 s | S | Čiastočne — lokálny návrat jedným kliknutím na stálej adrese prešiel aj pri plnej verejnej fronte. Lovable draft umožňuje adresu skopírovať, vrátane ručnej možnosti pri odmietnutí schránky. Produkčné meranie zostáva otvorené. |
 | 605 | Export: ZIP + GitHub (push do repo) | súčasný „Export ZIP" musí vrátiť reálny projekt | M | Čiastočne — skutočný ZIP oboch UI, lokálny GitHub ledger/recovery; nový hosted/live export neoverený |
-| 606 | Build statusy + logy v publish flow | súčasný modal so 4 krokmi napojený na reálny pipeline stav | S | Čiastočne — obe UI čítajú skutočný building/published/failed job a compile chyby; produkčný pipeline a prevádzkové logy neoverené |
+| 606 | Build statusy + logy v publish flow | súčasný modal so 4 krokmi napojený na reálny pipeline stav | S | Čiastočne — Lovable draft zobrazuje štyri kroky podľa overeného stavu Hono a sanitizovanú diagnostiku kompilátora. Produkčný tok a prevádzkové logy zostávajú otvorené. |
 
 ### 🔐 Epik 7 — Auth & organizácie (FORGE-7xx) · M1 · **P0**
 

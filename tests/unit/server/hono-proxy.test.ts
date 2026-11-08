@@ -24,6 +24,21 @@ function setup(overrides: Partial<HonoProxyOptions> = {}) {
 afterEach(() => vi.useRealTimers());
 
 describe('server-only Lovable → Hono proxy', () => {
+  it('exposes the bounded publish-stage header only on a successful status read', async () => {
+    const stage = 'X-LOV-Publish-Stage';
+    const job = '/publish/dd4ec3fc-a77b-4af7-baa5-f25ac7228221';
+    for (const [path, status, value, expected] of [
+      [job, 200, 'compiling', 'compiling'],
+      [job, 200, 'unexpected', null],
+      [job, 404, 'writing', null],
+      ['/publish', 200, 'writing', null],
+    ] as const) {
+      const {proxy} = setup({ fetch: async () => Response.json({}, { status, headers: { [stage]: value } }) });
+      const response = await proxy(request(path));
+      expect(response.headers.get(stage)).toBe(expected);
+      await response.json();
+    }
+  });
   it('allows only authenticated publish preparation and status with a 4KiB body limit', async () => {
     const {proxy,fetcher}=setup();
     const id='dd4ec3fc-a77b-4af7-baa5-f25ac7228221';
