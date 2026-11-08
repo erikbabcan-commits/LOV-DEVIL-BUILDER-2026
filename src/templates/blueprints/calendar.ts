@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'calendar', title: 'Kalendár a plánovanie', description: 'Týždenný kalendár s navigáciou a pridávaním vlastných udalostí.',
   category: 'Produktivita', icon: '▦', tags: ['kalendár', 'udalosti', 'plánovanie'],
+  features: ['Týždenný kalendár', 'Prepínanie týždňov', 'Pridávanie udalostí'],
   followups: ['Pridaj mesačné zobrazenie kalendára.', 'Pridaj úpravu a mazanie udalostí.', 'Priprav export udalosti do ICS súboru.'],
   types: 'export interface CalendarEvent {id:number;title:string;date:string;time:string}',
   data: 'export const dayKey=(date:Date)=>date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");',

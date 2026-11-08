@@ -629,6 +629,20 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     const { blueprints } = await listing.json();
     expect(blueprints).toHaveLength(12);
     expect(blueprints[0]).not.toHaveProperty('files');
+    expect(blueprints[0]).not.toHaveProperty('features');
+    const detailed = await alice('blueprints/catalog');
+    expect(detailed.status).toBe(200);
+    expect(detailed.headers.get('cache-control')).toBe('no-store');
+    const { blueprints: entries } = await detailed.json();
+    expect(entries.map(({ id }: { id: string }) => id)).toEqual(blueprints.map(({ id }: { id: string }) => id));
+    for (const entry of entries) {
+      expect(new Set(entry.features).size).toBe(3);
+      expect(entry.tags.length).toBeGreaterThan(0);
+      expect(entry).not.toHaveProperty('files');
+    }
+    expect(entries.find(({ id }: { id: string }) => id === 'login-flow')).toMatchObject({
+      features: expect.arrayContaining(['Ukážková relácia']),
+    });
     const detail = await (await alice('blueprints/' + blueprints[0].id)).json();
     expect(detail.files).toHaveLength(blueprints[0].fileCount);
     const snapshot = { id: randomUUID(), v: 1, kind: 'blueprint:' + detail.id, prompt: 'Starter', time: 'fixture', html: '' };

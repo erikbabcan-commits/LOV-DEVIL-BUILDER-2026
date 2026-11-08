@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'ecommerce-catalog', title: 'Produktový katalóg', description: 'Produkty, vyhľadávanie a košík s množstvami a skutočným prepočtom.',
   category: 'Biznis', icon: '◈', tags: ['eshop', 'produkty', 'košík'],
+  features: ['Vyhľadávanie produktov', 'Filter kategórií', 'Košík s prepočtom'],
   followups: ['Pridaj detail produktu s variantmi.', 'Pridaj filtrovanie podľa ceny a kategórie.', 'Priprav serverový checkout a vysvetli požadované nastavenia poskytovateľa.'],
   data: 'export const products=[{id:1,name:"Keramická šálka",category:"Domov",price:18,icon:"☕"},{id:2,name:"Plátená taška",category:"Doplnky",price:24,icon:"▱"},{id:3,name:"Bodkovaný zápisník",category:"Práca",price:12,icon:"▤"},{id:4,name:"Drevený podnos",category:"Domov",price:32,icon:"◇"}];',
   app: String.raw`import {useState} from 'react';import {Header} from './components/Header';import {EmptyState} from './components/EmptyState';import {products} from './data';

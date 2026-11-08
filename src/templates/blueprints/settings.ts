@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'settings', title: 'Nastavenia účtu', description: 'Profil, preferencie a upozornenia s formulárovou validáciou.',
   category: 'Aplikácie', icon: '⚙', tags: ['profil', 'formulár', 'nastavenia'],
+  features: ['Úprava profilu', 'Voľby upozornení', 'Validácia e-mailu'],
   followups: ['Rozdeľ nastavenia na prehľadné záložky.', 'Pridaj výber jazyka slovenčina a angličtina.', 'Pridaj export nastavení do JSON súboru.'],
   app: String.raw`import {useState} from 'react';import {Header} from './components/Header';
 export default function App(){const [name,setName]=useState('Alex Novák');const [email,setEmail]=useState('alex@example.com');const [weekly,setWeekly]=useState(true);const [tips,setTips]=useState(false);const [saved,setSaved]=useState(false);

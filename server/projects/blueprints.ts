@@ -4,8 +4,11 @@ import type { ServerWorkspace } from '../../shared/projectSchema';
 import { getUserFromContext } from '../auth/middleware';
 import type { DbLike } from '../db/pool';
 
-const catalog = BLUEPRINT_REGISTRY.map(({ id, title, description, category, files }) => ({
-  id, title, description, category, fileCount: files.length,
+const detailedCatalog = BLUEPRINT_REGISTRY.map(({ id, title, description, category, files, features, tags }) => ({
+  id, title, description, category, fileCount: files.length, features, tags,
+}));
+const catalog = detailedCatalog.map(({ id, title, description, category, fileCount }) => ({
+  id, title, description, category, fileCount,
 }));
 
 /** Serve only first-party starter metadata and sources to linked users. */
@@ -19,6 +22,7 @@ export function blueprintRouter(allow: (key: string) => boolean) {
     if (!allow('blueprints:' + user.id)) return c.json({ error: 'rate_limit' }, 429);
     const id = c.req.param('id');
     if (!id) return c.json({ blueprints: catalog });
+    if (id === 'catalog') return c.json({ blueprints: detailedCatalog });
     const blueprint = getBlueprint(id);
     if (!blueprint) return c.json({ error: 'blueprint_not_found' }, 404);
     return c.json({

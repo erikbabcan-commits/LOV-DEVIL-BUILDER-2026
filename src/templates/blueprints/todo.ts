@@ -2,6 +2,7 @@ import { defineBlueprint } from '../factory';
 export default defineBlueprint({
   id: 'todo', title: 'Osobné úlohy', description: 'Rýchle pridávanie, dokončenie, filtre a počítadlo denného pokroku.',
   category: 'Produktivita', icon: '✓', tags: ['todo', 'zoznam', 'úlohy'],
+  features: ['Pridávanie úloh', 'Filtre podľa stavu', 'Počítadlo pokroku'],
   followups: ['Pridaj termíny a zobrazenie omeškaných úloh.', 'Pridaj kategórie Práca a Osobné.', 'Pridaj bezpečné lokálne ukladanie s tlačidlom vymazania.'],
   types: 'export interface Todo {id:number;title:string;done:boolean}',
   data: 'import type {Todo} from "./types";export const initialTodos:Todo[]=[{id:1,title:"Vybrať dnešnú prioritu",done:true},{id:2,title:"Dokončiť prvý návrh",done:false},{id:3,title:"Pozrieť sa na návrh v mobile",done:false}];',
