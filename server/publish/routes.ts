@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { bodyLimit } from "hono/body-limit";
 import { PublishProjectVersion, PublishPromotion, PublishRequest, PublishWithdrawal } from "../../shared/publish";
 import { getUserFromContext } from "../auth/middleware";
@@ -63,8 +64,14 @@ export function publishRouter(
     );
     if (!parsed.success)
       return c.json({ error: "publish_invalid_request" }, 400);
-    const value = await service.start(user.id, parsed.data);
-    return c.json(value, value.state === "building" ? 202 : 200);
+    try {
+      const value = await service.start(user.id, parsed.data);
+      return c.json(value, value.state === "building" ? 201 : 200);
+    } catch (error) {
+      if (error instanceof PublishError && error.code === "publish_capacity")
+        return c.json({ error: "publish_quota_exceeded" }, 413);
+      throw error;
+    }
   });
   router.get("/api/publish/project/:projectId/:revision/:snapshotId", async (c) => {
     const user = getUserFromContext(c);
@@ -127,16 +134,22 @@ export function publishRouter(
       return c.json({ error: "publish_invalid_request" }, 400);
     if (!allow("publish-status:" + user.id))
       return c.json({ error: "rate_limit" }, 429);
-    const progress = await service.progress(user.id, c.req.param("requestId"));
-    if (progress.stage) c.header("X-LOV-Publish-Stage", progress.stage);
-    return c.json(progress.job);
+    try {
+      const progress = await service.progress(user.id, c.req.param("requestId"));
+      if (progress.stage) c.header("X-LOV-Publish-Stage", progress.stage);
+      return c.json(progress.job);
+    } catch (error) {
+      if (error instanceof PublishError && error.code === "publish_not_found")
+        return c.json({ error: "not_found" }, 404);
+      throw error;
+    }
   });
   router.post("/api/publish/:requestId/withdraw", async (c) => {
     const user = getUserFromContext(c);
     if (!user) return c.json({ error: "unauthenticated" }, 401);
     if (!service) return c.json({ error: "publish_disabled" }, 503);
     if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
-    const requestId = PublishRequest.shape.requestId.safeParse(c.req.param("requestId"));
+    const requestId = z.uuid().safeParse(c.req.param("requestId"));
     const consent = PublishWithdrawal.safeParse(await c.req.json().catch(() => null));
     if (!requestId.success || !consent.success)
       return c.json({ error: "publish_invalid_request" }, 400);

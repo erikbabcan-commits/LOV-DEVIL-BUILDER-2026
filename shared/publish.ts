@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ProjectId } from "./projectSchema";
 export const PublishRequest = z
   .object({
-    requestId: z.uuid(),
+    requestId: z.uuidv4(),
     projectId: ProjectId,
     expectedRevision: z.number().int().positive().max(2147483647),
     snapshotId: ProjectId,
@@ -12,13 +12,13 @@ export const PublishRequest = z
 export type PublishSelection = z.infer<typeof PublishRequest>;
 export const PublishWithdrawal = z.strictObject({ confirmed: z.literal(true) });
 export const PublishPromotion = z.strictObject({
-  requestId: PublishRequest.shape.requestId,
+  requestId: z.uuid(),
   expectedVersion: z.uuid().nullable(),
   confirmed: z.literal(true),
 });
 export type PublishPromotion = z.infer<typeof PublishPromotion>;
 const LiveRelease = z.strictObject({
-  requestId: PublishRequest.shape.requestId,
+  requestId: z.uuid(),
   revision: z.number().int().positive(),
 });
 export const PublishLiveAddress = z.strictObject({

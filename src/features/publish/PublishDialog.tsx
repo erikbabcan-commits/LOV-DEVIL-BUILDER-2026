@@ -27,6 +27,7 @@ const copy: Record<string,string> = {
   publish_sources_unsupported:'Tieto zdroje nie sú podporované. Oprav zdroje a ulož novú verziu pred publikovaním.',
   publish_invalid_request:'Požiadavka neprešla overením. Obnov aplikáciu a skontroluj uloženú verziu.',
   publish_input_limit:'Požiadavka prekročila povolenú veľkosť. Obnov aplikáciu a skontroluj uloženú verziu.',
+  publish_quota_exceeded:'Kapacita publikácií je vyčerpaná. Over rovnakú požiadavku po uvoľnení kapacity.',
   publish_capacity:'Kapacita publikácií je vyčerpaná. Over rovnakú požiadavku po uvoľnení kapacity.',
   publish_protocol:'Odpoveď publikovania neprešla overením. Over pôvodnú požiadavku; novú nezačíname.',
   publish_receipt_storage:'Uloženú požiadavku nemožno aktualizovať. Povoľ úložisko stránky; pôvodný identifikátor zostáva zachovaný.',
@@ -83,7 +84,7 @@ export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}
       if(selection)ownedReceipt=stored;
       let data:unknown;
       if(selection) {
-        try{data=await call('/'+selection.requestId,pending.signal);}catch(reason){if(!(reason instanceof Error)||!['publish_not_found','publish_job_not_found'].includes(reason.message))throw reason;}
+        try{data=await call('/'+selection.requestId,pending.signal);}catch(reason){if(!(reason instanceof Error)||!['not_found','publish_not_found','publish_job_not_found'].includes(reason.message))throw reason;}
       } else {
         const saved=await saveRemoteWorkspace(pending.signal);if(!unchanged())throw new Error('stale');
         if(saved.id!==projectId)throw new Error('stale');
