@@ -27,6 +27,7 @@ export function publicPublishApp(
     );
     return next();
   });
+  /** Resolve an immutable artifact or stable alias and serve only its verified bytes. */
   async function serve(c: Context, id: string, query: string) {
     if (new URL(c.req.url).search) return c.notFound();
     if (

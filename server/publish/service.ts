@@ -222,6 +222,7 @@ export class PublishService {
     )).rows as ViewRow[];
     return rows.map((row) => this.view(row));
   }
+  /** Read the active and previous live releases for a non-deleted project owned by this account. */
   async liveAddress(owner: string, projectId: string, db = this.db): Promise<PublishLiveAddress | null> {
     const row = (await db.query(
       `SELECT a.alias_id, a.version,

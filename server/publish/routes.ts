@@ -3,7 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import { PublishProjectVersion, PublishPromotion, PublishRequest, PublishWithdrawal } from "../../shared/publish";
 import { getUserFromContext } from "../auth/middleware";
 import { PublishService, PublishError } from "./service";
-/** Mount authenticated publication, status and owner withdrawal operations. */
+/** Mount authenticated publication, status, promotion and owner withdrawal operations. */
 export function publishRouter(
   service: PublishService | null,
   allow: (key: string) => boolean,
