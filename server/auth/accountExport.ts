@@ -9,6 +9,10 @@ const pages = {
     table: 'builder_projects', owner: 'owner_id', key: 'project_id', type: 'text', limit: 1,
     fields: 'project_id, title, revision, workspace, updated_at, deleted_at',
   },
+  'private-blueprints': {
+    table: 'private_blueprints', owner: 'owner_id', key: 'id', type: 'uuid', limit: 1,
+    fields: 'id, title, source_project_id, source_snapshot_id, files, created_at',
+  },
   auth: {
     table: 'auth_log', owner: 'user_id', key: 'id', type: 'text', limit: 100,
     fields: 'id, action, created_at',

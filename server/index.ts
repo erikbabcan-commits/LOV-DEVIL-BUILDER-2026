@@ -16,6 +16,7 @@ import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import { projectRouter } from './projects/routes';
+import { privateBlueprintRouter } from './projects/privateBlueprints';
 import { readProjectStoragePolicy, type ProjectStoragePolicy } from './projects/storage';
 import { MistralProvider, makeFetchTransport } from './providers/mistral';
 import type { AIProvider, ProviderTransport } from './providers/types';
@@ -164,6 +165,7 @@ export function createApp(
     app.route('/', accountClosureRouter(opts.auth.db, rateLimit));
     app.route('/', projectRouter(opts.auth.db, rateLimit, cfg.projectStorage));
     app.route('/', blueprintRouter(rateLimit));
+    app.route('/', privateBlueprintRouter(opts.auth.db, rateLimit));
     if (opts.auth.cloudGitHub) app.route('/', githubCloudRouter(opts.auth.cloudGitHub, rateLimit));
   }
   app.route('/', billingRouter(opts?.auth?.billing ?? null, rateLimit));

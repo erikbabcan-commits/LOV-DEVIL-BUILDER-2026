@@ -676,6 +676,44 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     await db.query("UPDATE blueprint_uses SET recorded_at=$1::timestamptz - interval '1 second' WHERE owner_id='alice'", [periodStart + 'T00:00:00Z']);
     expect(await (await alice('ai-usage')).json()).toMatchObject({ blueprintStarts: 0 });
   });
+  it('saves only owned approved sources as private Pro templates and isolates reuse, deletion and export', async () => {
+    const backend = await hybridAiBackend(db, true);
+    const alice = hybridTransport(backend.proxy, backend.tokens.alice);
+    const bob = hybridTransport(backend.proxy, backend.tokens.bob);
+    const path = 'private-blueprints';
+    const post = (transport: ForgeTransport, endpoint: string, body: object) =>
+      transport(endpoint, { method: 'POST', body });
+    const select = { projectId: 'hybrid-fixture', expectedRevision: 1, snapshotId: 'hybrid-v1' };
+    expect((await backend.app.request('/api/' + path)).status).toBe(401);
+    expect(await (await alice(path)).json()).toEqual({ canUse: false, templates: [] });
+    expect((await post(alice, path, select)).status).toBe(403);
+    await db.query("UPDATE users SET plan='pro' WHERE id IN ('alice','bob')");
+    expect((await post(bob, path, select)).status).toBe(404);
+    expect((await post(alice, path, { ...select, expectedRevision: 2 })).status).toBe(409);
+    expect((await post(alice, path, { ...select, snapshotId: 'unknown' })).status).toBe(409);
+    expect((await post(alice, path, { ...select, files: [] })).status).toBe(400);
+    const created = await Promise.all([post(alice, path, select), post(alice, path, select)]);
+    expect(created.map(response => response.status).sort()).toEqual([200, 201]);
+    const [one, retry] = await Promise.all(created.map(response => response.json()));
+    expect(one).toEqual(retry);
+    expect(await (await alice(path)).json()).toEqual({ canUse: true, templates: [one] });
+    expect(await (await bob(path)).json()).toEqual({ canUse: true, templates: [] });
+    expect((await bob(path + '/' + one.id)).status).toBe(404);
+    await post(bob, path + '/' + one.id + '/delete', {});
+    expect(await (await alice(path + '/' + one.id)).json()).toEqual({
+      id: one.id, title: one.title, files: backend.workspace.files,
+    });
+    expect((await post(alice, 'projects/hybrid-fixture/delete', { expectedRevision: 1 })).status).toBe(200);
+    expect((await alice(path + '/' + one.id)).status).toBe(200);
+    await db.query("UPDATE users SET plan_expires_at=now()-interval '1 day' WHERE id='alice'");
+    expect(await (await alice(path)).json()).toEqual({ canUse: false, templates: [one] });
+    expect((await alice(path + '/' + one.id)).status).toBe(403);
+    const ownerExport = await (await alice('account/export/private-blueprints')).json();
+    expect(ownerExport.records).toEqual([expect.objectContaining({ id: one.id, files: backend.workspace.files })]);
+    expect((await (await bob('account/export/private-blueprints')).json()).records).toEqual([]);
+    expect((await post(alice, path + '/' + one.id + '/delete', {})).status).toBe(200);
+    expect(await (await alice(path)).json()).toEqual({ canUse: false, templates: [] });
+  });
   it('reports only the signed owner’s successful publications inside the UTC usage period', async () => {
     const backend = await hybridAiBackend(db, true);
     const alice = hybridTransport(backend.proxy, backend.tokens.alice);
