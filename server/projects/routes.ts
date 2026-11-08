@@ -4,6 +4,7 @@ import type { DbLike } from '../db/pool';
 import { getUserFromContext } from '../auth/middleware';
 import { ProjectId, SaveSchema, RevisionSchema, WorkspaceSchema, preservesHistory } from './schema';
 import { DEFAULT_PROJECT_STORAGE, fitsProjectStorage, projectStorageUsage, validateProjectStoragePolicy, type ProjectStoragePolicy } from './storage';
+import { initialBlueprint } from './blueprints';
 
 export const PROJECT_BODY_BYTES = 8_000_000;
 interface ProjectRow { project_id: string; title: string; revision: number; workspace: unknown; updated_at: Date; deleted_at: Date | null }
@@ -90,6 +91,11 @@ export function projectRouter(db: DbLike, allow: (key: string) => boolean, polic
         : await tx.query(`UPDATE builder_projects SET title = $3, workspace = $4::jsonb, revision = revision + 1, updated_at = now()
           WHERE owner_id = $1 AND project_id = $2 AND revision = $5 AND deleted_at IS NULL RETURNING revision`, [owner, id, workspace.title, serialized, expectedRevision]);
       if (!saved.rows.length) return { body: { error: 'project_conflict' }, status: 409 as const };
+      const starter = expectedRevision === 0 ? initialBlueprint(workspace) : null;
+      if (starter) await tx.query(
+        'INSERT INTO blueprint_uses (owner_id, snapshot_id, blueprint_id) VALUES ($1,$2,$3) ON CONFLICT (owner_id,snapshot_id) DO NOTHING',
+        [owner, starter.snapshotId, starter.blueprintId],
+      );
       if (workspace.liveId && workspace.files.length > 0)
         await tx.query('UPDATE users SET first_observed_app_save_at = now() WHERE id = $1 AND first_observed_app_save_at IS NULL', [owner]);
       return { body: { id, revision: saved.rows[0].revision }, status: expectedRevision === 0 ? 201 as const : 200 as const };
