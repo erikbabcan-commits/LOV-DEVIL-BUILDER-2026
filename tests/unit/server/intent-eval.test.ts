@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {IntentDatasetSchema,datasetHash,intentPromptHash,exportIntentRequests,scoreIntent} from '../../../server/evals/intent';
-import {INTENT_PROMPT_VERSION} from '../../../server/agent/intent';
+import {INTENT_PROMPT_VERSION,INTENT_VARIANT_VERSION} from '../../../server/agent/intent';
 const dataset=IntentDatasetSchema.parse(JSON.parse(readFileSync(new URL('../../../server/evals/intent-cases.json',import.meta.url),'utf8')));
 const predictions=(correct=150)=>({datasetHash:datasetHash(dataset),promptHash:intentPromptHash(),promptVersion:INTENT_PROMPT_VERSION,provenance:{kind:'synthetic',provider:'fixture',model:'synthetic-only'},predictions:dataset.cases.map((c,i)=>({id:c.id,intent:i<correct?c.expected:null}))});
 describe('versioned 150-prompt intent evaluation',()=>{
@@ -67,6 +67,17 @@ describe('versioned 150-prompt intent evaluation',()=>{
  it('exports the exact classifier contract without performing inference',()=>{
   const result=exportIntentRequests(dataset);expect(result.inferencePerformed).toBe(false);expect(result.requests).toHaveLength(150);expect(JSON.parse(result.requests[0].messages[1].content)).toEqual({prompt:dataset.cases[0].prompt,hasProject:dataset.cases[0].hasProject});
  });
+ it('binds the candidate to its own prompt and compares it with the control', () => {
+  const old = scoreIntent(dataset, predictions());
+  const candidate = exportIntentRequests(dataset, INTENT_VARIANT_VERSION);
+  expect(candidate.promptHash).not.toBe(old.promptHash);
+  expect(candidate.requests[0].messages[0].content).toContain(INTENT_VARIANT_VERSION);
+  expect(() => scoreIntent(dataset, { ...predictions(), promptVersion: INTENT_VARIANT_VERSION }))
+   .toThrow('intent_eval_fingerprint_mismatch');
+  expect(scoreIntent(dataset, {
+   ...predictions(142), promptVersion: candidate.promptVersion, promptHash: candidate.promptHash,
+  }, old).regression).toMatchObject({ baselinePromptVersion: INTENT_PROMPT_VERSION, withinFivePercent: false });
+ });
  it('runs the real offline CLI from an unrelated cwd and refuses live flags and file overwrite',()=>{
   const directory=mkdtempSync(join(tmpdir(),'lov-intent-eval-')),root=resolve(new URL('../../..',import.meta.url).pathname),script=join(root,'scripts/eval-intent.ts');
   const invoke=(args:string[])=>spawnSync(process.execPath,[join(root,'node_modules/tsx/dist/cli.mjs'),script,...args],{cwd:directory,encoding:'utf8',env:{...process.env,NODE_ENV:'test',MISTRAL_API_KEY:'',OPENAI_API_KEY:'',ANTHROPIC_API_KEY:'',DOTENV_CONFIG_PATH:'/dev/null'}});
@@ -78,6 +89,8 @@ describe('versioned 150-prompt intent evaluation',()=>{
    const mismatch=invoke(['--predictions',input,'--baseline',baseline]);
    expect(mismatch.status).toBe(1);expect(mismatch.stderr).toContain('rovnaký druh pozorovaní');expect(mismatch.stdout).toBe('');
    expect(invoke(['--export-requests','--output',join(directory,'requests.json')]).status).toBe(0);expect(JSON.parse(readFileSync(join(directory,'requests.json'),'utf8')).requests).toHaveLength(150);
+   const variant=invoke(['--export-requests','--prompt-version',INTENT_VARIANT_VERSION]);
+   expect(variant.status).toBe(0);expect(JSON.parse(variant.stdout).promptVersion).toBe(INTENT_VARIANT_VERSION);
   }finally{rmSync(directory,{recursive:true,force:true});}
  },15000);
 });

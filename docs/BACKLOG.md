@@ -899,7 +899,7 @@ Systémové prompty = jadro produktu. Verziované, testované, A/B.
 | 507 | **P7 — SEO/Content Prompt** | meta tagy, OG obrázky, copy pre landing vygenerovanej appky | S | Otvorené |
 | 508 | **P8 — Safety Meta-Prompt (guardrails)** | odolnosť na prompt injection, žiadne secrets do kódu, bezpečné defaults, licenčne čisté dependency | M | Čiastočne — validácia ciest/zdrojov/tajomstiev; injection/licenčné evaly chýbajú |
 | 509 | Eval set (golden prompts + očakávané výstupy) + nočné regresné behy | zmena promptu nerozbije > 5 % prípadov; report do interného dashboardu | L | Čiastočne — 150 intent promptov a offline porovnanie rovnakého modelu, poskytovateľa a datasetu. Živé golden behy, nočný režim a dashboard ostávajú otvorené. |
-| 510 | Prompt versioning + A/B + feature flagy | prepnutie verzie promptu bez deploy | M | Otvorené |
+| 510 | Prompt versioning + A/B + feature flagy | prepnutie verzie promptu bez deploy | M | Čiastočne. Smerovanie zámeru má dve pevné verzie, stabilné priradenie účtu, zmenu podielu a návrat bez reštartu. Živé meranie a ďalšie prompt packy zostávajú otvorené. |
 
 **Kostra Master Prompt (P1) — východzí bod:**
 

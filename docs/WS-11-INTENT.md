@@ -81,6 +81,7 @@ vstupy na neskorší vedome povolený beh a skórovať importované pozorovania.
 
 ```sh
 pnpm run ai:intent-eval -- --export-requests --output /private/intent-requests.json
+pnpm run ai:intent-eval -- --export-requests --prompt-version forge-intent-v2 --output /private/intent-v2-requests.json
 pnpm run ai:intent-eval -- --predictions /private/predictions.json --output /private/intent-report.json
 pnpm run ai:intent-eval -- --predictions /private/new.json --baseline /private/old-report.json
 ```
@@ -102,6 +103,28 @@ Exit 0 = metrické brány prešli/export sa podaril, 2 = metrická brána nepre�
 `--live` sa odmietne. Report vždy uvádza `inferenceVerified:false`; ani deklarované
 recorded pozorovania nepredstavujú nezávisle overený modelový benchmark.
 Syntetické dáta sú označené synthetic-only, nikdy sa nevydávajú za presnosť LLM.
+
+### Riadené nasadenie promptu pre smerovanie zámeru
+
+Proces môže dostať absolútnu cestu `FORGE_INTENT_POLICY_FILE` k lokálnemu
+JSON súboru. Príklad pre 5 % prihlásených účtov v automatickom režime:
+
+```json
+{"schemaVersion":1,"experimentId":"intent-router-v2","variantBasisPoints":500}
+```
+
+Účet sa priradí podľa interného ID a nemenného `experimentId`. Pri zvyšovaní
+percenta už pridelené účty zostanú vo variante. Každý nový automatický beh
+načíta aktuálny súbor raz a v SSE `run_started` uvedie `intentPromptVersion`.
+Ručne zvolený režim klasifikátor obíde. Chýbajúci, nečitateľný alebo neplatný
+súbor použije `forge-intent-v1`.
+
+Súbor spravuje operátor v adresári, do ktorého aplikácia nemá zapisovať.
+V kontajneri pripoj celý adresár iba na čítanie. Nový súbor najprv zapíš vedľa
+aktuálneho a potom ho atomicky premenuj cez pôvodný názov. Hodnota 0 vráti nové
+behy na `forge-intent-v1` bez reštartu. Bez nastavenia cesty je funkcia vypnutá.
+V2 je kandidát na porovnanie. Pred zvýšením podielu treba doložiť výsledky
+na živom modeli. Trvalý zber výsledkov A/B, nočný beh a dashboard zostávajú otvorené.
 
 Ukážka v `deploy/lovable-github/proof/intent-eval-fixture-report.json` má zámerne
 syntetických 135 správnych / 15 chýbajúcich, takže >90 % gate **neprejde**. Dokazuje
