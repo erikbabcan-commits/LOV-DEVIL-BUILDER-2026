@@ -59,7 +59,7 @@ export function LandingPage() {
           <button className="chip-pill" data-kind="dashboard" onClick={() => generate('Vytvor CRM dashboard s metrikami a grafmi', 'dashboard' as AppKind)}>📊 CRM Dashboard</button>
           <button className="chip-pill" data-kind="dashboard" onClick={() => generate('Vytvor jednoduchý blog so zoznamom článkov', 'dashboard' as AppKind)}>📝 Blog</button>
         </div>
-        <button className="home-template-link" onClick={() => { useStore.getState().goEditor(); useStore.getState().setEdTab('blueprints'); }}>Alebo začni z jednej z 12 šablón <span aria-hidden="true">→</span></button>
+        <button className="home-template-link" onClick={() => { useStore.getState().goEditor(); useStore.getState().setEdTab('blueprints'); }}>Alebo začni zo šablóny <span aria-hidden="true">→</span></button>
         <div className="home-shortcuts">
           <span><span className="kbd">Ctrl</span> + <span className="kbd">Enter</span> odoslať</span>
           <span><span className="kbd">Ctrl</span> + <span className="kbd">K</span> zamerať prompt</span>

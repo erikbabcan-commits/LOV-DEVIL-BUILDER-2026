@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { searchBlueprints } from '../../templates/registry';
+import { BLUEPRINT_REGISTRY, searchBlueprints } from '../../templates/registry';
 import { brandBlueprint } from '../../templates/factory';
 import type { Blueprint } from '../../templates/types';
 import { useStore } from '../../stores/useAppStore';
@@ -18,10 +18,10 @@ export function TemplateGallery() {
 
   return <section className="template-gallery" aria-label="Šablóny projektov">
     <div className="section-intro"><span className="section-eyebrow">Rýchly štart bez AI volania</span><h2>Začni bližšie k svojej predstave.</h2>
-      <p>12 funkčných React základov. Vyber si šablónu, dolaď názov a farbu a prezri si súbory pred použitím.</p></div>
+      <p>{BLUEPRINT_REGISTRY.length} funkčných React základov. Vyber si šablónu, dolaď názov a farbu a prezri si súbory pred použitím.</p></div>
     <div className="template-tools"><label className="field-label">Hľadať šablónu<input type="search" placeholder="Napríklad CRM, blog, úlohy…" value={query} onChange={event => setQuery(event.target.value)} /></label>
       <div className="template-categories" aria-label="Kategórie šablón">{categories.map(value => <button key={value} aria-pressed={category === value} onClick={() => setCategory(value)}>{value}</button>)}</div></div>
-    <p className="template-count" role="status">{templates.length} z 12 šablón</p>
+    <p className="template-count" role="status">{templates.length} z {BLUEPRINT_REGISTRY.length} šablón</p>
     {selected && <form className="template-brand" aria-label="Prispôsobiť šablónu" onSubmit={event => {
       event.preventDefault(); stageTemplate(brandBlueprint(selected, { name, color })); setSelected(null);
     }}><div><span className="section-eyebrow">{selected.title}</span><h3>Daj projektu vlastný rukopis.</h3><p>Použitie vytvorí novú verziu. Pôvodná zostane v histórii.</p></div>

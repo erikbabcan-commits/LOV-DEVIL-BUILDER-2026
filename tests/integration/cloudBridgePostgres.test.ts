@@ -627,7 +627,7 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== '1')('Cloud proxy with dedicated
     const listing = await alice('blueprints');
     expect(listing.headers.get('cache-control')).toBe('no-store');
     const { blueprints } = await listing.json();
-    expect(blueprints).toHaveLength(12);
+    expect(blueprints).toHaveLength(15);
     expect(blueprints[0]).not.toHaveProperty('files');
     expect(blueprints[0]).not.toHaveProperty('features');
     const detailed = await alice('blueprints/catalog');

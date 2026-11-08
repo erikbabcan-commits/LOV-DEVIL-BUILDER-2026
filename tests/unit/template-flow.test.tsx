@@ -56,7 +56,7 @@ describe('template review and composer flow', () => {
   it('filters the gallery, customizes a template and opens real file review', () => {
     render(<TemplateGallery />);
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'kanban' } });
-    expect(screen.getByRole('status')).toHaveTextContent('1 z 12');
+    expect(screen.getByRole('status')).toHaveTextContent(`1 z ${BLUEPRINT_REGISTRY.length} šablón`);
     fireEvent.click(screen.getByRole('button', { name: /Použiť šablónu/ }));
     const form = screen.getByRole('form', { name: 'Prispôsobiť šablónu' });
     fireEvent.change(within(form).getByLabelText('Názov značky'), { target: { value: 'Studio Board' } });
