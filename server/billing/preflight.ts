@@ -29,6 +29,18 @@ export async function inspectBillingDatabase(
   }
 }
 
+type PortalConfiguration = {
+  active: boolean;
+  is_default: boolean;
+  livemode: boolean;
+  features: {
+    invoice_history?: { enabled: boolean };
+    payment_method_update?: { enabled: boolean };
+    subscription_cancel?: { enabled: boolean };
+    customer_update?: { enabled: boolean; allowed_updates: readonly string[] };
+  };
+};
+
 /** The preflight has no provider mutation capability. */
 export interface BillingReadOnlyProvider {
   account(): Promise<{
@@ -38,6 +50,10 @@ export interface BillingReadOnlyProvider {
     detailsSubmitted: boolean;
   }>;
   price: BillingGateway["price"];
+  portalConfigurations(): Promise<{
+    data: PortalConfiguration[];
+    has_more: boolean;
+  }>;
 }
 
 export function makeStripeBillingReadOnlyProvider(
@@ -60,15 +76,51 @@ export function makeStripeBillingReadOnlyProvider(
       };
     },
     price: (id) => gateway.price(id),
+    portalConfigurations: () => stripe.billingPortal.configurations.list({ active: true, is_default: true, limit: 2 }),
   };
 }
 
-/** Read-only remote checks do not establish webhook delivery, Portal setup,
- * successful payments, or the database's runtime environment pin. */
+/** Check the default configuration used by runtime Portal sessions, without creating one. */
+async function inspectDefaultPortal(config: BillingConfig, provider: BillingReadOnlyProvider) {
+  const result = await provider.portalConfigurations();
+  if (result.data.length === 0 && result.has_more === false)
+    return { ready: false, state: "missing", issues: ["billing_portal_default_missing"] } as const;
+  const [portal] = result.data;
+  if (
+    result.data.length !== 1 || result.has_more !== false || !portal ||
+    portal.active !== true || portal.is_default !== true || portal.livemode !== billingLivemode(config) ||
+    !portal.features
+  )
+    return { ready: false, state: "invalid", issues: ["billing_portal_default_invalid"] } as const;
+  const invoiceHistory = portal.features.invoice_history?.enabled === true;
+  const paymentMethodUpdate = portal.features.payment_method_update?.enabled === true;
+  const subscriptionCancellation = portal.features.subscription_cancel?.enabled === true;
+  const customer = portal.features.customer_update;
+  const allowedUpdates = customer?.enabled === true && Array.isArray(customer.allowed_updates)
+    ? customer.allowed_updates : [];
+  const issues = [
+    ...(!invoiceHistory ? ["billing_portal_invoices_disabled"] : []),
+    ...(!paymentMethodUpdate ? ["billing_portal_payment_update_disabled"] : []),
+    ...(!subscriptionCancellation ? ["billing_portal_cancellation_disabled"] : []),
+  ];
+  return {
+    ready: issues.length === 0,
+    state: "checked",
+    invoiceHistory,
+    paymentMethodUpdate,
+    subscriptionCancellation,
+    billingAddress: allowedUpdates.includes("address"),
+    taxId: allowedUpdates.includes("tax_id"),
+    issues,
+  } as const;
+}
+
+/** Inspect the configured Stripe account, prices and optionally its default Portal features. */
 export async function inspectBillingProvider(
   config: BillingConfig,
   provider: BillingReadOnlyProvider,
   expectedAccountId?: string,
+  checkPortal = false,
 ) {
   validateBillingConfig(config, process.env.NODE_ENV === "test");
   if (
@@ -95,18 +147,19 @@ export async function inspectBillingProvider(
     )
       throw new BillingError("billing_price_unavailable");
   }
-  const ready = billingMode(config) !== "live" || account.chargesEnabled;
+  const chargesReady = billingMode(config) !== "live" || account.chargesEnabled;
+  const portal = checkPortal ? await inspectDefaultPortal(config, provider) : "not_checked";
   return {
-    ready,
+    ready: chargesReady && (portal === "not_checked" || portal.ready),
     accountId: account.id,
     expectedAccount: expectedAccountId ? "matched" : "not_specified",
     chargesEnabled: account.chargesEnabled,
     payoutsEnabled: account.payoutsEnabled,
     detailsSubmitted: account.detailsSubmitted,
     prices: { month: "verified", year: "verified" },
-    ...(!ready ? { issues: ["billing_live_charges_unavailable"] } : {}),
+    ...(!chargesReady ? { issues: ["billing_live_charges_unavailable"] } : {}),
     webhook: "not_checked",
-    portal: "not_checked",
+    portal,
     payment: "not_attempted",
   };
 }

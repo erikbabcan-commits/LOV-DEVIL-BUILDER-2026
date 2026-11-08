@@ -39,6 +39,10 @@ function provider(config: BillingConfig, chargesEnabled = true) {
         livemode: config.mode === "live",
       };
     }),
+    portalConfigurations: vi.fn<BillingReadOnlyProvider["portalConfigurations"]>(async () => ({
+      data: [],
+      has_more: false,
+    })),
   };
 }
 afterEach(() => vi.restoreAllMocks());
@@ -87,6 +91,7 @@ describe("read-only billing provider preflight", () => {
       payment: "not_attempted",
     });
     expect(remote.account).toHaveBeenCalledOnce();
+    expect(remote.portalConfigurations).not.toHaveBeenCalled();
     expect(remote.price.mock.calls).toEqual([
       [live.prices.month.priceId], [live.prices.year.priceId],
     ]);
@@ -96,6 +101,48 @@ describe("read-only billing provider preflight", () => {
       ready: false, issues: ["billing_live_charges_unavailable"],
     });
     expect(await inspectBillingProvider(BILLING_TEST_CONFIG, provider(BILLING_TEST_CONFIG, false))).toMatchObject({ ready: true });
+  });
+  it("requires a unique active default Portal in the selected Stripe environment", async () => {
+    const remote = provider(live);
+    const configured = {
+      active: true, is_default: true, livemode: true,
+      features: {
+        invoice_history: { enabled: true },
+        payment_method_update: { enabled: true },
+        subscription_cancel: { enabled: true },
+        customer_update: { enabled: true, allowed_updates: ["address", "tax_id"] },
+      },
+    };
+    expect(await inspectBillingProvider(live, remote, undefined, true)).toMatchObject({
+      ready: false, portal: { state: "missing", issues: ["billing_portal_default_missing"] },
+    });
+    for (const result of [
+      { data: [configured, configured], has_more: false },
+      { data: [configured], has_more: true },
+      { data: [{ ...configured, livemode: false }], has_more: false },
+      { data: [{ ...configured, active: false }], has_more: false },
+      { data: [{ ...configured, is_default: false }], has_more: false },
+    ]) {
+      remote.portalConfigurations.mockResolvedValueOnce(result);
+      expect(await inspectBillingProvider(live, remote, undefined, true)).toMatchObject({
+        ready: false, portal: { state: "invalid", issues: ["billing_portal_default_invalid"] },
+      });
+    }
+    remote.portalConfigurations.mockResolvedValueOnce({ data: [configured], has_more: false });
+    expect(await inspectBillingProvider(live, remote, undefined, true)).toMatchObject({
+      ready: true, portal: {
+        state: "checked", invoiceHistory: true, paymentMethodUpdate: true, subscriptionCancellation: true,
+        billingAddress: true, taxId: true, issues: [],
+      },
+    });
+    remote.portalConfigurations.mockResolvedValueOnce({ data: [{ ...configured, features: {} }], has_more: false });
+    expect(await inspectBillingProvider(live, remote, undefined, true)).toMatchObject({
+      ready: false, portal: {
+        state: "checked", billingAddress: false, taxId: false, issues: [
+          "billing_portal_invoices_disabled", "billing_portal_payment_update_disabled", "billing_portal_cancellation_disabled",
+        ],
+      },
+    });
   });
   it("rejects a different intended Stripe account before reading its prices", async () => {
     const remote = provider(live);
@@ -128,9 +175,16 @@ describe("read-only billing provider preflight", () => {
     const customerWrite = vi.spyOn(Object.getPrototypeOf(sdk.customers), "create").mockRejectedValue(new Error("unexpected_write"));
     const checkoutWrite = vi.spyOn(Object.getPrototypeOf(sdk.checkout.sessions), "create").mockRejectedValue(new Error("unexpected_write"));
     const portalWrite = vi.spyOn(Object.getPrototypeOf(sdk.billingPortal.sessions), "create").mockRejectedValue(new Error("unexpected_write"));
-    expect((await inspectBillingProvider(live, makeStripeBillingReadOnlyProvider(live))).ready).toBe(true);
+    const portalList = vi.spyOn(Object.getPrototypeOf(sdk.billingPortal.configurations), "list").mockResolvedValue({
+      data: [], has_more: false,
+    });
+    const readOnly = makeStripeBillingReadOnlyProvider(live);
+    expect((await inspectBillingProvider(live, readOnly)).ready).toBe(true);
+    expect(portalList).not.toHaveBeenCalled();
     expect(account).toHaveBeenCalledExactlyOnceWith(null);
     expect(prices.mock.calls).toEqual([[live.prices.month.priceId], [live.prices.year.priceId]]);
+    expect((await inspectBillingProvider(live, readOnly, undefined, true)).ready).toBe(false);
+    expect(portalList).toHaveBeenCalledExactlyOnceWith({ active: true, is_default: true, limit: 2 });
     expect(customerWrite).not.toHaveBeenCalled();
     expect(checkoutWrite).not.toHaveBeenCalled();
     expect(portalWrite).not.toHaveBeenCalled();
@@ -156,6 +210,12 @@ const enabled = {
   BILLING_PRO_YEARLY_EUR_CENTS: String(live.prices.year.amount),
 };
 describe("billing preflight CLI", () => {
+  it("rejects a Portal probe unless the Stripe read was explicitly requested", () => {
+    const result = run(["--check-portal"], enabled);
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stdout)).toEqual({ ok: false, issues: ["billing_portal_check_requires_stripe"] });
+    expect(result.stderr).toBe("");
+  });
   it("stays default-off and never automatically loads the current directory dotenv", () => {
     const temp = mkdtempSync(join(tmpdir(), "lov-billing-preflight-"));
     try {
