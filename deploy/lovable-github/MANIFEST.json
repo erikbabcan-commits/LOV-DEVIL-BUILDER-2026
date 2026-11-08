@@ -23,7 +23,7 @@
     "qa/quota/session.ts": "8731cc96ef3901c738fc85d4a46b1cd21bc47515f6a535bf4f06cfabb793cdf1",
     "qa/quota/vite.config.ts": "0d9292be7a121752c10f4ee65acd06ee7dd02b9864284ccfc7deb337c9b0c5a3",
     "src/components/forge/ConnectionPanel.test.tsx": "8bde01e148d0d8b3ac3ac5a36a6603316c136bb2648ddf5b214af76d98180605",
-    "src/components/forge/ConnectionPanel.tsx": "f92eef5390e0303a559d11f940ec525b683d8806acb25d1906a8ac5b0cefbbe1",
+    "src/components/forge/ConnectionPanel.tsx": "bb92984509fe8d06bd96b09ed6089a14c3786c9952afc4e8b10ca444a7045621",
     "src/components/forge/EditorView.tsx": "d83083d356d31bfbb62b7848978a9df42f9c7baca6865bb9123670a86ec59c58",
     "src/components/forge/ForgeCanvas.tsx": "159f467bd276efb1908698ff2bfb7af3677bfa6939c1576d9d2800746410f090",
     "src/components/forge/ForgeFiles.test.tsx": "eb036c0404bcb8277f9754b3756d1bd817dede0c13b736784120a9cf4e13c94d",
