@@ -37,7 +37,10 @@ export default function App() {
         setRecipeId(event.target.value);
         setChecked(new Set());
       }}>{recipes.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-      <label>Počet porcií<select value={portions} onChange={event => setPortions(Number(event.target.value))}>
+      <label>Počet porcií<select value={portions} onChange={event => {
+        setPortions(Number(event.target.value));
+        setChecked(new Set());
+      }}>
         {[1,2,3,4,5,6,7,8].map(count => <option key={count}>{count}</option>)}
       </select></label>
     </div>
