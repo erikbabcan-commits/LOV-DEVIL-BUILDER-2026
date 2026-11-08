@@ -10,6 +10,7 @@ import type { AIProvider } from '../providers/types';
 import { requestPlan, requestFilesBatched } from './prompts';
 import { isSafePath, withinSizeLimits } from '../security/pathGuard';
 import { containsPotentialSecret, redactSecrets } from '../security/secrets';
+import { SecretInModelOutputError } from './safety';
 
 /* Agent run: orchestruje lifecycle a vydáva reálne SSE eventy.
    Žiadne timery — každý event zodpovedá skutočnému kroku (plan call, file call, validácia). */
@@ -112,6 +113,10 @@ export async function* runAgent(req: unknown, opts: RunOptions): AsyncGenerator<
     yield { type: 'done', runId: opts.runId, summary: `Dokončené: ${safeFiles.length} súborov podľa plánu (${plan.steps.length} krokov).` };
   } catch (err) {
     if (opts.signal?.aborted) { yield interrupted(opts); return; }
+    if (err instanceof SecretInModelOutputError) {
+      yield { type: 'error', code: 'secret_in_output', message: err.message, retriable: false };
+      return;
+    }
     if(err instanceof PatchError){yield{type:'error',code:err.code,message:err.message,retriable:false};return;}
     if(err instanceof ContextBudgetError){yield{type:'error',code:'context_limit',message:err.message,retriable:false};return;}
     const msg = err instanceof Error ? err.message : String(err);
