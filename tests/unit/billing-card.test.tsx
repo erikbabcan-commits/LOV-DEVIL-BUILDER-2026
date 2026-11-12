@@ -97,7 +97,7 @@ describe("verified account subscription UI", () => {
     );
     vi.stubGlobal("fetch", fetch);
     render(<BillingCard userId="alice" />);
-    expect(await screen.findByText("Forge Pro")).toBeInTheDocument();
+    expect(await screen.findByText("VORKEI Pro")).toBeInTheDocument();
     expect(screen.getByText("200 AI úloh mesačne")).toBeInTheDocument();
     expect(screen.getByText(/Platby ešte nie sú spustené/)).toBeInTheDocument();
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
@@ -290,7 +290,7 @@ describe("verified account subscription UI", () => {
         onRefreshQuota={refresh}
       />,
     );
-    expect(await screen.findByText("Forge Pro")).toBeInTheDocument();
+    expect(await screen.findByText("VORKEI Pro")).toBeInTheDocument();
     expect(screen.getByText(/bez ďalšieho obnovenia/)).toBeInTheDocument();
     expect(posted(fetch)).toHaveLength(0);
     fireEvent.click(
@@ -304,7 +304,7 @@ describe("verified account subscription UI", () => {
     expect(posted(fetch)[0][0]).toBe("/api/billing/portal");
     fireEvent.click(screen.getByRole("button", { name: "Obnoviť predplatné" }));
     expect(refresh).toHaveBeenCalledOnce();
-    expect(await screen.findByText("Forge Pro")).toBeInTheDocument();
+    expect(await screen.findByText("VORKEI Pro")).toBeInTheDocument();
   });
   it("rejects wrong-owner status and permits safe explicit retry", async () => {
     const fetch = vi
@@ -316,9 +316,9 @@ describe("verified account subscription UI", () => {
     vi.stubGlobal("fetch", fetch);
     render(<BillingCard userId="alice" />);
     expect(await screen.findByRole("alert")).toHaveTextContent("neplatné");
-    expect(screen.queryByText("Forge Pro")).not.toBeInTheDocument();
+    expect(screen.queryByText("VORKEI Pro")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Obnoviť predplatné" }));
-    expect(await screen.findByText("Forge Free")).toBeInTheDocument();
+    expect(await screen.findByText("VORKEI Free")).toBeInTheDocument();
   });
   it("clears previous UI immediately on account scope change and ignores late checkout", async () => {
     let finish!: (value: Response) => void;
@@ -337,7 +337,7 @@ describe("verified account subscription UI", () => {
     act(() => {
       selectDatabaseScope({ kind: "account", userId: "bob" });
     });
-    expect(screen.queryByText("Forge Free")).not.toBeInTheDocument();
+    expect(screen.queryByText("VORKEI Free")).not.toBeInTheDocument();
     await act(async () => {
       finish(
         Response.json({

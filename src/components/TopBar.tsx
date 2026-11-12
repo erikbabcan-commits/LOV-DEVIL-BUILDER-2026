@@ -20,7 +20,7 @@ export function TopBar({onOpenProjects,quota}:{onOpenProjects?:()=>void;quota?:Q
         <div className="logo-badge">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z"/></svg>
         </div>
-        <span className="app-name">Forge</span>
+        <span className="app-name">VORKEI</span>
         <div className="session">
           {st.titleEditing ? (
             <input ref={titleRef} className="session-title-input" value={st.projectTitle}

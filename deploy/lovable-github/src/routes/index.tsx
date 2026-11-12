@@ -11,12 +11,12 @@ import { useForge } from "@/lib/forge-context";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Forge – AI editor" },
+      { title: "VORKEI – AI editor" },
       {
         name: "description",
         content: "AI editor s kontrolou zmien, históriou a vlastnými projektmi.",
       },
-      { property: "og:title", content: "Forge – AI editor" },
+      { property: "og:title", content: "VORKEI – AI editor" },
       {
         property: "og:description",
         content: "Navrhni aplikáciu, skontroluj zmeny a pokračuj medzi uloženými verziami.",

@@ -45,7 +45,7 @@ describe('real project blueprints', () => {
     const index = branded.files.find(f => f.path === 'index.html')!.content;
     expect(index).toContain('&lt;/title&gt;'); expect(index).not.toContain('<script>alert');
     expect(branded.files.find(f => f.path === 'src/index.css')?.content).toContain('--brand:#16a34a');
-    expect(original.files.find(f => f.path === 'src/brand.ts')?.content).toContain('Forge Starter');
+    expect(original.files.find(f => f.path === 'src/brand.ts')?.content).toContain('VORKEI Starter');
     expect((await buildProject(branded.files)).ok).toBe(true);
     expect(brandBlueprint(original, { name: '', color: 'red; background:url(https://example.com)' }).files.find(f => f.path === 'src/index.css')?.content).toContain('--brand:#2563eb');
   });

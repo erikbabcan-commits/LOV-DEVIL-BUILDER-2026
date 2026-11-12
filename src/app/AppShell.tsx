@@ -4,6 +4,7 @@ import { LoginScreen } from '../components/LoginScreen';
 import { AI_QUOTA_CHANGED } from '../services/ai/usage';
 import { fetchAuthStatus, type AuthStatus } from '../services/auth';
 import { selectPersistenceScope } from '../services/persistence/projectStore';
+import { AiModelsSchema } from '../../shared/aiModels';
 const PublishDialog=lazy(()=>import('../features/publish/PublishDialog').then(module=>({default:module.PublishDialog})));
 const ProjectLibrary=lazy(()=>import('../features/projects/ProjectLibrary').then(module=>({default:module.ProjectLibrary})));
 
@@ -63,6 +64,27 @@ export function AppShell() {
     return () => { cancelled = true; };
   }, [accountKey, mayOpenEditor, restoreFromDb]);
 
+  /* Keď server ponúka AI modely a používateľ si ešte nevybral, predvoľ serverový default,
+     aby prvé zadanie išlo cez AI agenta a nie cez šablóny Instant Draft. */
+  useEffect(() => {
+    /* VITE_AI_PRESELECT=0 ponechá štart v Instant Draft (používa ho šablónová E2E sada). */
+    if (import.meta.env.VITE_AI_PRESELECT === '0') return;
+    if (!mayOpenEditor || readyAccount === null || readyAccount !== accountKey) return;
+    const controller = new AbortController();
+    void fetch('/api/ai-models', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) return;
+        const parsed = AiModelsSchema.safeParse(await response.json());
+        if (!parsed.success || controller.signal.aborted) return;
+        const preferred = parsed.data.models.find(entry => entry.id === parsed.data.defaultId);
+        const current = useStore.getState();
+        if (preferred && current.model === 'Instant Draft' && current.aiModelId === undefined && !current.generating)
+          useStore.setState({ model: preferred.label, aiModelId: preferred.id, aiFallbackIds: [] });
+      })
+      .catch(() => { /* ponuka modelov je voliteľná; Instant Draft ostáva dostupný */ });
+    return () => controller.abort();
+  }, [mayOpenEditor, readyAccount, accountKey]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
@@ -87,7 +109,7 @@ export function AppShell() {
 
   if (authState.state === 'checking' || authState.state === 'unavailable' || (mayOpenEditor && readyAccount !== accountKey)) {
     return <main className="auth-gate" aria-label="Overenie prístupu"><div className="auth-card">
-      <b className="auth-brand">Forge<i>.</i></b>
+      <b className="auth-brand">VORKEI<i>.</i></b>
       {authState.state !== 'unavailable' ? <div role="status"><h1>Overujem prístup…</h1><p>Pripájam sa k serveru.</p></div> : <>
         <div role="alert"><h1>Server teraz neodpovedá.</h1><p>Prístup sa nepodarilo overiť. Skontroluj pripojenie a skús to znova.</p></div>
         <button type="button" onClick={() => checkAuth()}>Skúsiť znova</button>

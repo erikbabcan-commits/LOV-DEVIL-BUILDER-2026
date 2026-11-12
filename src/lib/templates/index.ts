@@ -57,7 +57,7 @@ footer{text-align:center;color:#94a3b8;font-size:13px;padding:26px 0;border-top:
     <div><b>4.9/5</b><span>na G2 &amp; Capterra</span></div>
     <div><b>38%</b><span>nižšie náklady</span></div>
   </section>
-  <footer>© 2026 Nimbus, s.r.o. — Built with Forge</footer>
+  <footer>© 2026 Nimbus, s.r.o. — Built with VORKEI</footer>
 </div></body></html>`;
 }
 

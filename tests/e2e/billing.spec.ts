@@ -34,7 +34,7 @@ test('billing mobile: skutočných 390px, intervaly, sandbox a dostupný Checkou
   const dialog = page.getByRole('dialog', { name: 'Moje projekty' });
   const card = page.getByRole('region', { name: 'Predplatné', exact: true });
   await expect(card.getByText('Testovací režim Stripe')).toBeVisible();
-  await expect(card.getByText('Forge Free')).toBeVisible();
+  await expect(card.getByText('VORKEI Free')).toBeVisible();
   await expect(card.getByRole('radio', { name: /^Mesačne/ })).toBeChecked();
   await card.getByRole('radio', { name: /^Ročne/ }).check();
   await expect(card.getByRole('radio', { name: /^Ročne/ })).toBeChecked();

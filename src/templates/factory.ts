@@ -9,14 +9,14 @@ export function defineBlueprint({ app, data = 'export {};', types = 'export {};'
       scripts: { dev: 'vite', build: 'tsc --noEmit && vite build', preview: 'vite preview' },
       dependencies: { react: '18.3.1', 'react-dom': '18.3.1' },
       devDependencies: { '@types/react': '^18.3.12', '@types/react-dom': '^18.3.1', typescript: '~5.6.2', vite: '^6.0.5' } }, null, 2)),
-    file('index.html', '<!doctype html><html lang="sk"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Forge Starter</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>'),
+    file('index.html', '<!doctype html><html lang="sk"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>VORKEI Starter</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>'),
     file('tsconfig.json', JSON.stringify({ compilerOptions: { target: 'ES2022', lib: ['ES2022', 'DOM', 'DOM.Iterable'], module: 'ESNext', moduleResolution: 'bundler', jsx: 'react-jsx', strict: true, skipLibCheck: true, noEmit: true }, include: ['src'] }, null, 2)),
     file('vite.config.ts', 'import { defineConfig } from "vite";\nexport default defineConfig({});\n'),
     file('README.md', '# ' + meta.title + '\n\n' + meta.description + '\n\n## Spustenie\n\n```sh\nnpm install\nnpm run dev\nnpm run build\n```\n\nÚdaje sú ukážkové a stav je lokálny v prehliadači. Backend, platby, odosielanie správ a skutočné prihlasovanie treba pripojiť pred publikovaním. Šablóna neposiela dáta do externých služieb.\n'),
     file('src/main.tsx', 'import { StrictMode } from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App";\nimport "./index.css";\ncreateRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);\n'),
     file('src/index.css', templateTheme),
     file('src/App.tsx', app), file('src/data.ts', data), file('src/types.ts', types),
-    file('src/brand.ts', 'export const brand = { name: "Forge Starter" };\n'),
+    file('src/brand.ts', 'export const brand = { name: "VORKEI Starter" };\n'),
     file('src/components/Header.tsx', 'import { brand } from "../brand";\nexport function Header({section}:{section:string}) {return <header className="app-header"><b>{brand.name}</b><span className="badge">{section}</span></header>;}\n'),
     file('src/components/EmptyState.tsx', 'export function EmptyState({title,detail}:{title:string;detail:string}) {return <div className="empty" role="status"><h3>{title}</h3><p>{detail}</p></div>;}\n'),
   ] };
@@ -41,7 +41,7 @@ export function brandBlueprint(blueprint: Blueprint, brand: BlueprintBrand): Blu
   return { ...blueprint, files: blueprint.files.map(item => {
     if (item.path === 'src/brand.ts') return { ...item, content: 'export const brand = ' + JSON.stringify({ name }) + ';\n' };
     if (item.path === 'src/index.css') return { ...item, content: item.content + '\n:root{--brand:' + color + ';--brand-text:' + brandText + ';--on-brand:' + onBrand + '}\n' };
-    if (item.path === 'index.html') return { ...item, content: item.content.replace('<title>Forge Starter</title>', '<title>' + escape(name) + '</title>') };
+    if (item.path === 'index.html') return { ...item, content: item.content.replace('<title>VORKEI Starter</title>', '<title>' + escape(name) + '</title>') };
     return { ...item };
   }) };
 }

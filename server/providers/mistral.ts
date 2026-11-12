@@ -6,21 +6,35 @@ import { safeModel, validUsage } from '../usage/validation';
 
 export interface MistralConfig {
   apiKey: string;
-  model: string;
+  /** Chat-completions model; optional when agentId is used instead. */
+  model?: string;
+  /** Mistral Agents (console.mistral.ai) — agent id "ag:…". Volanie cez /v1/agents/completions. */
+  agentId?: string;
   baseUrl?: string;
   timeoutMs?: number;
 }
 
+/** Agent id z Mistral Console: "ag:" + UUID hex s pomlčkami. */
+export const MISTRAL_AGENT_ID_PATTERN = /^ag:[0-9a-fA-F-]{8,64}$/;
+
 export class MistralProvider implements AIProvider {
   readonly name = 'mistral';
   readonly model: string;
+  private readonly agentId?: string;
   private readonly cfg: Required<Pick<MistralConfig, 'apiKey' | 'model' | 'baseUrl' | 'timeoutMs'>>;
 
   constructor(cfg: MistralConfig, private transport: ProviderTransport) {
-    this.model = cfg.model;
+    if (cfg.agentId) {
+      if (!MISTRAL_AGENT_ID_PATTERN.test(cfg.agentId)) throw new Error('invalid_mistral_agent_id');
+      this.agentId = cfg.agentId;
+      this.model = cfg.agentId;
+    } else {
+      if (!cfg.model) throw new Error('invalid_provider_configuration');
+      this.model = cfg.model;
+    }
     this.cfg = {
       apiKey: cfg.apiKey,
-      model: cfg.model,
+      model: this.model,
       baseUrl: cfg.baseUrl ?? 'https://api.mistral.ai/v1',
       timeoutMs: cfg.timeoutMs ?? 120_000,
     };
@@ -28,7 +42,8 @@ export class MistralProvider implements AIProvider {
 
   private body(messages: ChatMessage[], opts: { maxTokens?: number; temperature?: number; stream: boolean }) {
     return {
-      model: this.cfg.model,
+      // Agents completion: agent_id určuje model na strane Mistralu; model saposiela len pri chat-completions.
+      ...(this.agentId ? { agent_id: this.agentId } : { model: this.cfg.model }),
       messages: messages.map(m => ({ role: m.role, content: m.content })),
       max_tokens: opts.maxTokens ?? 4096,
       temperature: opts.temperature ?? 0.2,

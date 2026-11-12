@@ -335,17 +335,22 @@ export function createApp(
     clientSignal.addEventListener('abort', onAbort, { once: true });
     if (clientSignal.aborted) onAbort();
     const timeout = setTimeout(() => abortController.abort(new ProviderError('timeout')), cfg.requestTimeoutMs ?? 120_000);
-    const cleanup = () => { clearTimeout(timeout); clientSignal.removeEventListener('abort', onAbort); };
+    let keepAlive: ReturnType<typeof setInterval> | undefined;
+    const cleanup = () => { if (keepAlive !== undefined) clearInterval(keepAlive); clearTimeout(timeout); clientSignal.removeEventListener('abort', onAbort); };
     let outputClosed = false;
     c.header('Content-Type', 'text/event-stream');
     c.header('Cache-Control', 'no-store');
     c.header('X-Accel-Buffering', 'no');
+    const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         let finished = false;
         const send = (event: unknown) => {
-          if (!outputClosed) controller.enqueue(new TextEncoder().encode(`data: ${redactSecrets(JSON.stringify(event))}\n\n`));
+          if (!outputClosed) controller.enqueue(encoder.encode(`data: ${redactSecrets(JSON.stringify(event))}\n\n`));
         };
+        /* Keep-alive: SSE komentár každých 15s, aby proxy nezahodila idle spojenie
+           pred koncom 120s AI timeoutu. Frontend parser (ai/client.ts) záznamy bez data: riadka ignoruje. */
+        keepAlive = setInterval(() => { if (!outputClosed) controller.enqueue(encoder.encode(': ping\n\n')); }, 15_000);
         providerUpdate = event => { const checked=AgentEventSchema.safeParse(event); if(checked.success) send(checked.data); };
         try {
           const intentPromptVersion = cfg.intentPolicyFile && authUser && input.request.mode === 'auto'

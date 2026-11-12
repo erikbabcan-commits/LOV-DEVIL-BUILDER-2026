@@ -102,7 +102,7 @@ export async function createProjectZip(
       .toLowerCase()
       .replace(/[^a-z0-9_-]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 80) || "forge-projekt";
+      .slice(0, 80) || "vorkei-projekt";
   return {
     bytes,
     filename: `${slug}${version ? "-v" + version : ""}.zip`,

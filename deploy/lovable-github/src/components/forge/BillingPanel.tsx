@@ -221,7 +221,7 @@ export function BillingPanel({
       ) : report ? (
         <>
           <p className="font-medium">
-            {report.plan === "pro" ? "Forge Pro" : "Forge Free"} ·{" "}
+            {report.plan === "pro" ? "VORKEI Pro" : "VORKEI Free"} ·{" "}
             {report.plan === "pro" ? 200 : 10} AI úloh mesačne
           </p>
           {report.subscription && (

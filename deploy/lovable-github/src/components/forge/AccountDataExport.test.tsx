@@ -46,13 +46,13 @@ it("downloads each page on demand and retries the same cursor after failure", as
   fireEvent.change(screen.getByRole("combobox"), { target: { value: "projects" } });
   fireEvent.click(screen.getByRole("button", { name: "Stiahnuť JSON" }));
   const next = await screen.findByRole("button", { name: "Stiahnuť ďalšiu časť" });
-  expect(filenames).toEqual(["forge-projects-1.json"]);
+  expect(filenames).toEqual(["vorkei-projects-1.json"]);
   fireEvent.click(next);
   expect(await screen.findByRole("alert")).toHaveTextContent("Údaje sa nepodarilo stiahnuť.");
-  expect(filenames).toEqual(["forge-projects-1.json"]);
+  expect(filenames).toEqual(["vorkei-projects-1.json"]);
   fireEvent.click(screen.getByRole("button", { name: "Stiahnuť ďalšiu časť" }));
   expect(await screen.findByRole("status")).toHaveTextContent("Posledná časť");
-  expect(filenames).toEqual(["forge-projects-1.json", "forge-projects-2.json"]);
+  expect(filenames).toEqual(["vorkei-projects-1.json", "vorkei-projects-2.json"]);
   expect(request.mock.calls.map(([path]) => path)).toEqual([
     "account/export/projects",
     "account/export/projects/cHJvamVjdA",

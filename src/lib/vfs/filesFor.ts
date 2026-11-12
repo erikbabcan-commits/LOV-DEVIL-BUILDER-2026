@@ -15,7 +15,7 @@ export function filesFor(snap: SnapshotForVfs): VfsFile[] {
     { name: 'index.html', content: indexHtml.trim(), modified: false },
     { name: 'styles.css', content: css ? cssHeader + css : '/* žiadne štýly */', modified: false },
     { name: 'app.js', content: js ? jsHeader + js : '// žiadna logika', modified: false },
-    { name: 'README.md', content: '# ' + snap.prompt.slice(0, 60) + '\n\nVygenerované vo Forge AI Builder · v' + snap.v + ' · ' + snap.time + '\nSúbory: index.html, styles.css, app.js — edituj v záložke Súbory.', modified: false },
+    { name: 'README.md', content: '# ' + snap.prompt.slice(0, 60) + '\n\nVygenerované vo VORKEI AI Builder · v' + snap.v + ' · ' + snap.time + '\nSúbory: index.html, styles.css, app.js — edituj v záložke Súbory.', modified: false },
   ];
 }
 
