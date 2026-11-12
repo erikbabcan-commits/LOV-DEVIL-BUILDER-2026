@@ -42,7 +42,7 @@ export function LoginScreen({ onAuthenticated }: Props) {
   return (
     <div className="auth-gate" role="main" aria-label="Prihlásenie">
       <form className="auth-card" onSubmit={submit} aria-labelledby="authTitle">
-        <b className="auth-brand">Forge<i>.</i></b>
+        <b className="auth-brand">VORKEI<i>.</i></b>
         <h1 id="authTitle">{mode === 'login' ? 'Prihlásenie' : 'Registrácia'}</h1>
         <p className="auth-sub">
           {mode === 'login'

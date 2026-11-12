@@ -82,7 +82,7 @@ export function GitHubCallback() {
           </p>
         )}
         <a href="/" className="block text-sm text-primary underline underline-offset-4">
-          Späť do Forge
+          Späť do VORKEI
         </a>
       </section>
     </main>

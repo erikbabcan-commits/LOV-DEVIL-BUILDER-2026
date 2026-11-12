@@ -15,7 +15,7 @@ function ChatMessage({ m }: { m: ReturnType<typeof useStore.getState>['messages'
   const isUser = m.role === 'user';
   return (
     <div className="msg" data-mid={m.id}>
-      <div className={'avatar ' + m.role}>{isUser ? 'YH' : 'F'}</div>
+      <div className={'avatar ' + m.role}>{isUser ? 'YH' : 'V'}</div>
       <div className="bubble">
         {m.plan && (
           <div className="plan">
@@ -107,7 +107,7 @@ export function Workspace() {
         <div className="chat-scroll" id="chatScroll" ref={scrollRef}>
           {st.messages.length === 0 && (
             <div className="empty-chat">
-              <div className="ec-badge">F</div>
+              <div className="ec-badge">V</div>
               <p>Popíš zmenu alebo sa opýtaj na projekt. Návrhy súborov skontroluješ pred použitím.</p>
             </div>
           )}

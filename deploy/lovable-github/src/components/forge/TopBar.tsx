@@ -42,12 +42,12 @@ export function TopBar({
       <button
         onClick={() => setView("Domov")}
         className="flex shrink-0 items-center gap-1.5 rounded-lg px-1"
-        aria-label="Forge – domov"
+        aria-label="VORKEI – domov"
       >
         <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
           <Hammer className="h-4 w-4" />
         </span>
-        <span className="hidden font-semibold sm:inline">Forge</span>
+        <span className="hidden font-semibold sm:inline">VORKEI</span>
       </button>
       <span className="hidden h-5 w-px bg-border sm:block" />
       <div className="flex min-w-0 flex-1 items-center gap-1 sm:flex-none">

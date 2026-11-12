@@ -148,7 +148,7 @@ export function GitHubExport({
       if (current.current !== token || sequence.current !== run) return;
       setProject(data);
       setSnapshot(data.workspace.snapshots.at(-1)?.id ?? "");
-      setRepoName("forge-" + crypto.randomUUID().slice(0, 8));
+      setRepoName("vorkei-" + crypto.randomUUID().slice(0, 8));
     });
   }
   async function prepare() {
@@ -438,7 +438,7 @@ export function GitHubExport({
                   setReview(null);
                   setAgreed(false);
                   request.current = null;
-                  setRepoName("forge-" + crypto.randomUUID().slice(0, 8));
+                  setRepoName("vorkei-" + crypto.randomUUID().slice(0, 8));
                 }}
               >
                 Nový export

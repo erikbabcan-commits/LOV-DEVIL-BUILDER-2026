@@ -298,7 +298,7 @@ function BillingSession({
       ) : status ? (
         <>
           <p className="billing-plan">
-            <b>{status.plan === "pro" ? "Forge Pro" : "Forge Free"}</b>
+            <b>{status.plan === "pro" ? "VORKEI Pro" : "VORKEI Free"}</b>
             <span>{status.plan === "pro" ? "200" : "10"} AI úloh mesačne</span>
           </p>
           {status.subscription && (

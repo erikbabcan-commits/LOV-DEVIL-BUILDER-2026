@@ -96,7 +96,7 @@ export function AccountDataExport({
         (data.nextCursor !== null && (!data.records.length || data.nextCursor === page.cursor))
       )
         throw new Error("invalid_account_export");
-      if (data.records.length) downloadPage(text, `forge-${section}-${page.number}.json`);
+      if (data.records.length) downloadPage(text, `vorkei-${section}-${page.number}.json`);
       setStatus(
         data.nextCursor
           ? `Časť ${page.number} je pripravená. Dostupná je aj ďalšia časť.`
@@ -122,7 +122,7 @@ export function AccountDataExport({
   return (
     <details className="mt-3 rounded-lg border border-border p-3 text-[12px]">
       <summary className="cursor-pointer font-medium">Údaje účtu</summary>
-      <p className="mt-2 text-muted-foreground">Stiahni údaje uložené vo Forge vo formáte JSON.</p>
+      <p className="mt-2 text-muted-foreground">Stiahni údaje uložené vo VORKEI vo formáte JSON.</p>
       <label className="mt-3 block">
         Časť exportu
         <select

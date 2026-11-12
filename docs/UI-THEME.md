@@ -1,4 +1,4 @@
-# Forge dark theme
+# VORKEI dark theme
 
 The active React application uses an exact `#171717` base. This change targets
 the app shell, navigation, landing page, chat, workspace and editor, not the
@@ -16,10 +16,10 @@ There is currently no light/dark toggle in the active React UI.
 | Primary text | `--text-primary` | `#F5F5F5` |
 | Secondary text | `--text-secondary` | `#C6C6C6` |
 | Muted text / placeholders | `--text-muted` | `#A3A3A3` |
-| Button fill / hover / active | `--accent-primary` / `--accent-hover` / `--accent-active` | `#2563EB` / `#1D4ED8` / `#1E40AF` |
-| Small accent text | `--accent-text` | `#60A5FA` |
+| Button fill / hover / active | `--accent-primary` / `--accent-hover` / `--accent-active` | `#15803D` / `#166534` / `#14532D` |
+| Small accent text | `--accent-text` | `#4ADE80` |
 | Button labels | `--text-on-accent` | `#FFFFFF` |
-| Keyboard focus | `--focus-ring` | `#BFDBFE` |
+| Keyboard focus | `--focus-ring` | `#BBF7D0` |
 | Essential control boundaries | `--border-control` | `#858585` |
 | Decorative separators | `--border` | `#404040` |
 | Error text | `--danger-text` | `#FDA4AF` |
@@ -35,13 +35,13 @@ Normal text targets at least 4.5:1; focus and essential control boundaries targe
 at least 3:1. Selected measured ratios:
 
 - Muted text on the brightest neutral surface: 4.648:1.
-- Accent text on that surface: 4.612:1.
-- White labels on primary blue / hover blue: 5.169:1 / 6.702:1.
+- Accent text on that surface: 6.729:1.
+- White labels on primary green / hover green: 5.016:1 / 7.130:1.
 - Control boundary on the brightest neutral surface: 3.178:1.
-- Focus ring against primary blue: 3.637:1.
+- Focus ring against primary green: 4.139:1.
 
 Do not reduce text opacity on these surfaces. The muted and accent text pairs
-have limited headroom on the hover surface. Snapshot version labels use an
+have limited headroom on the hover surface (muted text only; green accent text has ample margin). Snapshot version labels use an
 opaque dark badge so arbitrary thumbnail gradients cannot reduce their contrast.
 
 The shell includes visible keyboard focus (inset in clipped scroll containers),

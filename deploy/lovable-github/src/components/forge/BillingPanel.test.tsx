@@ -99,7 +99,7 @@ describe("Cloud billing bound to the verified Hono owner", () => {
       ),
     );
     panel();
-    expect(await screen.findByText(/Forge Pro · 200/)).toBeInTheDocument();
+    expect(await screen.findByText(/VORKEI Pro · 200/)).toBeInTheDocument();
     expect(screen.getByText(/Platby ešte nie sú spustené/)).toBeInTheDocument();
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(posts()).toHaveLength(0);
@@ -131,7 +131,7 @@ describe("Cloud billing bound to the verified Hono owner", () => {
       sessionStorage.getItem("forge-billing-checkout:v1:cloud-alice:internal-alice:sandbox")!,
     );
     expect(saved).toEqual({ version: 1, ...posts()[0]![1]!.body });
-    expect(screen.getByText(/Forge Free · 10/)).toBeInTheDocument();
+    expect(screen.getByText(/VORKEI Free · 10/)).toBeInTheDocument();
   });
   it("labels live mode explicitly and keeps sandbox receipts separate", async () => {
     const old = checkoutReceipt(scope(), "sandbox", "month");
@@ -176,7 +176,7 @@ describe("Cloud billing bound to the verified Hono owner", () => {
     mocks.request.mockResolvedValue(Response.json(report({ userId: "cloud-alice" })));
     panel();
     expect(await screen.findByRole("alert")).toHaveTextContent("neprešla overením");
-    expect(screen.queryByText(/Forge Free/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/VORKEI Free/)).not.toBeInTheDocument();
     expect(posts()).toHaveLength(0);
   });
   it("drops an Alice checkout response after switching to Bob", async () => {

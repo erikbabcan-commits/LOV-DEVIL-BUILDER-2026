@@ -1,5 +1,5 @@
 import {contextGuardedProvider,DEFAULT_CONTEXT_WINDOW} from './contextBudget';
-import {MistralProvider} from './mistral';
+import {MistralProvider,MISTRAL_AGENT_ID_PATTERN} from './mistral';
 import {OpenAIProvider} from './openai';
 import {AnthropicProvider} from './anthropic';
 import {makeProviderTransport,readJson,record} from './http';
@@ -9,8 +9,9 @@ type ProviderEnv = Readonly<Record<string, string | undefined>>;
 const MISTRAL_BASE = 'https://api.mistral.ai/v1';
 const MISTRAL_BASES = new Set([MISTRAL_BASE, 'https://api.eu.mistral.ai/v1', 'https://api.us.mistral.ai/v1']);
 const MISTRAL_CHOICES = [
-  { id: 'mistral-medium-2604', label: 'Mistral Medium' },
-  { id: 'mistral-small-2603', label: 'Mistral Small' },
+  { id: 'codestral', model: 'codestral-latest', label: 'Codestral (kód a aplikácie)' },
+  { id: 'mistral-large', model: 'mistral-large-latest', label: 'Mistral Large (architektúra a logika)' },
+  { id: 'mistral-small', model: 'mistral-small-latest', label: 'Mistral Small (rýchle úpravy)' },
 ] as const;
 type MistralChoice = (typeof MISTRAL_CHOICES)[number] & { window: number };
 
@@ -28,17 +29,23 @@ function buildRegistry(env:ProviderEnv, fetcher:typeof fetch, mistralChoices: re
     if(flag!==undefined&&!['0','1'].includes(flag))throw new Error('invalid_provider_configuration');
     if(vendor==='mistral'?flag==='0':flag!=='1')continue;
     const prefix=vendor.toUpperCase(),key=env[prefix+'_API_KEY'],model=env[prefix+'_MODEL']??(vendor==='mistral'?'mistral-large-latest':undefined);
+    const agentId=vendor==='mistral'?env.MISTRAL_AGENT_ID:undefined;
     if(!key){if(flag==='1')throw new Error('invalid_provider_configuration');continue;}
-    if(!model||!safeModel(model)||/\s/.test(key))throw new Error('invalid_provider_configuration');
+    if(agentId!==undefined&&!MISTRAL_AGENT_ID_PATTERN.test(agentId))throw new Error('invalid_provider_configuration');
+    if(!agentId&&!model||model!==undefined&&!safeModel(model)||/\s/.test(key))throw new Error('invalid_provider_configuration');
     const base=env[prefix+'_BASE_URL']??({mistral:MISTRAL_BASE,openai:'https://api.openai.com/v1',anthropic:'https://api.anthropic.com/v1'}[vendor]);
-    const path={mistral:'/chat/completions',openai:'/responses',anthropic:'/messages'}[vendor];
+    const path=vendor==='mistral'?(agentId?'/agents/completions':'/chat/completions'):{openai:'/responses',anthropic:'/messages'}[vendor as 'openai'|'anthropic'];
     const transport=makeProviderTransport({apiKey:key,url:base.replace(/\/$/,'')+path,timeoutMs:timeout,...(vendor==='anthropic'?{headers:{'anthropic-version':'2026-10-21'}}:{})},fetcher);
-    const provider=vendor==='mistral'?new MistralProvider({apiKey:key,model},transport):vendor==='openai'?new OpenAIProvider(model,transport):new AnthropicProvider(model,transport);
+    const provider=vendor==='mistral'?new MistralProvider({apiKey:key,model,agentId},transport):vendor==='openai'?new OpenAIProvider(model as string,transport):new AnthropicProvider(model as string,transport);
     const window=env[prefix+'_CONTEXT_WINDOW_TOKENS']===undefined?DEFAULT_CONTEXT_WINDOW:Number(env[prefix+'_CONTEXT_WINDOW_TOKENS']);
-    entries.push({id:vendor,label:'AI ('+({mistral:'Mistral',openai:'OpenAI',anthropic:'Claude'}[vendor])+')',provider:contextGuardedProvider(provider,window)});
+    entries.push({id:vendor,label:'AI ('+({mistral:agentId?'Mistral Agent':'Mistral',openai:'OpenAI',anthropic:'Claude'}[vendor])+')',provider:contextGuardedProvider(provider,window)});
     if (vendor === 'mistral') {
+      // Extra picker entries vždy idú cez chat/completions, aj keď primárny vstup ide cez Mistral Agenta.
+      const chatTransport = agentId
+        ? makeProviderTransport({ apiKey: key, url: base.replace(/\/$/, '') + '/chat/completions', timeoutMs: timeout }, fetcher)
+        : transport;
       for (const choice of mistralChoices) {
-        const extra = new MistralProvider({ apiKey: key, model: choice.id }, transport);
+        const extra = new MistralProvider({ apiKey: key, model: choice.model }, chatTransport);
         extraEntries.push({ id: choice.id, label: choice.label, provider: contextGuardedProvider(extra, Math.min(window, choice.window)) });
       }
     }
@@ -71,9 +78,10 @@ export async function configuredProvidersWithMistralCatalog(env: ProviderEnv, fe
     if (!Array.isArray(data)) return baseline;
     const cards = data.map(record);
     choices = MISTRAL_CHOICES.flatMap(choice => {
-      const card = cards.find(entry => entry.id === choice.id);
+      // Katalóg môže uvádzať verziu (napr. codestral-2508) — matchujeme presné id aj aliasy.
+      const card = cards.find(entry => entry.id === choice.model || (Array.isArray(entry.aliases) && entry.aliases.includes(choice.model)));
       if (!card || card.archived === true || record(card.capabilities).completion_chat !== true ||
-          primary.model === choice.id || (Array.isArray(card.aliases) && card.aliases.includes(primary.model))) return [];
+          primary.model === choice.model || (Array.isArray(card.aliases) && card.aliases.includes(primary.model))) return [];
       const window = card.max_context_length;
       if (typeof window !== 'number' || !Number.isInteger(window) || window < 8192) return [];
       return [{ ...choice, window }];

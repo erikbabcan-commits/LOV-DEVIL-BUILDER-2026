@@ -126,7 +126,7 @@ export function EditorDashboard() {
           </div>
         </div>
         <div className="ed-build">
-          <b>Forge Pro</b>
+          <b>VORKEI Pro</b>
           <p>Odomyká private projekty, viac modelov a rýchlejšie buildy.</p>
           <button id="edUpgrade" onClick={() => st.toast('Upgrade — demo (M1)', 'warn')}>Upgrade to Pro</button>
         </div>
