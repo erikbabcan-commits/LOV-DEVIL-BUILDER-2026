@@ -5,6 +5,7 @@ import {AnthropicProvider} from './anthropic';
 import {makeProviderTransport,readJson,record} from './http';
 import {ProviderRegistry,type ModelEntry} from './registry';
 import {safeModel} from '../usage/validation';
+import {MAX_AI_MODELS} from '../../shared/aiModels';
 type ProviderEnv = Readonly<Record<string, string | undefined>>;
 const MISTRAL_BASE = 'https://api.mistral.ai/v1';
 const MISTRAL_BASES = new Set([MISTRAL_BASE, 'https://api.eu.mistral.ai/v1', 'https://api.us.mistral.ai/v1']);
@@ -12,6 +13,11 @@ const MISTRAL_CHOICES = [
   { id: 'codestral', model: 'codestral-latest', label: 'Codestral (kód a aplikácie)' },
   { id: 'mistral-large', model: 'mistral-large-latest', label: 'Mistral Large (architektúra a logika)' },
   { id: 'mistral-small', model: 'mistral-small-latest', label: 'Mistral Small (rýchle úpravy)' },
+  { id: 'mistral-medium', model: 'mistral-medium-latest', label: 'Mistral Medium' },
+  { id: 'ministral-14b', model: 'ministral-14b-latest', label: 'Ministral 14B' },
+  { id: 'ministral-8b', model: 'ministral-8b-latest', label: 'Ministral 8B' },
+  { id: 'ministral-3b', model: 'ministral-3b-latest', label: 'Ministral 3B' },
+  { id: 'devstral', model: 'devstral-latest', label: 'Devstral (kód a aplikácie)' },
 ] as const;
 type MistralChoice = (typeof MISTRAL_CHOICES)[number] & { window: number };
 
@@ -38,7 +44,7 @@ function buildRegistry(env:ProviderEnv, fetcher:typeof fetch, mistralChoices: re
     const transport=makeProviderTransport({apiKey:key,url:base.replace(/\/$/,'')+path,timeoutMs:timeout,...(vendor==='anthropic'?{headers:{'anthropic-version':'2026-10-21'}}:{})},fetcher);
     const provider=vendor==='mistral'?new MistralProvider({apiKey:key,model,agentId},transport):vendor==='openai'?new OpenAIProvider(model as string,transport):new AnthropicProvider(model as string,transport);
     const window=env[prefix+'_CONTEXT_WINDOW_TOKENS']===undefined?DEFAULT_CONTEXT_WINDOW:Number(env[prefix+'_CONTEXT_WINDOW_TOKENS']);
-    entries.push({id:vendor,label:'AI ('+({mistral:agentId?'Mistral Agent':'Mistral',openai:'OpenAI',anthropic:'Claude'}[vendor])+')',provider:contextGuardedProvider(provider,window)});
+    entries.push({id:vendor,label:vendor==='mistral'&&!agentId ? `Mistral · ${model}` : 'AI ('+({mistral:agentId?'Mistral Agent':'Mistral',openai:'OpenAI',anthropic:'Claude'}[vendor])+')',provider:contextGuardedProvider(provider,window)});
     if (vendor === 'mistral') {
       // Extra picker entries vždy idú cez chat/completions, aj keď primárny vstup ide cez Mistral Agenta.
       const chatTransport = agentId
@@ -61,7 +67,7 @@ export async function configuredProvidersWithMistralCatalog(env: ProviderEnv, fe
   const { models } = baseline.catalog();
   const primary = models.find(model => model.id === 'mistral');
   const base = (env.MISTRAL_BASE_URL ?? MISTRAL_BASE).replace(/\/$/, '');
-  const availableSlots = 3 - models.length;
+  const availableSlots = MAX_AI_MODELS - models.length;
   if (!primary || !availableSlots || !MISTRAL_BASES.has(base)) return baseline;
   let choices: MistralChoice[];
   try {

@@ -23,7 +23,7 @@ export const AiModelsSchema = z
           fallbackIds: z.array(z.string()).max(2),
         }),
       )
-      .max(3),
+      .max(12),
   })
   .refine(
     (data) =>

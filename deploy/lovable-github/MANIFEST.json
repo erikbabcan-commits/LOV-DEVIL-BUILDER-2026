@@ -53,7 +53,7 @@
     "src/lib/forge-drafts.ts": "879b4791111d33a36c5bd6b7b44a200470f8f913733a60c371e956e360b6fec2",
     "src/lib/forge-events.ts": "8505f5bd946ad79d5b96a78e2aa32d54a61b7f8639144da69edd3fc4108f6fb8",
     "src/lib/forge-manual.test.ts": "e2a068cee20eeada0966813ed839483890d159ab37f46f33064eeae765e2ce2c",
-    "src/lib/forge-models.ts": "49f2f236e208331a92114131591129201e1ca6c9bf940ec42a052a539321662d",
+    "src/lib/forge-models.ts": "e602e47bad8c8d616807c642ffa56418fb13252c009d110ac468016078d997e4",
     "src/lib/forge-workspace.ts": "43ec07c9d118612968253fc7c75561eadce5aae2ffdf61fa2420ec39ffea18bc",
     "src/lib/forge-zip.test.ts": "006010cf50878c9d7df25fe6abdc35349ebc2f05ba6aca5ad496c7e04cbf2142",
     "src/lib/forge-zip.ts": "8cafd15400e3b9c857e79bd1d5be5d53a01ef6450105449ea0ad8e770ca68c74",

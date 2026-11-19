@@ -1,5 +1,5 @@
 import type {AIProvider} from './types';
-import {AiModelsSchema,type AiModels} from '../../shared/aiModels';
+import {AiModelsSchema,MAX_AI_MODELS,type AiModels} from '../../shared/aiModels';
 import {safeModel} from '../usage/validation';
 export interface ModelEntry {id:string;label:string;provider:AIProvider}
 export class ProviderRegistry{
@@ -7,7 +7,7 @@ export class ProviderRegistry{
   private readonly fallbacks:readonly string[];
   constructor(entries:ModelEntry[],fallbacks:readonly string[]=[]){
     this.fallbacks=Object.freeze([...fallbacks]);
-    if(entries.length>3||new Set(entries.map(e=>e.id)).size!==entries.length||fallbacks.length>2||new Set(fallbacks).size!==fallbacks.length||fallbacks.some(id=>!entries.some(e=>e.id===id)))throw new Error('invalid_provider_configuration');
+    if(entries.length>MAX_AI_MODELS||new Set(entries.map(e=>e.id)).size!==entries.length||fallbacks.length>2||new Set(fallbacks).size!==fallbacks.length||fallbacks.some(id=>!entries.some(e=>e.id===id)))throw new Error('invalid_provider_configuration');
     this.entries=entries.map(entry=>{
       if(!safeModel(entry.provider.name)||!safeModel(entry.provider.model)||!/^[-\w]{1,40}$/.test(entry.id)||!entry.label||entry.label.length>180)throw new Error('invalid_provider_configuration');
       return Object.freeze({...entry});

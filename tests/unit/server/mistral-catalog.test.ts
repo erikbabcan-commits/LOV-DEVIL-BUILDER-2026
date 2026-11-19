@@ -79,15 +79,17 @@ describe('verified Mistral model picker', () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it('respects the existing three-slot catalog and explicit defaults', async () => {
+  it('keeps explicit defaults alongside additional models visible to the key', async () => {
     const fetcher = vi.fn<typeof fetch>(async () => Response.json({
-      data: [card('codestral-latest'), card('mistral-small-latest')],
+      data: [card('codestral-latest'), card('mistral-small-latest'), card('mistral-medium-3-5', true, ['mistral-medium-latest']), card('ministral-14b-latest')],
     }));
     const providers = await configuredProvidersWithMistralCatalog({
       ...env, AI_OPENAI_ENABLED: '1', OPENAI_API_KEY: 'openai-test', OPENAI_MODEL: 'openai-test-model',
       AI_DEFAULT_MODEL: 'openai',
     }, fetcher);
     expect(providers.catalog().defaultId).toBe('openai');
-    expect(providers.catalog().models.map(model => model.id)).toEqual(['openai', 'mistral', 'codestral']);
+    expect(providers.catalog().models.map(model => model.id)).toEqual([
+      'openai', 'mistral', 'codestral', 'mistral-small', 'mistral-medium', 'ministral-14b',
+    ]);
   });
 });
