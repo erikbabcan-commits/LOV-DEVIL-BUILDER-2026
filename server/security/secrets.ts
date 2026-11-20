@@ -19,7 +19,7 @@ const redactOnlyPatterns = [
   /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
   /\brk_(?:live|test)_[A-Za-z0-9]{16,}\b/g,
   /\bwhsec_[A-Za-z0-9+/=_-]{16,}/g,
-  /\bBearer\s+[A-Za-z0-9._~+/-]{16,}=*/g,
+  /\bBearer\s+[A-Za-z0-9._~+/-]{16,}=*/gi,
 ];
 
 export function containsPotentialSecret(value: string): boolean {
