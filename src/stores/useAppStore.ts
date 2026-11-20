@@ -2,6 +2,7 @@ import {applyFileOperations} from '../lib/projectChanges';
 import {requestBuildRepair} from '../services/ai/buildRepair';
 import {ConversationSchema,type ConversationTurn} from '../../shared/conversation';
 import { apiHeaders } from '../lib/csrf';
+import { apiUrl } from '../lib/api';
 import { create } from 'zustand';
 import { uid, now, dbg } from '../lib/utils';
 import { buildSaas, buildKanban, buildSettings, buildDashboard, detectKind, KIND_INFO, SNIPPETS, AppKind } from '../lib/templates';
@@ -10,7 +11,8 @@ import type { AgentEvent, GeneratedFile, Plan } from '../services/ai/types';
 import { streamAgentEvents, AiNotConfiguredError, AiRequestError, NetworkError } from '../services/ai/client';
 import { restoreWorkspace, scheduleAutosave, persistProjectState, persistRun, nextRevision } from '../services/persistence/projectStore';
 import type { StoredSnapshot } from '../services/persistence/db';
-import { persistenceScope } from '../services/persistence/db';
+import { persistenceScope, saveMeta, loadMeta } from '../services/persistence/db';
+import { getAgentJob } from '../services/ai/jobs';
 import { prepareVfsForExport } from '../services/export/zipExport';
 import { createProjectZip, downloadProjectZip } from '../services/export/projectZip';
 import { inspectProjectSources } from '../services/export/projectZip';
@@ -152,6 +154,7 @@ export interface AppState {
   aiAbort: AbortController | null;
   pendingReview: PendingReview | null;
   generateWithAi: (prompt: string, mode: 'create' | 'iterate' | 'fix' | 'explain' | 'auto') => Promise<void>;
+  resumeAgentJob: () => Promise<void>;
   cancelAiRun: () => void;
   approveStagedRun: () => boolean;
   rejectStagedRun: () => void;
@@ -552,7 +555,8 @@ export const useStore = create<AppState>((set, get) => ({
           return;
         }
         events.push(ev);
-        if (ev.type === 'run_started') set({ aiConnected: true });
+        if (ev.type === 'run_started') { set({ aiConnected: true }); void saveMeta('activeAgentJob', { id: ev.runId, prompt: text }); }
+        if (ev.type === 'done' || ev.type === 'error' || ev.type === 'cancelled') void saveMeta('activeAgentJob', null);
         if(ev.type==='intent_selected'){
           resolvedIntent=ev.intent;
           get().log('› Zámer: '+({create:'nová aplikácia',iterate:'úprava',fix:'oprava',explain:'odpoveď bez zmien'}[ev.intent]),'info');
@@ -632,7 +636,64 @@ export const useStore = create<AppState>((set, get) => ({
       }
       get().updateMsg(planMsg.id, { text: answerText?answerText+'\n\nOdpoveď sa prerušila a zostala neúplná. Súbory sa nemenili.':e instanceof AiRequestError || e instanceof AiNotConfiguredError || e instanceof NetworkError ? e.message : abort.signal.aborted ? 'AI generovanie bolo zrušené.' : 'AI úlohu sa nepodarilo dokončiť. Lokálna práca zostala zachovaná.', done: true });
     } finally {
-      if (get().aiAbort === abort) {set({ generating: false, aiAbort: null });void get().persistNow();}
+      if (get().aiAbort === abort) {set({ generating: false, aiAbort: null });void get().persistNow();void saveMeta('activeAgentJob', null);}
+    }
+  },
+
+  /* #75 step 3: resume a durable agent job after a page reload — the server-side
+     job row is the source of truth, SSE was only a live view. */
+  resumeAgentJob: async () => {
+    const st = get();
+    if (st.generating) return;
+    let active: { id: string; prompt: string } | null = null;
+    try { active = await loadMeta('activeAgentJob'); } catch { return; }
+    if (!active?.id) return;
+    const abort = new AbortController();
+    set({ generating: true, aiAbort: abort });
+    const planMsg = get().addMsg('assistant', '', {});
+    get().updateMsg(planMsg.id, { text: 'Obnovujem prebiehajúcu AI úlohu…' });
+    let answerText = '';
+    let seen = 0;
+    try {
+      for (let poll = 0; ; poll++) {
+        if (poll > 60) { // ~3 min: server-side request timeout is shorter; stop waiting
+          get().updateMsg(planMsg.id, { text: 'AI úloha na serveri neodpovedá. Skús spustiť nový run.', done: true });
+          void saveMeta('activeAgentJob', null);
+          break;
+        }
+        const job = await getAgentJob(active.id, abort.signal);
+        for (const ev of job.events.slice(seen)) {
+          seen++;
+          if (get().aiAbort !== abort || abort.signal.aborted) return;
+          if (ev.type === 'text_delta') { answerText += ev.delta; get().updateMsg(planMsg.id, { text: answerText }); }
+          if (ev.type === 'plan') get().updateMsg(planMsg.id, { text: '', plan: ev.plan.steps.map(x => ({ label: x.title, state: 'done' as const })), planTitle: 'AI plán', model: ev.plan.summary });
+          if (ev.type === 'error') get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + 'AI úlohu sa nepodarilo dokončiť. Projekt zostal zachovaný.', done: true });
+          if (ev.type === 'cancelled') get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + 'AI úloha bola zastavená.', done: true });
+        }
+        if (job.state !== 'queued' && job.state !== 'running') {
+          const stage = job.events.find(e => e.type === 'stage');
+          const doneEv = job.events.find(e => e.type === 'done');
+          if (doneEv && stage && stage.type === 'stage') {
+            const base = captureReviewBase(get());
+            set({ pendingReview: { messageId: planMsg.id, runId: job.id, prompt: active.prompt, files: stage.files.map(f => ({ ...f })), base, ...(stage.editMode === 'patch' ? { source: 'patch' as const, summary: stage.summary } : {}) } });
+            get().updateMsg(planMsg.id, { text: `Súbory čakajúce na schválenie: ${stage.files.length}. Žiadne zmeny sa zatiaľ neaplikovali.`, reviewPending: true, done: true });
+            get().toast('AI zmeny pripravené na kontrolu', 'warn');
+          } else if (!job.events.some(e => e.type === 'error' || e.type === 'cancelled')) {
+            get().updateMsg(planMsg.id, { text: answerText || 'AI úloha skončila.', done: true });
+          }
+          void saveMeta('activeAgentJob', null);
+          break;
+        }
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    } catch {
+      if (get().aiAbort === abort) {
+        get().updateMsg(planMsg.id, { text: 'Stav AI úlohy sa nepodarilo načítať. Skús spustiť nový run.', done: true });
+        get().toast('Stav AI úlohy sa nepodarilo načítať', 'warn');
+      }
+      void saveMeta('activeAgentJob', null);
+    } finally {
+      if (get().aiAbort === abort) { set({ generating: false, aiAbort: null }); void get().persistNow(); }
     }
   },
 
@@ -811,11 +872,14 @@ export const useStore = create<AppState>((set, get) => ({
     const base = captureReviewBase(st);
     set({ sandboxBuilding: true, sandboxErrors: [], sandboxHtml: null });
     try {
-      const res = await fetch((import.meta.env?.VITE_AI_API_BASE ?? '') + '/api/sandbox/build', {
+      const aiBase = (import.meta.env?.VITE_AI_API_BASE ?? '').trim().replace(/\/+$/, '');
+      const buildUrl = aiBase ? `${aiBase}/api/sandbox/build` : apiUrl('/api/sandbox/build');
+      const res = await fetch(buildUrl, {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({ files }),
         signal: controller.signal,
+        credentials: 'include',
       });
       const result = await res.json() as { ok: boolean; html: string | null; errors: Array<{ file: string; message: string }> };
       if (controller.signal.aborted || sandboxController !== controller || !matchesReviewBase(get(), base)) return;
