@@ -71,6 +71,8 @@ export interface ServerConfig {
   port?: number;
   bind?: string;
   rateLimitPerMin?: number;
+  /** Budget for /api/agent/jobs* per user (Bora P3: must cover polling every jobClientConfig.pollIntervalMs). */
+  agentJobsRateLimitPerMin?: number;
   requestTimeoutMs?: number;
   aiGenerationEnabled?: boolean;
   publicDeployment?: boolean;
@@ -99,6 +101,9 @@ export function makeProvider(cfg: ServerConfig, transport?: ProviderTransport): 
 }
 
 /* jednoduchý in-memory rate limiter (single-user pilot) */
+/** Default per-user budget for the jobs routes: 2× the client poll rate (2 s → 30/min). */
+export const AGENT_JOBS_RATE_LIMIT_PER_MIN = 60;
+
 export function makeRateLimiter(maxPerMin: number) {
   const hits = new Map<string, number[]>();
   return (key: string): boolean => {
@@ -183,7 +188,10 @@ export function createApp(
     app.route('/', projectRouter(opts.auth.db, rateLimit, cfg.projectStorage));
     app.route('/', blueprintRouter(rateLimit));
     app.route('/', privateBlueprintRouter(opts.auth.db, rateLimit));
-    if (jobStore) app.route('/', jobsRouter(jobStore, rateLimit, {
+    /* Bora P3: the client polls GET /api/agent/jobs/:id every 2 s (30/min); the generic
+       10/min budget would 429 a recovering client after ~20 s. */
+    const jobsRateLimit = opts?.rateLimit ?? makeRateLimiter(cfg.agentJobsRateLimitPerMin ?? AGENT_JOBS_RATE_LIMIT_PER_MIN);
+    if (jobStore) app.route('/', jobsRouter(jobStore, jobsRateLimit, {
       workerEnabled: () => jobsWorkerEnabled,
       maxActivePerOwner: jobsMaxActive,
       /* Bora P2-2: same codes and statuses as POST /api/agent/generate, before enqueueing. */
