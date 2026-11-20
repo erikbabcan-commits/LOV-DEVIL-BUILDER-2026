@@ -4,7 +4,7 @@ import type {ConversationTurn} from '../../../shared/conversation';
    Podľa docs/PERSISTENCE-PLAN.md (M0 návrh, M2 implementácia). */
 
 export const DB_NAME = 'forge-builder';
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 export interface StoredProject {
   id: string;
@@ -58,6 +58,21 @@ export interface StoredRun {
 
 export interface StoredMeta { key: string; value: unknown }
 
+/** Agent 2: resumable intermediate state of one durable agent job (`forge_job_cache`). */
+export interface StoredJobCache {
+  jobId: string;
+  projectId: string;
+  prompt: string;
+  /** Assistant chat message that renders this job (reused after reload). */
+  messageId: string | null;
+  /** Events already received and rendered, in server order. */
+  events: unknown[];
+  /** Index into the server job's `events` that has been consumed. */
+  seen: number;
+  updatedAt: number;
+}
+export const JOB_CACHE_STORE = 'forge_job_cache';
+
 const connections = new Map<string, Promise<IDBDatabase>>();
 let databaseName: string | null = DB_NAME;
 let scopeEpoch = 0;
@@ -104,6 +119,10 @@ export function openDb(name: string | null = databaseName): Promise<IDBDatabase>
         }
         if (!db.objectStoreNames.contains('files')) db.createObjectStore('files', { keyPath: ['projectId', 'path'] });
         if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
+      }
+      /* v2 → v3 (Agent 2): job cache store only; existing stores stay untouched. */
+      if (oldVersion < 3 && !db.objectStoreNames.contains(JOB_CACHE_STORE)) {
+        db.createObjectStore(JOB_CACHE_STORE, { keyPath: 'jobId' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -272,6 +291,23 @@ export async function saveMeta(key: string, value: unknown, name = databaseName)
 export async function loadMeta<T>(key: string, name = databaseName): Promise<T | null> {
   const m = await guarded(tx(['meta'], 'readonly', t => rq(t.objectStore('meta').get(key) as IDBRequest<StoredMeta | undefined>), name));
   return m ? (m.value as T) : null;
+}
+
+/* ---------- agent job cache (Agent 2) ---------- */
+
+export async function saveJobCache(record: StoredJobCache, name = databaseName): Promise<void> {
+  await guarded(tx([JOB_CACHE_STORE], 'readwrite', t => { t.objectStore(JOB_CACHE_STORE).put(record); }, name));
+}
+
+export async function loadJobCaches(name = databaseName): Promise<StoredJobCache[]> {
+  return guarded(tx([JOB_CACHE_STORE], 'readonly', t => rq(t.objectStore(JOB_CACHE_STORE).getAll() as IDBRequest<StoredJobCache[]>), name));
+}
+
+export async function deleteJobCache(jobId: string | null, name = databaseName): Promise<void> {
+  await guarded(tx([JOB_CACHE_STORE], 'readwrite', t => {
+    const store = t.objectStore(JOB_CACHE_STORE);
+    if (jobId === null) store.clear(); else store.delete(jobId);
+  }, name));
 }
 
 /** Import an authoritative remote document. Preserve an existing local project atomically first. */

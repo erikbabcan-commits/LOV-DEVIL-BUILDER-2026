@@ -8,11 +8,11 @@ import { uid, now, dbg } from '../lib/utils';
 import { buildSaas, buildKanban, buildSettings, buildDashboard, detectKind, KIND_INFO, SNIPPETS, AppKind } from '../lib/templates';
 import { filesFor, filesToHtml, VfsFile } from '../lib/vfs/filesFor';
 import type { AgentEvent, GeneratedFile, Plan } from '../services/ai/types';
-import { streamAgentEvents, AiNotConfiguredError, AiRequestError, NetworkError } from '../services/ai/client';
+import { AiNotConfiguredError, AiRequestError, NetworkError } from '../services/ai/client';
 import { restoreWorkspace, scheduleAutosave, persistProjectState, persistRun, nextRevision } from '../services/persistence/projectStore';
 import type { StoredSnapshot } from '../services/persistence/db';
-import { persistenceScope, saveMeta, loadMeta } from '../services/persistence/db';
-import { getAgentJob } from '../services/ai/jobs';
+import { persistenceScope, saveMeta } from '../services/persistence/db';
+import { createJobClientSlice, jobClient, type JobClientSlice } from './slices/jobClientSlice';
 import { prepareVfsForExport } from '../services/export/zipExport';
 import { createProjectZip, downloadProjectZip } from '../services/export/projectZip';
 import { inspectProjectSources } from '../services/export/projectZip';
@@ -60,7 +60,7 @@ export interface ReviewBase {
 }
 export interface PendingReview { messageId?:string; runId: string; prompt: string; files: GeneratedFile[]; base: ReviewBase; source?: 'template'|'patch'; summary?:string; title?: string; followups?: string[] }
 
-export interface AppState {
+export interface AppState extends JobClientSlice {
   /* workspace */
   model: string;
   aiModelId: string | undefined;
@@ -235,6 +235,7 @@ export function matchesReviewBase(state: AppState, base: ReviewBase): boolean {
 }
 
 export const useStore = create<AppState>((set, get) => ({
+  ...createJobClientSlice(set, get),
   workspaceEpoch: persistenceScope().epoch,
   codeDraftDirty: false,
   model: 'Instant Draft',
@@ -539,7 +540,7 @@ export const useStore = create<AppState>((set, get) => ({
       get().toast('AI návrh je zastaraný — projekt sa zmenil. Spusti nový run.', 'warn');
     };
     try {
-      for await (const ev of streamAgentEvents({
+      for await (const ev of jobClient.runAgentJob({
         modelId: st.aiModelId,
         allowFallback: st.aiFallbackIds.length > 0,
         fallbackIds: [...st.aiFallbackIds],
@@ -547,7 +548,7 @@ export const useStore = create<AppState>((set, get) => ({
         prompt: text,
         mode,
         context,
-      }, abort.signal)) {
+      }, abort.signal, { messageId: planMsg.id, onTransport: get().setJobTransport })) {
         // A cancelled/previous run must not mutate a newly opened project or run.
         if (get().aiAbort !== abort || abort.signal.aborted) return;
         if (!matchesReviewIdentity(get(), base) || (ev.type === 'stage' && !matchesReviewBase(get(), base))) {
@@ -645,51 +646,43 @@ export const useStore = create<AppState>((set, get) => ({
   resumeAgentJob: async () => {
     const st = get();
     if (st.generating) return;
-    let active: { id: string; prompt: string } | null = null;
-    try { active = await loadMeta('activeAgentJob'); } catch { return; }
+    let active: Awaited<ReturnType<typeof jobClient.loadJobResume>> = null;
+    try { active = await jobClient.loadJobResume(); } catch { return; }
     if (!active?.id) return;
     const abort = new AbortController();
     set({ generating: true, aiAbort: abort });
-    const planMsg = get().addMsg('assistant', '', {});
-    get().updateMsg(planMsg.id, { text: 'Obnovujem prebiehajúcu AI úlohu…' });
-    let answerText = '';
-    let seen = 0;
+    // forge_job_cache: continue the message that already shows the received events (no duplicates).
+    const cached = active.messageId ? get().messages.find(m => m.id === active.messageId && m.role === 'assistant') : undefined;
+    const planMsg = cached ?? get().addMsg('assistant', '', {});
+    let answerText = jobClient.answerFromEvents(active.events);
+    get().updateMsg(planMsg.id, { text: answerText || 'Obnovujem prebiehajúcu AI úlohu…', done: false });
+    const events = [...active.events];
     try {
-      for (let poll = 0; ; poll++) {
-        if (poll > 60) { // ~3 min: server-side request timeout is shorter; stop waiting
-          get().updateMsg(planMsg.id, { text: 'AI úloha na serveri neodpovedá. Skús spustiť nový run.', done: true });
-          void saveMeta('activeAgentJob', null).catch(() => {});
-          break;
-        }
-        const job = await getAgentJob(active.id, abort.signal);
-        for (const ev of job.events.slice(seen)) {
-          seen++;
-          if (get().aiAbort !== abort || abort.signal.aborted) return;
-          if (ev.type === 'text_delta') { answerText += ev.delta; get().updateMsg(planMsg.id, { text: answerText }); }
-          if (ev.type === 'plan') get().updateMsg(planMsg.id, { text: '', plan: ev.plan.steps.map(x => ({ label: x.title, state: 'done' as const })), planTitle: 'AI plán', model: ev.plan.summary });
-          if (ev.type === 'error') get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + 'AI úlohu sa nepodarilo dokončiť. Projekt zostal zachovaný.', done: true });
-          if (ev.type === 'cancelled') get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + 'AI úloha bola zastavená.', done: true });
-        }
-        if (job.state !== 'queued' && job.state !== 'running') {
-          const stage = job.events.find(e => e.type === 'stage');
-          const doneEv = job.events.find(e => e.type === 'done');
-          if (doneEv && stage && stage.type === 'stage') {
-            const base = captureReviewBase(get());
-            set({ pendingReview: { messageId: planMsg.id, runId: job.id, prompt: active.prompt, files: stage.files.map(f => ({ ...f })), base, ...(stage.editMode === 'patch' ? { source: 'patch' as const, summary: stage.summary } : {}) } });
-            get().updateMsg(planMsg.id, { text: `Súbory čakajúce na schválenie: ${stage.files.length}. Žiadne zmeny sa zatiaľ neaplikovali.`, reviewPending: true, done: true });
-            get().toast('AI zmeny pripravené na kontrolu', 'warn');
-          } else if (!job.events.some(e => e.type === 'error' || e.type === 'cancelled')) {
-            get().updateMsg(planMsg.id, { text: answerText || 'AI úloha skončila.', done: true });
-          }
-          void saveMeta('activeAgentJob', null).catch(() => {});
-          break;
-        }
-        await new Promise(r => setTimeout(r, 3000));
+      for await (const ev of jobClient.resumeJobEvents(active, abort.signal, { messageId: planMsg.id, onTransport: get().setJobTransport }, get().projectId)) {
+        if (get().aiAbort !== abort || abort.signal.aborted) return;
+        events.push(ev);
+        if (ev.type === 'text_delta') { answerText += ev.delta; get().updateMsg(planMsg.id, { text: answerText }); }
+        if (ev.type === 'plan') get().updateMsg(planMsg.id, { text: '', plan: ev.plan.steps.map(x => ({ label: x.title, state: 'done' as const })), planTitle: 'AI plán', model: ev.plan.summary });
+        if (ev.type === 'error') get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + 'AI úlohu sa nepodarilo dokončiť. Projekt zostal zachovaný.', done: true });
+        if (ev.type === 'cancelled') get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + 'AI úloha bola zastavená.', done: true });
       }
-    } catch {
+      if (get().aiAbort !== abort || abort.signal.aborted) return;
+      const stage = events.find(e => e.type === 'stage');
+      const doneEv = events.find(e => e.type === 'done');
+      if (doneEv && stage && stage.type === 'stage') {
+        const base = captureReviewBase(get());
+        set({ pendingReview: { messageId: planMsg.id, runId: active.id, prompt: active.prompt, files: stage.files.map(f => ({ ...f })), base, ...(stage.editMode === 'patch' ? { source: 'patch' as const, summary: stage.summary } : {}) } });
+        get().updateMsg(planMsg.id, { text: `Súbory čakajúce na schválenie: ${stage.files.length}. Žiadne zmeny sa zatiaľ neaplikovali.`, reviewPending: true, done: true });
+        get().toast('AI zmeny pripravené na kontrolu', 'warn');
+      } else if (!events.some(e => e.type === 'error' || e.type === 'cancelled')) {
+        get().updateMsg(planMsg.id, { text: answerText || 'AI úloha skončila.', done: true });
+      }
+      void saveMeta('activeAgentJob', null).catch(() => {});
+    } catch (error) {
       if (get().aiAbort === abort) {
-        get().updateMsg(planMsg.id, { text: 'Stav AI úlohy sa nepodarilo načítať. Skús spustiť nový run.', done: true });
-        get().toast('Stav AI úlohy sa nepodarilo načítať', 'warn');
+        const timeout = error instanceof Error && error.message === 'job_recovery_timeout';
+        get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + (timeout ? 'AI úloha na serveri neodpovedá. Skús spustiť nový run.' : 'Stav AI úlohy sa nepodarilo načítať. Skús spustiť nový run.'), done: true });
+        if (!timeout) get().toast('Stav AI úlohy sa nepodarilo načítať', 'warn');
       }
       void saveMeta('activeAgentJob', null).catch(() => {});
     } finally {
