@@ -148,7 +148,8 @@ export function createApp(
     cors({
       origin: (origin) => (trustedOrigins.has(origin) ? origin : undefined),
       allowMethods: ['GET', 'POST', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization'],
+      allowHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization', 'Idempotency-Key'],
+      exposeHeaders: ['Idempotent-Replay'],
       credentials: true
     })
   );
