@@ -49,8 +49,9 @@ export function TopBar({onOpenProjects,quota}:{onOpenProjects?:()=>void;quota?:Q
       <div className="tb-group">
         {quota&&onOpenProjects&&<button className="chip hide-m" onClick={onOpenProjects} aria-label={`Spotreba AI: ${quota.used} z ${quota.limit} mesačných úloh`} title="Mesačný limit AI úloh · podrobnosti v Moje projekty">AI · zostáva {quota.remaining}</button>}
         <div className="pop-wrap model-wrap">
-          <button className="chip" id="modelChip" aria-expanded={st.modelMenuOpen} aria-controls="modelMenu" onClick={() => st.setModelMenuOpen(!st.modelMenuOpen)}>
+          <button className="chip" id="modelChip" aria-label={`Model: ${st.model}`} title={`Výber AI modelu: ${st.model}`} aria-expanded={st.modelMenuOpen} aria-controls="modelMenu" onClick={() => st.setModelMenuOpen(!st.modelMenuOpen)}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a4 4 0 0 1 4 4c2.5.5 4 2.5 4 5a5 5 0 0 1-3 4.6V18a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-2.4A5 5 0 0 1 4 11c0-2.5 1.5-4.5 4-5a4 4 0 0 1 4-4Z"/></svg>
+            <span className="hide-s" style={{ opacity: 0.75, marginRight: 2 }}>Model:</span>
             <span id="modelName">{st.model}</span>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6"/></svg>
           </button>

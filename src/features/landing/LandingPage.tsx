@@ -42,6 +42,21 @@ export function LandingPage() {
               <button className="icon-btn" id="homeAttach" title="Prílohy — pripravujeme" disabled style={{ padding: '0 7px' }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21.4 11.1-9.2 9.2a5.7 5.7 0 0 1-8-8l9-9a3.8 3.8 0 0 1 5.4 5.4l-9 9a1.9 1.9 0 0 1-2.7-2.7l8.3-8.2"/></svg>
               </button>
+              <button
+                type="button"
+                className="chip hide-xs"
+                id="landingModelChip"
+                style={{ fontSize: '11px', height: '24px', padding: '0 8px', cursor: 'pointer' }}
+                onClick={() => {
+                  const s = useStore.getState();
+                  s.setModelMenuOpen(!s.modelMenuOpen);
+                  document.getElementById('modelChip')?.focus();
+                }}
+                title={`Aktuálny model: ${useStore.getState().model} · klikni pre zmenu`}
+              >
+                <span style={{ opacity: 0.7, marginRight: 2 }}>Model:</span>
+                <strong>{useStore(s => s.model)}</strong>
+              </button>
               <label className="public-check">
                 <input type="checkbox" id="publicCheck" checked={isPublic} onChange={togglePublic} />
                 <span>Verejný projekt</span>
