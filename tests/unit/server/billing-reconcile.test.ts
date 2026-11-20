@@ -232,8 +232,27 @@ describe("billing webhook queue, reconciliation and grace period (pg-mem)", () =
     const calls = gateway.subscriptions.mock.calls.length;
     advance(BILLING_QUEUE_MAX_DELAY_MS);
     expect(await drainBillingWebhookQueue(service, db, { now })).toEqual({ processed: 0, failed: 0, dead: 0 });
-    await expect(deliver("invoice.payment_failed", { id: "evt_dead" })).resolves.toBeUndefined();
     expect(gateway.subscriptions).toHaveBeenCalledTimes(calls);
+  });
+
+  it("a Stripe redelivery of a dead event is retried, not acknowledged unprocessed (Bora P2-4)", async () => {
+    gateway.subscriptions.mockRejectedValue(new Error("down"));
+    await expect(deliver("customer.subscription.updated", { id: "evt_dead_redelivery" })).rejects.toBeTruthy();
+    for (let attempt = 2; attempt <= BILLING_QUEUE_MAX_ATTEMPTS; attempt++) {
+      advance(BILLING_QUEUE_MAX_DELAY_MS);
+      await drainBillingWebhookQueue(service, db, { now });
+    }
+    expect(await queueRow("evt_dead_redelivery")).toMatchObject({ state: "dead", attempts: BILLING_QUEUE_MAX_ATTEMPTS });
+    // Provider still down: the redelivery is processed again and fails (5xx to Stripe), attempts restart.
+    await expect(deliver("customer.subscription.updated", { id: "evt_dead_redelivery" })).rejects.toBeTruthy();
+    expect(await queueRow("evt_dead_redelivery")).toMatchObject({ state: "failed", attempts: 1 });
+    expect((await plan()).plan).toBe("free");
+    // Provider back: the next redelivery applies the plan.
+    gateway.subscriptions.mockReset();
+    gateway.data = [billingSubscription(CUSTOMER)];
+    await expect(deliver("customer.subscription.updated", { id: "evt_dead_redelivery" })).resolves.toBeUndefined();
+    expect(await queueRow("evt_dead_redelivery")).toMatchObject({ state: "processed" });
+    expect((await plan()).plan).toBe("pro");
   });
 
   it("backoff doubles from the base delay and is capped", () => {

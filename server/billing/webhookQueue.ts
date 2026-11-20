@@ -129,6 +129,24 @@ export async function markBillingEventProcessed(
   );
 }
 
+/**
+ * Bora P2-4: a Stripe redelivery of an event that is already `dead` must not be
+ * acknowledged unprocessed. Revive it (attempts reset, due now) so the caller
+ * processes it synchronously; a failure is recorded and surfaces as 5xx again.
+ */
+export async function reviveDeadBillingEvent(
+  db: DbLike,
+  eventId: string,
+  now: Date,
+): Promise<BillingQueueRow | null> {
+  const at = now.toISOString();
+  await db.query(
+    "UPDATE billing_webhook_queue SET state='pending',attempts=0,last_error=NULL,next_attempt_at=$2,updated_at=$2 WHERE event_id=$1 AND state='dead'",
+    [eventId, at],
+  );
+  return readQueuedBillingEvent(db, eventId);
+}
+
 /** Records a failed attempt with backoff, or `dead` once max attempts are used. Stores only an error code. */
 export async function markBillingEventFailed(
   db: DbLike,

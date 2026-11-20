@@ -33,6 +33,7 @@ import {
 export { BillingError } from "./types";
 import {
   enqueueBillingEvent,
+  reviveDeadBillingEvent,
   runQueuedBillingEvent,
 } from "./webhookQueue";
 import {
@@ -790,8 +791,15 @@ export class BillingService
       account.user_id,
       this.now(),
     );
-    if (queued.state === "processed" || queued.state === "dead") return;
-    await runQueuedBillingEvent(this, this.db, queued, this.now);
+    if (queued.state === "processed") return;
+    // Bora P2-4: a redelivery of a dead event is retried now instead of being acked unprocessed.
+    const row =
+      queued.state === "dead"
+        ? await reviveDeadBillingEvent(this.db, queued.event_id, this.now())
+        : queued;
+    if (!row) throw new BillingError("billing_storage_unavailable");
+    if (row.state === "processed") return;
+    await runQueuedBillingEvent(this, this.db, row, this.now);
   }
   /**
    * Applies one queued, signature-verified event exactly once (billing_events)
