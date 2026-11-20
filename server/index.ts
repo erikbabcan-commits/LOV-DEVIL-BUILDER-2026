@@ -23,7 +23,9 @@ import type { AIProvider, ProviderTransport } from './providers/types';
 import { runAgent, parseAgentRequest } from './agent/run';
 import { readIntentPolicyPath, selectIntentPrompt } from './agent/intentPolicy';
 import { consumeGenerationQuota, QuotaAdmissionError } from './security/generationQuota';
-import { AgentEventSchema } from './agent/schemas';
+import { AgentEventSchema, type AgentEvent } from './agent/schemas';
+import { AgentJobStore, PostgresAgentJobStore, jobsRouter, agentRunAbort, toAgentJobView } from './agent/jobs';
+import { IdempotencyKey } from '../shared/agentJobs';
 import { SandboxFileSchema } from './sandbox/builder';
 import { createSandboxExecutor, getSandboxExecutor, type SandboxExecutor } from './sandbox/executor';
 import { asSandboxError } from './sandbox/errors';
@@ -125,6 +127,8 @@ export function createApp(
     /** Async limiter pre agent/autofix (Redis keď je REDIS_URL; inak per-user memory). */
     agentRateLimit?: AsyncRateLimiter;
     sandbox?: SandboxExecutor;
+    /** Durable agent job store; default is Postgres when auth is enabled. */
+    jobs?: AgentJobStore;
   }
 ) {
   if (cfg.aiPricing) parsePricePolicy(JSON.stringify(cfg.aiPricing.document));
@@ -155,6 +159,7 @@ export function createApp(
   const aiAllowed = () => cfg.aiGenerationEnabled !== false && cfg.publicDeployment !== true;
   const sandbox = opts?.sandbox ?? (cfg.sandboxMode
     ? createSandboxExecutor({ ...process.env, SANDBOX_MODE: cfg.sandboxMode }) : getSandboxExecutor());
+  const jobStore = opts?.jobs ?? (opts?.auth ? new PostgresAgentJobStore(opts.auth.db) : null);
 
   app.use('/api/billing/webhook', bodyLimit({ maxSize: 512 * 1024, onError: c => c.json({ error: 'billing_input_limit' }, 413) }));
   app.post('/api/billing/webhook', billingWebhook(opts?.auth?.billing ?? null));
@@ -169,6 +174,7 @@ export function createApp(
     app.route('/', projectRouter(opts.auth.db, rateLimit, cfg.projectStorage));
     app.route('/', blueprintRouter(rateLimit));
     app.route('/', privateBlueprintRouter(opts.auth.db, rateLimit));
+    if (jobStore) app.route('/', jobsRouter(jobStore, rateLimit));
     if (opts.auth.cloudGitHub) app.route('/', githubCloudRouter(opts.auth.cloudGitHub, rateLimit));
   }
   app.route('/', billingRouter(opts?.auth?.billing ?? null, rateLimit));
@@ -307,6 +313,16 @@ export function createApp(
     if (!(await agentRateLimit(authUser ? `agent:${authUser.id}` : 'agent')))
       return c.json({ error: 'rate_limit', message: 'Priveľa požiadaviek, skús o minútu.' }, 429);
     if (!providers.defaultProvider) return c.json({ error: 'ai_not_configured', message: 'AI engine teraz nie je dostupný. Použi Instant Draft alebo skús neskôr.' }, 503);
+    /* Durable jobs (#75 step 3): with auth + Idempotency-Key a replayed request returns the
+       existing job instead of consuming quota and re-running the agent. */
+    const idempotencyKey = c.req.header('Idempotency-Key');
+    if (idempotencyKey !== undefined && !IdempotencyKey.safeParse(idempotencyKey).success)
+      return c.json({ error: 'invalid_idempotency_key' }, 400);
+    const durable = jobStore !== null && authUser !== null && idempotencyKey !== undefined;
+    if (durable) {
+      const existing = await jobStore!.findByIdempotency(authUser!.id, idempotencyKey!);
+      if (existing) return c.json({ job: toAgentJobView(existing), replayed: true as const }, 200, { 'Idempotent-Replay': 'true' });
+    }
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
     const input = parseAgentRequest(body);
@@ -323,14 +339,26 @@ export function createApp(
     const run = { userId: authUser?.id ?? '', id: runId, kind: 'generation' as const };
     let providerUpdate: (event: ProviderUpdate) => void = () => {};
     const meter = createProviderRun(route,usageStore,run,{...opts?.resilience,onUpdate:event=>providerUpdate(event)});
+    let jobActive = false;
+    if (durable) {
+      const created = await jobStore!.create({ id: runId, ownerId: authUser!.id, idempotencyKey: idempotencyKey! });
+      if (!created) {
+        admission.discard();
+        const existing = await jobStore!.findByIdempotency(authUser!.id, idempotencyKey!);
+        if (existing) return c.json({ job: toAgentJobView(existing), replayed: true as const }, 200, { 'Idempotent-Replay': 'true' });
+      }
+      jobActive = true;
+    }
     try {
       if (opts?.auth && authUser) await consumeGenerationQuota(opts.auth.quota, authUser.id, () => usageStore!.admit(run, opts.auth!.quota));
     } catch (error) {
+      if (jobActive) await jobStore!.finish(runId, 'failed', 'quota_admission_failed').catch(() => {});
       admission.discard();
       if (error instanceof QuotaAdmissionError) return c.json({ error: error.code, message: error.message, ...(error.quota && authUser ? { quota: error.quota, userId: authUser.id } : {}) }, error.status);
       return c.json({ error: 'quota_unavailable' }, 503);
     }
     const abortController = new AbortController();
+    if (jobActive) agentRunAbort.set(runId, abortController);
     const clientSignal = c.req.raw.signal;
     const onAbort = () => abortController.abort(new Error('klient zrušil požiadavku'));
     clientSignal.addEventListener('abort', onAbort, { once: true });
@@ -346,12 +374,38 @@ export function createApp(
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         let finished = false;
+        let jobFinished = false;
+        const pending: AgentEvent[] = [];
+        const flushJob = async () => {
+          if (!jobActive || !pending.length) return;
+          const batch = pending.splice(0);
+          await jobStore!.appendEvents(runId, batch).catch(() => {});
+        };
+        const finishJob = async (ev: AgentEvent) => {
+          if (!jobActive || jobFinished) return;
+          jobFinished = true;
+          const state = ev.type === 'done' ? 'succeeded' as const : ev.type === 'cancelled' ? 'cancelled' as const : 'failed' as const;
+          const error = ev.type === 'error' ? ev.message : ev.type === 'cancelled' ? 'cancelled' : null;
+          await flushJob();
+          await jobStore!.finish(runId, state, error).catch(() => {});
+        };
+        let terminalEvent: AgentEvent | null = null;
         const send = (event: unknown) => {
           if (!outputClosed) controller.enqueue(encoder.encode(`data: ${redactSecrets(JSON.stringify(event))}\n\n`));
+          /* The job row is the durable record; SSE is only a live view of it. */
+          if (jobActive && event && typeof event === 'object' && 'type' in event) {
+            const parsed = AgentEventSchema.safeParse(event);
+            if (parsed.success) {
+              pending.push(parsed.data);
+              if (['done', 'error', 'cancelled'].includes(parsed.data.type)) terminalEvent = parsed.data;
+              else if (pending.length >= 8) void flushJob();
+            }
+          }
         };
+        if (jobActive) await jobStore!.markRunning(runId).catch(() => {});
         /* Keep-alive: SSE komentár každých 15s, aby proxy nezahodila idle spojenie
            pred koncom 120s AI timeoutu. Frontend parser (ai/client.ts) záznamy bez data: riadka ignoruje. */
-        keepAlive = setInterval(() => { if (!outputClosed) controller.enqueue(encoder.encode(': ping\n\n')); }, 15_000);
+        keepAlive = setInterval(() => { if (!outputClosed) controller.enqueue(encoder.encode(': ping\n\n')); void flushJob(); }, 15_000);
         providerUpdate = event => { const checked=AgentEventSchema.safeParse(event); if(checked.success) send(checked.data); };
         try {
           const intentPromptVersion = cfg.intentPolicyFile && authUser && input.request.mode === 'auto'
@@ -369,7 +423,13 @@ export function createApp(
           send({ type: 'error', code: 'stream_error', message: error instanceof UsageLedgerError ? error.message : 'Generovanie sa prerušilo. Projekt zostal zachovaný.', retriable: true });
         } finally {
           if (meter && !finished) { try { await meter.finish('incomplete'); } catch { /* unknown remains visible */ } }
+          if (jobActive && !jobFinished) {
+            await flushJob();
+            if (terminalEvent) await finishJob(terminalEvent);
+            else await jobStore!.finish(runId, abortController.signal.aborted ? 'cancelled' : 'failed', 'stream_closed').catch(() => {});
+          }
           cleanup();
+          agentRunAbort.delete(runId);
           // Hold concurrency until the provider has actually stopped, including
           // providers that do not immediately honour cancellation.
           admission.release();

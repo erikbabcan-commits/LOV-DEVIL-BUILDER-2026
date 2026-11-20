@@ -61,7 +61,7 @@ export function AppShell() {
     setReadyAccount(null);
     if (!mayOpenEditor) return;
     let cancelled = false;
-    void restoreFromDb().then(() => { if (!cancelled) setReadyAccount(accountKey); });
+    void restoreFromDb().then(() => { if (!cancelled) { setReadyAccount(accountKey); void useStore.getState().resumeAgentJob(); } });
     return () => { cancelled = true; };
   }, [accountKey, mayOpenEditor, restoreFromDb]);
 
