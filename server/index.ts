@@ -5,6 +5,7 @@ import { ModelSelectionSchema } from '../shared/aiModels';
 import { ProviderRegistry, type ModelEntry } from './providers/registry';
 import { configuredProvidersWithMistralCatalog } from './providers/runtime';
 import { createProviderRun } from './providers/run';
+import { startAgentWorker } from './agent/worker';
 import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
 import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
 import 'dotenv/config';
@@ -24,7 +25,7 @@ import { runAgent, parseAgentRequest } from './agent/run';
 import { readIntentPolicyPath, selectIntentPrompt } from './agent/intentPolicy';
 import { consumeGenerationQuota, QuotaAdmissionError } from './security/generationQuota';
 import { AgentEventSchema, type AgentEvent } from './agent/schemas';
-import { AgentJobStore, PostgresAgentJobStore, jobsRouter, agentRunAbort, toAgentJobView } from './agent/jobs';
+import { AgentJobStore, PostgresAgentJobStore, jobsRouter, agentRunAbort, toAgentJobView, isDurableJobStore } from './agent/jobs';
 import { IdempotencyKey } from '../shared/agentJobs';
 import { SandboxFileSchema } from './sandbox/builder';
 import { createSandboxExecutor, getSandboxExecutor, type SandboxExecutor } from './sandbox/executor';
@@ -181,6 +182,11 @@ export function createApp(
        Each agent inserts its line(s) ONLY directly under its own marker; never edit another slot.
        Routers mounted at '/' must scope middleware to their own paths (no use('*')). */
     // [seam:agent-1] durable jobs: POST /api/agent/jobs lives in jobsRouter (server/agent/jobs.ts); worker start here
+    // Opt-in (AGENT_JOBS_WORKER=1): the queue worker runs queued POST /api/agent/jobs jobs and debits quota only at `succeeded`.
+    if (jobStore && isDurableJobStore(jobStore) && process.env.AGENT_JOBS_WORKER === '1') {
+      startAgentWorker({ store: jobStore, providers, aiAllowed, quota: opts.auth.quota, admit: () => budget.acquire(),
+        resilience: opts.resilience, requestTimeoutMs: cfg.requestTimeoutMs });
+    }
     // [/seam:agent-1]
 
     // [seam:agent-3] GitHub sync (gitEngine / forge branch + PR)
