@@ -13,6 +13,9 @@ export class ProviderRegistry{
       return Object.freeze({...entry});
     });
   }
+  /** Agent 8 (aditívne): read-only lookup pre smart router; nemení route()/catalog(). */
+  find(id:string):ModelEntry|undefined{return this.entries.find(e=>e.id===id);}
+  ids():string[]{return this.entries.map(e=>e.id);}
   get defaultProvider(){return this.entries[0]?.provider??null;}
   catalog():AiModels{return AiModelsSchema.parse({defaultId:this.entries[0]?.id??null,models:this.entries.map(e=>({id:e.id,label:e.label,provider:e.provider.name,model:e.provider.model,fallbackIds:this.fallbacks.filter(id=>id!==e.id)}))});}
   route(id:string|undefined,allowFallback=false,fallbackIds?:readonly string[]):ModelEntry[]{
