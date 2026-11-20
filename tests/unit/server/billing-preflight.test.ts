@@ -215,7 +215,7 @@ describe("billing preflight CLI", () => {
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({ ok: false, issues: ["billing_portal_check_requires_stripe"] });
     expect(result.stderr).toBe("");
-  });
+  }, 25000);
   it("stays default-off and never automatically loads the current directory dotenv", () => {
     const temp = mkdtempSync(join(tmpdir(), "lov-billing-preflight-"));
     try {

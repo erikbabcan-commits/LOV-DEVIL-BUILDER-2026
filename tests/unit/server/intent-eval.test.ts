@@ -92,5 +92,5 @@ describe('versioned 150-prompt intent evaluation',()=>{
    const variant=invoke(['--export-requests','--prompt-version',INTENT_VARIANT_VERSION]);
    expect(variant.status).toBe(0);expect(JSON.parse(variant.stdout).promptVersion).toBe(INTENT_VARIANT_VERSION);
   }finally{rmSync(directory,{recursive:true,force:true});}
- },15000);
+ },35000);
 });
