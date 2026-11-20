@@ -555,8 +555,8 @@ export const useStore = create<AppState>((set, get) => ({
           return;
         }
         events.push(ev);
-        if (ev.type === 'run_started') { set({ aiConnected: true }); void saveMeta('activeAgentJob', { id: ev.runId, prompt: text }); }
-        if (ev.type === 'done' || ev.type === 'error' || ev.type === 'cancelled') void saveMeta('activeAgentJob', null);
+        if (ev.type === 'run_started') { set({ aiConnected: true }); void saveMeta('activeAgentJob', { id: ev.runId, prompt: text }).catch(() => {}); }
+        if (ev.type === 'done' || ev.type === 'error' || ev.type === 'cancelled') void saveMeta('activeAgentJob', null).catch(() => {});
         if(ev.type==='intent_selected'){
           resolvedIntent=ev.intent;
           get().log('› Zámer: '+({create:'nová aplikácia',iterate:'úprava',fix:'oprava',explain:'odpoveď bez zmien'}[ev.intent]),'info');
@@ -636,7 +636,7 @@ export const useStore = create<AppState>((set, get) => ({
       }
       get().updateMsg(planMsg.id, { text: answerText?answerText+'\n\nOdpoveď sa prerušila a zostala neúplná. Súbory sa nemenili.':e instanceof AiRequestError || e instanceof AiNotConfiguredError || e instanceof NetworkError ? e.message : abort.signal.aborted ? 'AI generovanie bolo zrušené.' : 'AI úlohu sa nepodarilo dokončiť. Lokálna práca zostala zachovaná.', done: true });
     } finally {
-      if (get().aiAbort === abort) {set({ generating: false, aiAbort: null });void get().persistNow();void saveMeta('activeAgentJob', null);}
+      if (get().aiAbort === abort) {set({ generating: false, aiAbort: null });void get().persistNow();void saveMeta('activeAgentJob', null).catch(() => {});}
     }
   },
 
@@ -658,7 +658,7 @@ export const useStore = create<AppState>((set, get) => ({
       for (let poll = 0; ; poll++) {
         if (poll > 60) { // ~3 min: server-side request timeout is shorter; stop waiting
           get().updateMsg(planMsg.id, { text: 'AI úloha na serveri neodpovedá. Skús spustiť nový run.', done: true });
-          void saveMeta('activeAgentJob', null);
+          void saveMeta('activeAgentJob', null).catch(() => {});
           break;
         }
         const job = await getAgentJob(active.id, abort.signal);
@@ -681,7 +681,7 @@ export const useStore = create<AppState>((set, get) => ({
           } else if (!job.events.some(e => e.type === 'error' || e.type === 'cancelled')) {
             get().updateMsg(planMsg.id, { text: answerText || 'AI úloha skončila.', done: true });
           }
-          void saveMeta('activeAgentJob', null);
+          void saveMeta('activeAgentJob', null).catch(() => {});
           break;
         }
         await new Promise(r => setTimeout(r, 3000));
@@ -691,7 +691,7 @@ export const useStore = create<AppState>((set, get) => ({
         get().updateMsg(planMsg.id, { text: 'Stav AI úlohy sa nepodarilo načítať. Skús spustiť nový run.', done: true });
         get().toast('Stav AI úlohy sa nepodarilo načítať', 'warn');
       }
-      void saveMeta('activeAgentJob', null);
+      void saveMeta('activeAgentJob', null).catch(() => {});
     } finally {
       if (get().aiAbort === abort) { set({ generating: false, aiAbort: null }); void get().persistNow(); }
     }

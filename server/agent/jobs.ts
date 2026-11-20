@@ -157,13 +157,17 @@ export const agentRunAbort = new Map<string, AbortController>();
 /** Mounted only with durable auth: every route is owner-scoped. */
 export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean) {
   const router = new Hono();
-  router.use('*', async (c, next) => {
+  /* Scope the guard to the jobs paths only: this router is mounted at '/', so a
+     '*' middleware would also intercept every route registered after it. */
+  const guard: Parameters<typeof router.use>[1] = async (c, next) => {
     const user = getUserFromContext(c);
     if (!user) return c.json({ error: 'unauthenticated' }, 401);
     if (!allow('agent-jobs:' + user.id)) return c.json({ error: 'rate_limit' }, 429);
     c.header('Cache-Control', 'no-store');
     return next();
-  });
+  };
+  router.use('/api/agent/jobs', guard);
+  router.use('/api/agent/jobs/*', guard);
   router.get('/api/agent/jobs', async c => {
     const user = getUserFromContext(c)!;
     const jobs = (await store.list(user.id, 50)).map(toAgentJobView);
