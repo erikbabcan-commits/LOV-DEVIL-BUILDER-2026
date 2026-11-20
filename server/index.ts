@@ -131,6 +131,9 @@ export function createApp(
     sandbox?: SandboxExecutor;
     /** Durable agent job store; default is Postgres when auth is enabled. */
     jobs?: AgentJobStore;
+    /** Durable jobs runtime (Bora P1-2). Defaults: workerEnabled = AGENT_JOBS_WORKER === '1',
+     *  startWorker = workerEnabled, maxActivePerOwner = AGENT_JOBS_MAX_ACTIVE_PER_USER or 3. */
+    agentJobs?: { workerEnabled?: boolean; startWorker?: boolean; maxActivePerOwner?: number };
   }
 ) {
   if (cfg.aiPricing) parsePricePolicy(JSON.stringify(cfg.aiPricing.document));
@@ -163,6 +166,9 @@ export function createApp(
   const sandbox = opts?.sandbox ?? (cfg.sandboxMode
     ? createSandboxExecutor({ ...process.env, SANDBOX_MODE: cfg.sandboxMode }) : getSandboxExecutor());
   const jobStore = opts?.jobs ?? (opts?.auth ? new PostgresAgentJobStore(opts.auth.db) : null);
+  const jobsWorkerEnabled = opts?.agentJobs?.workerEnabled ?? process.env.AGENT_JOBS_WORKER === '1';
+  const jobsMaxActive = opts?.agentJobs?.maxActivePerOwner
+    ?? (Number.parseInt(process.env.AGENT_JOBS_MAX_ACTIVE_PER_USER ?? '', 10) > 0 ? Number.parseInt(process.env.AGENT_JOBS_MAX_ACTIVE_PER_USER!, 10) : undefined);
 
   app.use('/api/billing/webhook', bodyLimit({ maxSize: 512 * 1024, onError: c => c.json({ error: 'billing_input_limit' }, 413) }));
   app.post('/api/billing/webhook', billingWebhook(opts?.auth?.billing ?? null));
@@ -177,14 +183,27 @@ export function createApp(
     app.route('/', projectRouter(opts.auth.db, rateLimit, cfg.projectStorage));
     app.route('/', blueprintRouter(rateLimit));
     app.route('/', privateBlueprintRouter(opts.auth.db, rateLimit));
-    if (jobStore) app.route('/', jobsRouter(jobStore, rateLimit));
+    if (jobStore) app.route('/', jobsRouter(jobStore, rateLimit, {
+      workerEnabled: () => jobsWorkerEnabled,
+      maxActivePerOwner: jobsMaxActive,
+      /* Bora P2-2: same codes and statuses as POST /api/agent/generate, before enqueueing. */
+      admit: async ownerId => {
+        if (!aiAllowed()) return { status: 503, error: 'ai_disabled' };
+        if (!providers.defaultProvider) return { status: 503, error: 'ai_not_configured', message: 'AI engine teraz nie je dostupný. Použi Instant Draft alebo skús neskôr.' };
+        try {
+          const usage = await opts.auth!.quota.usage(ownerId);
+          if (usage.remaining < 1) return { status: 429, error: 'quota_exceeded', message: new QuotaAdmissionError('quota_exceeded').message };
+        } catch { return { status: 503, error: 'quota_unavailable', message: new QuotaAdmissionError('quota_unavailable').message }; }
+        return null;
+      },
+    }));
     if (opts.auth.cloudGitHub) app.route('/', githubCloudRouter(opts.auth.cloudGitHub, rateLimit));
     /* ── MOUNT SEAMS (step 0, docs/plans/MOUNT-SEAMS.md): owner-scoped routers, auth required.
        Each agent inserts its line(s) ONLY directly under its own marker; never edit another slot.
        Routers mounted at '/' must scope middleware to their own paths (no use('*')). */
     // [seam:agent-1] durable jobs: POST /api/agent/jobs lives in jobsRouter (server/agent/jobs.ts); worker start here
     // Opt-in (AGENT_JOBS_WORKER=1): the queue worker runs queued POST /api/agent/jobs jobs and debits quota only at `succeeded`.
-    if (jobStore && isDurableJobStore(jobStore) && process.env.AGENT_JOBS_WORKER === '1') {
+    if (jobStore && isDurableJobStore(jobStore) && jobsWorkerEnabled && opts?.agentJobs?.startWorker !== false) {
       startAgentWorker({ store: jobStore, providers, aiAllowed, quota: opts.auth.quota, admit: () => budget.acquire(),
         resilience: opts.resilience, requestTimeoutMs: cfg.requestTimeoutMs });
     }

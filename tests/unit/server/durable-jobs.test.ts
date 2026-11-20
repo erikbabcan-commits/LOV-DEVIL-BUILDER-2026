@@ -78,6 +78,8 @@ describe('POST /api/agent/jobs over HTTP', () => {
     const app = createApp({}, makeMockProvider(), {
       auth: { db, jwtSecret: secret, quota: new PostgresQuotaStore(db), usage: new InMemoryAiUsageStore() },
       rateLimit: () => true, jobs: store,
+      // POST is accepted only with a worker (Bora P1-2); tests drain manually, so no poller.
+      agentJobs: { workerEnabled: true, startWorker: false },
     });
     const alice = await signToken({ sub: 'alice', email: 'alice@example.test', plan: 'free' }, secret);
     const bob = await signToken({ sub: 'bob', email: 'bob@example.test', plan: 'free' }, secret);

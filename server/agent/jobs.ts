@@ -42,6 +42,8 @@ export interface AgentJobStore {
   finish(id: string, state: Exclude<AgentJobState, 'queued' | 'running'>, error?: string | null): Promise<void>;
   get(ownerId: string, id: string): Promise<AgentJobRecord | null>;
   list(ownerId: string, limit: number): Promise<AgentJobRecord[]>;
+  /** Number of the owner's jobs in state queued or running (Bora P1-2: per-owner cap). */
+  countActive(ownerId: string): Promise<number>;
 }
 
 /** Durable queue + ledger operations (migration 024). Only the Postgres store has them. */
@@ -125,6 +127,10 @@ export class PostgresAgentJobStore implements DurableAgentJobStore {
   }
   async findByIdempotency(ownerId: string, key: string) {
     return this.one('SELECT * FROM agent_jobs WHERE owner_id=$1 AND idempotency_key=$2', [ownerId, key]);
+  }
+  async countActive(ownerId: string) {
+    const res = await this.db.query(`SELECT COUNT(*)::int AS n FROM agent_jobs WHERE owner_id=$1 AND state IN ('queued','running')`, [ownerId]);
+    return Number((res.rows[0] as { n: number | string } | undefined)?.n ?? 0);
   }
   async create(job: { id: string; ownerId: string; idempotencyKey: string; request?: unknown }) {
     // Do not rely on RETURNING after ON CONFLICT DO NOTHING: re-read and compare ids,
@@ -251,6 +257,9 @@ export class InMemoryAgentJobStore implements AgentJobStore {
     const id = this.byKey.get(this.key(ownerId, key));
     return id ? this.byId.get(id) ?? null : null;
   }
+  async countActive(ownerId: string) {
+    return [...this.byId.values()].filter(r => r.ownerId === ownerId && (r.state === 'queued' || r.state === 'running')).length;
+  }
   async create(job: { id: string; ownerId: string; idempotencyKey: string; request?: unknown }) {
     const k = this.key(job.ownerId, job.idempotencyKey);
     if (this.byKey.has(k)) return null;
@@ -292,9 +301,25 @@ export const agentRunAbort = new Map<string, AbortController>();
 /** `?detail=1` opts in to the part-B AgentJobDetail shape; the default stays the strict A shape existing clients parse. */
 const wantsDetail = (c: { req: { query(name: string): string | undefined } }) => c.req.query('detail') === '1';
 
+/** Early rejection for POST /api/agent/jobs (contract B errors, Bora P2-2). */
+export interface JobAdmissionError { status: 429 | 503; error: string; message?: string }
+
+export interface JobsRouterOptions {
+  /** POST is accepted only while a worker drains the queue (Bora P1-2). Default: disabled. */
+  workerEnabled?: () => boolean;
+  /** Max queued + running jobs per owner; the next POST gets 429 (Bora P1-2). Default 3. */
+  maxActivePerOwner?: number;
+  /** AI enabled/configured and quota left, checked before enqueueing (Bora P2-2). Null = admitted. */
+  admit?: (ownerId: string) => Promise<JobAdmissionError | null>;
+}
+
+export const DEFAULT_MAX_ACTIVE_JOBS_PER_OWNER = 3;
+
 /** Mounted only with durable auth: every route is owner-scoped. */
-export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean) {
+export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean, options: JobsRouterOptions = {}) {
   const router = new Hono();
+  const workerEnabled = options.workerEnabled ?? (() => false);
+  const maxActive = options.maxActivePerOwner ?? DEFAULT_MAX_ACTIVE_JOBS_PER_OWNER;
   /* Scope the guard to the jobs paths only: this router is mounted at '/', so a
      '*' middleware would also intercept every route registered after it. */
   const guard: Parameters<typeof router.use>[1] = async (c, next) => {
@@ -313,6 +338,9 @@ export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean
   router.post('/api/agent/jobs', bodyLimit({ maxSize: 8_000_000, onError: c => c.json({ error: 'agent_input_limit' }, 413) }), async c => {
     const user = getUserFromContext(c)!;
     if (!isDurableJobStore(store)) return c.json({ error: 'durable_jobs_unavailable' }, 503);
+    /* Bora P1-2: without a running worker a job would stay queued forever (and keep its
+       request body in the DB). The client treats any non-404 failure as "use SSE". */
+    if (!workerEnabled()) return c.json({ error: 'agent_jobs_disabled', message: 'Durable AI jobs are not enabled on this server.' }, 503);
     const key = c.req.header(IDEMPOTENCY_HEADER);
     if (key === undefined || !IdempotencyKey.safeParse(key).success) return c.json({ error: 'invalid_idempotency_key' }, 400);
     const replay = async () => {
@@ -321,6 +349,11 @@ export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean
     };
     const first = await replay();
     if (first) return first;
+    /* Bora P2-2: contract B errors are returned before enqueueing, not later as a failed job. */
+    const rejected = options.admit ? await options.admit(user.id) : null;
+    if (rejected) return c.json({ error: rejected.error, ...(rejected.message ? { message: rejected.message } : {}) }, rejected.status);
+    /* Bora P1-2: per-owner cap on queued + running jobs (best effort; two racing POSTs can exceed it by one). */
+    if (await store.countActive(user.id) >= maxActive) return c.json({ error: 'too_many_active_jobs', message: 'Too many AI jobs are already queued or running.' }, 429);
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
     const input = parseAgentRequest(body);

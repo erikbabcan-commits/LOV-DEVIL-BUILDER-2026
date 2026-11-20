@@ -114,6 +114,19 @@ describe('transport state machine', () => {
     expect(t.seen).toEqual(['streaming', 'idle']);
   });
 
+  it('falls back to SSE when the server answers POST /api/agent/jobs with 503 agent_jobs_disabled (Bora P1-2)', async () => {
+    vi.stubEnv('VITE_AGENT_JOBS_CLIENT', '1');
+    const fetch = stubFetch((url, init) => url === '/api/agent/jobs' && init.method === 'POST'
+      ? Response.json({ error: 'agent_jobs_disabled' }, { status: 503 }) : new Response('{}', { status: 500 }));
+    vi.mocked(streamAgentEvents).mockImplementation(async function* () { yield ev.started; yield ev.done; });
+    const t = transports();
+    expect(await collect(runAgentJob(input, new AbortController().signal, t))).toEqual([ev.started, ev.done]);
+    expect(fetch.mock.calls.filter(c => c[0] === '/api/agent/jobs')).toHaveLength(1);
+    expect(fetch.mock.calls.some(c => String(c[0]).startsWith('/api/agent/jobs/'))).toBe(false);
+    expect(streamAgentEvents).toHaveBeenCalledTimes(1);
+    expect(t.seen).toEqual(['streaming', 'idle']);
+  });
+
   it('with VITE_AGENT_JOBS_CLIENT off (default) never calls POST /api/agent/jobs and passes an Idempotency-Key to SSE', async () => {
     const fetch = stubFetch(() => new Response('{}', { status: 500 }));
     vi.mocked(streamAgentEvents).mockImplementation(async function* () { yield ev.started; yield ev.done; });
