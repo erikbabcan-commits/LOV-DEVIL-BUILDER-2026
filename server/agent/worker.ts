@@ -10,6 +10,7 @@ import { ProviderError } from '../providers/errors';
 import type { ResilienceOptions } from '../providers/resilience';
 import type { QuotaStore } from '../security/quotaStore';
 import { redactSecrets } from '../security/secrets';
+import { selectIntentPrompt } from './intentPolicy';
 
 /* Durable agent worker (LOV-DEVIL agent 1). Picks `queued` jobs created by
    POST /api/agent/jobs, runs the shared runAgent() and stores the outcome in
@@ -39,6 +40,8 @@ export interface AgentWorkerOptions {
   smartRouter?: boolean;
   /** Effective plan of the job owner for the smart router (free never gets premium models). Errors/absent = 'free'. */
   planFor?: (ownerId: string) => Promise<'free' | 'pro'>;
+  /** FORGE_INTENT_POLICY_FILE: same intent prompt selection as /api/agent/generate (task C). */
+  intentPolicyFile?: string;
   /** test seam: events are flushed to the row in batches of this size. */
   flushEvery?: number;
 }
@@ -145,6 +148,9 @@ export class AgentWorker {
       } catch { return failed('quota_unavailable', 'Quota could not be verified.', true); }
     }
 
+    /* Task C: same prompt version as /api/agent/generate (auto mode + operator policy file). */
+    const intentPromptVersion = this.o.intentPolicyFile && input.request.mode === 'auto'
+      ? await selectIntentPrompt(this.o.intentPolicyFile, job.ownerId) : undefined;
     const abort = new AbortController();
     agentRunAbort.set(id, abort);
     const timeout = setTimeout(() => abort.abort(new ProviderError('timeout')), this.o.requestTimeoutMs ?? 120_000);
@@ -156,7 +162,7 @@ export class AgentWorker {
     const flush = async () => { if (pending.length) await store.appendEvents(id, pending.splice(0)).catch(() => {}); };
     try {
       try {
-        for await (const raw of runAgent(input.request, { runId: id, provider: counter.provider, signal: abort.signal, maxFiles: this.o.maxFiles ?? 40 })) {
+        for await (const raw of runAgent(input.request, { runId: id, provider: counter.provider, signal: abort.signal, maxFiles: this.o.maxFiles ?? 40, intentPromptVersion })) {
           const event = AgentEventSchema.safeParse(withRouteDecision(raw, selected.decision));
           if (!event.success) continue;
           pending.push(event.data);

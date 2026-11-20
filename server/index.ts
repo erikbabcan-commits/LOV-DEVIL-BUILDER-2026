@@ -242,7 +242,7 @@ export function createApp(
           const row = (await opts.auth!.db.query('SELECT plan, plan_expires_at FROM users WHERE id=$1', [ownerId])).rows[0] as { plan?: unknown; plan_expires_at?: unknown } | undefined;
           return row ? effectivePlan(row) : 'free';
         },
-        resilience: opts.resilience, requestTimeoutMs: cfg.requestTimeoutMs });
+        resilience: opts.resilience, requestTimeoutMs: cfg.requestTimeoutMs, intentPolicyFile: cfg.intentPolicyFile });
     }
     // [/seam:agent-1]
 
