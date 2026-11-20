@@ -8,6 +8,8 @@ import { createProviderRun } from './providers/run';
 import { startAgentWorker } from './agent/worker';
 import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
 import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
+import { estimateCost, readUsdEurRate, sumSession, formatMicros } from './usage/costEstimator';
+import { route as smartRoute } from './providers/smartRouter';
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PostgresAiUsageStore, UsageLedgerError, type AiUsageStore, type RunStatus } from './usage/store';
@@ -239,6 +241,32 @@ export function createApp(
   // [/seam:agent-5]
 
   // [seam:agent-8] smart router / cost estimate endpoints
+  /* Read-only výpočty bez I/O: odhad ceny podľa AI_PRICE_POLICY_JSON + kurz AI_USD_EUR_RATE (žiadne live FX)
+     a náhľad rozhodnutia routera. Neúčtuje, nezapisuje ledger ani kvótu. */
+  const costFxRate = readUsdEurRate(process.env);
+  const CostEstimateBody = z.object({ runs: z.array(z.object({
+    model: z.string().min(1).max(128), inputTokens: z.number().int().min(0).max(1_000_000_000), outputTokens: z.number().int().min(0).max(1_000_000_000),
+  }).strict()).min(1).max(50) }).strict();
+  app.post('/api/ai-cost/estimate', bodyLimit({ maxSize: 16_384, onError: c => c.json({ error: 'payload_too_large' }, 413) }), async c => {
+    c.header('Cache-Control', 'no-store');
+    if (!rateLimit('ai-cost:' + (getUserFromContext(c)?.id ?? 'anon'))) return c.json({ error: 'rate_limit' }, 429);
+    const parsed = CostEstimateBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
+    const runs = parsed.data.runs.map(run => estimateCost(run, cfg.aiPricing ?? null, costFxRate));
+    return c.json({ runs, session: sumSession(runs), usdEurRate: costFxRate === null ? null : formatMicros(costFxRate), pricingVersion: cfg.aiPricing?.document.version ?? null });
+  });
+  const RoutePreviewBody = z.object({ prompt: z.string().max(20_000), mode: z.enum(['generate', 'fix', 'explain', 'chat']).optional(),
+    fileCount: z.number().int().min(0).max(10_000).optional(), explicitModel: z.string().max(40).nullable().optional() }).strict();
+  app.post('/api/ai-router/preview', bodyLimit({ maxSize: 65_536, onError: c => c.json({ error: 'payload_too_large' }, 413) }), async c => {
+    c.header('Cache-Control', 'no-store');
+    if (!rateLimit('ai-router:' + (getUserFromContext(c)?.id ?? 'anon'))) return c.json({ error: 'rate_limit' }, 429);
+    const parsed = RoutePreviewBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
+    const available = providers.ids();
+    if (!available.length) return c.json({ error: 'ai_not_configured' }, 503);
+    const { prompt, mode, fileCount, explicitModel } = parsed.data;
+    return c.json(smartRoute(prompt, mode ?? 'generate', { fileCount, explicitModel, availableModels: available }));
+  });
   // [/seam:agent-8]
 
   // [seam:agent-9] autofix loop status endpoints (wave 3)
