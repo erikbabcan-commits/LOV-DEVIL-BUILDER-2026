@@ -9,8 +9,8 @@ import { startAgentWorker } from './agent/worker';
 import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
 import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
 import { estimateCost, readUsdEurRate, sumSession, formatMicros } from './usage/costEstimator';
-import { route as smartRoute, cascadeFor } from './providers/smartRouter';
-import { selectGenerationRoute, withRouteDecision, type GenerationRoute } from './providers/generationRoute';
+import { route as smartRoute } from './providers/smartRouter';
+import { selectGenerationRoute, smartRouterEnabled, withRouteDecision, type GenerationRoute } from './providers/generationRoute';
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PostgresAiUsageStore, UsageLedgerError, type AiUsageStore, type RunStatus } from './usage/store';
@@ -142,10 +142,13 @@ export function createApp(
     /** Durable jobs runtime (Bora P1-2). Defaults: workerEnabled = AGENT_JOBS_WORKER === '1',
      *  startWorker = workerEnabled, maxActivePerOwner = AGENT_JOBS_MAX_ACTIVE_PER_USER or 3. */
     agentJobs?: { workerEnabled?: boolean; startWorker?: boolean; maxActivePerOwner?: number };
+    /** Smart router for requests without modelId (Bora W3 P3-1). Default: AI_SMART_ROUTER === '1' (OFF otherwise). */
+    smartRouter?: boolean;
   }
 ) {
   if (cfg.aiPricing) parsePricePolicy(JSON.stringify(cfg.aiPricing.document));
   const providers = opts?.providers ?? new ProviderRegistry(provider ? [{id:'default',label:'AI ('+provider.name+')',provider}] : []);
+  const smartRouter = opts?.smartRouter ?? smartRouterEnabled();
   const app = new Hono();
   const trustedOrigins = new Set([...allowedOrigins(), 'http://localhost:5173', 'http://127.0.0.1:5173']);
   app.use('*', async (c, next) => {
@@ -215,7 +218,7 @@ export function createApp(
     // [seam:agent-1] durable jobs: POST /api/agent/jobs lives in jobsRouter (server/agent/jobs.ts); worker start here
     // Opt-in (AGENT_JOBS_WORKER=1): the queue worker runs queued POST /api/agent/jobs jobs and debits quota only at `succeeded`.
     if (jobStore && isDurableJobStore(jobStore) && jobsWorkerEnabled && opts?.agentJobs?.startWorker !== false) {
-      startAgentWorker({ store: jobStore, providers, aiAllowed, quota: opts.auth.quota, admit: () => budget.acquire(),
+      startAgentWorker({ store: jobStore, providers, aiAllowed, quota: opts.auth.quota, admit: () => budget.acquire(), smartRouter,
         resilience: opts.resilience, requestTimeoutMs: cfg.requestTimeoutMs });
     }
     // [/seam:agent-1]
@@ -365,11 +368,12 @@ export function createApp(
     const selection = ModelSelectionSchema.safeParse(body);
     let autoRoute: ModelEntry[];
     let autoDecision: { model: string; reason: string };
-    try { if (!selection.success) throw new Error('invalid_model'); autoRoute=providers.route(selection.data.modelId,selection.data.allowFallback,selection.data.fallbackIds);
-      autoDecision={ model: selection.data.modelId ?? autoRoute[0].id, reason: 'explicit_user_choice' };
-      // Agent 9: without an explicit modelId the smart router picks the model (mode 'fix'); an explicit choice stays exact.
-      if (selection.data.modelId === undefined) { const ids = providers.ids(), decision = smartRoute('', 'fix', { fileCount: parsed.data.length, availableModels: ids });
-        if (decision.model !== autoRoute[0].id) autoRoute = cascadeFor(decision.model, ids).map(id => providers.find(id)!); autoDecision = { model: decision.model, reason: decision.reason }; } }
+    /* Same model choice as generate (mode 'fix'): smart router only with AI_SMART_ROUTER=1 and no modelId. */
+    try { if (!selection.success) throw new Error('invalid_model');
+      const autoSelected = selectGenerationRoute(providers, { modelId: selection.data.modelId, allowFallback: selection.data.allowFallback, fallbackIds: selection.data.fallbackIds,
+        prompt: '', mode: 'fix', fileCount: parsed.data.length, smartRouter });
+      autoRoute = autoSelected.entries;
+      autoDecision = autoSelected.decision ?? { model: autoRoute[0].id, reason: selection.data.modelId !== undefined ? 'explicit_user_choice' : 'configured_default' }; }
     catch { return c.json({error:'invalid_model'},400); }
     if (parsed.data.some(f => containsPotentialSecret(f.path) || containsPotentialSecret(f.content))) return c.json({ error: 'secret_in_context' }, 400);
     const admission = budget.acquire();
@@ -436,6 +440,7 @@ export function createApp(
         prompt: input.request.prompt,
         mode: input.request.mode,
         fileCount: input.request.context.files.length,
+        smartRouter,
       });
     } catch {
       return c.json({ error: 'invalid_model' }, 400);

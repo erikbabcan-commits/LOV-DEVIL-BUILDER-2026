@@ -35,6 +35,8 @@ export interface AgentWorkerOptions {
   requestTimeoutMs?: number;
   pollMs?: number;
   maxAttempts?: number;
+  /** Smart router for jobs without modelId (AI_SMART_ROUTER=1, default OFF; Bora W3 P3-1). */
+  smartRouter?: boolean;
   /** test seam: events are flushed to the row in batches of this size. */
   flushEvery?: number;
 }
@@ -119,6 +121,7 @@ export class AgentWorker {
         prompt: input.request.prompt,
         mode: input.request.mode,
         fileCount: input.request.context.files.length,
+        smartRouter: this.o.smartRouter === true,
       });
     } catch {
       return failed(this.o.providers.defaultProvider ? 'invalid_model' : 'ai_not_configured', 'The selected AI model is not available.', false);

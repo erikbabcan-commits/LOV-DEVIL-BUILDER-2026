@@ -133,9 +133,19 @@ describe('HTTP /api/sandbox/autofix: kvóta a meranie', () => {
 describe('HTTP /api/sandbox/autofix: smart router (fake registry, žiadne live volanie)', () => {
   const registry = () => {
     const small = patching('fake-small'), codestral = patching('fake-codestral'), large = patching('fake-large');
-    return { small, codestral, large, providers: new ProviderRegistry([{ id: 'codestral', label: 'C', provider: codestral }, { id: 'mistral-small', label: 'S', provider: small }, { id: 'mistral-large', label: 'L', provider: large }]) };
+    // AI_FALLBACK_MODELS = codestral: kept as the fallback after the router pick (Bora W3 P3-1).
+    return { small, codestral, large, providers: new ProviderRegistry([{ id: 'codestral', label: 'C', provider: codestral }, { id: 'mistral-small', label: 'S', provider: small }, { id: 'mistral-large', label: 'L', provider: large }], ['codestral']) };
   };
-  const app = (providers: ProviderRegistry, execute = buildsFailing(1)) => createApp({}, null, { providers, rateLimit: () => true, resilience: { sleep: async () => {}, random: () => 0 }, sandbox: sandbox(execute) });
+  const app = (providers: ProviderRegistry, execute = buildsFailing(1), smartRouter = true) => createApp({}, null, { providers, rateLimit: () => true, resilience: { sleep: async () => {}, random: () => 0 }, sandbox: sandbox(execute), smartRouter });
+
+  it('AI_SMART_ROUTER vypnutý (default): bez modelId ide na nakonfigurovaný default, router sa nepoužije', async () => {
+    const r = registry(), many = Array.from({ length: 12 }, (_, i) => ({ path: i ? `src/m${i}.ts` : 'src/main.tsx', content: 'export {};' }));
+    const body = await (await post(app(r.providers, buildsFailing(1), false), { files: many })).json();
+    expect(body).toMatchObject({ ok: true, route: { model: 'codestral', reason: 'configured_default' } });
+    expect(r.codestral.complete).toHaveBeenCalledOnce();
+    expect(r.small.complete).not.toHaveBeenCalled();
+    expect(r.large.complete).not.toHaveBeenCalled();
+  });
 
   it('bez modelId: krátka oprava s ≤3 súbormi ide na mistral-small (mode fix)', async () => {
     const r = registry();
