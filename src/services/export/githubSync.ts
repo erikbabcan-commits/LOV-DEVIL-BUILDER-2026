@@ -1,9 +1,9 @@
 import { apiUrl } from '../../lib/api';
 
 /** Client helper for forge-branch GitHub sync. Tokens never leave the server.
- * The Cloud BFF allow-list does not yet include export/sync (githubBff.ts is
- * outside this epic); callers that already hold a trusted same-origin path
- * can use `syncProjectToGitHub`.
+ * The Cloud BFF forwards POST /api/github-connect/export/sync to this server route
+ * (githubBff.ts allow-list, wave-2 integration); `syncProjectToGitHub` itself calls
+ * the server route directly and is not yet wired into a UI flow.
  */
 export type GitHubSyncSelection = {
   projectId: string;
