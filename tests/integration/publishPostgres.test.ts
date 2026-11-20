@@ -159,7 +159,7 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
     const publicApp = publicPublishApp(config, db, value.artifacts);
     const response = await publicApp.request(published.url!, { headers: { Host: "127.0.0.1:8791", Cookie: "lov_token=must-not-be-used" } });
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cache-control")).toBe("no-cache");
     expect(response.headers.get("set-cookie")).toBeNull();
     expect(response.headers.get("content-security-policy")).toContain("sandbox allow-scripts");
     expect(response.headers.get("content-security-policy")).not.toContain("allow-same-origin");
@@ -386,7 +386,7 @@ describe.skipIf(process.env.PROJECTS_PG_E2E !== "1")("dedicated PostgreSQL publi
       publicApp.request(url, { method, headers: { Host: host } });
     const first = await open(initial.url);
     expect(first.status).toBe(200);
-    expect(first.headers.get("cache-control")).toBe("no-store");
+    expect(first.headers.get("cache-control")).toBe("no-cache");
     expect(first.headers.get("content-security-policy")).toContain("sandbox allow-scripts");
     expect(await first.text()).toContain("Release one");
     expect((await open(initial.url, "GET", "localhost:5176")).status).toBe(404);

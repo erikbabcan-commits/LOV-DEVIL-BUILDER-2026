@@ -403,7 +403,7 @@ describe("publish engine: slugs, domains, rollback, cache (agent-7)", () => {
     );
   });
 
-  it("sets HTML no-cache, hashed-asset immutable, and keeps no-store on public errors", async () => {
+  it("sets HTML no-cache, documents immutable hashed-asset headers, and keeps no-store on public errors", async () => {
     expect(publishCacheControl("/p/" + randomUUID() + "/")).toBe("no-cache");
     expect(publishCacheControl("/index.html")).toBe("no-cache");
     expect(publishCacheControl("/p/x/app.deadbeef01234567.js")).toBe(
@@ -424,10 +424,9 @@ describe("publish engine: slugs, domains, rollback, cache (agent-7)", () => {
       published.url! + "app.abcdef0123456789.js",
       { headers: { Host: "127.0.0.1:8791" } },
     );
-    expect(asset.status).toBe(200);
-    expect(asset.headers.get("cache-control")).toBe(
-      "public, max-age=31536000, immutable",
-    );
+    expect(asset.status).toBe(404);
+    expect(asset.headers.get("cache-control")).toBe("no-store");
+    expect(await asset.text()).not.toContain('<div id="root">');
 
     const missing = await publicApp.request(
       "http://127.0.0.1:8791/p/" + randomUUID() + "/",
@@ -441,6 +440,19 @@ describe("publish engine: slugs, domains, rollback, cache (agent-7)", () => {
     });
     expect(wrongHost.status).toBe(404);
     expect(wrongHost.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("does not serve parent HTML on a hashed-asset URL with an immutable cache header", async () => {
+    const published = await publishOnce();
+    const html = await (await publicApp.request(published.url!, { headers: { Host: "127.0.0.1:8791" } })).text();
+    expect(html).toContain('<div id="root">');
+    const asset = await publicApp.request(published.url! + "app.deadbeef01234567.js", {
+      headers: { Host: "127.0.0.1:8791" },
+    });
+    expect(asset.status).toBe(404);
+    expect(asset.headers.get("cache-control")).toBe("no-store");
+    expect(asset.headers.get("cache-control")).not.toContain("immutable");
+    expect(await asset.text()).not.toBe(html);
   });
 
   it("owner API: slug + versions + rollback routes require auth and stay owner-scoped", async () => {

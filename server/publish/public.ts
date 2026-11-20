@@ -122,38 +122,12 @@ export function publicPublishApp(
     );
   });
 
-  /** Hashed static asset path (header contract); bytes still come from the parent artifact HTML store today. */
-  app.on(["GET", "HEAD"], "/p/:artifactId/:asset", async (c) => {
-    if ((c.req.header("Host") ?? "") !== host) return c.notFound();
-    if (new URL(c.req.url).search) return c.notFound();
-    const asset = c.req.param("asset");
-    const cache = publishCacheControl(`/p/${c.req.param("artifactId")}/${asset}`);
-    // Only advertise immutable caching for hash-shaped names; unknown shapes stay no-store via 404.
-    if (!cache.includes("immutable")) return c.notFound();
-    try {
-      const row = (
-        await db.query(
-          `SELECT artifact_id, artifact_sha256, artifact_bytes FROM publish_jobs
-           WHERE artifact_id=$1 AND state='published' AND withdrawn_at IS NULL`,
-          [c.req.param("artifactId")],
-        )
-      ).rows[0];
-      if (!row) return c.notFound();
-      const bytes = await artifacts.read(
-        row.artifact_id,
-        row.artifact_sha256,
-        Number(row.artifact_bytes),
-      );
-      c.header("Content-Type", "application/octet-stream");
-      c.header("Content-Length", String(bytes.byteLength));
-      c.header("Cache-Control", cache);
-      return new Response(c.req.method === "HEAD" ? null : bytes, {
-        status: 200,
-        headers: c.res.headers,
-      });
-    } catch {
-      return c.notFound();
-    }
+  /** Hashed asset paths are reserved, but there is no multi-file artifact store yet.
+   * Never serve the parent HTML under an immutable cache header (browsers/CDNs would
+   * pin the wrong bytes at this URL for a year). */
+  app.on(["GET", "HEAD"], "/p/:artifactId/:asset", (c) => {
+    c.header("Cache-Control", "no-store");
+    return c.notFound();
   });
 
   /** Slug subdomain or verified custom domain → live project artifact. */
