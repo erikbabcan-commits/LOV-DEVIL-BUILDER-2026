@@ -75,4 +75,20 @@ describe('GitHub BFF: export/sync allow-list (wave 2 glue)', () => {
     expect(fetcher).not.toHaveBeenCalled();
     expect((await bff(() => Response.json(success), false).call()).status).toBe(401);
   });
+
+  it('passes the route-level github_reauth_required (body without ok) through as a typed 401 (Bora W2 P3-3, probe C2)', async () => {
+    // server/routes/githubCloud.ts answers an expired connection with { error: 'github_reauth_required' } (no ok field).
+    const res = await bff(() => Response.json({ error: 'github_reauth_required' }, { status: 401 })).call();
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ ok: false, error: 'github_reauth_required' });
+    // Extra fields are still not forwarded and do not unlock the pass-through.
+    const extra = await bff(() => Response.json({ error: 'github_reauth_required', token: 'ghp_' + 'A'.repeat(36) }, { status: 401 })).call();
+    expect(extra.status).toBe(401);
+    const extraBody = await extra.json();
+    expect(JSON.stringify(extraBody)).not.toContain('ghp_');
+    // Other route-level codes keep their existing mapping.
+    const notConnected = await bff(() => Response.json({ error: 'github_not_connected' }, { status: 409 })).call();
+    expect(notConnected.status).toBe(409);
+    expect(await notConnected.json()).toEqual({ error: 'github_not_connected' });
+  });
 });
