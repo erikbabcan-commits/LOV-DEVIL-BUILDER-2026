@@ -10,6 +10,18 @@ const secretPatterns = [
   /\b(?:MISTRAL_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|GITHUB_TOKEN|NPM_TOKEN)\s*[:=]\s*["']?[^\s"']{8,}/gi,
 ];
 
+/**
+ * Redaction-only patterns (Bora P3): masked in logs/errors, but NOT used by
+ * containsPotentialSecret — a public JWT (e.g. a Supabase anon key) in a project
+ * must not block AI calls or publishing.
+ */
+const redactOnlyPatterns = [
+  /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
+  /\brk_(?:live|test)_[A-Za-z0-9]{16,}\b/g,
+  /\bwhsec_[A-Za-z0-9+/=_-]{16,}/g,
+  /\bBearer\s+[A-Za-z0-9._~+/-]{16,}=*/g,
+];
+
 export function containsPotentialSecret(value: string): boolean {
   return secretPatterns.some(pattern => {
     pattern.lastIndex = 0;
@@ -19,7 +31,7 @@ export function containsPotentialSecret(value: string): boolean {
 
 export function redactSecrets(value: string): string {
   let result = value;
-  for (const pattern of secretPatterns) {
+  for (const pattern of [...secretPatterns, ...redactOnlyPatterns]) {
     pattern.lastIndex = 0;
     result = result.replace(pattern, '[REDACTED]');
   }
