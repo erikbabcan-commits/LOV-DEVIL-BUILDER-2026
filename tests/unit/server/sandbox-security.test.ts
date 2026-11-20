@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { astGuardFailure, AST_GUARD_CODE, redactBuildDiagnostics, redactCompilerOutput, scanFiles, scanSource } from '../../../server/sandbox/astGuard';
-import { createProcessTreeProbe, DEFAULT_HOST_MEMORY_MB, DEFAULT_HOST_TIMEOUT_MS, resolveResourceLimits, runWithResourceLimits } from '../../../server/sandbox/resourceLimiter';
+import { createProcessTreeProbe, DEFAULT_HOST_MEMORY_MB, MAX_HOST_MEMORY_MB, DEFAULT_HOST_TIMEOUT_MS, resolveResourceLimits, runWithResourceLimits } from '../../../server/sandbox/resourceLimiter';
 import { HostExecutor, IsolatedExecutor } from '../../../server/sandbox/executor';
 import { SandboxError } from '../../../server/sandbox/errors';
 import * as builder from '../../../server/sandbox/builder';
@@ -122,13 +122,15 @@ describe('astGuard – parsing, positions and result shape', () => {
 });
 
 describe('resourceLimiter', () => {
-  it('defaults to a 10 s timeout and the measured 256 MB host budget; config is clamped to 128–256 MB', () => {
+  it('defaults to a 10 s timeout and the measured 256 MB host budget; config is clamped to 128–512 MB (Docker parity)', () => {
     expect(DEFAULT_HOST_TIMEOUT_MS).toBe(10_000);
     expect(DEFAULT_HOST_MEMORY_MB).toBe(256);
     expect(resolveResourceLimits({})).toMatchObject({ timeoutMs: 10_000, memoryLimitMb: 256 });
     expect(resolveResourceLimits({ SANDBOX_HOST_TIMEOUT_MS: '5000', SANDBOX_HOST_MEMORY_MB: '128' })).toMatchObject({ timeoutMs: 5000, memoryLimitMb: 128 });
     expect(resolveResourceLimits({ SANDBOX_HOST_MEMORY_MB: '50' }).memoryLimitMb).toBe(128);
-    expect(resolveResourceLimits({ SANDBOX_HOST_MEMORY_MB: '4096', SANDBOX_HOST_TIMEOUT_MS: '999999' })).toMatchObject({ memoryLimitMb: 256, timeoutMs: 20_000 });
+    expect(resolveResourceLimits({ SANDBOX_HOST_MEMORY_MB: '4096', SANDBOX_HOST_TIMEOUT_MS: '999999' })).toMatchObject({ memoryLimitMb: 512, timeoutMs: 20_000 });
+    expect(resolveResourceLimits({ SANDBOX_HOST_MEMORY_MB: '384' }).memoryLimitMb).toBe(384);
+    expect(MAX_HOST_MEMORY_MB).toBe(512);
     expect(resolveResourceLimits({ SANDBOX_HOST_MEMORY_MB: 'abc', SANDBOX_HOST_TIMEOUT_MS: 'x' })).toMatchObject({ memoryLimitMb: 256, timeoutMs: 10_000 });
   });
 

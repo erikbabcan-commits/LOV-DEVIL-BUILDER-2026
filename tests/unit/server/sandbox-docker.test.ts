@@ -35,7 +35,7 @@ describe('trusted Docker orchestration', () => {
     expect(await worker.compile([], new AbortController().signal)).toEqual(good);
     const args = calls.find(args => args[0] === 'create')!;
     expect(args).toEqual(workerCreateArgs(args[args.indexOf('--name') + 1], id));
-    expect(args).toContain('--network=none'); expect(args).toContain('--memory-swap=256m');
+    expect(args).toContain('--network=none'); expect(args).toContain('--memory=512m'); expect(args).toContain('--memory-swap=512m');
     expect(args).toContain('--user=65532:65532'); expect(args).toContain('--read-only');
     expect(args).toContain('--cpus=0.5'); expect(args).toContain('--pids-limit=128');
     expect(args).toContain('--cap-drop=ALL'); expect(args.some(x => /socket|MISTRAL|--volume|--mount/.test(x))).toBe(false);

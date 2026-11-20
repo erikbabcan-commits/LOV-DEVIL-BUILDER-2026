@@ -10,7 +10,7 @@ export interface CompilerWorker {
 
 export function workerCreateArgs(name: string, image: string): string[] {
   return ['create', '-i', '--name', name, '--label', 'lov-devil.sandbox=ws4',
-    '--init', '--pull=never', '--network=none', '--read-only', '--memory=256m', '--memory-swap=256m',
+    '--init', '--pull=never', '--network=none', '--read-only', '--memory=512m', '--memory-swap=512m',
     '--cpus=0.5', '--pids-limit=128', '--user=65532:65532', '--cap-drop=ALL',
     '--security-opt=no-new-privileges:true', '--log-driver=none',
     '--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=33554432,uid=65532,gid=65532,mode=700',

@@ -152,7 +152,7 @@ describe.skipIf(!enabled)('real Linux Docker compile isolation', () => {
   it('enforces kernel limits, non-root, no network/socket/secrets and bounded tmpfs', async () => {
     const result = await new DockerCompiler('lov-devil-sandbox-test:constraints').compile(files, signal());
     const probe = JSON.parse(result.html!);
-    expect(probe).toMatchObject({ uid: 65532, interfaces: ['lo'], memory: '268435456', swap: '0', pids: '128',
+    expect(probe).toMatchObject({ uid: 65532, interfaces: ['lo'], memory: '536870912', swap: '0', pids: '128',
       writeDenied: true, rootReadOnly: true, networkBlocked: true, dockerSocketPresent: false, hostMountPresent: false,
       capEff: '0000000000000000', noNewPrivs: '1', seccomp: '2', secretPresent: false, tmpfsBytes: 33554432 });
     const [quota, period] = probe.cpu.split(' ').map(Number); expect(quota / period).toBe(0.5);

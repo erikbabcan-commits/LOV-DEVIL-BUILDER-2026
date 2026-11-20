@@ -41,7 +41,7 @@ flowchart LR
 | Každý worker | nový kontajner, UID/GID 65532, `--init`, bez privileged |
 | Sieť / filesystem | `--network=none`, `--read-only`, žiadne bind mounts/volumes |
 | Dočasný priestor | `/tmp` tmpfs 32 MiB, noexec/nosuid/nodev, mode 0700 |
-| Pamäť | `--memory=256m --memory-swap=256m` (swap navyše 0) |
+| Pamäť | `--memory=512m --memory-swap=512m` (swap navyše 0; zvýšené z 256 MB, Erik t664u: max. vstup má špičku 244–265 MB) |
 | CPU / procesy | `--cpus=0.5 --pids-limit=128` |
 | Oprávnenia | `--cap-drop=ALL --security-opt=no-new-privileges:true`, default seccomp |
 | Čas | controller watchdog najviac 20 s vrátane create/start; poistka workera 18 s od štartu Node |

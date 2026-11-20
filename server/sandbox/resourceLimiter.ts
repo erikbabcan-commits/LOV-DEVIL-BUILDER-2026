@@ -2,8 +2,9 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { SandboxError } from './errors';
 
 /* Agent 4 — resource limiter for the LOCAL (non-Docker) host executor.
-   Docker isolation (`--memory=256m --cpus=0.5 --pids-limit=128`, dockerCompiler.ts)
-   stays the production hard limit and is NOT changed here.
+   Docker isolation (`--memory=512m --memory-swap=512m --cpus=0.5 --pids-limit=128`, dockerCompiler.ts)
+   is the production hard limit. Raised from 256 MB to 512 MB (Erik, t664u): the policy-max input
+   peaks at 244–265 MB for the whole worker process tree, which the old 256 MB cgroup would OOM-kill.
 
    Measurement (20. 11. 2026, box: 8 vCPU / 16 GB, Node 24.22.1, esbuild 0.28.2,
    production worker bundle `worker.mjs` exactly like deploy/Dockerfile.sandbox, peak RSS of
@@ -16,14 +17,15 @@ import { SandboxError } from './errors';
    - synthetic 40 files / 1.98 MB (policy max input) ..........  244–265 MB (node ~100 + esbuild ~149)
    - for comparison full `vite build` of a blueprint ..........  248–262 MB (not used by the sandbox)
    Host mode accounts only what the build adds (growth of node + esbuild child RSS over the
-   start of the build), so the ~42–64 MB idle node baseline is excluded. 256 MB = parity with the Docker limit: every
-   measured policy-valid input fits in host mode, typical projects use ~1/3 of it. The limit is
-   configurable within 128–256 MB (SANDBOX_HOST_MEMORY_MB); 50 MB would break normal builds. */
+   start of the build), so the ~42–64 MB idle node baseline is excluded. Default 256 MB: every
+   measured policy-valid input fits in host mode (build growth ≤ ~165 MB), typical projects use ~1/3 of it.
+   Configurable within 128–512 MB (SANDBOX_HOST_MEMORY_MB); the upper bound matches the Docker limit.
+   50 MB would break normal builds. */
 
 export const DEFAULT_HOST_TIMEOUT_MS = 10_000;
 export const DEFAULT_HOST_MEMORY_MB = 256;
 export const MIN_HOST_MEMORY_MB = 128;
-export const MAX_HOST_MEMORY_MB = 256;
+export const MAX_HOST_MEMORY_MB = 512; // = Docker --memory (dockerCompiler.ts)
 const MIN_TIMEOUT_MS = 1_000;
 const MAX_TIMEOUT_MS = 20_000; // never above the Docker worker deadline
 
