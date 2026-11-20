@@ -7,6 +7,7 @@ import { containsPotentialSecret, redactSecrets } from '../security/secrets';
 import { patchBase,PatchError,requestBuildPatch } from './patches';
 import {ContextBudgetError} from '../providers/contextBudget';
 import {UsageLedgerError} from '../usage/store';
+import { QuotaAdmissionError } from '../security/generationQuota';
 
 /* Step 4: AUTOFIX — bounded repair loop: BUILD → COLLECT REAL ERRORS → AI PATCH → REBUILD → VERIFY.
    Max 3 automatické opravy (Agent 9, schválené Erikom). Bezpečnostné nálezy AST guardu
@@ -26,11 +27,15 @@ export interface AutofixResult {
   progress: AutofixProgressStep[];
   /** 'security' = build zablokoval AST guard; AI oprava sa nespustila. */
   blocked?: 'security';
+  /** 'quota_exceeded' = kvóta sa minula uprostred slučky (Bora W3 P3-3): ďalší platený pokus sa
+   *  nespustil, `attempts`/`progress` obsahujú len zaplatené pokusy, súbory sú posledný funkčný stav. */
+  stopped?: 'quota_exceeded';
 }
 
 export interface AutofixProgressStep { attempt: number; step: 'build' | 'patch' | 'rebuild'; status: 'ok' | 'failed' }
 
-/** Najviac 3 platené AI pokusy na jedno volanie; kvóta sa odpočíta len raz (beforeAi volá route len pri prvom). */
+/** Najviac 3 platené AI pokusy na jedno volanie. Každý platený pokus stojí 1 jednotku kvóty:
+ *  `beforeAi` sa volá PRED každým AI volaním a pri vyčerpanej kvóte slučka skončí (Bora W3 P3-3). */
 export const MAX_ATTEMPTS = 3;
 
 /** Prefix diagnostík AST guardu agenta 4 (`[sandbox_policy_blocked:<rule>]`); len čítame formát. */
@@ -95,6 +100,7 @@ export async function autofixLoop(
   const executor = opts?.executor ?? getSandboxExecutor();
   const progress: AutofixProgressStep[] = [];
   let blocked: AutofixResult['blocked'];
+  let stopped: AutofixResult['stopped'];
   let result = await buildWithRedactedErrors(current, executor, opts?.signal);
 
   while (!result.ok && attempts < MAX_ATTEMPTS) {
@@ -126,6 +132,13 @@ export async function autofixLoop(
       history.push({ attempt: attempts, phase: 'patch', message: `AI patch: ${patch.files.length} súborov` });
       progress.push({ attempt: attempts, step: 'patch', status: 'ok' });
     } catch (e) {
+      // Quota exhausted after at least one paid attempt: stop without a free extra attempt and
+      // return the partial result. Before the first paid attempt it still reaches HTTP (429).
+      if(admissionFailed&&attempts>1&&e instanceof QuotaAdmissionError&&e.code==='quota_exceeded'){
+        attempts--;progress.pop();stopped='quota_exceeded';
+        history.push({ attempt: attempts, phase: 'patch', message: 'kvóta AI vyčerpaná; ďalší pokus sa nespustil' });
+        break;
+      }
       // Admission failures must reach HTTP; they are not failed model patches.
       if(admissionFailed||e instanceof ContextBudgetError||e instanceof UsageLedgerError)throw e;
       history.push({ attempt: attempts, phase: 'patch', message: 'AI patch zlyhal: ' + redactSecrets(String(e)).slice(0, 120) });
@@ -158,5 +171,6 @@ export async function autofixLoop(
     history,
     progress,
     ...(blocked ? { blocked } : {}),
+    ...(stopped ? { stopped } : {}),
   };
 }

@@ -90,13 +90,13 @@ describe('AI quota admission and cancellation through HTTP',()=>{
     const failed=await request(createApp({},provider,{auth:wiring(),rateLimit:()=>true,sandbox:sandbox(async()=>{throw new SandboxError('sandbox_unavailable');})}),'/api/sandbox/autofix',body);
     expect(failed.status).toBe(503);expect(complete).not.toHaveBeenCalled();expect(await quota.usage('alice')).toMatchObject({used:0});
   });
-  it('charges both autofix attempts once and rejects exhausted users before any model patch',async()=>{
+  it('charges each paid autofix attempt (Bora W3 P3-3) and rejects exhausted users before any model patch',async()=>{
     const provider=makeMockProvider(),complete=vi.spyOn(provider,'complete').mockImplementation(async messages=>{const file=JSON.parse(messages[1].content).files[0];return{text:JSON.stringify({version:1,summary:'Fix',changes:[{path:file.path,action:'modify',beforeSha256:file.sha256,edits:[{search:file.content,replace:file.content+'\n// fix'}]}]}),usage:{promptTokens:2,completionTokens:3}};});
     const execute=vi.fn< SandboxExecutor['execute'] >().mockResolvedValueOnce(badBuild).mockResolvedValueOnce(badBuild).mockResolvedValue(goodBuild);
     const body={files:[{path:'src/main.tsx',content:'export {};'}]};
     const response=await request(createApp({},provider,{auth:wiring(),rateLimit:()=>true,sandbox:sandbox(execute)}),'/api/sandbox/autofix',body);
-    expect(response.status).toBe(200);expect(await response.json()).toMatchObject({ok:true,attempts:2,quotaUpdate:{userId:'alice',quota:{used:1}}});expect(complete).toHaveBeenCalledTimes(2);
-    for(let i=1;i<10;i++)await quota.consume('alice');complete.mockClear();
+    expect(response.status).toBe(200);expect(await response.json()).toMatchObject({ok:true,attempts:2,quotaUpdate:{userId:'alice',quota:{used:2}}});expect(complete).toHaveBeenCalledTimes(2);
+    for(let i=2;i<10;i++)await quota.consume('alice');complete.mockClear();
     const denied=await request(createApp({},provider,{auth:wiring(),rateLimit:()=>true,sandbox:sandbox(async()=>badBuild)}),'/api/sandbox/autofix',body);
     expect(denied.status).toBe(429);expect(await denied.json()).toMatchObject({error:'quota_exceeded'});expect(complete).not.toHaveBeenCalled();expect(await quota.usage('alice')).toMatchObject({used:10});
   });

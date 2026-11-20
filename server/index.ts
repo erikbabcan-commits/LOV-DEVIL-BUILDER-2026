@@ -384,6 +384,7 @@ export function createApp(
     const admission = budget.acquire();
     if (!admission.ok) return c.json({ error: 'BUDGET_EXCEEDED', reason: admission.reason }, 429);
     let autoQuota: QuotaSnapshot | undefined;
+    let autoCharged = 0;
     const autoRun = { userId: autoUser?.id ?? '', id: randomUUID(), kind: 'autofix' as const };
     const autoUpdates: ProviderUpdate[] = [];
     const autoMeter = createProviderRun(autoRoute,usageStore,autoRun,{...opts?.resilience,onUpdate:event=>autoUpdates.push(event)});
@@ -391,13 +392,24 @@ export function createApp(
     try {
       const { autofixLoop } = await import('./agent/autofix');
       const result = await autofixLoop(autoMeter.provider, parsed.data, { executor: sandbox, signal: c.req.raw.signal,
+        // Bora W3 P3-3: every paid AI attempt consumes 1 quota unit, checked BEFORE the call.
+        // The first unit also admits the ledger run; later units are plain quota debits on the same run.
         beforeAi: async () => {
-          if (opts?.auth && autoUser && !autoQuota) autoQuota = await consumeGenerationQuota(opts.auth.quota, autoUser.id, () => usageStore!.admit(autoRun, opts.auth!.quota));
+          if (!opts?.auth || !autoUser) return;
+          try {
+            autoQuota = !autoQuota
+              ? await consumeGenerationQuota(opts.auth.quota, autoUser.id, () => usageStore!.admit(autoRun, opts.auth!.quota))
+              : await consumeGenerationQuota(opts.auth.quota, autoUser.id);
+            autoCharged++;
+          } catch (error) {
+            if (autoQuota && error instanceof QuotaAdmissionError && error.quota) autoQuota = error.quota;
+            throw error;
+          }
         },
       });
       if (autoQuota && autoMeter) { await autoMeter.finish(c.req.raw.signal.aborted ? 'cancelled' : result.ok ? 'succeeded' : 'failed'); autoFinished = true; }
       const autoFallbacks = autoUpdates.filter(event => event.reason === 'fallback').map(event => ({ to: autoRoute.find(entry => entry.provider.name === event.provider && entry.provider.model === event.model)?.id ?? null, attempt: event.attempt }));
-      return c.json(JSON.parse(redactSecrets(JSON.stringify({ ...result, route: { ...autoDecision, ...(autoFallbacks.length ? { fallbacks: autoFallbacks } : {}) }, ...(autoUpdates.length ? {providerUpdates:autoUpdates} : {}), ...(autoQuota && autoUser ? { quotaUpdate: { userId: autoUser.id, quota: autoQuota } } : {}) }))));
+      return c.json(JSON.parse(redactSecrets(JSON.stringify({ ...result, route: { ...autoDecision, ...(autoFallbacks.length ? { fallbacks: autoFallbacks } : {}) }, ...(autoUpdates.length ? {providerUpdates:autoUpdates} : {}), ...(autoQuota && autoUser ? { quotaUpdate: { userId: autoUser.id, quota: autoQuota }, quotaCharged: autoCharged } : {}) }))));
     } catch (error) {
       if (error instanceof ContextBudgetError) return c.json({error:'context_limit',message:error.message},413);
       if (error instanceof UsageLedgerError) return c.json({ error: 'quota_unavailable', message: error.message }, 503);
