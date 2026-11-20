@@ -8,6 +8,7 @@ import { patchBase,PatchError,requestBuildPatch } from './patches';
 import {ContextBudgetError} from '../providers/contextBudget';
 import {UsageLedgerError} from '../usage/store';
 import { QuotaAdmissionError } from '../security/generationQuota';
+import { MAX_ATTEMPTS } from './autofixLimits';
 
 /* Step 4: AUTOFIX — bounded repair loop: BUILD → COLLECT REAL ERRORS → AI PATCH → REBUILD → VERIFY.
    Max 3 automatické opravy (Agent 9, schválené Erikom). Bezpečnostné nálezy AST guardu
@@ -36,7 +37,7 @@ export interface AutofixProgressStep { attempt: number; step: 'build' | 'patch' 
 
 /** Najviac 3 platené AI pokusy na jedno volanie. Každý platený pokus stojí 1 jednotku kvóty:
  *  `beforeAi` sa volá PRED každým AI volaním a pri vyčerpanej kvóte slučka skončí (Bora W3 P3-3). */
-export const MAX_ATTEMPTS = 3;
+export { LEGACY_CLIENT_MAX_ATTEMPTS, MAX_ATTEMPTS } from './autofixLimits';
 
 /** Prefix diagnostík AST guardu agenta 4 (`[sandbox_policy_blocked:<rule>]`); len čítame formát. */
 const GUARD_PREFIX = '[sandbox_policy_blocked:';
@@ -69,7 +70,7 @@ async function buildWithRedactedErrors(files: SandboxFile[], executor: SandboxEx
 export async function autofixLoop(
   provider: AIProvider,
   files: SandboxFile[],
-  opts?: { signal?: AbortSignal; executor?: SandboxExecutor; beforeAi?: () => Promise<void> },
+  opts?: { signal?: AbortSignal; executor?: SandboxExecutor; beforeAi?: () => Promise<void>; maxAttempts?: number },
 ): Promise<AutofixResult> {
   const history: AutofixResult['history'] = [];
   const buildErrors: AutofixResult['buildErrors'] = [];
@@ -103,7 +104,8 @@ export async function autofixLoop(
   let stopped: AutofixResult['stopped'];
   let result = await buildWithRedactedErrors(current, executor, opts?.signal);
 
-  while (!result.ok && attempts < MAX_ATTEMPTS) {
+  const maxAttempts = Math.min(MAX_ATTEMPTS, Math.max(1, Math.trunc(opts?.maxAttempts ?? MAX_ATTEMPTS) || MAX_ATTEMPTS));
+  while (!result.ok && attempts < maxAttempts) {
     if (isSecurityBlock(result.errors)) {
       // Security findings are blocking. They are never sent to the model, so no paid attempt starts.
       // A guard finding introduced by an AI patch also ends the loop; the candidate is discarded below.

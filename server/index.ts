@@ -11,6 +11,7 @@ import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/p
 import { estimateCost, readUsdEurRate, sumSession, formatMicros } from './usage/costEstimator';
 import { route as smartRoute } from './providers/smartRouter';
 import { effectivePlan } from './auth/plans';
+import { LEGACY_CLIENT_MAX_ATTEMPTS, MAX_ATTEMPTS as AUTOFIX_MAX_ATTEMPTS } from './agent/autofixLimits';
 import { selectGenerationRoute, smartRouterEnabled, withRouteDecision, type GenerationRoute } from './providers/generationRoute';
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
@@ -371,6 +372,12 @@ export function createApp(
       .safeParse((body as { files?: unknown })?.files);
     if (!parsed.success) return c.json({ error: 'invalid_files' }, 400);
     const selection = ModelSelectionSchema.safeParse(body);
+    // Bora W3 P3-4: the client states how many attempts its response schema accepts; without it (old cached
+    // PWA client, attempts <= 2) the loop is capped at 2 so nobody pays for a response the client rejects.
+    const requestedAttempts = (body as { maxAttempts?: unknown })?.maxAttempts;
+    if (requestedAttempts !== undefined && !(Number.isInteger(requestedAttempts) && (requestedAttempts as number) >= 1 && (requestedAttempts as number) <= AUTOFIX_MAX_ATTEMPTS))
+      return c.json({ error: 'invalid_max_attempts' }, 400);
+    const autoMaxAttempts = (requestedAttempts as number | undefined) ?? LEGACY_CLIENT_MAX_ATTEMPTS;
     let autoRoute: ModelEntry[];
     let autoDecision: { model: string; reason: string };
     /* Same model choice as generate (mode 'fix'): smart router only with AI_SMART_ROUTER=1 and no modelId. */
@@ -391,7 +398,7 @@ export function createApp(
     let autoFinished = false;
     try {
       const { autofixLoop } = await import('./agent/autofix');
-      const result = await autofixLoop(autoMeter.provider, parsed.data, { executor: sandbox, signal: c.req.raw.signal,
+      const result = await autofixLoop(autoMeter.provider, parsed.data, { executor: sandbox, signal: c.req.raw.signal, maxAttempts: autoMaxAttempts,
         // Bora W3 P3-3: every paid AI attempt consumes 1 quota unit, checked BEFORE the call.
         // The first unit also admits the ledger run; later units are plain quota debits on the same run.
         beforeAi: async () => {

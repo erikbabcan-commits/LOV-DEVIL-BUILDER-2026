@@ -104,7 +104,7 @@ describe('HTTP /api/sandbox/autofix: kvóta a meranie', () => {
   it('3 AI pokusy v jednom volaní = 3 jednotky kvóty a všetky 3 volania merané v jednom behu (Bora W3 P3-3)', async () => {
     const provider = patching();
     const app = createApp({}, provider, { auth: auth(), rateLimit: () => true, sandbox: sandbox(buildsFailing(3)) });
-    const response = await post(app, { files }, token);
+    const response = await post(app, { files, maxAttempts: 3 }, token);
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ ok: true, attempts: 3, quotaCharged: 3, quotaUpdate: { userId: 'alice', quota: { used: 3 } } });
     expect(provider.complete).toHaveBeenCalledTimes(3);
@@ -115,7 +115,7 @@ describe('HTTP /api/sandbox/autofix: kvóta a meranie', () => {
   it('3 neúspešné pokusy odpočítajú 3 jednotky, žiadny pokus nie je zadarmo', async () => {
     const provider = patching();
     const app = createApp({}, provider, { auth: auth(), rateLimit: () => true, sandbox: sandbox(vi.fn<SandboxExecutor['execute']>().mockResolvedValue(badBuild)) });
-    const body = await (await post(app, { files }, token)).json();
+    const body = await (await post(app, { files, maxAttempts: 3 }, token)).json();
     expect(body).toMatchObject({ ok: false, attempts: 3 });
     expect(provider.complete).toHaveBeenCalledTimes(3);
     expect(await quota.usage('alice')).toMatchObject({ used: 3 });
@@ -126,7 +126,7 @@ describe('HTTP /api/sandbox/autofix: kvóta a meranie', () => {
     for (let i = 0; i < limit - 2; i++) await quota.consume('alice'); // ostávajú 2 jednotky
     const provider = patching();
     const app = createApp({}, provider, { auth: auth(), rateLimit: () => true, sandbox: sandbox(vi.fn<SandboxExecutor['execute']>().mockResolvedValue(badBuild)) });
-    const response = await post(app, { files }, token);
+    const response = await post(app, { files, maxAttempts: 3 }, token);
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toMatchObject({ ok: false, attempts: 2, stopped: 'quota_exceeded', quotaCharged: 2, quotaUpdate: { quota: { used: limit, remaining: 0 } } });
@@ -140,7 +140,7 @@ describe('HTTP /api/sandbox/autofix: kvóta a meranie', () => {
     while ((await quota.consume('alice')).ok) { /* vyčerpaj */ }
     const provider = patching();
     const app = createApp({}, provider, { auth: auth(), rateLimit: () => true, sandbox: sandbox(vi.fn<SandboxExecutor['execute']>().mockResolvedValue(badBuild)) });
-    const response = await post(app, { files }, token);
+    const response = await post(app, { files, maxAttempts: 3 }, token);
     expect(response.status).toBe(429);
     expect((await response.json()).error).toBe('quota_exceeded');
     expect(provider.complete).not.toHaveBeenCalled();
@@ -152,7 +152,7 @@ describe('HTTP /api/sandbox/autofix: kvóta a meranie', () => {
     const provider = patching();
     const app = createApp({}, provider, { auth: auth(), rateLimit: () => true, sandbox: sandbox(vi.fn<SandboxExecutor['execute']>().mockResolvedValue(badBuild)) });
     const before = (await quota.usage('alice')).used;
-    const responses = await Promise.all(Array.from({ length: 6 }, () => post(app, { files }, token)));
+    const responses = await Promise.all(Array.from({ length: 6 }, () => post(app, { files, maxAttempts: 3 }, token)));
     const bodies = await Promise.all(responses.map(r => r.json()));
     const charged = (await quota.usage('alice')).used - before;
     expect(provider.complete.mock.calls.length).toBeLessThanOrEqual(charged);
@@ -166,9 +166,24 @@ describe('HTTP /api/sandbox/autofix: kvóta a meranie', () => {
   it('bezpečnostný nález cez HTTP nič neodpočíta a AI nevolá', async () => {
     const provider = patching();
     const app = createApp({}, provider, { auth: auth(), rateLimit: () => true, sandbox: sandbox(vi.fn<SandboxExecutor['execute']>().mockResolvedValue(guardBuild)) });
-    expect(await (await post(app, { files }, token)).json()).toMatchObject({ ok: false, attempts: 0, blocked: 'security' });
+    expect(await (await post(app, { files, maxAttempts: 3 }, token)).json()).toMatchObject({ ok: false, attempts: 0, blocked: 'security' });
     expect(provider.complete).not.toHaveBeenCalled();
     expect(await quota.usage('alice')).toMatchObject({ used: 0 });
+  });
+
+  it('Bora W3 P3-4: bez maxAttempts (starý klient z cache) najviac 2 platené pokusy, neplatná hodnota = 400 bez AI', async () => {
+    const provider = patching();
+    const app = createApp({}, provider, { auth: auth(), rateLimit: () => true, sandbox: sandbox(vi.fn<SandboxExecutor['execute']>().mockResolvedValue(badBuild)) });
+    const legacy = await (await post(app, { files }, token)).json();
+    expect(legacy).toMatchObject({ ok: false, attempts: 2, quotaCharged: 2 });
+    expect(provider.complete).toHaveBeenCalledTimes(2);
+    for (const bad of [0, 4, 2.5, '3']) {
+      const response = await post(app, { files, maxAttempts: bad }, token);
+      expect(response.status).toBe(400);
+      expect((await response.json()).error).toBe('invalid_max_attempts');
+    }
+    expect(provider.complete).toHaveBeenCalledTimes(2);
+    expect(await quota.usage('alice')).toMatchObject({ used: 2 });
   });
 });
 
