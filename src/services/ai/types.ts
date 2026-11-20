@@ -7,7 +7,7 @@ export interface ValidationError { path: string; message: string; code: string }
 export interface ValidationResult { ok: boolean; errors: ValidationError[] }
 
 export type AgentEvent =
-  | { type: 'run_started'; runId: string; model: string }
+  | { type: 'run_started'; runId: string; model: string; route?: { model: string; reason: string } }
   | { type:'provider_update';reason:'retry'|'fallback';provider:string;model:string;attempt:number;maxAttempts:number;message:string }
   | {type:'context_update';state:'summarizing'|'ready';summarizedTurns:number;summaryCalls:number}
   | {type:'intent_selected';intent:'create'|'iterate'|'fix'|'explain'}

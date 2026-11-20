@@ -5,6 +5,7 @@ import { AgentJobResultPatchSchema, type AgentJobErrorPayload, type AgentJobResu
 import type { AIProvider } from '../providers/types';
 import type { ProviderRegistry } from '../providers/registry';
 import { createProviderRun } from '../providers/run';
+import { selectGenerationRoute, withRouteDecision, type GenerationRoute } from '../providers/generationRoute';
 import { ProviderError } from '../providers/errors';
 import type { ResilienceOptions } from '../providers/resilience';
 import type { QuotaStore } from '../security/quotaStore';
@@ -108,9 +109,21 @@ export class AgentWorker {
     const input = parseAgentRequest(job.request);
     if (!input.ok) return failed(input.error.code, input.error.message, false);
 
-    let route;
-    try { route = this.o.providers.route(input.request.modelId, input.request.allowFallback, input.request.fallbackIds); }
-    catch { return failed(this.o.providers.defaultProvider ? 'invalid_model' : 'ai_not_configured', 'The selected AI model is not available.', false); }
+    /* Wave-3 glue: same model choice as /api/agent/generate (smart router only without a modelId). */
+    let selected: GenerationRoute;
+    try {
+      selected = selectGenerationRoute(this.o.providers, {
+        modelId: input.request.modelId,
+        allowFallback: input.request.allowFallback,
+        fallbackIds: input.request.fallbackIds,
+        prompt: input.request.prompt,
+        mode: input.request.mode,
+        fileCount: input.request.context.files.length,
+      });
+    } catch {
+      return failed(this.o.providers.defaultProvider ? 'invalid_model' : 'ai_not_configured', 'The selected AI model is not available.', false);
+    }
+    const route = selected.entries;
     if (!this.o.providers.defaultProvider) return failed('ai_not_configured', 'AI engine is not configured.', false);
 
     if (this.o.quota) {
@@ -132,7 +145,7 @@ export class AgentWorker {
     try {
       try {
         for await (const raw of runAgent(input.request, { runId: id, provider: counter.provider, signal: abort.signal, maxFiles: this.o.maxFiles ?? 40 })) {
-          const event = AgentEventSchema.safeParse(raw);
+          const event = AgentEventSchema.safeParse(withRouteDecision(raw, selected.decision));
           if (!event.success) continue;
           pending.push(event.data);
           if (event.data.type === 'stage') stage = event.data;

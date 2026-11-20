@@ -10,6 +10,7 @@ import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
 import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
 import { estimateCost, readUsdEurRate, sumSession, formatMicros } from './usage/costEstimator';
 import { route as smartRoute, cascadeFor } from './providers/smartRouter';
+import { selectGenerationRoute, withRouteDecision, type GenerationRoute } from './providers/generationRoute';
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PostgresAiUsageStore, UsageLedgerError, type AiUsageStore, type RunStatus } from './usage/store';
@@ -425,9 +426,21 @@ export function createApp(
     try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
     const input = parseAgentRequest(body);
     if (!input.ok) return c.json({ error: input.error.code, message: input.error.message }, 400);
-    let route: ModelEntry[];
-    try { route=providers.route(input.request.modelId,input.request.allowFallback,input.request.fallbackIds); }
-    catch { return c.json({error:'invalid_model'},400); }
+    /* Wave-3 glue: smart router only without an explicit modelId; an explicit choice stays exact. */
+    let selected: GenerationRoute;
+    try {
+      selected = selectGenerationRoute(providers, {
+        modelId: input.request.modelId,
+        allowFallback: input.request.allowFallback,
+        fallbackIds: input.request.fallbackIds,
+        prompt: input.request.prompt,
+        mode: input.request.mode,
+        fileCount: input.request.context.files.length,
+      });
+    } catch {
+      return c.json({ error: 'invalid_model' }, 400);
+    }
+    const route: ModelEntry[] = selected.entries;
     try{preflightContext(input.request,{contextWindowTokens:Math.min(...route.map(entry=>contextWindow(entry.provider)))});}
     catch(error){if(error instanceof ContextBudgetError)return c.json({error:'context_limit'},413);throw error;}
     if (c.req.raw.signal.aborted) return c.json({ error: 'request_cancelled' }, 400);
@@ -514,7 +527,7 @@ export function createApp(
               const status: RunStatus = event.type === 'done' ? 'succeeded' : event.type === 'cancelled' ? 'cancelled' : 'failed';
               await meter.finish(status); finished = true;
             }
-            const checked = AgentEventSchema.safeParse(event);
+            const checked = AgentEventSchema.safeParse(withRouteDecision(event, selected.decision));
             if (checked.success) send(checked.data);
           }
         } catch (error) {
