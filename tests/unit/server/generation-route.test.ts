@@ -87,7 +87,7 @@ describe('selectGenerationRoute, flag ON', () => {
     const short = selectGenerationRoute(registry, on);
     expect(short.decision).toEqual({ model: 'mistral-small', reason: 'short_prompt' });
     expect(short.entries.map(e => e.id)).toEqual(['mistral-small']);
-    const arch = selectGenerationRoute(registry, { ...on, prompt: 'Navrhni architektúru multi-tenant aplikácie' });
+    const arch = selectGenerationRoute(registry, { ...on, plan: 'pro', prompt: 'Navrhni architektúru multi-tenant aplikácie' });
     expect(arch.decision).toEqual({ model: 'mistral-large', reason: 'architecture_keywords' });
     const fix = selectGenerationRoute(registry, { ...on, prompt: 'Oprav chybu v App.tsx', mode: 'fix', fileCount: 2 });
     expect(fix.decision?.model).toBe('mistral-small');

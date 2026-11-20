@@ -155,11 +155,12 @@ describe('HTTP /api/sandbox/autofix: smart router (fake registry, žiadne live v
     expect(r.codestral.complete).not.toHaveBeenCalled();
   });
 
-  it('bez modelId: 12+ súborov ide na mistral-large', async () => {
+  it('bez modelId: 12+ súborov by išlo na mistral-large, ale bez pro plánu sa zníži na codestral (Bora W3 P3-2)', async () => {
     const r = registry(), many = Array.from({ length: 12 }, (_, i) => ({ path: i ? `src/m${i}.ts` : 'src/main.tsx', content: 'export {};' }));
     const body = await (await post(app(r.providers), { files: many })).json();
-    expect(body.route).toEqual({ model: 'mistral-large', reason: 'large_context' });
-    expect(r.large.complete).toHaveBeenCalledOnce();
+    expect(body.route).toEqual({ model: 'codestral', reason: 'plan_tier_clamp' });
+    expect(r.codestral.complete).toHaveBeenCalledOnce();
+    expect(r.large.complete).not.toHaveBeenCalled();
   });
 
   it('s explicitným modelId platí presne zvolený model bez routera', async () => {

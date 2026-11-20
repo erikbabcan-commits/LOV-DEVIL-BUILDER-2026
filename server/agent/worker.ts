@@ -37,6 +37,8 @@ export interface AgentWorkerOptions {
   maxAttempts?: number;
   /** Smart router for jobs without modelId (AI_SMART_ROUTER=1, default OFF; Bora W3 P3-1). */
   smartRouter?: boolean;
+  /** Effective plan of the job owner for the smart router (free never gets premium models). Errors/absent = 'free'. */
+  planFor?: (ownerId: string) => Promise<'free' | 'pro'>;
   /** test seam: events are flushed to the row in batches of this size. */
   flushEvery?: number;
 }
@@ -103,6 +105,12 @@ export class AgentWorker {
     }
   }
 
+  /** Looked up only when the router can actually choose (flag ON, no modelId); flag OFF stays query-free. */
+  private async ownerPlan(ownerId: string, modelId: string | undefined): Promise<'free' | 'pro'> {
+    if (this.o.smartRouter !== true || modelId !== undefined || !this.o.planFor) return 'free';
+    try { return (await this.o.planFor(ownerId)) === 'pro' ? 'pro' : 'free'; } catch { return 'free'; }
+  }
+
   private async run(job: AgentJobRecord) {
     const { store } = this.o;
     const id = job.id;
@@ -122,6 +130,7 @@ export class AgentWorker {
         mode: input.request.mode,
         fileCount: input.request.context.files.length,
         smartRouter: this.o.smartRouter === true,
+        plan: await this.ownerPlan(job.ownerId, input.request.modelId),
       });
     } catch {
       return failed(this.o.providers.defaultProvider ? 'invalid_model' : 'ai_not_configured', 'The selected AI model is not available.', false);

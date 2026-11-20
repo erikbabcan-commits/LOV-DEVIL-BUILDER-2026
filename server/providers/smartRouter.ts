@@ -16,7 +16,8 @@ export type RouteReason =
   | 'short_fix_or_explain'
   | 'short_prompt'
   | 'code_generation'
-  | 'unavailable_substitute';
+  | 'unavailable_substitute'
+  | 'plan_tier_clamp';
 export interface RouteContext {
   /** Počet súborov poslaných modelu ako kontext. */
   fileCount?: number;
@@ -24,6 +25,9 @@ export interface RouteContext {
   explicitModel?: string | null;
   /** Ak je zadané, router vyberá len z dostupných modelov (registry ids). */
   availableModels?: readonly string[];
+  /** false = plán bez prémiových modelov (free): router ich nikdy nevyberie (Bora W3 P3-2).
+   *  Explicitnú voľbu používateľa to nemení. undefined = bez obmedzenia (preview endpoint). */
+  allowPremium?: boolean;
 }
 export interface RouteDecision { model: string; reason: RouteReason; rule: RouteReason }
 
@@ -46,6 +50,9 @@ const ARCHITECTURE = [
   /\bdesign system\b/i, /\bevent[- ]driven\b/i, /\bauth(?:entication|orization)?\b/i, /\bautentifik/i, /\bautoriz/i,
 ];
 const isSmartModel = (value: string): value is SmartModelId => value in CASCADE;
+/** Prémiové (drahé) modely; free plán ich od routera nedostane. */
+export const PREMIUM_MODELS: ReadonlySet<string> = new Set(['mistral-large']);
+export const isPremiumModel = (id: string): boolean => PREMIUM_MODELS.has(id);
 
 function ruleFor(prompt: string, mode: RouteMode, files: number): { model: SmartModelId; rule: RouteReason } {
   const t = ROUTER_THRESHOLDS, length = prompt.trim().length;
@@ -66,6 +73,18 @@ export function route(prompt: string, mode: RouteMode = 'generate', context: Rou
     return { model: explicit, reason: 'explicit_user_choice', rule: 'explicit_user_choice' };
   const files = Number.isSafeInteger(context.fileCount) && (context.fileCount as number) > 0 ? (context.fileCount as number) : 0;
   const { model, rule } = ruleFor(typeof prompt === 'string' ? prompt : '', mode, files);
+  if (context.allowPremium === false) {
+    // Free plán: len neprémiové modely; prémiový výber pravidla sa zníži na najlepší neprémiový v kaskáde.
+    const allowed = (available ?? Object.keys(CASCADE)).filter(id => !isPremiumModel(id));
+    if (!allowed.length) throw new Error('invalid_model');
+    if (isPremiumModel(model)) {
+      const clamped = CASCADE[model].find(id => allowed.includes(id)) ?? allowed[0];
+      return { model: clamped, reason: 'plan_tier_clamp', rule };
+    }
+    const substitute = CASCADE[model].find(id => allowed.includes(id));
+    if (substitute === model) return { model, reason: rule, rule };
+    return { model: substitute ?? allowed[0], reason: 'unavailable_substitute', rule };
+  }
   if (!available) return { model, reason: rule, rule };
   const substitute = CASCADE[model].find(id => available.includes(id));
   if (substitute === model) return { model, reason: rule, rule };

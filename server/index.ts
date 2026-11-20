@@ -10,6 +10,7 @@ import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
 import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
 import { estimateCost, readUsdEurRate, sumSession, formatMicros } from './usage/costEstimator';
 import { route as smartRoute } from './providers/smartRouter';
+import { effectivePlan } from './auth/plans';
 import { selectGenerationRoute, smartRouterEnabled, withRouteDecision, type GenerationRoute } from './providers/generationRoute';
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
@@ -219,6 +220,10 @@ export function createApp(
     // Opt-in (AGENT_JOBS_WORKER=1): the queue worker runs queued POST /api/agent/jobs jobs and debits quota only at `succeeded`.
     if (jobStore && isDurableJobStore(jobStore) && jobsWorkerEnabled && opts?.agentJobs?.startWorker !== false) {
       startAgentWorker({ store: jobStore, providers, aiAllowed, quota: opts.auth.quota, admit: () => budget.acquire(), smartRouter,
+        planFor: async ownerId => {
+          const row = (await opts.auth!.db.query('SELECT plan, plan_expires_at FROM users WHERE id=$1', [ownerId])).rows[0] as { plan?: unknown; plan_expires_at?: unknown } | undefined;
+          return row ? effectivePlan(row) : 'free';
+        },
         resilience: opts.resilience, requestTimeoutMs: cfg.requestTimeoutMs });
     }
     // [/seam:agent-1]
@@ -371,7 +376,7 @@ export function createApp(
     /* Same model choice as generate (mode 'fix'): smart router only with AI_SMART_ROUTER=1 and no modelId. */
     try { if (!selection.success) throw new Error('invalid_model');
       const autoSelected = selectGenerationRoute(providers, { modelId: selection.data.modelId, allowFallback: selection.data.allowFallback, fallbackIds: selection.data.fallbackIds,
-        prompt: '', mode: 'fix', fileCount: parsed.data.length, smartRouter });
+        prompt: '', mode: 'fix', fileCount: parsed.data.length, smartRouter, plan: autoUser?.plan });
       autoRoute = autoSelected.entries;
       autoDecision = autoSelected.decision ?? { model: autoRoute[0].id, reason: selection.data.modelId !== undefined ? 'explicit_user_choice' : 'configured_default' }; }
     catch { return c.json({error:'invalid_model'},400); }
@@ -441,6 +446,7 @@ export function createApp(
         mode: input.request.mode,
         fileCount: input.request.context.files.length,
         smartRouter,
+        plan: authUser?.plan,
       });
     } catch {
       return c.json({ error: 'invalid_model' }, 400);

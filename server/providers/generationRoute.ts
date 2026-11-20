@@ -1,5 +1,5 @@
 import type { ModelEntry, ProviderRegistry } from './registry';
-import { route as smartRoute, type RouteMode, type RouteReason } from './smartRouter';
+import { isPremiumModel, route as smartRoute, type RouteMode, type RouteReason } from './smartRouter';
 
 /** Model choice for one generation run. */
 export interface GenerationRoute {
@@ -18,6 +18,9 @@ export interface GenerationRouteInput {
   fileCount: number;
   /** Server flag AI_SMART_ROUTER=1 (default OFF, Bora W3 P3-1). */
   smartRouter?: boolean;
+  /** Effective plan of the caller. Anything but 'pro' (also unknown/anonymous) never gets a premium
+   *  model from the router (Bora W3 P3-2). An explicit modelId is not affected. */
+  plan?: 'free' | 'pro';
 }
 
 /** AI_SMART_ROUTER=1 turns the smart router on. Anything else (unset, 0, true) keeps it OFF. */
@@ -49,15 +52,24 @@ export function selectGenerationRoute(providers: ProviderRegistry, input: Genera
   }
 
   const available = providers.ids();
-  const decision = smartRoute(input.prompt, routeMode(input.mode), { fileCount: input.fileCount, availableModels: available });
+  const allowPremium = input.plan === 'pro';
+  let decision: ReturnType<typeof smartRoute>;
+  try {
+    decision = smartRoute(input.prompt, routeMode(input.mode), { fileCount: input.fileCount, availableModels: available, allowPremium });
+  } catch {
+    // No non-premium model registered: keep the operator's configured route (same as flag OFF).
+    return { entries: current, decision: { model: current[0].id, reason: 'plan_tier_clamp' } };
+  }
   if (decision.model === current[0].id) {
     return { entries: current, decision: { model: decision.model, reason: decision.reason } };
   }
   const picked = providers.find(decision.model);
   if (!picked) throw new Error('invalid_model');
+  // AI_FALLBACK_MODELS after the pick; for a non-pro plan premium fallbacks are dropped too.
   const configured = providers.catalog().models.find(model => model.id === picked.id)?.fallbackIds ?? [];
-  const entries = providers.route(picked.id, configured.length > 0, configured);
-  return { entries, decision: { model: decision.model, reason: decision.reason } };
+  const fallbacks = configured.filter(id => allowPremium || !isPremiumModel(id))
+    .map(id => providers.find(id)).filter((entry): entry is ModelEntry => entry !== undefined);
+  return { entries: [picked, ...fallbacks], decision: { model: decision.model, reason: decision.reason } };
 }
 
 /** Adds the routing decision to the `run_started` event; every other event, and every event when
