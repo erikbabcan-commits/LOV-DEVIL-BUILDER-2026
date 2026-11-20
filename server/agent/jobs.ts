@@ -109,6 +109,22 @@ function toRecord(row: JobRow): AgentJobRecord {
  * cancelled/failed jobs, the view ends right before the first such event. Cutting a prefix (not filtering) keeps
  * event indices stable for clients that resume with `events.slice(seen)`.
  */
+/** Key-order-independent JSON for comparing a request with the one stored as jsonb. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
+  if (value && typeof value === 'object')
+    return '{' + Object.keys(value).sort().filter(k => (value as Record<string, unknown>)[k] !== undefined)
+      .map(k => JSON.stringify(k) + ':' + canonicalJson((value as Record<string, unknown>)[k])).join(',') + '}';
+  return JSON.stringify(value) ?? 'null';
+}
+
+async function sameRequest(c: { req: { json(): Promise<unknown> } }, stored: unknown): Promise<boolean> {
+  let body: unknown;
+  try { body = await c.req.json(); } catch { return false; }
+  const parsed = parseAgentRequest(body);
+  return parsed.ok && canonicalJson(parsed.request) === canonicalJson(stored);
+}
+
 const PAID_OUTPUT_EVENTS: ReadonlySet<unknown> = new Set(['stage', 'text_delta']);
 
 export function visibleJobEvents(record: Pick<AgentJobRecord, 'state' | 'events'>): AgentJobRecord['events'] {
@@ -359,6 +375,10 @@ export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean
     if (key === undefined || !IdempotencyKey.safeParse(key).success) return c.json({ error: 'invalid_idempotency_key' }, 400);
     const replay = async () => {
       const existing = await store.findByIdempotency(user.id, key);
+      /* Bora P3: the same key with a different body is a client bug, not a replay. Comparable
+         only while the job still stores its request (queued/running); terminal jobs drop it. */
+      if (existing && existing.request != null && !(await sameRequest(c, existing.request)))
+        return c.json({ error: 'idempotency_key_reused', message: 'Idempotency-Key was already used with a different request.' }, 409);
       return existing ? c.json(AgentJobReplaySchema.parse({ job: toAgentJobView(existing), replayed: true }), 200, { 'Idempotent-Replay': 'true' }) : null;
     };
     const first = await replay();

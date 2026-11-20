@@ -37,8 +37,8 @@ async function setup(over: { workerEnabled?: boolean; maxActivePerOwner?: number
     agentJobs: { workerEnabled: over.workerEnabled ?? true, startWorker: false, ...(over.maxActivePerOwner ? { maxActivePerOwner: over.maxActivePerOwner } : {}) },
   });
   const alice = await signToken({ sub: 'alice', email: 'alice@example.test', plan: 'free' }, secret);
-  const post = (key: string) => app.request(new Request('http://localhost/api/agent/jobs', {
-    method: 'POST', body: JSON.stringify(input),
+  const post = (key: string, body: unknown = input) => app.request(new Request('http://localhost/api/agent/jobs', {
+    method: 'POST', body: JSON.stringify(body),
     headers: { Cookie: 'lov_token=' + alice + '; lov_csrf=t', 'X-CSRF-Token': 't', 'Content-Type': 'application/json', 'Idempotency-Key': key },
   }));
   return { db, post };
@@ -110,5 +110,18 @@ describe('POST /api/agent/jobs admission (Bora P1-2, P2-2)', () => {
     const r2 = await off.post('k1');
     expect(r2.status).toBe(503);
     expect((await r2.json()).error).toBe('ai_disabled');
+  });
+  it('P3: the same Idempotency-Key with a different body is 409; the same body (any key order) still replays', async () => {
+    const { db, post } = await setup();
+    expect((await post('k-body')).status).toBe(202);
+    const reordered = { mode: input.mode, prompt: input.prompt, projectId: input.projectId };
+    const replay = await post('k-body', reordered);
+    expect(replay.status).toBe(200);
+    expect(replay.headers.get('Idempotent-Replay')).toBe('true');
+    const reused = await post('k-body', { ...input, prompt: 'Something else entirely' });
+    expect(reused.status).toBe(409);
+    expect((await reused.json()).error).toBe('idempotency_key_reused');
+    expect((await post('k-body', 'not an object')).status).toBe(409);
+    expect(await jobsCount(db)).toBe(1);
   });
 });
