@@ -49,12 +49,36 @@ Spustenie tohto koreňového Vite projektu samo neotvára Lovable frontend.
 
 ## 🚀 Rýchly štart
 
+Ak sa nachádzaš v nadradenom priečinku, najprv sa prepni do adresára repozitára:
+
 ```bash
-git clone https://github.com/erikbabcan-commits/LOV-DEVIL-BUILDER-2026.git
-cd LOV-DEVIL-BUILDER-2026
+cd LOV-DEVIL-BUILDER-2026-main # alebo cd ~/Projekty/LOV-DEVIL-BUILDER-2026/LOV-DEVIL-BUILDER-2026-main
 ```
 
-Aktuálny React pilot potrebuje Node.js a lokálnu inštaláciu závislostí:
+### 1. Spustenie lokálneho vývoja (Backend + Frontend)
+
+Vytvor `.env` v koreni projektu so svojím API kľúčom (napr. pre Mistral AI):
+```env
+MISTRAL_API_KEY=tvoj_mistral_api_kluc
+MISTRAL_MODEL=codestral-latest
+```
+
+V **dvoch oddelených termináloch** spusti nasledujúce 2 príkazy:
+
+* **Terminál 1 — Backend (AI engine + API na porte 8787):**
+  ```bash
+  npm run server:dev
+  ```
+  *(Ak nemáš API kľúč a chceš testovať lokálne bez kľúčov cez Mock AI, použi: `npm run server:mock`)*
+
+* **Terminál 2 — Frontend (Vite app na http://localhost:5173):**
+  ```bash
+  npm run dev
+  ```
+
+Po spustení otvor v prehliadači **http://localhost:5173**. V hornej lište aj v poli promptu je zobrazený vybraný model (napr. `Model: Codestral`), po odoslaní zadania sa automaticky spustí AI agent.
+
+### Inštalácia závislostí a verifikácia:
 
 ```bash
 npm ci
@@ -62,11 +86,6 @@ npm run typecheck
 MISTRAL_API_KEY= OPENAI_API_KEY= ANTHROPIC_API_KEY= npm test -- --exclude '**/liveSmoke.test.ts'
 npm run build
 ```
-
-Na lokálne skúšanie backendu a UI použite v oddelených termináloch
-`npm run server:mock` a `npm run dev`. Backend je určený iba pre loopback
-single-user pilot, bez skutočného produkčného AI kľúča. `demo/index.html` možno
-otvoriť samostatne bez build nástrojov, ale je to **historická referencia**.
 
 ### 🌐 Nasadenie frontendu na Vercel (Statická Vite aplikácia)
 
