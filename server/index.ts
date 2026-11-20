@@ -482,7 +482,10 @@ export function createApp(
     const meter = createProviderRun(route,usageStore,run,{...opts?.resilience,onUpdate:event=>providerUpdate(event)});
     let jobActive = false;
     if (durable) {
-      const created = await jobStore!.create({ id: runId, ownerId: authUser!.id, idempotencyKey: idempotencyKey! });
+      let created: Awaited<ReturnType<AgentJobStore['create']>>;
+      // TIC TAC P2: a throwing create must give the budget slot back, otherwise it leaks forever.
+      try { created = await jobStore!.create({ id: runId, ownerId: authUser!.id, idempotencyKey: idempotencyKey! }); }
+      catch { admission.discard(); return c.json({ error: 'job_create_failed' }, 503); }
       if (!created) {
         admission.discard();
         const existing = await jobStore!.findByIdempotency(authUser!.id, idempotencyKey!);
