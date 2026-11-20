@@ -125,6 +125,20 @@ describe('transport state machine', () => {
     expect(fetch.mock.calls.some(c => String(c[0]).startsWith('/api/agent/jobs/'))).toBe(false);
     expect(streamAgentEvents).toHaveBeenCalledTimes(1);
     expect(t.seen).toEqual(['streaming', 'idle']);
+    // Typed contract code: the next run in this session skips the durable POST entirely.
+    await collect(runAgentJob(input, new AbortController().signal));
+    expect(fetch.mock.calls.filter(c => c[0] === '/api/agent/jobs')).toHaveLength(1);
+    expect(streamAgentEvents).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps typed contract codes from POST /api/agent/jobs (429 too_many_active_jobs is not rate_limit)', async () => {
+    const { createAgentJob, AgentJobError } = await import('../../src/services/ai/jobs');
+    for (const [status, error] of [[429, 'too_many_active_jobs'], [409, 'idempotency_key_reused'], [503, 'agent_jobs_disabled'], [429, 'rate_limit']] as const) {
+      stubFetch(() => Response.json({ error }, { status }));
+      const failure = await createAgentJob(input, 'key-1', new AbortController().signal).catch(e => e);
+      expect(failure).toBeInstanceOf(AgentJobError);
+      expect(failure.code).toBe(error);
+    }
   });
 
   it('with VITE_AGENT_JOBS_CLIENT off (default) never calls POST /api/agent/jobs and passes an Idempotency-Key to SSE', async () => {

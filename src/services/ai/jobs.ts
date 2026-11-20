@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  AgentJobDetailSchema, AgentJobId, AgentJobViewSchema, IDEMPOTENCY_HEADER, IdempotencyKey,
+  AgentJobDetailSchema, AgentJobErrorCode, AgentJobId, AgentJobViewSchema, IDEMPOTENCY_HEADER, IdempotencyKey,
   type AgentJobCreateRequest,
 } from '../../../shared/agentJobs';
 import { apiHeaders } from '../../lib/csrf';
@@ -10,8 +10,18 @@ import { AI_API_BASE } from './client';
    source of truth; SSE is only a live view. Used to poll/resume after reload
    and to cancel a run. Cookie auth is required (credentials: 'include'). */
 
+/** Contract codes (shared/agentJobs.ts) plus client-side codes such as `network` or `login_required`. */
+export type AgentJobClientErrorCode = AgentJobErrorCode | 'network' | 'login_required' | 'unavailable' | (string & {});
+
 export class AgentJobError extends Error {
-  constructor(readonly code: string) { super(code); }
+  constructor(readonly code: AgentJobClientErrorCode) { super(code); }
+}
+
+/** A typed contract code from the server body wins over the generic status mapping (e.g. 429 too_many_active_jobs ≠ rate_limit). */
+function contractCode(data: unknown): AgentJobErrorCode | null {
+  const raw = data && typeof data === 'object' && 'error' in data ? (data as { error: unknown }).error : null;
+  const parsed = AgentJobErrorCode.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }
 
 /** Accepts today's A-shape view and Agent 1's future B-shape detail (frozen contract). */
@@ -93,7 +103,7 @@ export async function createAgentJob(
     const code = data && typeof data === 'object' && 'error' in data && typeof (data as { error: unknown }).error === 'string'
       ? (data as { error: string }).error
       : 'unavailable';
-    throw new AgentJobError(res.status === 401 ? 'login_required' : res.status === 429 ? 'rate_limit' : code);
+    throw new AgentJobError(res.status === 401 ? 'login_required' : contractCode(data) ?? (res.status === 429 ? 'rate_limit' : code));
   }
   const parsed = AnyJobCreatedSchema.safeParse(data);
   if (!parsed.success) return null;

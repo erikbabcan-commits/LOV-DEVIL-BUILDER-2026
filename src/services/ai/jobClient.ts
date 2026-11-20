@@ -1,5 +1,5 @@
 import { AiRequestError, NetworkError, isTerminal, streamAgentEvents, type GenerateInput } from './client';
-import { createAgentJob } from './jobs';
+import { AgentJobError, createAgentJob } from './jobs';
 import { pollJobEvents, type JobTransport } from './streamRecovery';
 import type { AgentEvent } from './types';
 import { deleteJobCache, loadJobCaches, loadMeta, saveJobCache, type StoredJobCache } from '../persistence/db';
@@ -90,7 +90,8 @@ export async function* runAgentJob(input: GenerateInput, signal: AbortSignal, ho
       } catch (error) {
         if (signal.aborted) return;
         created = null; // network/other failure: fall back to the SSE path (today's behaviour)
-        void error;
+        // No worker on this server: stop trying the durable POST for this session.
+        if (error instanceof AgentJobError && error.code === 'agent_jobs_disabled') jobsEndpoint = 'missing';
       }
     }
     if (signal.aborted) return;

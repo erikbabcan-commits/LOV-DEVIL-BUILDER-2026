@@ -9,7 +9,7 @@ import { parseAgentRequest } from './run';
 import {
   AgentJobCreatedSchema, AgentJobDetailSchema, AgentJobErrorPayloadSchema, AgentJobId, AgentJobReplaySchema, AgentJobResultPatchSchema,
   AgentJobViewSchema, IDEMPOTENCY_HEADER, IdempotencyKey, MAX_JOB_EVENTS,
-  type AgentJobDetail, type AgentJobErrorPayload, type AgentJobResultPatch, type AgentJobState, type AgentJobView,
+  type AgentJobDetail, type AgentJobErrorCode, type AgentJobErrorPayload, type AgentJobResultPatch, type AgentJobState, type AgentJobView,
 } from '../../shared/agentJobs';
 
 /* Durable agent jobs (issue #75, step 3): every /api/agent/generate run is a
@@ -109,6 +109,9 @@ function toRecord(row: JobRow): AgentJobRecord {
  * cancelled/failed jobs, the view ends right before the first such event. Cutting a prefix (not filtering) keeps
  * event indices stable for clients that resume with `events.slice(seen)`.
  */
+/** Contract error code (shared/agentJobs.ts AgentJobErrorCode); a typo fails typecheck. */
+const jobError = (code: AgentJobErrorCode): AgentJobErrorCode => code;
+
 /** Key-order-independent JSON for comparing a request with the one stored as jsonb. */
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
@@ -370,7 +373,7 @@ export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean
     if (!isDurableJobStore(store)) return c.json({ error: 'durable_jobs_unavailable' }, 503);
     /* Bora P1-2: without a running worker a job would stay queued forever (and keep its
        request body in the DB). The client treats any non-404 failure as "use SSE". */
-    if (!workerEnabled()) return c.json({ error: 'agent_jobs_disabled', message: 'Durable AI jobs are not enabled on this server.' }, 503);
+    if (!workerEnabled()) return c.json({ error: jobError('agent_jobs_disabled'), message: 'Durable AI jobs are not enabled on this server.' }, 503);
     const key = c.req.header(IDEMPOTENCY_HEADER);
     if (key === undefined || !IdempotencyKey.safeParse(key).success) return c.json({ error: 'invalid_idempotency_key' }, 400);
     const replay = async () => {
@@ -378,7 +381,7 @@ export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean
       /* Bora P3: the same key with a different body is a client bug, not a replay. Comparable
          only while the job still stores its request (queued/running); terminal jobs drop it. */
       if (existing && existing.request != null && !(await sameRequest(c, existing.request)))
-        return c.json({ error: 'idempotency_key_reused', message: 'Idempotency-Key was already used with a different request.' }, 409);
+        return c.json({ error: jobError('idempotency_key_reused'), message: 'Idempotency-Key was already used with a different request.' }, 409);
       return existing ? c.json(AgentJobReplaySchema.parse({ job: toAgentJobView(existing), replayed: true }), 200, { 'Idempotent-Replay': 'true' }) : null;
     };
     const first = await replay();
@@ -387,7 +390,7 @@ export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean
     const rejected = options.admit ? await options.admit(user.id) : null;
     if (rejected) return c.json({ error: rejected.error, ...(rejected.message ? { message: rejected.message } : {}) }, rejected.status);
     /* Bora P1-2: per-owner cap on queued + running jobs (best effort; two racing POSTs can exceed it by one). */
-    if (await store.countActive(user.id) >= maxActive) return c.json({ error: 'too_many_active_jobs', message: 'Too many AI jobs are already queued or running.' }, 429);
+    if (await store.countActive(user.id) >= maxActive) return c.json({ error: jobError('too_many_active_jobs'), message: 'Too many AI jobs are already queued or running.' }, 429);
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
     const input = parseAgentRequest(body);

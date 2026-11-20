@@ -58,6 +58,10 @@ export const AgentJobErrorCode = z.enum([
   'job_not_found',          // 404 (foreign ids look identical to missing ones)
   'job_not_cancellable',    // 409 (job already terminal)
   'invalid_idempotency_key',// 400 (malformed Idempotency-Key header)
+  // Additive (BOSS, after Bora wave-1 review @ 2e479d4):
+  'agent_jobs_disabled',    // 503 POST /api/agent/jobs while no worker runs (client falls back to SSE)
+  'too_many_active_jobs',   // 429 per-owner cap on queued + running jobs
+  'idempotency_key_reused', // 409 same Idempotency-Key with a different body (active job)
 ]);
 export type AgentJobErrorCode = z.infer<typeof AgentJobErrorCode>;
 
