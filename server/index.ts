@@ -9,7 +9,7 @@ import { startAgentWorker } from './agent/worker';
 import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
 import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
 import { estimateCost, readUsdEurRate, sumSession, formatMicros } from './usage/costEstimator';
-import { route as smartRoute } from './providers/smartRouter';
+import { route as smartRoute, cascadeFor } from './providers/smartRouter';
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PostgresAiUsageStore, UsageLedgerError, type AiUsageStore, type RunStatus } from './usage/store';
@@ -345,7 +345,7 @@ export function createApp(
     }
   });
 
-  /* Step 4: AUTOFIX — build → errors → AI patch → rebuild (max 2 pokusy) */
+  /* Step 4: AUTOFIX — build → errors → AI patch → rebuild (max 3 pokusy) */
   app.post('/api/sandbox/autofix', async (c) => {
     if (!aiAllowed()) return c.json({ error: 'ai_disabled' }, 503);
     const autoUser = opts?.auth ? getUserFromContext(c) : null;
@@ -363,7 +363,12 @@ export function createApp(
     if (!parsed.success) return c.json({ error: 'invalid_files' }, 400);
     const selection = ModelSelectionSchema.safeParse(body);
     let autoRoute: ModelEntry[];
-    try { if (!selection.success) throw new Error('invalid_model'); autoRoute=providers.route(selection.data.modelId,selection.data.allowFallback,selection.data.fallbackIds); }
+    let autoDecision: { model: string; reason: string };
+    try { if (!selection.success) throw new Error('invalid_model'); autoRoute=providers.route(selection.data.modelId,selection.data.allowFallback,selection.data.fallbackIds);
+      autoDecision={ model: selection.data.modelId ?? autoRoute[0].id, reason: 'explicit_user_choice' };
+      // Agent 9: without an explicit modelId the smart router picks the model (mode 'fix'); an explicit choice stays exact.
+      if (selection.data.modelId === undefined) { const ids = providers.ids(), decision = smartRoute('', 'fix', { fileCount: parsed.data.length, availableModels: ids });
+        if (decision.model !== autoRoute[0].id) autoRoute = cascadeFor(decision.model, ids).map(id => providers.find(id)!); autoDecision = { model: decision.model, reason: decision.reason }; } }
     catch { return c.json({error:'invalid_model'},400); }
     if (parsed.data.some(f => containsPotentialSecret(f.path) || containsPotentialSecret(f.content))) return c.json({ error: 'secret_in_context' }, 400);
     const admission = budget.acquire();
@@ -381,7 +386,8 @@ export function createApp(
         },
       });
       if (autoQuota && autoMeter) { await autoMeter.finish(c.req.raw.signal.aborted ? 'cancelled' : result.ok ? 'succeeded' : 'failed'); autoFinished = true; }
-      return c.json(JSON.parse(redactSecrets(JSON.stringify({ ...result, ...(autoUpdates.length ? {providerUpdates:autoUpdates} : {}), ...(autoQuota && autoUser ? { quotaUpdate: { userId: autoUser.id, quota: autoQuota } } : {}) }))));
+      const autoFallbacks = autoUpdates.filter(event => event.reason === 'fallback').map(event => ({ to: autoRoute.find(entry => entry.provider.name === event.provider && entry.provider.model === event.model)?.id ?? null, attempt: event.attempt }));
+      return c.json(JSON.parse(redactSecrets(JSON.stringify({ ...result, route: { ...autoDecision, ...(autoFallbacks.length ? { fallbacks: autoFallbacks } : {}) }, ...(autoUpdates.length ? {providerUpdates:autoUpdates} : {}), ...(autoQuota && autoUser ? { quotaUpdate: { userId: autoUser.id, quota: autoQuota } } : {}) }))));
     } catch (error) {
       if (error instanceof ContextBudgetError) return c.json({error:'context_limit',message:error.message},413);
       if (error instanceof UsageLedgerError) return c.json({ error: 'quota_unavailable', message: error.message }, 503);

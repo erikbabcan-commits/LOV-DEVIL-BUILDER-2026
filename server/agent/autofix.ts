@@ -9,7 +9,8 @@ import {ContextBudgetError} from '../providers/contextBudget';
 import {UsageLedgerError} from '../usage/store';
 
 /* Step 4: AUTOFIX — bounded repair loop: BUILD → COLLECT REAL ERRORS → AI PATCH → REBUILD → VERIFY.
-   Max 2 automatické opravy. Snapshot pred zmenami (apply robí klient), žiadne deštruktívne prepisy —
+   Max 3 automatické opravy (Agent 9, schválené Erikom). Bezpečnostné nálezy AST guardu
+   sa nikdy neposielajú AI: sú blokujúce, nie opraviteľné. Snapshot pred zmenami (apply robí klient), žiadne deštruktívne prepisy —
    Presné source-bound edits sa materializujú iba v pracovnej kópii; klient ich
    musí osobitne schváliť. Žiadne orezanie zdrojov alebo full-file fallback. */
 
@@ -21,9 +22,23 @@ export interface AutofixResult {
   patchesApplied: number;
   summary?: string;
   history: Array<{ attempt: number; phase: 'build' | 'patch' | 'done'; message: string }>;
+  /** Štruktúrovaný priebeh po pokusoch pre klientsky RepairStatus (bez voľného textu). */
+  progress: AutofixProgressStep[];
+  /** 'security' = build zablokoval AST guard; AI oprava sa nespustila. */
+  blocked?: 'security';
 }
 
-const MAX_ATTEMPTS = 2;
+export interface AutofixProgressStep { attempt: number; step: 'build' | 'patch' | 'rebuild'; status: 'ok' | 'failed' }
+
+/** Najviac 3 platené AI pokusy na jedno volanie; kvóta sa odpočíta len raz (beforeAi volá route len pri prvom). */
+export const MAX_ATTEMPTS = 3;
+
+/** Prefix diagnostík AST guardu agenta 4 (`[sandbox_policy_blocked:<rule>]`); len čítame formát. */
+const GUARD_PREFIX = '[sandbox_policy_blocked:';
+/** Bezpečnostný (alebo parser) nález guardu – nikdy ho neopravuje AI. Syntax chyby guard odkladá do esbuildu. */
+export function isSecurityBlock(errors: ReadonlyArray<{ message: string }>): boolean {
+  return errors.some(error => error.message.includes(GUARD_PREFIX));
+}
 
 function filesContainPotentialSecret(files: SandboxFile[]): boolean {
   return files.some(file => containsPotentialSecret(file.path) || containsPotentialSecret(file.content));
@@ -67,22 +82,34 @@ export async function autofixLoop(
       buildErrors: [{ file: '-', message, attempt: 0 }],
       patchesApplied: 0,
       history: [{ attempt: 0, phase: 'build', message }],
+      progress: [],
     };
   }
 
   // Invalid paths/duplicates/size/dependencies are policy failures, not compiler repairs.
   const invalid=validateFiles(current);
   try{patchBase(current);}catch{if(!invalid.length)invalid.push({file:'-',message:'Neplatné alebo prázdne podklady pre opravu.'});}
-  if(invalid.length)return{ok:false,attempts:0,finalFiles:[],buildErrors:invalid.map(error=>({...error,attempt:0})),patchesApplied:0,history:[{attempt:0,phase:'build',message:'Neplatné podklady; build a AI oprava sa nespustili.'}]};
+  if(invalid.length)return{ok:false,attempts:0,finalFiles:[],buildErrors:invalid.map(error=>({...error,attempt:0})),patchesApplied:0,history:[{attempt:0,phase:'build',message:'Neplatné podklady; build a AI oprava sa nespustili.'}],progress:[]};
 
   history.push({ attempt: 0, phase: 'build', message: 'počiatočný build' });
   const executor = opts?.executor ?? getSandboxExecutor();
+  const progress: AutofixProgressStep[] = [];
+  let blocked: AutofixResult['blocked'];
   let result = await buildWithRedactedErrors(current, executor, opts?.signal);
 
   while (!result.ok && attempts < MAX_ATTEMPTS) {
+    if (isSecurityBlock(result.errors)) {
+      // Security findings are blocking. They are never sent to the model, so no paid attempt starts.
+      // A guard finding introduced by an AI patch also ends the loop; the candidate is discarded below.
+      blocked = 'security';
+      for (const e of result.errors) buildErrors.push({ ...e, attempt: attempts });
+      history.push({ attempt: attempts, phase: 'build', message: 'bezpečnostný nález AST guardu; AI oprava sa nespustí' });
+      break;
+    }
     attempts++;
     for (const e of result.errors) buildErrors.push({ ...e, attempt: attempts });
     history.push({ attempt: attempts, phase: 'build', message: `build zlyhal: ${result.errors.length} chýb` });
+    progress.push({ attempt: attempts, step: 'build', status: 'failed' });
 
     if (opts?.signal?.aborted) break;
 
@@ -97,27 +124,39 @@ export async function autofixLoop(
       const next=[...candidate.values()];if(validateFiles(next).length)throw new PatchError();
       current=next;summary=patch.summary;patchesApplied+=patch.files.length;
       history.push({ attempt: attempts, phase: 'patch', message: `AI patch: ${patch.files.length} súborov` });
+      progress.push({ attempt: attempts, step: 'patch', status: 'ok' });
     } catch (e) {
       // Admission failures must reach HTTP; they are not failed model patches.
       if(admissionFailed||e instanceof ContextBudgetError||e instanceof UsageLedgerError)throw e;
       history.push({ attempt: attempts, phase: 'patch', message: 'AI patch zlyhal: ' + redactSecrets(String(e)).slice(0, 120) });
+      progress.push({ attempt: attempts, step: 'patch', status: 'failed' });
       break;
     }
 
     /* REBUILD + VERIFY */
     result = await buildWithRedactedErrors(current, executor, opts?.signal);
+    progress.push({ attempt: attempts, step: 'rebuild', status: result.ok ? 'ok' : 'failed' });
     if (result.ok) {
       history.push({ attempt: attempts, phase: 'done', message: 'build úspešný po oprave' });
     }
   }
 
+  if (!result.ok && !blocked && attempts > 0 && isSecurityBlock(result.errors)) {
+    blocked = 'security';
+    history.push({ attempt: attempts, phase: 'build', message: 'AI návrh vytvoril bezpečnostný nález; zahodený' });
+  }
+  // Safe return: a candidate that introduced a guard finding is never handed back as a proposal.
+  // Any unverified candidate is discarded too: the client keeps the last working state.
+  if (!result.ok) current = files.map(file => ({ ...file }));
   return {
     ok: result.ok,
     attempts,
     finalFiles: current,
     buildErrors,
     patchesApplied,
-    ...(summary?{summary}:{}),
+    ...(summary&&!blocked?{summary}:{}),
     history,
+    progress,
+    ...(blocked ? { blocked } : {}),
   };
 }

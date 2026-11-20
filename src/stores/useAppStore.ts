@@ -1,5 +1,5 @@
 import {applyFileOperations} from '../lib/projectChanges';
-import {requestBuildRepair} from '../services/ai/buildRepair';
+import {requestBuildRepair,resetRepairProgress} from '../services/ai/buildRepair';
 import {ConversationSchema,type ConversationTurn} from '../../shared/conversation';
 import { apiHeaders } from '../lib/csrf';
 import { apiUrl } from '../lib/api';
@@ -833,7 +833,7 @@ export const useStore = create<AppState>((set, get) => ({
     try{
       const result=await requestBuildRepair(files,{modelId:st.aiModelId,allowFallback:st.aiFallbackIds.length>0,fallbackIds:[...st.aiFallbackIds]},abort.signal);
       if(get().aiAbort!==abort||abort.signal.aborted)return;
-      if(!matchesReviewBase(get(),base)){get().updateMsg(message.id,{text:'Projekt sa počas opravy zmenil. Návrh bol zahodený; spusti novú úlohu.',done:true});return;}
+      if(!matchesReviewBase(get(),base)){resetRepairProgress();get().updateMsg(message.id,{text:'Projekt sa počas opravy zmenil. Návrh bol zahodený; spusti novú úlohu.',done:true});return;}
       if(!result.ok){get().updateMsg(message.id,{text:'AI oprava neprešla overením. Projekt zostal zachovaný; podrobnosti sú v konzole.',done:true});get().log('✗ AI oprava: '+result.buildErrors.map(error=>error.file+': '+error.message).join('; ').slice(0,800),'err');return;}
       if(!result.changes.length){get().updateMsg(message.id,{text:'Aktuálny projekt prešiel buildom bez AI opravy. Súbory sa nemenili.',done:true});return;}
       set({pendingReview:{runId:'build-repair-'+uid(),messageId:message.id,prompt,source:'patch',base,files:result.changes,summary:'Návrh prešiel buildom. '+(result.summary??'Skontroluj cielené zmeny.')},tab:'diff'});get().setMview('canvas');
