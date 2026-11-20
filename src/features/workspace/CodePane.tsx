@@ -1,14 +1,10 @@
 import {
-  Component,
-  Suspense,
-  lazy,
   useEffect,
   useId,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
-  type ReactNode,
 } from "react";
 import { useStore, type AppState } from "../../stores/useAppStore";
 import { filesFor, type VfsFile } from "../../lib/vfs/filesFor";
@@ -25,20 +21,11 @@ import {
   type CodeEditBase,
   type CodeTab,
 } from "../../services/editor/codeDrafts";
-const SourceEditor = lazy(() => import("./SourceEditor"));
+import { CodeEditorPane } from "../editor/CodeEditorPane";
+import { FileTabs } from "../editor/FileTabs";
+import { FuzzySearch } from "../editor/FuzzySearch";
+import { markersFor } from "../editor/lintMarkers";
 const noErrors: Array<{ file: string; message: string }> = [];
-class SourceBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
-}
 export function CodePane() {
   const state = useStore(),
     epoch = useSyncExternalStore(
@@ -101,7 +88,8 @@ function CodeSession({
     [error, setError] = useState(""),
     [stale, setStale] = useState(false),
     [simple, setSimple] = useState(false),
-    [saving, setSaving] = useState(false);
+    [saving, setSaving] = useState(false),
+    [quickOpen, setQuickOpen] = useState(false);
   const mounted = useRef(false),
     savingRef = useRef(false),
     start = useRef(initial).current,
@@ -171,6 +159,28 @@ function CodeSession({
         : noErrors,
     [files, state.sandboxErrors, tab],
   );
+  const markers = useMemo(
+    () => (tab ? markersFor(tab.name, errors) : []),
+    [tab, errors],
+  );
+  const paths = useMemo(() => files.map((f) => f.name), [files]);
+  const codeVisible = state.tab === "code";
+  useEffect(() => {
+    if (!codeVisible) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === "p"
+      ) {
+        event.preventDefault();
+        setQuickOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [codeVisible]);
   function backup(next: CodeTab[], selected: string | null) {
     if (readOnly || !ready) return;
     void writeCodeDraft(scope, base, next, selected)
@@ -356,6 +366,23 @@ function CodeSession({
         <div className="code-tree-head">
           <span>Súbory</span>
           <button
+            className="tab-close"
+            aria-label="Rýchle otvorenie súboru"
+            aria-keyshortcuts="Control+P Meta+P"
+            aria-haspopup="dialog"
+            title="Rýchle otvorenie súboru (Ctrl/Cmd+P)"
+            disabled={!ready || saving}
+            onClick={() => setQuickOpen(true)}
+            style={{
+              marginLeft: "auto",
+              marginRight: 6,
+              fontSize: 11,
+              color: "inherit",
+            }}
+          >
+            Ctrl+P
+          </button>
+          <button
             id="codeSaveAll"
             className="cp-save"
             disabled={
@@ -418,66 +445,27 @@ function CodeSession({
             upraviť.
           </p>
         )}
-        <div
-          className="editor-tabs"
-          role="tablist"
-          aria-label="Otvorené súbory"
-          onKeyDown={(event) => {
-            if ((event.target as HTMLElement).getAttribute("role") !== "tab")
-              return;
-            const i = tabs.findIndex((t) => t.name === active);
-            const next =
-              event.key === "ArrowRight"
-                ? (i + 1) % tabs.length
-                : event.key === "ArrowLeft"
-                  ? (i - 1 + tabs.length) % tabs.length
-                  : event.key === "Home"
-                    ? 0
-                    : event.key === "End"
-                      ? tabs.length - 1
-                      : -1;
-            if (next >= 0) {
-              event.preventDefault();
-              setActive(tabs[next].name);
-              const buttons =
-                event.currentTarget.querySelectorAll<HTMLButtonElement>(
-                  "[role=tab]",
-                );
-              buttons[next]?.focus();
-            }
+        <FileTabs
+          tabs={tabs}
+          active={active}
+          idPrefix={prefix}
+          panelId={prefix + "-panel"}
+          closeDisabled={saving}
+          onSelect={(name) => {
+            setActive(name);
+            backup(tabs, name);
           }}
-        >
-          {tabs.map((item, i) => (
-            <div
-              key={item.name}
-              className={"editor-tab" + (item.name === active ? " active" : "")}
-            >
-              <button
-                role="tab"
-                id={prefix + "-" + i}
-                aria-selected={item.name === active}
-                tabIndex={item.name === active ? 0 : -1}
-                onClick={() => {
-                  setActive(item.name);
-                  backup(tabs, item.name);
-                }}
-              >
-                {item.name}
-                {item.draft !== item.saved && <span className="dirty-dot" />}
-              </button>
-              <button
-                className="tab-close"
-                aria-label={"Zavrieť " + item.name}
-                disabled={saving}
-                onClick={() => close(item.name)}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
+          onClose={close}
+        />
         {tab ? (
-          <div className="editor-host">
+          <div
+            className="editor-host"
+            id={prefix + "-panel"}
+            role="tabpanel"
+            aria-labelledby={
+              prefix + "-" + tabs.findIndex((t) => t.name === tab.name)
+            }
+          >
             <div className="cp-tools">
               <span>
                 {tab.name} ·{" "}
@@ -499,32 +487,31 @@ function CodeSession({
               (simple || stale || !matches ? (
                 fallback
               ) : (
-                <SourceBoundary key={tab.name} fallback={fallback}>
-                  <Suspense
-                    fallback={
-                      <div className="cp-loading">
-                        Načítavam editor…{" "}
-                        <button onClick={() => setSimple(true)}>
-                          Použiť jednoduchý editor
-                        </button>
-                      </div>
-                    }
-                  >
-                    <SourceEditor
-                      path={tab.name}
-                      value={tab.draft}
-                      onChange={edit}
-                      errors={errors.length ? errors : noErrors}
-                      readOnly={readOnly || blocked || saving || !ready}
-                    />
-                  </Suspense>
-                </SourceBoundary>
+                <CodeEditorPane
+                  path={tab.name}
+                  value={tab.draft}
+                  onChange={edit}
+                  markers={markers}
+                  readOnly={readOnly || blocked || saving || !ready}
+                  fallback={fallback}
+                  onUseSimple={() => setSimple(true)}
+                />
               ))}
           </div>
         ) : (
           <div className="pane-empty">Vyber súbor vľavo.</div>
         )}
       </div>
+      {quickOpen && (
+        <FuzzySearch
+          files={paths}
+          onClose={() => setQuickOpen(false)}
+          onOpen={(path) => {
+            const file = files.find((f) => f.name === path);
+            if (file) open(file);
+          }}
+        />
+      )}
     </div>
   );
 }
