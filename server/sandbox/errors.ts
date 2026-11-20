@@ -1,6 +1,6 @@
 export type SandboxErrorCode = 'sandbox_busy' | 'sandbox_queue_timeout' | 'sandbox_timeout' |
   'sandbox_aborted' | 'sandbox_unavailable' | 'sandbox_protocol' | 'sandbox_worker_failed' |
-  'sandbox_output_limit' | 'sandbox_cleanup_failed';
+  'sandbox_output_limit' | 'sandbox_cleanup_failed' | 'sandbox_memory_limit' | 'sandbox_policy_blocked';
 
 const messages: Record<SandboxErrorCode, string> = {
   sandbox_busy: 'Fronta kompilácie je plná. Skús to neskôr.',
@@ -12,11 +12,14 @@ const messages: Record<SandboxErrorCode, string> = {
   sandbox_worker_failed: 'Izolovaný worker zlyhal alebo prekročil limit zdrojov.',
   sandbox_output_limit: 'Výstup kompilátora prekročil limit.',
   sandbox_cleanup_failed: 'Upratanie workera zlyhalo; runner bol zablokovaný.',
+  sandbox_memory_limit: 'Kompilácia prekročila pamäťový limit.',
+  sandbox_policy_blocked: 'Zdrojový kód obsahuje zakázanú konštrukciu (bezpečnostná AST kontrola).',
 };
 
 export class SandboxError extends Error {
   constructor(public readonly code: SandboxErrorCode) { super(messages[code]); this.name = 'SandboxError'; }
-  get status(): 408 | 429 | 502 | 503 | 504 {
+  get status(): 408 | 422 | 429 | 502 | 503 | 504 {
+    if (this.code === 'sandbox_policy_blocked') return 422;
     if (this.code === 'sandbox_busy' || this.code === 'sandbox_queue_timeout') return 429;
     if (this.code === 'sandbox_timeout') return 504;
     if (this.code === 'sandbox_aborted') return 408;

@@ -2,6 +2,8 @@ import { buildProject } from './builder';
 import { CompileQueue } from './queue';
 import { SandboxError, type SandboxErrorCode } from './errors';
 import { MAX_OUTPUT_JSON_BYTES, parseBuildResult, validationFailure, type BuildResult, type SandboxFile } from './policy';
+import { astGuardFailure, redactBuildDiagnostics } from './astGuard';
+import { resolveResourceLimits, runWithResourceLimits, type LimiterOptions } from './resourceLimiter';
 
 export interface SandboxReadiness { ready: boolean; mode: 'host' | 'isolated'; }
 export interface SandboxExecutor {
@@ -9,13 +11,22 @@ export interface SandboxExecutor {
   ready(): Promise<SandboxReadiness>;
 }
 const hostQueue = new CompileQueue();
+const GUARD = { deferSyntaxErrors: true } as const;
+/** Kill-switch for local mode: stopping the esbuild service terminates its child process. */
+async function stopEsbuild() { try { (await import('esbuild')).stop(); } catch { /* not started / mocked */ } }
 export class HostExecutor implements SandboxExecutor {
+  constructor(private readonly limiter: Omit<LimiterOptions, 'signal'> = {}) {}
   async ready(): Promise<SandboxReadiness> { return { ready: true, mode: 'host' }; }
-  execute(files: SandboxFile[], signal?: AbortSignal) {
+  async execute(files: SandboxFile[], signal?: AbortSignal) {
+    // Policy failures keep their existing builder shape; the AST guard runs only on policy-valid input.
+    const blocked = validationFailure(files) ? null : astGuardFailure(files, GUARD);
+    if (blocked) return blocked;
     return hostQueue.run(async abort => {
-      const result = await buildProject(files);
+      const result = await runWithResourceLimits(() => buildProject(files), {
+        onKill: stopEsbuild, ...this.limiter, limits: this.limiter.limits ?? resolveResourceLimits(), signal: abort,
+      });
       if (abort.aborted) throw new SandboxError('sandbox_aborted');
-      return result;
+      return redactBuildDiagnostics(result);
     }, signal);
   }
 }
@@ -73,10 +84,10 @@ export class IsolatedExecutor implements SandboxExecutor {
     catch { return { ready: false, mode: 'isolated' }; }
   }
   async execute(files: SandboxFile[], signal?: AbortSignal): Promise<BuildResult> {
-    const invalid = validationFailure(files);
+    const invalid = validationFailure(files) ?? astGuardFailure(files, GUARD);
     if (invalid) return invalid;
     const data = await this.request('/v1/compile', files, signal);
-    try { return parseBuildResult(data); } catch { throw new SandboxError('sandbox_protocol'); }
+    try { return redactBuildDiagnostics(parseBuildResult(data)); } catch { throw new SandboxError('sandbox_protocol'); }
   }
 }
 
