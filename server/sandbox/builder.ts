@@ -10,6 +10,12 @@ export type { SandboxFile, BuildResult } from './policy';
    na serveri nespúšťa. Hard limity vynucuje DockerCompiler okolo tohto adaptéra;
    priamy HostExecutor je iba explicitný lokálny vývoj bez hard limitov. */
 
+/* Bora P2-3: only these files are loaded as code. Must stay identical to
+   AST_GUARD_EXTENSIONS in ./astGuard.ts (kept local: the Docker worker must not pull in
+   the TypeScript compiler). Anything else (e.g. src/evil.txt) is never scanned by the
+   AST guard, so importing it is refused here instead of being compiled as tsx. */
+export const LOADABLE_SCRIPT_EXTENSIONS = /\.(?:[cm]?[jt]sx?)$/i;
+
 const APPROVED_RUNTIME_IMPORTS = new Set([
   'react', 'react/jsx-runtime', 'react/jsx-dev-runtime',
   'react-dom', 'react-dom/client',
@@ -64,7 +70,9 @@ export async function buildProject(files: SandboxFile[]): Promise<BuildResult> {
         });
         build.onLoad({ filter: /.*/, namespace: 'forge' }, args => {
           const content = byPath.get(args.path) ?? '';
-          const loader = args.path.endsWith('.css') ? 'css' : args.path.endsWith('.json') ? 'json' : 'tsx';
+          const loader = args.path.endsWith('.css') ? 'css' : args.path.endsWith('.json') ? 'json'
+            : LOADABLE_SCRIPT_EXTENSIONS.test(args.path) ? 'tsx' : null;
+          if (loader === null) return { errors: [{ text: redactSecrets(`nepodporovaný typ súboru pre import: ${args.path}`) }] };
           /* resolveDir: esbuild pre custom namespace ignoruje resolveDir z onLoad.
              Používame importer path (bez namespace prefixu) ako base directory */
           const importerPath = ((args as unknown as { importer?: string }).importer)?.replace(/^[^:]+:/, '') ?? '';
