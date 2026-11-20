@@ -57,6 +57,7 @@ import { publishRouter } from './publish/routes';
 import { publicPublishApp } from './publish/public';
 import { makeStripeBillingGateway } from './billing/gateway';
 import { assertProductionRuntime } from './production';
+import { readBillingMaintenanceInterval, startBillingMaintenance } from './billing/reconcile';
 
 /* Hono backend — server-only Mistral integrácia.
    Trust boundary (single-user pilot): server počúva len na 127.0.0.1,
@@ -192,6 +193,9 @@ export function createApp(
   app.route('/', publishRouter(opts?.auth?.publish ?? null, rateLimit));
   /* ── MOUNT SEAMS (step 0): routers that also work without auth (pilot mode). Same rules as above. */
   // [seam:agent-5] billing webhook queue / reconcile (webhook itself stays above, before auth)
+  /* Opt-in (default off): retries due webhook queue rows, reconciles accounts, expires grace periods. */
+  const billingMaintenanceMs = opts?.auth?.billing ? readBillingMaintenanceInterval(process.env) : null;
+  if (opts?.auth?.billing && billingMaintenanceMs) startBillingMaintenance(opts.auth.billing, opts.auth.db, billingMaintenanceMs);
   // [/seam:agent-5]
 
   // [seam:agent-8] smart router / cost estimate endpoints

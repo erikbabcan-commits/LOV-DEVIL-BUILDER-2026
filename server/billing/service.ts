@@ -23,11 +23,26 @@ export {
 import {
   BillingError,
   type BillingConfig,
+  type BillingEvent,
+  type BillingEventProcessor,
   type BillingGateway,
   type BillingSession,
   type BillingSubscription,
+  type BillingWebhookOutcome,
 } from "./types";
 export { BillingError } from "./types";
+import {
+  enqueueBillingEvent,
+  runQueuedBillingEvent,
+} from "./webhookQueue";
+import {
+  BILLING_GRACE_PERIOD_MS,
+  applyGraceOverlay,
+  isStaleSubscriptionEvent,
+  openGracePeriod,
+  recordSubscriptionEvent,
+  type BillingAccountReconciler,
+} from "./reconcile";
 
 type User = { id: string; plan: string; plan_expires_at: Date | string | null };
 type Account = {
@@ -89,9 +104,29 @@ function unwrap<T>(value: Result<T>): T {
   if (value instanceof BillingError) throw value;
   return value;
 }
+/** Reads `created` from a payload whose signature was already verified. */
+function verifiedCreated(raw: Buffer): number | undefined {
+  try {
+    const created = (JSON.parse(raw.toString("utf8")) as { created?: unknown })
+      .created;
+    return typeof created === "number" &&
+      Number.isSafeInteger(created) &&
+      created > 0
+      ? created
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+export interface BillingServiceOptions {
+  /** Grace period after invoice.payment_failed; defaults to BILLING_GRACE_PERIOD_MS. */
+  gracePeriodMs?: number;
+}
 
 /** Durable provider operations and canonical reconciliation serialize with AI admission on users. */
-export class BillingService {
+export class BillingService
+  implements BillingEventProcessor, BillingAccountReconciler
+{
   private readonly fingerprint: string;
   private readonly mode: BillingMode;
   private readonly expectedLivemode: boolean;
@@ -100,7 +135,13 @@ export class BillingService {
     private readonly config: BillingConfig,
     private readonly gateway: BillingGateway,
     private readonly now: () => Date = () => new Date(),
+    private readonly options: BillingServiceOptions = {},
   ) {
+    if (
+      options.gracePeriodMs !== undefined &&
+      (!Number.isSafeInteger(options.gracePeriodMs) || options.gracePeriodMs < 0)
+    )
+      throw new BillingError("billing_storage_unavailable");
     validateBillingConfig(config, process.env.NODE_ENV === "test");
     this.mode = billingMode(config);
     this.expectedLivemode = billingLivemode(config);
@@ -255,6 +296,7 @@ export class BillingService {
     customerId: string,
     checkoutSubscriptionId?: string,
     requireCheckoutSubscription = false,
+    allowGraceResolve = true,
   ) {
     let list: Awaited<ReturnType<BillingGateway["subscriptions"]>>;
     try {
@@ -358,6 +400,12 @@ export class BillingService {
       paid ? "pro" : "free",
       end,
     ]);
+    await applyGraceOverlay(
+      tx,
+      userId,
+      { paid, status: picked?.status ?? null, allowResolve: allowGraceResolve },
+      this.now(),
+    );
     if (hasNonterminal)
       await tx.query(
         "UPDATE billing_checkout_attempts SET state='complete',session_url=NULL WHERE user_id=$1 AND state IN ('pending','ready')",
@@ -735,9 +783,30 @@ export class BillingService {
       )
     ).rows[0];
     if (!account) return;
-    await this.locked(account.user_id, async (tx) => {
-      const current = await this.account(tx, account.user_id);
-      if (current?.customer_id !== event.customerId)
+    // Durable first: the verified event survives a failed attempt and is retried with backoff.
+    const queued = await enqueueBillingEvent(
+      this.db,
+      { ...event, created: event.created ?? verifiedCreated(raw) },
+      account.user_id,
+      this.now(),
+    );
+    if (queued.state === "processed" || queued.state === "dead") return;
+    await runQueuedBillingEvent(this, this.db, queued, this.now);
+  }
+  /**
+   * Applies one queued, signature-verified event exactly once (billing_events)
+   * by reconciling canonical Stripe state. A customer.subscription.* event
+   * older than the newest applied one returns "stale"; it still reconciles,
+   * because canonical state (never the old payload) decides entitlement.
+   */
+  async processQueuedEvent(
+    event: BillingEvent,
+    userId: string,
+  ): Promise<BillingWebhookOutcome> {
+    await initializeBillingEnvironment(this.db, this.mode);
+    return this.locked(userId, async (tx, user) => {
+      const current = await this.account(tx, userId);
+      if (!event.customerId || current?.customer_id !== event.customerId)
         throw new BillingError("billing_webhook_environment", 400);
       if (
         (
@@ -747,7 +816,24 @@ export class BillingService {
           )
         ).rows.length
       )
-        return;
+        return "duplicate";
+      const account = { user_id: userId };
+      // Ordering never trusts payloads: every event re-reads canonical Stripe state,
+      // so an older delivery cannot restore an older state. It is only labelled stale.
+      const subscriptionEvent = event.type.startsWith("customer.subscription.");
+      const stale =
+        subscriptionEvent &&
+        (await isStaleSubscriptionEvent(tx, userId, event.created));
+      if (
+        event.type === "invoice.payment_failed" &&
+        effectivePlan(user, this.now()) === "pro"
+      )
+        await openGracePeriod(
+          tx,
+          userId,
+          this.now(),
+          this.options.gracePeriodMs ?? BILLING_GRACE_PERIOD_MS,
+        );
       let checkout: { attempt: Attempt; session: BillingSession } | undefined;
       if (event.checkoutSessionId) {
         const attempt = (
@@ -771,6 +857,8 @@ export class BillingService {
         account.user_id,
         event.customerId!,
         checkout?.session.subscriptionId,
+        false,
+        event.type !== "invoice.payment_failed",
       );
       if (checkout) {
         const { attempt, session } = checkout;
@@ -788,10 +876,27 @@ export class BillingService {
       const positivePaidAt = this.expectedLivemode && event.type === "invoice.paid" &&
         positive && state.recognizedSubscriptionIds.includes(positive.subscriptionId)
         ? new Date(positive.paidAt * 1000).toISOString() : null;
+      if (subscriptionEvent)
+        await recordSubscriptionEvent(tx, userId, event.id, event.created, this.now());
       await tx.query(
         "INSERT INTO billing_events(event_id,user_id,event_type,processed_at,positive_pro_invoice_paid_at) VALUES($1,$2,$3,$4,$5)",
         [event.id, account.user_id, event.type, this.now().toISOString(), positivePaidAt],
       );
+      return stale ? "stale" : "applied";
+    });
+  }
+  /**
+   * Refreshes one bound owner from canonical Stripe state (missed-webhook repair).
+   *
+   * @returns false when the owner has no bound Stripe customer.
+   */
+  async reconcileAccount(userId: string): Promise<boolean> {
+    await initializeBillingEnvironment(this.db, this.mode);
+    return this.locked(userId, async (tx) => {
+      const customer = (await this.account(tx, userId))?.customer_id;
+      if (!customer || !id(customer, "cus")) return false;
+      await this.reconcile(tx, userId, customer);
+      return true;
     });
   }
 }
