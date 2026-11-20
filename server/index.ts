@@ -176,9 +176,29 @@ export function createApp(
     app.route('/', privateBlueprintRouter(opts.auth.db, rateLimit));
     if (jobStore) app.route('/', jobsRouter(jobStore, rateLimit));
     if (opts.auth.cloudGitHub) app.route('/', githubCloudRouter(opts.auth.cloudGitHub, rateLimit));
+    /* ── MOUNT SEAMS (step 0, docs/plans/MOUNT-SEAMS.md): owner-scoped routers, auth required.
+       Each agent inserts its line(s) ONLY directly under its own marker; never edit another slot.
+       Routers mounted at '/' must scope middleware to their own paths (no use('*')). */
+    // [seam:agent-1] durable jobs: POST /api/agent/jobs lives in jobsRouter (server/agent/jobs.ts); worker start here
+    // [/seam:agent-1]
+
+    // [seam:agent-3] GitHub sync (gitEngine / forge branch + PR)
+    // [/seam:agent-3]
+
+    // [seam:agent-7] publish rollback + slug/custom domains (owner side)
+    // [/seam:agent-7]
   }
   app.route('/', billingRouter(opts?.auth?.billing ?? null, rateLimit));
   app.route('/', publishRouter(opts?.auth?.publish ?? null, rateLimit));
+  /* ── MOUNT SEAMS (step 0): routers that also work without auth (pilot mode). Same rules as above. */
+  // [seam:agent-5] billing webhook queue / reconcile (webhook itself stays above, before auth)
+  // [/seam:agent-5]
+
+  // [seam:agent-8] smart router / cost estimate endpoints
+  // [/seam:agent-8]
+
+  // [seam:agent-9] autofix loop status endpoints (wave 3)
+  // [/seam:agent-9]
 
   app.get('/api/ai-usage', async c => {
     c.header('Cache-Control', 'no-store');
