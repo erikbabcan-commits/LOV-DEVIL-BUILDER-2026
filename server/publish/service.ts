@@ -27,6 +27,18 @@ import {
   type PublishConfig,
 } from "./config";
 export { PublishError } from "./config";
+import {
+  newVerificationToken,
+  uniqueSlug,
+  verifyCustomDomain,
+  type DnsLookup,
+} from "./router";
+import {
+  listPublishVersions,
+  rollbackLiveAddress,
+  type PublishRollbackRequest,
+  type PublishVersionSummary,
+} from "./rollback";
 type StoragePhase = "legacy_unknown" | "compiling" | "writing" | "retained" | "empty";
 type Receipt = { sha256: string; bytes: number };
 interface Row {
@@ -537,10 +549,172 @@ export class PublishService {
       await this.fail(row,error,errors,receipt).catch(() => {});
     } finally { if (timer) clearTimeout(timer); }
   }
+  /** Assign or return the project's stable DNS slug (deterministic, unique, reserved-safe). */
+  async ensureProjectSlug(
+    owner: string,
+    projectId: string,
+    seed?: string,
+  ): Promise<{ slug: string; created: boolean }> {
+    return this.owner(owner, async (tx) => {
+      const project = await tx.query(
+        "SELECT title FROM builder_projects WHERE owner_id=$1 AND project_id=$2 AND deleted_at IS NULL FOR UPDATE",
+        [owner, projectId],
+      );
+      if (!project.rows.length)
+        throw new PublishError("publish_project_not_found", 404);
+      const existing = (
+        await tx.query(
+          "SELECT slug FROM publish_project_slugs WHERE owner_id=$1 AND project_id=$2",
+          [owner, projectId],
+        )
+      ).rows[0] as { slug: string } | undefined;
+      if (existing) return { slug: existing.slug, created: false };
+      const title = String(project.rows[0].title ?? projectId);
+      const slug = await uniqueSlug(seed ?? title, async (candidate) => {
+        const hit = await tx.query(
+          "SELECT 1 FROM publish_project_slugs WHERE slug=$1",
+          [candidate],
+        );
+        return hit.rows.length > 0;
+      });
+      await tx.query(
+        "INSERT INTO publish_project_slugs(owner_id, project_id, slug) VALUES($1,$2,$3)",
+        [owner, projectId, slug],
+      );
+      return { slug, created: true };
+    });
+  }
+
+  async getProjectSlug(
+    owner: string,
+    projectId: string,
+  ): Promise<string | null> {
+    const row = (
+      await this.db.query(
+        "SELECT slug FROM publish_project_slugs WHERE owner_id=$1 AND project_id=$2",
+        [owner, projectId],
+      )
+    ).rows[0] as { slug: string } | undefined;
+    return row?.slug ?? null;
+  }
+
+  /** Register a custom domain in pending_verification. No live DNS mutation. */
+  async registerCustomDomain(
+    owner: string,
+    projectId: string,
+    domainRaw: string,
+  ): Promise<{
+    domain: string;
+    status: "pending_verification" | "verified";
+    verificationToken: string;
+  }> {
+    const domain = domainRaw.trim().toLowerCase();
+    if (
+      !domain ||
+      domain.length > 253 ||
+      /\s/.test(domain) ||
+      domain.includes("/") ||
+      !/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(domain)
+    )
+      throw new PublishError("publish_domain_invalid", 400);
+    return this.owner(owner, async (tx) => {
+      const project = await tx.query(
+        "SELECT project_id FROM builder_projects WHERE owner_id=$1 AND project_id=$2 AND deleted_at IS NULL FOR UPDATE",
+        [owner, projectId],
+      );
+      if (!project.rows.length)
+        throw new PublishError("publish_project_not_found", 404);
+      const existing = (
+        await tx.query(
+          "SELECT owner_id, domain, status, verification_token FROM publish_custom_domains WHERE domain=$1",
+          [domain],
+        )
+      ).rows[0] as
+        | {
+            owner_id: string;
+            domain: string;
+            status: "pending_verification" | "verified";
+            verification_token: string;
+          }
+        | undefined;
+      if (existing) {
+        if (existing.owner_id !== owner)
+          throw new PublishError("publish_domain_taken", 409);
+        return {
+          domain: existing.domain,
+          status: existing.status,
+          verificationToken: existing.verification_token,
+        };
+      }
+      const token = newVerificationToken();
+      await tx.query(
+        `INSERT INTO publish_custom_domains(owner_id, project_id, domain, status, verification_token)
+         VALUES($1,$2,$3,'pending_verification',$4)`,
+        [owner, projectId, domain, token],
+      );
+      return {
+        domain,
+        status: "pending_verification" as const,
+        verificationToken: token,
+      };
+    });
+  }
+
+  async verifyProjectDomain(
+    owner: string,
+    domain: string,
+    lookup: DnsLookup,
+    baseDomain?: string,
+  ): Promise<"pending_verification" | "verified"> {
+    return this.owner(owner, (tx) =>
+      verifyCustomDomain(tx, owner, domain, lookup, baseDomain),
+    );
+  }
+
+  async listProjectDomains(owner: string, projectId: string) {
+    const rows = (
+      await this.db.query(
+        `SELECT domain, status, verification_token, verified_at
+         FROM publish_custom_domains
+         WHERE owner_id=$1 AND project_id=$2
+         ORDER BY created_at ASC`,
+        [owner, projectId],
+      )
+    ).rows as Array<{
+      domain: string;
+      status: "pending_verification" | "verified";
+      verification_token: string;
+      verified_at: Date | string | null;
+    }>;
+    return rows.map((row) => ({
+      domain: row.domain,
+      status: row.status,
+      verificationToken: row.verification_token,
+      verifiedAt: row.verified_at
+        ? new Date(row.verified_at).toISOString()
+        : null,
+    }));
+  }
+
+  listVersions(
+    owner: string,
+    projectId: string,
+  ): Promise<PublishVersionSummary[]> {
+    return listPublishVersions(this.db, owner, projectId);
+  }
+
+  async rollback(
+    owner: string,
+    projectId: string,
+    selection: PublishRollbackRequest,
+  ) {
+    return rollbackLiveAddress(this, owner, projectId, selection);
+  }
   async settled(): Promise<void> {
     await Promise.all([...this.jobs.values()]);
   }
 }
+
 /** Refuse to start publication without its storage, lease and withdrawal columns. */
 export async function probePublishSchema(db: DbLike): Promise<boolean> {
   try {
