@@ -15,6 +15,7 @@ import { makeAuthMiddleware } from "../../../server/auth/middleware";
 import { signToken } from "../../../server/auth/tokens";
 import { PublishService } from "../../../server/publish/service";
 import { publishRouter } from "../../../server/publish/routes";
+import { publicPublishApp } from "../../../server/publish/public";
 import type { PublishConfig } from "../../../server/publish/config";
 import { HostExecutor } from "../../../server/sandbox/executor";
 import { BLUEPRINT_REGISTRY } from "../../../src/templates/registry";
@@ -30,6 +31,7 @@ describe("publish wave-2 Bora fixes (pg-mem)", () => {
   let close: (() => Promise<void>) | undefined;
   let service!: PublishService;
   let app!: Hono;
+  let publicApp!: Hono;
   let alice!: string;
   let bob!: string;
   let clock = Date.parse("2026-11-20T18:00:00.000Z");
@@ -85,6 +87,7 @@ describe("publish wave-2 Bora fixes (pg-mem)", () => {
     app = new Hono();
     app.use("/api/*", makeAuthMiddleware(secret, undefined, undefined, db));
     app.route("/", publishRouter(service, () => true));
+    publicApp = publicPublishApp(config, db, service.artifacts, { baseDomain: "lov-devil.test" });
   });
 
   afterEach(async () => {
@@ -367,6 +370,94 @@ describe("publish wave-2 Bora fixes (pg-mem)", () => {
       const a = await publishOnce("alice", "project-one");
       await db.query("UPDATE builder_projects SET deleted_at=now() WHERE owner_id='alice' AND project_id='project-one'");
       await expect(switchTo("alice", "project-one", a.requestId)).rejects.toMatchObject({ code: "publish_not_found", status: 404 });
+    });
+  });
+
+  describe("TIC TAC P2-3 hard-delete releases slug/domain and unpublishes atomically", () => {
+    const get = (hostHeader: string, url = "http://x/") => publicApp.request(url, { headers: { Host: hostHeader } });
+
+    it("Alice publishes and hard-deletes; Bob can never get her slug and her content is never served under his claims (probe T3)", async () => {
+      const pub = await publishOnce("alice", "project-one");
+      const live = await service.promote("alice", "project-one", { requestId: pub.requestId, expectedVersion: null, confirmed: true });
+      const { slug } = await service.ensureProjectSlug("alice", "project-one");
+      expect(slug).toBe("lubost-cafe");
+      const claim = await service.registerCustomDomain("alice", "project-one", "www.alice-company.test");
+      expect(await service.verifyProjectDomain("alice", claim.domain, async () => ({ cname: ["lubost-cafe.lov-devil.test."], txt: [] }), "lov-devil.test")).toBe("verified");
+      const aliceHtml = await (await get("lubost-cafe.lov-devil.test")).text();
+      expect(aliceHtml).toContain('<div id="root">');
+      expect((await get("www.alice-company.test")).status).toBe(200);
+      expect((await get("127.0.0.1:8791", pub.url!)).status).toBe(200);
+      expect((await get("127.0.0.1:8791", live.url)).status).toBe(200);
+
+      const purged = await service.hardDeleteProject("alice", "project-one");
+      expect(purged).toEqual({ slug: "lubost-cafe", domains: ["www.alice-company.test"], withdrawn: 1 });
+      for (const table of ["builder_projects", "publish_project_slugs", "publish_custom_domains", "publish_live_addresses"])
+        expect([table, (await db.query(`SELECT 1 FROM ${table} WHERE owner_id='alice'`)).rows.length]).toEqual([table, 0]);
+      expect((await db.query("SELECT withdrawn_at FROM publish_jobs WHERE owner_id='alice'")).rows.every((r: { withdrawn_at: unknown }) => r.withdrawn_at !== null)).toBe(true);
+
+      // Nothing of Alice's is served any more: slug host, custom domain, artifact URL, live alias → 404 no-store.
+      for (const [hostHeader, url] of [["lubost-cafe.lov-devil.test", "http://x/"], ["www.alice-company.test", "http://x/"], ["127.0.0.1:8791", pub.url!], ["127.0.0.1:8791", live.url]] as const) {
+        const res = await get(hostHeader, url);
+        expect([hostHeader, url, res.status, res.headers.get("cache-control")]).toEqual([hostHeader, url, 404, "no-store"]);
+      }
+
+      // Bob: same title and even an explicit seed never yield the released slug.
+      await seedProject("bob", "bob-cafe", "Ľúbosť Café");
+      const bobSlug = await service.ensureProjectSlug("bob", "bob-cafe", "lubost-cafe");
+      expect(bobSlug.slug).not.toBe("lubost-cafe");
+      expect(bobSlug.slug).toBe("lubost-cafe-2");
+      const bobPub = await publishOnce("bob", "bob-cafe");
+      await service.promote("bob", "bob-cafe", { requestId: bobPub.requestId, expectedVersion: null, confirmed: true });
+      expect((await get("lubost-cafe-2.lov-devil.test")).status).toBe(200);
+      // The old slug link stays dead instead of switching to Bob's project.
+      expect((await get("lubost-cafe.lov-devil.test")).status).toBe(404);
+
+      // Bob may claim Alice's released domain, but her dangling CNAME (→ lubost-cafe) cannot verify it for him.
+      const bobClaim = await service.registerCustomDomain("bob", "bob-cafe", "www.alice-company.test");
+      expect(bobClaim.status).toBe("pending_verification");
+      expect(await service.verifyProjectDomain("bob", "www.alice-company.test", async () => ({ cname: ["lubost-cafe.lov-devil.test."], txt: [] }), "lov-devil.test")).toBe("pending_verification");
+      const hijack = await get("www.alice-company.test");
+      expect(hijack.status).toBe(404);
+      expect(hijack.headers.get("cache-control")).toBe("no-store");
+    });
+
+    it("is owner-scoped and all-or-nothing", async () => {
+      await publishOnce("alice", "project-one");
+      await service.ensureProjectSlug("alice", "project-one");
+      await expect(service.hardDeleteProject("bob", "project-one")).rejects.toMatchObject({ code: "publish_project_not_found", status: 404 });
+      expect((await db.query("SELECT 1 FROM builder_projects WHERE owner_id='alice'")).rows).toHaveLength(1);
+
+      // All purge statements run inside ONE owner transaction and none on the pool
+      // directly. (pg-mem's pg adapter does not undo work on ROLLBACK, so the
+      // rollback itself is only provable on native Postgres: NOT RUN here.)
+      const original = db.transaction!.bind(db);
+      const outside = db.query.bind(db);
+      const inTx: string[] = [], onPool: string[] = [];
+      let transactions = 0;
+      db.query = (async (sql: string, params?: unknown[]) => { onPool.push(sql.trim().split(/\s+/).slice(0, 3).join(" ")); return outside(sql, params); }) as typeof db.query;
+      db.transaction = (async (work: (tx: DbLike) => Promise<unknown>) => {
+        transactions += 1;
+        return original(async (tx) => {
+          const query = tx.query.bind(tx);
+          return work({ ...tx, query: async (sql: string, params?: unknown[]) => { inTx.push(sql.trim().split(/\s+/).slice(0, 3).join(" ")); return query(sql, params); } } as DbLike);
+        });
+      }) as typeof db.transaction;
+      try {
+        await service.hardDeleteProject("alice", "project-one");
+      } finally {
+        db.transaction = original;
+        db.query = outside;
+      }
+      expect(transactions).toBe(1);
+      expect(onPool).toEqual([]);
+      expect(inTx).toEqual(expect.arrayContaining([
+        "UPDATE publish_jobs SET", "DELETE FROM publish_live_addresses", "DELETE FROM publish_custom_domains",
+        "INSERT INTO publish_slug_tombstones(slug,", "DELETE FROM publish_project_slugs", "DELETE FROM builder_projects",
+      ]));
+      // Withdrawal happens before the slug/domain release and the project delete.
+      expect(inTx.indexOf("UPDATE publish_jobs SET")).toBeLessThan(inTx.indexOf("DELETE FROM publish_project_slugs"));
+      expect(inTx.indexOf("UPDATE publish_jobs SET")).toBeLessThan(inTx.indexOf("DELETE FROM publish_custom_domains"));
+      expect((await get("lubost-cafe.lov-devil.test")).status).toBe(404);
     });
   });
 });

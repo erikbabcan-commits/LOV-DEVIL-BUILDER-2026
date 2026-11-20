@@ -34,6 +34,15 @@ CREATE TABLE IF NOT EXISTS publish_custom_domains (
     REFERENCES builder_projects(owner_id, project_id) ON DELETE CASCADE
 );
 
+-- Slugs of hard-deleted projects are never handed out again: a dangling CNAME
+-- (customer DNS -> <slug>.<base>) or an old link must not start resolving to
+-- another account's project (TIC TAC P2-3, slug reuse takeover). No FK on purpose.
+CREATE TABLE IF NOT EXISTS publish_slug_tombstones (
+  slug TEXT NOT NULL,
+  released_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (slug)
+);
+
 CREATE INDEX IF NOT EXISTS publish_custom_domains_project
   ON publish_custom_domains(owner_id, project_id);
 
@@ -48,5 +57,6 @@ CREATE INDEX IF NOT EXISTS publish_custom_domains_owner_status
 --   DROP INDEX IF EXISTS publish_custom_domains_owner_status;
 --   DROP INDEX IF EXISTS publish_custom_domains_status;
 --   DROP INDEX IF EXISTS publish_custom_domains_project;
+--   DROP TABLE IF EXISTS publish_slug_tombstones;
 --   DROP TABLE IF EXISTS publish_custom_domains;
 --   DROP TABLE IF EXISTS publish_project_slugs;

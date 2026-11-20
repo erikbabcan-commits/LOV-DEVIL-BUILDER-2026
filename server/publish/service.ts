@@ -617,13 +617,86 @@ export class PublishService {
           "SELECT 1 FROM publish_project_slugs WHERE slug=$1",
           [candidate],
         );
-        return hit.rows.length > 0;
+        if (hit.rows.length > 0) return true;
+        // Released slugs of hard-deleted projects are never reused (TIC TAC P2-3).
+        const tomb = await tx.query(
+          "SELECT 1 FROM publish_slug_tombstones WHERE slug=$1",
+          [candidate],
+        );
+        return tomb.rows.length > 0;
       });
       await tx.query(
         "INSERT INTO publish_project_slugs(owner_id, project_id, slug) VALUES($1,$2,$3)",
         [owner, projectId, slug],
       );
       return { slug, created: true };
+    });
+  }
+
+  /**
+   * Hard-delete an owned project (soft-deleted or not) and everything it serves,
+   * in ONE owner transaction (TIC TAC P2-3): withdraw every publication (so
+   * /p/<artifact>/ and /p/live/<alias>/ stop serving even though publish_jobs
+   * rows survive the project FK cascade), drop the live address, release custom
+   * domains, tombstone and release the slug, then delete the project row.
+   * Nothing is served under the old slug or domain once they become claimable,
+   * and the slug itself is never handed to another project.
+   */
+  async hardDeleteProject(
+    owner: string,
+    projectId: string,
+  ): Promise<{ slug: string | null; domains: string[]; withdrawn: number }> {
+    return this.owner(owner, async (tx) => {
+      const project = await tx.query(
+        "SELECT project_id FROM builder_projects WHERE owner_id=$1 AND project_id=$2 FOR UPDATE",
+        [owner, projectId],
+      );
+      if (!project.rows.length)
+        throw new PublishError("publish_project_not_found", 404);
+      const slug = (
+        await tx.query(
+          "SELECT slug FROM publish_project_slugs WHERE owner_id=$1 AND project_id=$2",
+          [owner, projectId],
+        )
+      ).rows[0] as { slug: string } | undefined;
+      const withdrawn = await tx.query(
+        `UPDATE publish_jobs SET withdrawn_at=$3
+         WHERE owner_id=$1 AND project_id=$2 AND state='published' AND withdrawn_at IS NULL
+         RETURNING request_id`,
+        [owner, projectId, new Date(this.now()).toISOString()],
+      );
+      await tx.query(
+        "DELETE FROM publish_live_addresses WHERE owner_id=$1 AND project_id=$2",
+        [owner, projectId],
+      );
+      const domains = await tx.query(
+        "DELETE FROM publish_custom_domains WHERE owner_id=$1 AND project_id=$2 RETURNING domain",
+        [owner, projectId],
+      );
+      if (slug) {
+        const tombstoned = await tx.query(
+          "SELECT 1 FROM publish_slug_tombstones WHERE slug=$1",
+          [slug.slug],
+        );
+        if (!tombstoned.rows.length)
+          await tx.query(
+            "INSERT INTO publish_slug_tombstones(slug, released_at) VALUES($1,$2)",
+            [slug.slug, new Date(this.now()).toISOString()],
+          );
+        await tx.query(
+          "DELETE FROM publish_project_slugs WHERE owner_id=$1 AND project_id=$2",
+          [owner, projectId],
+        );
+      }
+      await tx.query(
+        "DELETE FROM builder_projects WHERE owner_id=$1 AND project_id=$2",
+        [owner, projectId],
+      );
+      return {
+        slug: slug?.slug ?? null,
+        domains: (domains.rows as Array<{ domain: string }>).map((row) => row.domain).sort(),
+        withdrawn: withdrawn.rows.length,
+      };
     });
   }
 
