@@ -286,4 +286,49 @@ describe("publish wave-2 Bora fixes (pg-mem)", () => {
       expect((await post(bob, "bob-proj", "release.example.test")).status).toBe(200);
     });
   });
+
+  describe("P3-1 concurrent slug/domain creation maps unique violations to 409 (never 503)", () => {
+    it("probe B6: two projects with the same title get distinct slugs concurrently", async () => {
+      await seedProject("alice", "p-a", "Same Name");
+      await seedProject("alice", "p-b", "Same Name");
+      const res = await Promise.allSettled([service.ensureProjectSlug("alice", "p-a"), service.ensureProjectSlug("alice", "p-b")]);
+      const outcome = res.map((r) => (r.status === "fulfilled" ? r.value.slug : "err:" + (r.reason as { code?: string })?.code));
+      // Before the fix the loser surfaced a raw 23505 (router: 503). Now it retries and takes the next suffix.
+      expect(outcome.sort()).toEqual(["same-name", "same-name-2"]);
+    });
+
+    it("two accounts claiming the same new domain concurrently: one 200, the other 409 publish_domain_taken over HTTP", async () => {
+      const post = (session: string, project: string) =>
+        app.request(`/api/publish/project/${project}/domains`, { method: "POST", headers: headers(session), body: JSON.stringify({ domain: "fresh.example.test" }) });
+      const [a, b] = await Promise.all([post(alice, "project-one"), post(bob, "bob-proj")]);
+      expect([a.status, b.status].sort()).toEqual([200, 409]);
+      const loser = a.status === 409 ? a : b;
+      expect(await loser.json()).toEqual({ error: "publish_domain_taken" });
+    });
+
+    it("a 23505 that escapes the slug retries surfaces as 409 publish_slug_conflict", async () => {
+      const original = db.transaction!.bind(db);
+      let calls = 0;
+      db.transaction = (async (work: (tx: DbLike) => Promise<unknown>) => {
+        calls += 1;
+        return original(async (tx) => {
+          const query = tx.query.bind(tx);
+          const wrapped = { ...tx, query: async (sql: string, params?: unknown[]) => {
+            if (/^INSERT INTO publish_project_slugs/.test(sql.trim()))
+              throw Object.assign(new Error("duplicate key value violates unique constraint"), { code: "23505" });
+            return query(sql, params);
+          } } as DbLike;
+          return work(wrapped);
+        });
+      }) as typeof db.transaction;
+      try {
+        await expect(service.ensureProjectSlug("alice", "project-one")).rejects.toMatchObject({ code: "publish_slug_conflict", status: 409 });
+        expect(calls).toBe(3);
+      } finally {
+        db.transaction = original;
+      }
+      const res = await app.request("/api/publish/project/project-one/slug", { method: "POST", headers: headers(alice), body: "{}" });
+      expect(res.status).toBe(200);
+    });
+  });
 });

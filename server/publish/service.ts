@@ -40,6 +40,11 @@ import {
   rollbackLiveAddress,
   type PublishRollbackRequest,
 } from "./rollback";
+/** Fresh-transaction attempts for a slug insert that lost a unique race (P3-1). */
+const SLUG_INSERT_ATTEMPTS = 3;
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "23505";
+}
 /** Unverified custom-domain claims expire after 72 h (Bora W2 P2-2 a). */
 export const CUSTOM_DOMAIN_PENDING_TTL_MS = 72 * 60 * 60 * 1000;
 /** Max unexpired pending custom-domain claims per account (Bora W2 P2-2 c). */
@@ -565,8 +570,29 @@ export class PublishService {
       await this.fail(row,error,errors,receipt).catch(() => {});
     } finally { if (timer) clearTimeout(timer); }
   }
-  /** Assign or return the project's stable DNS slug (deterministic, unique, reserved-safe). */
+  /**
+   * Assign or return the project's stable DNS slug (deterministic, unique, reserved-safe).
+   * The project row lock does not cover the candidate slug, so a concurrent insert
+   * can raise 23505. Retry in a fresh transaction (which sees the winner's slug
+   * and picks the next suffix); after SLUG_INSERT_ATTEMPTS it is a typed 409
+   * instead of a raw 503 (Bora W2 P3-1).
+   */
   async ensureProjectSlug(
+    owner: string,
+    projectId: string,
+    seed?: string,
+  ): Promise<{ slug: string; created: boolean }> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.ensureProjectSlugOnce(owner, projectId, seed);
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+        if (attempt >= SLUG_INSERT_ATTEMPTS) throw new PublishError("publish_slug_conflict", 409);
+      }
+    }
+  }
+
+  private async ensureProjectSlugOnce(
     owner: string,
     projectId: string,
     seed?: string,
@@ -633,6 +659,26 @@ export class PublishService {
     const checked = checkCustomDomain(domainRaw);
     if (!checked.ok) throw new PublishError(checked.error, 400);
     const domain = checked.domain;
+    try {
+      return await this.claimCustomDomain(owner, projectId, domain);
+    } catch (error) {
+      // Two accounts inserting the same new domain at once: PRIMARY KEY(domain)
+      // decides the winner; the loser gets the same 409 as a sequential claim (P3-1).
+      if (isUniqueViolation(error)) throw new PublishError("publish_domain_taken", 409);
+      throw error;
+    }
+  }
+
+  private async claimCustomDomain(
+    owner: string,
+    projectId: string,
+    domain: string,
+  ): Promise<{
+    domain: string;
+    status: "pending_verification" | "verified";
+    verificationToken: string;
+    expiresAt: string | null;
+  }> {
     return this.owner(owner, async (tx) => {
       const project = await tx.query(
         "SELECT project_id FROM builder_projects WHERE owner_id=$1 AND project_id=$2 AND deleted_at IS NULL FOR UPDATE",
