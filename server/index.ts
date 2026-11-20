@@ -487,9 +487,13 @@ export function createApp(
       try { created = await jobStore!.create({ id: runId, ownerId: authUser!.id, idempotencyKey: idempotencyKey! }); }
       catch { admission.discard(); return c.json({ error: 'job_create_failed' }, 503); }
       if (!created) {
+        // TIC TAC P2: after discard the request must end here. It used to fall through and run a
+        // paid generation with no job row and no budget slot.
         admission.discard();
-        const existing = await jobStore!.findByIdempotency(authUser!.id, idempotencyKey!);
+        let existing: Awaited<ReturnType<AgentJobStore['findByIdempotency']>> = null;
+        try { existing = await jobStore!.findByIdempotency(authUser!.id, idempotencyKey!); } catch { /* answered below */ }
         if (existing) return c.json({ job: toAgentJobView(existing), replayed: true as const }, 200, { 'Idempotent-Replay': 'true' });
+        return c.json({ error: 'job_create_failed' }, 503);
       }
       jobActive = true;
     }

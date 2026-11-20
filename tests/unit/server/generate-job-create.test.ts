@@ -68,3 +68,43 @@ describe('TIC TAC P2: slot leak when jobStore.create fails', () => {
     expect(t.budget.getStats().active).toBe(0);
   });
 });
+
+describe('TIC TAC P2: discard fall-through when create returns no row', () => {
+  it('no row and no existing job: 503 job_create_failed, no AI call, no quota, slot returned', async () => {
+    const t = await setup({ create: async () => null });
+    const res = await t.generate('key-null');
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe('job_create_failed');
+    expect(t.aiCalls()).toBe(0);
+    expect((await t.quota.usage('alice')).used).toBe(0);
+    expect(t.budget.getStats()).toEqual({ active: 0, admittedToday: 0 });
+  });
+
+  it('no row and the lookup also throws: still 503, never falls into the run', async () => {
+    const t = await setup({ create: async () => null, findByIdempotency: (() => {
+      let first = true; // the pre-check before create sees "no job"; the lookup after create fails
+      return async () => { if (first) { first = false; return null; } throw new Error('injected'); };
+    })() });
+    const res = await t.generate('key-null-2');
+    expect(res.status).toBe(503);
+    expect(t.aiCalls()).toBe(0);
+    expect(t.budget.getStats().active).toBe(0);
+  });
+
+  it('a concurrent winner (create lost the race) is replayed, not re-run', async () => {
+    const db = await makeDb();
+    const real = new PostgresAgentJobStore(db);
+    await real.create({ id: '00000000-0000-4000-8000-000000000001', ownerId: 'alice', idempotencyKey: 'key-race' });
+    let lookups = 0;
+    // Race simulated: the pre-check misses the winner, create returns null, the second lookup finds it.
+    const raced = await setup({
+      create: async () => null,
+      findByIdempotency: async (owner: string, key: string) => (++lookups === 1 ? null : real.findByIdempotency(owner, key)),
+    });
+    const res = await raced.generate('key-race');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Idempotent-Replay')).toBe('true');
+    expect(raced.aiCalls()).toBe(0);
+    expect(raced.budget.getStats()).toEqual({ active: 0, admittedToday: 0 });
+  });
+});
