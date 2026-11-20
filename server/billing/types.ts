@@ -20,6 +20,8 @@ export interface BillingEvent {
   customerId: string | null;
   checkoutSessionId: string | null;
   positiveInvoice?: { subscriptionId: string; paidAt: number };
+  /** Stripe `event.created` (epoch seconds) from the signature-verified payload, used for ordering. */
+  created?: number;
 }
 export interface BillingSubscription {
   id: string;
@@ -93,4 +95,15 @@ export class BillingError extends Error {
   ) {
     super(code);
   }
+}
+/** Lifecycle of one durable webhook queue row (migration 025). */
+export type BillingQueueState = "pending" | "processed" | "failed" | "dead";
+/** Processing result: applied, already recorded (duplicate), or older than the newest applied subscription event (stale; canonical state still reconciled). */
+export type BillingWebhookOutcome = "applied" | "duplicate" | "stale";
+/** Narrow processing seam the queue drives; implemented by BillingService. */
+export interface BillingEventProcessor {
+  processQueuedEvent(
+    event: BillingEvent,
+    userId: string,
+  ): Promise<BillingWebhookOutcome>;
 }
