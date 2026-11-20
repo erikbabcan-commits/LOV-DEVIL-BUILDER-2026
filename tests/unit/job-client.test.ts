@@ -61,6 +61,7 @@ afterEach(() => {
   cleanup();
   Object.assign(jobClientConfig, defaults);
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
   selectPersistenceScope({ kind: 'pilot' });
 });
@@ -71,6 +72,7 @@ describe('transport state machine', () => {
   });
 
   it('B: POSTs /api/agent/jobs with Idempotency-Key, polls ?detail=1 and yields every event exactly once', async () => {
+    vi.stubEnv('VITE_AGENT_JOBS_CLIENT', '1');
     let polls = 0;
     const fetch = stubFetch(url => {
       if (url === '/api/agent/jobs') return Response.json({ job: view('queued', []), replayed: false }, { status: 202 });
@@ -90,6 +92,7 @@ describe('transport state machine', () => {
   });
 
   it('B: a 200 Idempotent-Replay is a success and never starts a second run', async () => {
+    vi.stubEnv('VITE_AGENT_JOBS_CLIENT', '1');
     stubFetch(url => url === '/api/agent/jobs'
       ? Response.json({ job: view('succeeded', [ev.started, ev.done]), replayed: true }, { status: 200, headers: { 'Idempotent-Replay': 'true' } })
       : Response.json(view('succeeded', [ev.started, ev.done])));
@@ -100,6 +103,7 @@ describe('transport state machine', () => {
   });
 
   it('feature-detects a missing POST /api/agent/jobs (404) and falls back to SSE, probing only once', async () => {
+    vi.stubEnv('VITE_AGENT_JOBS_CLIENT', '1');
     const fetch = stubFetch(jobsMissing);
     vi.mocked(streamAgentEvents).mockImplementation(async function* () { yield ev.started; yield ev.done; });
     const t = transports();
@@ -108,6 +112,28 @@ describe('transport state machine', () => {
     expect(fetch.mock.calls.filter(c => c[0] === '/api/agent/jobs')).toHaveLength(1);
     expect(streamAgentEvents).toHaveBeenCalledTimes(2);
     expect(t.seen).toEqual(['streaming', 'idle']);
+  });
+
+  it('with VITE_AGENT_JOBS_CLIENT off (default) never calls POST /api/agent/jobs and passes an Idempotency-Key to SSE', async () => {
+    const fetch = stubFetch(() => new Response('{}', { status: 500 }));
+    vi.mocked(streamAgentEvents).mockImplementation(async function* () { yield ev.started; yield ev.done; });
+    const t = transports();
+    expect(await collect(runAgentJob(input, new AbortController().signal, t))).toEqual([ev.started, ev.done]);
+    await collect(runAgentJob(input, new AbortController().signal));
+    expect(fetch.mock.calls.filter(c => c[0] === '/api/agent/jobs')).toHaveLength(0);
+    const keys = vi.mocked(streamAgentEvents).mock.calls.map(c => c[2]);
+    expect(keys).toHaveLength(2);
+    for (const key of keys) expect(key).toMatch(/^[A-Za-z0-9_-]{1,128}$/);
+    expect(keys[0]).not.toBe(keys[1]); // a fresh key per run, never a replay of the previous run
+    expect(t.seen).toEqual(['streaming', 'idle']);
+  });
+
+  it('SSE /api/agent/generate request carries the Idempotency-Key header', async () => {
+    const real = await vi.importActual<typeof import('../../src/services/ai/client')>('../../src/services/ai/client');
+    const fetch = stubFetch(() => new Response('data: ' + JSON.stringify(ev.done) + '\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } }));
+    expect(await collect(real.streamAgentEvents(input, new AbortController().signal, 'key_123'))).toEqual([ev.done]);
+    expect(fetch.mock.calls[0][0]).toBe('/api/agent/generate');
+    expect(new Headers(fetch.mock.calls[0][1].headers).get('Idempotency-Key')).toBe('key_123');
   });
 
   it('switches SSE → reconnecting → polling on a network error and skips events already streamed', async () => {

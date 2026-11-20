@@ -63,11 +63,11 @@ export interface GenerateInput {
   };
 }
 
-export async function* streamAgentEvents(input: GenerateInput, signal: AbortSignal): AsyncGenerator<AgentEvent> {
+export async function* streamAgentEvents(input: GenerateInput, signal: AbortSignal, idempotencyKey?: string): AsyncGenerator<AgentEvent> {
   let res: Response;
   try {
     res = await fetch(AI_API_BASE + '/api/agent/generate', {
-      method: 'POST', headers: apiHeaders(), body: JSON.stringify(input), signal, credentials: 'include',
+      method: 'POST', headers: apiHeaders(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}), body: JSON.stringify(input), signal, credentials: 'include',
     });
   } catch {
     if (signal.aborted) return;

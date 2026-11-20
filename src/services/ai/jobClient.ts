@@ -22,6 +22,12 @@ let jobsEndpoint: 'unknown' | 'missing' = 'unknown';
 /** Test hook: forget the POST /api/agent/jobs feature detection result. */
 export function resetJobClientForTests() { jobsEndpoint = 'unknown'; }
 
+/** Durable-jobs path (POST /api/agent/jobs + ?detail=1 polling) is opt-in until Agent 1's
+ *  worker runs by default; read per call so tests can toggle it with vi.stubEnv. */
+export function durableJobsClientEnabled(): boolean {
+  return import.meta.env?.VITE_AGENT_JOBS_CLIENT === '1';
+}
+
 const newKey = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^A-Za-z0-9_-]/g, '');
 
 /** Serialised cache writer: at most one write in flight, the latest state wins. */
@@ -70,13 +76,16 @@ export async function* runAgentJob(input: GenerateInput, signal: AbortSignal, ho
   void deleteJobCache(null).catch(() => {}); // one active run: drop stale recoveries
   // Prepare the SSE fallback now, in call order with other runs. An async generator does
   // no I/O until iterated, so this costs nothing when the B endpoint answers.
-  const sse = streamAgentEvents(input, signal);
+  // One key per run: the SSE request is durable/idempotent on the server too, and the
+  // same key on the B POST keeps a fallback from starting a second run.
+  const key = newKey();
+  const sse = streamAgentEvents(input, signal, key);
   let finished = false, usedSse = false;
   try {
     let created: Awaited<ReturnType<typeof createAgentJob>> = null;
-    if (jobsEndpoint !== 'missing') {
+    if (durableJobsClientEnabled() && jobsEndpoint !== 'missing') {
       try {
-        created = await createAgentJob(input, newKey(), signal);
+        created = await createAgentJob(input, key, signal);
         if (!created) jobsEndpoint = 'missing';
       } catch (error) {
         if (signal.aborted) return;
