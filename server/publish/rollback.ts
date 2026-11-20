@@ -23,6 +23,17 @@ export const PublishVersionSummary = z.strictObject({
 export type PublishVersionSummary = z.infer<typeof PublishVersionSummary>;
 
 /**
+ * GET …/versions response. `liveVersion` is the optimistic-concurrency token of
+ * the live address (publish_live_addresses.version, null when nothing is live);
+ * the rollback UI sends it back as `expectedVersion` (Bora W2 P2-1).
+ */
+export const PublishVersionList = z.strictObject({
+  liveVersion: z.uuid().nullable(),
+  versions: z.array(PublishVersionSummary),
+});
+export type PublishVersionList = z.infer<typeof PublishVersionList>;
+
+/**
  * List immutable published (non-withdrawn) versions for an owned project.
  * Archive rows are never mutated here — only listed for the rollback UI.
  */

@@ -35,9 +35,9 @@ import {
 } from "./router";
 import {
   listPublishVersions,
+  PublishVersionList,
   rollbackLiveAddress,
   type PublishRollbackRequest,
-  type PublishVersionSummary,
 } from "./rollback";
 type StoragePhase = "legacy_unknown" | "compiling" | "writing" | "retained" | "empty";
 type Receipt = { sha256: string; bytes: number };
@@ -696,11 +696,17 @@ export class PublishService {
     }));
   }
 
-  listVersions(
+  /**
+   * Versions for the rollback UI plus the live address version token. The server
+   * keeps the strict optimistic check in promote(); a stale token still gets 409.
+   */
+  async listVersions(
     owner: string,
     projectId: string,
-  ): Promise<PublishVersionSummary[]> {
-    return listPublishVersions(this.db, owner, projectId);
+  ): Promise<PublishVersionList> {
+    const live = await this.liveAddress(owner, projectId);
+    const versions = await listPublishVersions(this.db, owner, projectId);
+    return PublishVersionList.parse({ liveVersion: live?.version ?? null, versions });
   }
 
   async rollback(

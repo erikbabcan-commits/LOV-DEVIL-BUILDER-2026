@@ -16,7 +16,22 @@ const Version = z
 
 type Version = z.infer<typeof Version>;
 
-async function loadVersions(projectId: string, signal: AbortSignal): Promise<Version[]> {
+// liveVersion is the live address concurrency token; it is sent back as expectedVersion.
+const VersionList = z
+  .object({
+    liveVersion: z.string().uuid().nullable(),
+    versions: z.array(Version),
+  })
+  .strict();
+
+type VersionList = z.infer<typeof VersionList>;
+
+const errorCopy: Record<string, string> = {
+  publish_live_conflict:
+    'Živá verzia sa medzitým zmenila. Zoznam verzií je obnovený, vyber verziu a potvrď prepnutie znova.',
+};
+
+async function loadVersions(projectId: string, signal: AbortSignal): Promise<VersionList> {
   const response = await fetch(apiUrl('/api/publish/project/' + encodeURIComponent(projectId) + '/versions'), {
     method: 'GET',
     credentials: 'include',
@@ -25,7 +40,7 @@ async function loadVersions(projectId: string, signal: AbortSignal): Promise<Ver
   });
   const data = await response.json().catch(() => null);
   if (!response.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'publish_unavailable');
-  return z.array(Version).parse(data);
+  return VersionList.parse(data);
 }
 
 async function rollback(
@@ -53,18 +68,17 @@ async function rollback(
 /** Choose an older published version and switch the live address to it. */
 export function RollbackDialog({
   projectId,
-  liveVersion,
   onClose,
   onRolledBack,
 }: {
   projectId: string;
-  liveVersion: string | null;
   onClose: () => void;
   onRolledBack?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const listId = useId();
   const [versions, setVersions] = useState<Version[] | null>(null);
+  const [liveVersion, setLiveVersion] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -78,23 +92,30 @@ export function RollbackDialog({
       else node.setAttribute('open', '');
     }
     const pending = new AbortController();
-    void loadVersions(projectId, pending.signal)
-      .then((rows) => {
-        if (pending.signal.aborted) return;
-        setVersions(rows);
-        const fallback = rows.find((row) => !row.isLive) ?? rows[0];
-        if (fallback) setSelected(fallback.requestId);
-      })
-      .catch((reason) => {
-        if (!pending.signal.aborted)
-          setError(reason instanceof Error ? reason.message : 'Načítanie verzií zlyhalo.');
-      });
+    void refresh(pending.signal).catch((reason) => {
+      if (!pending.signal.aborted)
+        setError(reason instanceof Error ? reason.message : 'Načítanie verzií zlyhalo.');
+    });
     return () => {
       pending.abort();
       node?.close?.();
       previous?.focus();
     };
+    // refresh only depends on projectId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  async function refresh(signal: AbortSignal) {
+    const list = await loadVersions(projectId, signal);
+    if (signal.aborted) return;
+    setVersions(list.versions);
+    setLiveVersion(list.liveVersion);
+    setSelected((current) => {
+      if (current && list.versions.some((row) => row.requestId === current && !row.isLive)) return current;
+      const fallback = list.versions.find((row) => !row.isLive) ?? list.versions[0];
+      return fallback ? fallback.requestId : '';
+    });
+  }
 
   async function submit() {
     if (!selected || busy || !confirming) return;
@@ -106,7 +127,13 @@ export function RollbackDialog({
       onRolledBack?.();
       onClose();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Rollback zlyhal.');
+      const code = reason instanceof Error ? reason.message : '';
+      setError(errorCopy[code] ?? (code || 'Rollback zlyhal.'));
+      if (code === 'publish_live_conflict') {
+        // Someone else switched the live address: reload the token and require a fresh confirmation.
+        setConfirming(false);
+        await refresh(pending.signal).catch(() => undefined);
+      }
     } finally {
       setBusy(false);
     }
