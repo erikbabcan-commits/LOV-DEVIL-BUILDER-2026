@@ -10,9 +10,9 @@ import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
 import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
 import { estimateCost, readUsdEurRate, sumSession, formatMicros } from './usage/costEstimator';
 import { route as smartRoute } from './providers/smartRouter';
-import { effectivePlan } from './auth/plans';
+import { planLookup } from './auth/planLookup';
 import { LEGACY_CLIENT_MAX_ATTEMPTS, MAX_ATTEMPTS as AUTOFIX_MAX_ATTEMPTS } from './agent/autofixLimits';
-import { selectGenerationRoute, smartRouterEnabled, withRouteDecision, type GenerationRoute } from './providers/generationRoute';
+import { PLAN_UPGRADE_STATUS, PlanUpgradeRequiredError, planUpgradeBody, selectGenerationRoute, smartRouterEnabled, withRouteDecision, type GenerationRoute } from './providers/generationRoute';
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PostgresAiUsageStore, UsageLedgerError, type AiUsageStore, type RunStatus } from './usage/store';
@@ -238,10 +238,7 @@ export function createApp(
     // Opt-in (AGENT_JOBS_WORKER=1): the queue worker runs queued POST /api/agent/jobs jobs and debits quota only at `succeeded`.
     if (jobStore && isDurableJobStore(jobStore) && jobsWorkerEnabled && opts?.agentJobs?.startWorker !== false) {
       startAgentWorker({ store: jobStore, providers, aiAllowed, quota: opts.auth.quota, admit: () => budget.acquire(), smartRouter,
-        planFor: async ownerId => {
-          const row = (await opts.auth!.db.query('SELECT plan, plan_expires_at FROM users WHERE id=$1', [ownerId])).rows[0] as { plan?: unknown; plan_expires_at?: unknown } | undefined;
-          return row ? effectivePlan(row) : 'free';
-        },
+        planFor: planLookup(opts.auth.db),
         resilience: opts.resilience, requestTimeoutMs: cfg.requestTimeoutMs });
     }
     // [/seam:agent-1]
@@ -337,7 +334,11 @@ export function createApp(
     if (new URL(c.req.url).search) return c.json({error:'invalid_query'},400);
     const user = opts?.auth ? getUserFromContext(c) : null;
     if (!rateLimit('ai-models:'+(user?.id??'pilot'))) return c.json({error:'rate_limit'},429);
-    return c.json(aiAllowed()?providers.catalog():{defaultId:null,models:[]});
+    if (!aiAllowed()) return c.json({defaultId:null,models:[]});
+    const catalog = providers.catalog();
+    // GBBB-3: premium models are shown locked for a non-pro account (plan from the DB row); the server still enforces it.
+    if (!opts?.auth || user?.plan === 'pro') return c.json(catalog);
+    return c.json({ ...catalog, models: catalog.models.map(model => model.requiredPlan ? { ...model, locked: true } : model) });
   });
   app.get('/api/health', (c) => c.json({ ok: true, ai: providers.defaultProvider?.name ?? 'not-configured', auth: opts?.auth ? 'enabled' : 'disabled' }));
   app.use('/api/sandbox/*', bodyLimit({ maxSize: MAX_INPUT_JSON_BYTES,
@@ -400,10 +401,14 @@ export function createApp(
     /* Same model choice as generate (mode 'fix'): smart router only with AI_SMART_ROUTER=1 and no modelId. */
     try { if (!selection.success) throw new Error('invalid_model');
       const autoSelected = selectGenerationRoute(providers, { modelId: selection.data.modelId, allowFallback: selection.data.allowFallback, fallbackIds: selection.data.fallbackIds,
-        prompt: '', mode: 'fix', fileCount: parsed.data.length, smartRouter, plan: autoUser?.plan });
+        prompt: '', mode: 'fix', fileCount: parsed.data.length, smartRouter, plan: autoUser?.plan, enforcePlan: Boolean(opts?.auth) });
       autoRoute = autoSelected.entries;
       autoDecision = autoSelected.decision ?? { model: autoRoute[0].id, reason: selection.data.modelId !== undefined ? 'explicit_user_choice' : 'configured_default' }; }
-    catch { return c.json({error:'invalid_model'},400); }
+    catch (error) {
+      // GBBB-3: before budget, quota and any AI call.
+      if (error instanceof PlanUpgradeRequiredError) return c.json(planUpgradeBody(error, autoUser?.plan), PLAN_UPGRADE_STATUS);
+      return c.json({error:'invalid_model'},400);
+    }
     if (parsed.data.some(f => containsPotentialSecret(f.path) || containsPotentialSecret(f.content))) return c.json({ error: 'secret_in_context' }, 400);
     const admission = budget.acquire();
     if (!admission.ok) return c.json({ error: 'BUDGET_EXCEEDED', reason: admission.reason }, 429);
@@ -483,8 +488,11 @@ export function createApp(
         fileCount: input.request.context.files.length,
         smartRouter,
         plan: authUser?.plan,
+        enforcePlan: Boolean(opts?.auth),
       });
-    } catch {
+    } catch (error) {
+      // GBBB-3: explicit premium model on a non-pro plan, before budget, job row, quota and any AI call.
+      if (error instanceof PlanUpgradeRequiredError) return c.json(planUpgradeBody(error, authUser?.plan), PLAN_UPGRADE_STATUS);
       return c.json({ error: 'invalid_model' }, 400);
     }
     const route: ModelEntry[] = selected.entries;
