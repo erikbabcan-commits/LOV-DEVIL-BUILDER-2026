@@ -125,6 +125,8 @@ export function makeRateLimiter(maxPerMin: number) {
 }
 
 /** Mount the pilot and authenticated API routes according to the supplied runtime wiring. */
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 export function createApp(
   cfg: ServerConfig,
   provider: AIProvider | null,
@@ -156,6 +158,21 @@ export function createApp(
   app.use('*', async (c, next) => {
     const origin = c.req.header('Origin');
     if (origin !== undefined && !trustedOrigins.has(origin)) return c.json({ error: 'origin_not_allowed' }, 403);
+    /* TIC TAC P2 (split deploy / CSRF): the session is an ambient cookie (lov_token, SameSite=Lax) and
+       CORS allows credentials for the trusted frontend origins. Besides the double-submit token, a
+       state-changing request without Origin must not come from another site: an untrusted Referer
+       or Sec-Fetch-Site cross-site/same-site (a sibling subdomain) is refused. Requests without any of
+       these headers are non-browser clients (no ambient browser cookies), e.g. Stripe webhooks. */
+    if (origin === undefined && !SAFE_METHODS.has(c.req.method.toUpperCase())) {
+      const site = c.req.header('Sec-Fetch-Site');
+      if (site === 'cross-site' || site === 'same-site') return c.json({ error: 'origin_not_allowed' }, 403);
+      const referer = c.req.header('Referer');
+      if (referer !== undefined) {
+        let refOrigin: string | null = null;
+        try { refOrigin = new URL(referer).origin; } catch { /* invalid Referer */ }
+        if (refOrigin === null || !trustedOrigins.has(refOrigin)) return c.json({ error: 'origin_not_allowed' }, 403);
+      }
+    }
     return next();
   });
   /* CORS: lokálny dev (5173 → 8787) — single-user pilot, loopback only */
