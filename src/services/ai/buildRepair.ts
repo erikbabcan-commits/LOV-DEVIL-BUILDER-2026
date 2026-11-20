@@ -7,7 +7,7 @@ const Source=z.object({path:z.string().min(1).max(200),content:z.string().max(20
 const Result=z.object({ok:z.boolean(),attempts:z.number().int().min(0).max(2),patchesApplied:z.number().int().min(0).max(64),summary:z.string().max(600).optional(),finalFiles:Source.array().max(40),buildErrors:z.array(z.object({file:z.string(),message:z.string(),attempt:z.number()})).max(200)});
 export async function requestBuildRepair(files:Array<{path:string;content:string}>,selection:{modelId?:string;allowFallback?:boolean;fallbackIds?:string[]},signal:AbortSignal){
  let response:Response;
- try{response=await fetch(AI_API_BASE+'/api/sandbox/autofix',{method:'POST',headers:apiHeaders(),body:JSON.stringify({files,...selection}),signal});}catch{signal.throwIfAborted();throw new NetworkError(true);}
+ try{response=await fetch(AI_API_BASE+'/api/sandbox/autofix',{method:'POST',headers:apiHeaders(),body:JSON.stringify({files,...selection}),signal,credentials:'include'});}catch{signal.throwIfAborted();throw new NetworkError(true);}
  notifyAiQuotaChanged();signal.throwIfAborted();
  const value:unknown=await response.json().catch(()=>null);
  if(!response.ok){

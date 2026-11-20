@@ -72,7 +72,7 @@ export function AppShell() {
     if (import.meta.env.VITE_AI_PRESELECT === '0') return;
     if (!mayOpenEditor || readyAccount === null || readyAccount !== accountKey) return;
     const controller = new AbortController();
-    void fetch(apiUrl('/api/ai-models'), { credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
+    void fetch(apiUrl('/api/ai-models'), { credentials: 'include', cache: 'no-store', signal: controller.signal })
       .then(async response => {
         if (!response.ok) return;
         const parsed = AiModelsSchema.safeParse(await response.json());

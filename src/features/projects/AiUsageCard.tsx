@@ -14,7 +14,7 @@ export function AiUsageCard() {
     const refresh = async () => {
       pending?.abort(); const controller = new AbortController(); pending = controller;
       try {
-        const response = await fetch(apiUrl('/api/ai-usage'), { credentials: 'same-origin', signal: controller.signal, cache: 'no-store' });
+        const response = await fetch(apiUrl('/api/ai-usage'), { credentials: 'include', signal: controller.signal, cache: 'no-store' });
         if (!response.ok) throw new Error('unavailable');
         const parsed = AiUsageSchema.parse(await response.json());
         if (active && !controller.signal.aborted) { setReport(parsed); setError(false); }

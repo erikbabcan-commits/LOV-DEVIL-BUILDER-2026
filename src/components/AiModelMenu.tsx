@@ -6,7 +6,7 @@ export function AiModelMenu({open}:{open:boolean}){
   const state=useStore(),[catalog,setCatalog]=useState<AiModels|null>(null),[failed,setFailed]=useState(false),[revision,setRevision]=useState(0);
   useEffect(()=>{
     if(!open)return;const controller=new AbortController();setCatalog(null);setFailed(false);
-    void fetch(apiUrl('/api/ai-models'),{credentials:'same-origin',cache:'no-store',signal:controller.signal}).then(async response=>{
+    void fetch(apiUrl('/api/ai-models'),{credentials:'include',cache:'no-store',signal:controller.signal}).then(async response=>{
       if(!response.ok)throw new Error('models_unavailable');const data=AiModelsSchema.parse(await response.json());if(!controller.signal.aborted)setCatalog(data);
     }).catch(()=>{if(!controller.signal.aborted)setFailed(true);});
     return()=>controller.abort();

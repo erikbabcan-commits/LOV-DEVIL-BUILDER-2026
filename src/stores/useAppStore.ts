@@ -819,6 +819,7 @@ export const useStore = create<AppState>((set, get) => ({
         headers: apiHeaders(),
         body: JSON.stringify({ files }),
         signal: controller.signal,
+        credentials: 'include',
       });
       const result = await res.json() as { ok: boolean; html: string | null; errors: Array<{ file: string; message: string }> };
       if (controller.signal.aborted || sandboxController !== controller || !matchesReviewBase(get(), base)) return;

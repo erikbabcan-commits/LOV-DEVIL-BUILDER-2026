@@ -1,4 +1,4 @@
-import type {ConversationTurn} from '../../../shared/conversation';
+import type { ConversationTurn } from '../../../shared/conversation';
 import type { AgentEvent, GeneratedFile } from './types';
 import { apiHeaders } from '../../lib/csrf';
 import { notifyAiQuotaChanged } from './usage';
@@ -67,7 +67,7 @@ export async function* streamAgentEvents(input: GenerateInput, signal: AbortSign
   let res: Response;
   try {
     res = await fetch(AI_API_BASE + '/api/agent/generate', {
-      method: 'POST', headers: apiHeaders(), body: JSON.stringify(input), signal,
+      method: 'POST', headers: apiHeaders(), body: JSON.stringify(input), signal, credentials: 'include',
     });
   } catch {
     if (signal.aborted) return;
@@ -84,7 +84,7 @@ export async function* streamAgentEvents(input: GenerateInput, signal: AbortSign
       throw new AiRequestError(code === 'BUDGET_EXCEEDED' ? 'run_budget' : 'rate_limit', true);
     }
     if (code === 'invalid_model') throw new AiRequestError('invalid_model', false);
-    if (res.status === 413) throw new AiRequestError(code==='context_limit'?'context_limit':'input_limit', false);
+    if (res.status === 413) throw new AiRequestError(code === 'context_limit' ? 'context_limit' : 'input_limit', false);
     if (res.status === 400) throw new AiRequestError(code === 'secret_in_context' ? 'secret_in_context' : 'invalid_request', false);
     throw new AiRequestError(code === 'quota_unavailable' ? 'quota_unavailable' : code === 'ai_disabled' ? 'ai_disabled' : 'service_unavailable', code !== 'ai_disabled');
   }
@@ -93,7 +93,7 @@ export async function* streamAgentEvents(input: GenerateInput, signal: AbortSign
   const reader = res.body.getReader(), decoder = new TextDecoder();
   let buf = '';
   try {
-    for (;;) {
+    for (; ;) {
       const { done, value } = await reader.read();
       if (signal.aborted) return;
       if (done) throw new AiRequestError('stream_interrupted', true);
@@ -116,7 +116,7 @@ export async function* streamAgentEvents(input: GenerateInput, signal: AbortSign
     if (error instanceof AiRequestError) throw error;
     throw new NetworkError(true);
   } finally {
-    await reader.cancel().catch(() => {});
+    await reader.cancel().catch(() => { });
     reader.releaseLock();
   }
 }
