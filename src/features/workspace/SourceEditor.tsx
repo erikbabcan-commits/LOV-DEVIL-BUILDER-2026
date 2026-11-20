@@ -10,13 +10,14 @@ export default function SourceEditor({
   path,
   value,
   onChange,
-  errors,
+  markers,
   readOnly = false,
 }: {
   path: string;
   value: string;
   onChange: (value: string) => void;
-  errors: { file: string; message: string }[];
+  /** Pre-parsed build errors for this file (see features/editor/lintMarkers). */
+  markers: { line: number; column: number; message: string }[];
   readOnly?: boolean;
 }) {
   const extensions = useMemo(() => {
@@ -35,33 +36,22 @@ export default function SourceEditor({
       EditorView.lineWrapping,
       linter(
         (view) =>
-          errors.map((error) => {
-            const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-              location = error.message.match(
-                new RegExp(escaped + ":(\\d+):(\\d+)"),
-              );
-            const line = view.state.doc.line(
-              Math.max(
-                1,
-                Math.min(view.state.doc.lines, Number(location?.[1] ?? 1)),
-              ),
-            );
-            const from = Math.min(
-              line.to,
-              line.from + Math.max(0, Number(location?.[2] ?? 0)),
-            );
+          markers.map((marker) => {
+            const doc = view.state.doc,
+              line = doc.line(Math.max(1, Math.min(doc.lines, marker.line))),
+              from = Math.min(line.to, line.from + marker.column);
             return {
               from,
-              to: Math.min(view.state.doc.length, from + 1),
+              to: Math.min(doc.length, from + 1),
               severity: "error" as const,
-              message: error.message,
+              message: marker.message,
               source: "Posledný build",
             };
           }),
         { delay: 0 },
       ),
     ];
-  }, [path, errors]);
+  }, [path, markers]);
   return (
     <CodeMirror
       readOnly={readOnly}
