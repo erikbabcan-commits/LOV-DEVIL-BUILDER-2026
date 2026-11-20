@@ -5,6 +5,7 @@ import { THUMBS } from '../../lib/templates';
 import { withoutExternalScripts } from '../../lib/vfs';
 import { CodePane } from './CodePane';
 import { ReviewPanel } from './ReviewPanel';
+import { JobTransportStatus } from './JobTransportStatus';
 import { ProjectDiff } from './ProjectDiff';
 import {BuildRepairAction} from './BuildRepairAction';
 
@@ -113,6 +114,7 @@ export function Workspace() {
           )}
           {st.messages.map(m => <ChatMessage key={m.id} m={m} />)}
         </div>
+        <JobTransportStatus />
         <ReviewPanel />
         {st.templateFollowups.length > 0 && !st.pendingReview && <div className="workspace-followups" aria-label="Nápady na ďalší krok">{st.templateFollowups.map(prompt => <button key={prompt} onClick={() => st.usePrompt(prompt)}>{prompt}</button>)}</div>}
         <div className="composer">
