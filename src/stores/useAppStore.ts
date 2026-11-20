@@ -2,6 +2,7 @@ import {applyFileOperations} from '../lib/projectChanges';
 import {requestBuildRepair} from '../services/ai/buildRepair';
 import {ConversationSchema,type ConversationTurn} from '../../shared/conversation';
 import { apiHeaders } from '../lib/csrf';
+import { apiUrl } from '../lib/api';
 import { create } from 'zustand';
 import { uid, now, dbg } from '../lib/utils';
 import { buildSaas, buildKanban, buildSettings, buildDashboard, detectKind, KIND_INFO, SNIPPETS, AppKind } from '../lib/templates';
@@ -811,7 +812,9 @@ export const useStore = create<AppState>((set, get) => ({
     const base = captureReviewBase(st);
     set({ sandboxBuilding: true, sandboxErrors: [], sandboxHtml: null });
     try {
-      const res = await fetch((import.meta.env?.VITE_AI_API_BASE ?? '') + '/api/sandbox/build', {
+      const aiBase = (import.meta.env?.VITE_AI_API_BASE ?? '').trim().replace(/\/+$/, '');
+      const buildUrl = aiBase ? `${aiBase}/api/sandbox/build` : apiUrl('/api/sandbox/build');
+      const res = await fetch(buildUrl, {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({ files }),

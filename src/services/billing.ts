@@ -7,6 +7,7 @@ import {
   type BillingStatus,
 } from "../../shared/billing";
 import { apiHeaders, getCsrfToken } from "../lib/csrf";
+import { apiUrl } from "../lib/api";
 import { DB_NAME, persistenceScope } from "./persistence/db";
 
 export interface BillingIdentity {
@@ -63,7 +64,7 @@ async function request(
   try {
     if (body !== undefined && !getCsrfToken())
       throw new BillingApiError("csrf_required");
-    const response = await fetch("/api/billing" + path, {
+    const response = await fetch(apiUrl("/api/billing" + path), {
       method: body === undefined ? "GET" : "POST",
       credentials: "include",
       cache: "no-store",

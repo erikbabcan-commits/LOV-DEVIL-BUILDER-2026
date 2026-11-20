@@ -54,6 +54,7 @@ import { PublishService, probePublishSchema } from './publish/service';
 import { publishRouter } from './publish/routes';
 import { publicPublishApp } from './publish/public';
 import { makeStripeBillingGateway } from './billing/gateway';
+import { assertProductionRuntime } from './production';
 
 /* Hono backend — server-only Mistral integrácia.
    Trust boundary (single-user pilot): server počúva len na 127.0.0.1,
@@ -497,6 +498,10 @@ if (
   (process.argv[1] && process.argv[1].endsWith('server/index.ts')) ||
   process.env.LOV_SERVER === '1'
 ) {
+  // Production starts only as a validated standalone backend (fail-closed checklist in
+  // server/production.ts): durable auth, pinned DB schema, HTTPS origin allowlist and
+  // the isolated sandbox runner are mandatory. This process is never a Vercel Function.
+  assertProductionRuntime(process.env);
   const cfg: ServerConfig = {
     mistralApiKey: process.env.MISTRAL_API_KEY,
     mistralModel: process.env.MISTRAL_MODEL ?? 'mistral-large-latest',
@@ -506,9 +511,9 @@ if (
     // BIND=0.0.0.0 pre behind-proxy (Docker/VPS); default ostáva loopback.
     bind: process.env.BIND ?? '127.0.0.1',
     aiGenerationEnabled: process.env.AI_GENERATION_ENABLED !== '0',
-    publicDeployment: process.env.NODE_ENV === 'production'
+    // PUBLIC_RUNTIME=1 keeps the hard AI/sandbox block even for a validated deployment.
+    publicDeployment: process.env.PUBLIC_RUNTIME === '1'
   };
-  if (cfg.publicDeployment) throw new Error('Public deployment blocked: auth and durable quotas not configured.');
   // Parse before provider, DB or migration side effects. Enabling OAuth does
   // not enable export; each has an explicit, default-off operator switch.
   const cloudGitHubConfig = readCloudGitHubConfig(process.env);

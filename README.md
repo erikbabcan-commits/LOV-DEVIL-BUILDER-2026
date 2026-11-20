@@ -68,6 +68,20 @@ Na lokálne skúšanie backendu a UI použite v oddelených termináloch
 single-user pilot, bez skutočného produkčného AI kľúča. `demo/index.html` možno
 otvoriť samostatne bez build nástrojov, ale je to **historická referencia**.
 
+### 🌐 Nasadenie frontendu na Vercel (Statická Vite aplikácia)
+
+Frontend repozitára možno nasadiť na Vercel ako samostatnú statickú aplikáciu:
+- **Framework Preset**: Vite
+- **Build Command**: `npm run build` (vykonáva `tsc --noEmit && vite build`)
+- **Output Directory**: `dist`
+- **SPA Routing**: Konfigurácia v `vercel.json` zabezpečuje fallback na `/index.html` pre klientske cesty a zároveň striktne vynecháva `/api` a `/api/*` požiadavky, aby nedochádzalo k ich nechcenému prepisovaniu na HTML.
+
+**Verejné premenné prostredia (Environment Variables):**
+- `VITE_API_BASE_URL` *(voliteľné)*: Verejná adresa produkčného backendového API (napr. `https://api.lov-devil.sk`).
+  - Ak nie je nastavená, frontend používa relatívne cesty `/api/...` (predvolené pre lokálny vývoj cez Vite proxy aj prevádzku za spoločným reverzným proxy).
+  - **Bezpečnostné pravidlo**: Do `VITE_*` premenných nikdy nevkladajte žiadne privátne tajomstvá, kľúče ani heslá; premenné s prefixom `VITE_` sa vkladajú do verejného klientskeho balíčka.
+- `VITE_AI_API_BASE` *(voliteľné)*: Voliteľná verejná adresa pre oddelený AI runner/sandbox backend (ak sa nepoužije, predvolene sa použije `VITE_API_BASE_URL` alebo relatívne cesty).
+
 V historickom deme: **Ctrl+Enter** odoslať · **Ctrl+K** zamerať prompt ·
 **Ctrl+S** uložiť verziu · **Ctrl+Shift+T** spustiť vstavané kontroly.
 

@@ -4,6 +4,7 @@ import { LoginScreen } from '../components/LoginScreen';
 import { AI_QUOTA_CHANGED } from '../services/ai/usage';
 import { fetchAuthStatus, type AuthStatus } from '../services/auth';
 import { selectPersistenceScope } from '../services/persistence/projectStore';
+import { apiUrl } from '../lib/api';
 import { AiModelsSchema } from '../../shared/aiModels';
 const PublishDialog=lazy(()=>import('../features/publish/PublishDialog').then(module=>({default:module.PublishDialog})));
 const ProjectLibrary=lazy(()=>import('../features/projects/ProjectLibrary').then(module=>({default:module.ProjectLibrary})));
@@ -71,7 +72,7 @@ export function AppShell() {
     if (import.meta.env.VITE_AI_PRESELECT === '0') return;
     if (!mayOpenEditor || readyAccount === null || readyAccount !== accountKey) return;
     const controller = new AbortController();
-    void fetch('/api/ai-models', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
+    void fetch(apiUrl('/api/ai-models'), { credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
       .then(async response => {
         if (!response.ok) return;
         const parsed = AiModelsSchema.safeParse(await response.json());

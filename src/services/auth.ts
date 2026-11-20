@@ -1,3 +1,5 @@
+import { apiUrl } from '../lib/api';
+
 /* Auth klient — zisťuje stav auth (health + me), login/register/logout.
    Keď je auth vypnutý (pilot mód), health vráti auth:'disabled' a UI pokračuje bez loginu. */
 
@@ -23,10 +25,10 @@ export type AuthStatus =
 
 export async function fetchAuthStatus(): Promise<AuthStatus> {
   try {
-    const res = await fetch('/api/auth/me', { credentials: 'include', signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(apiUrl('/api/auth/me'), { credentials: 'include', signal: AbortSignal.timeout(10_000) });
     if (res.status === 404 || res.status === 405) {
       // Missing routes and proxy failures are not evidence that authentication is disabled.
-      const health = await fetch('/api/health', { credentials: 'include', signal: AbortSignal.timeout(10_000) });
+      const health = await fetch(apiUrl('/api/health'), { credentials: 'include', signal: AbortSignal.timeout(10_000) });
       const status = health.ok ? await health.json() : null;
       return { state: status?.ok === true && status?.auth === 'disabled' ? 'disabled' : 'unavailable' };
     }
@@ -45,7 +47,7 @@ export async function fetchAuthStatus(): Promise<AuthStatus> {
 
 async function post(path: string, body: unknown): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(path, {
+    const res = await fetch(apiUrl(path), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       signal: AbortSignal.timeout(15_000),

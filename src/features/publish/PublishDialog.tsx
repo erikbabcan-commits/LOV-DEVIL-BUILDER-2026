@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { PublishJob, PublishReadiness, PublishRequest, type PublishResult, type PublishReady } from '../../../shared/publish';
 import { apiHeaders } from '../../lib/csrf';
+import { apiUrl } from '../../lib/api';
 import { useStore } from '../../stores/useAppStore';
 import { persistenceScope } from '../../services/persistence/db';
 import { saveRemoteWorkspace, workspacePayload } from '../../services/projects/workspace';
@@ -37,7 +38,7 @@ const copy: Record<string,string> = {
   stale:'Účet alebo projekt sa zmenil. Oneskorený výsledok sa nepoužil.',
 };
 async function call(path:string, signal:AbortSignal, body?:unknown) {
-  const response=await fetch('/api/publish'+path,{method:body===undefined?'GET':'POST',credentials:'include',cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(110_000)]),...(body===undefined?{}:{headers:apiHeaders(),body:JSON.stringify(body)})});
+  const response=await fetch(apiUrl('/api/publish'+path),{method:body===undefined?'GET':'POST',credentials:'include',cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(110_000)]),...(body===undefined?{}:{headers:apiHeaders(),body:JSON.stringify(body)})});
   const data=await response.json().catch(()=>null);
   if(!response.ok) {
     const code=typeof data?.error==='string'?data.error:'publish_unavailable';
