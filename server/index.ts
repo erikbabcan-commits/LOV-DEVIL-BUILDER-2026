@@ -193,6 +193,8 @@ export function createApp(
     // [/seam:agent-3]
 
     // [seam:agent-7] publish rollback + slug/custom domains (owner side)
+    // Owner routes live in publishRouter (mounted below): slug, domains, versions, rollback.
+    // DNS verification uses an injected DnsLookup (tests); no live resolver is wired here.
     // [/seam:agent-7]
   }
   app.route('/', billingRouter(opts?.auth?.billing ?? null, rateLimit));

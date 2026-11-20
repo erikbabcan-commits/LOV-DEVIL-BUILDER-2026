@@ -2,12 +2,15 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { bodyLimit } from "hono/body-limit";
 import { PublishProjectVersion, PublishPromotion, PublishRequest, PublishWithdrawal } from "../../shared/publish";
+import { PublishRollbackRequest } from "./rollback";
+import { publishBaseDomain, type DnsLookup } from "./router";
 import { getUserFromContext } from "../auth/middleware";
 import { PublishService, PublishError } from "./service";
 /** Mount authenticated publication, status, promotion and owner withdrawal operations. */
 export function publishRouter(
   service: PublishService | null,
   allow: (key: string) => boolean,
+  options: { dnsLookup?: DnsLookup } = {},
 ) {
   const router = new Hono();
   router.use(
@@ -155,6 +158,108 @@ export function publishRouter(
       return c.json({ error: "publish_invalid_request" }, 400);
     if (!allow("publish-withdraw:" + user.id)) return c.json({ error: "rate_limit" }, 429);
     return c.json(await service.withdraw(user.id, requestId.data));
+  });
+
+  router.get("/api/publish/project/:projectId/slug", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    if (!project.success) return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-slug:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    const slug = await service.getProjectSlug(user.id, project.data);
+    return c.json({ slug });
+  });
+  router.post("/api/publish/project/:projectId/slug", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    if (!project.success) return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-slug:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    const body = z
+      .object({ seed: z.string().max(200).optional() })
+      .strict()
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: "publish_invalid_request" }, 400);
+    return c.json(await service.ensureProjectSlug(user.id, project.data, body.data.seed));
+  });
+  router.get("/api/publish/project/:projectId/domains", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    if (!project.success) return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-domain:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    return c.json(await service.listProjectDomains(user.id, project.data));
+  });
+  router.post("/api/publish/project/:projectId/domains", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    const body = z
+      .object({ domain: z.string().min(1).max(253) })
+      .strict()
+      .safeParse(await c.req.json().catch(() => null));
+    if (!project.success || !body.success)
+      return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-domain:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    return c.json(
+      await service.registerCustomDomain(user.id, project.data, body.data.domain),
+    );
+  });
+  router.post("/api/publish/project/:projectId/domains/verify", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    const body = z
+      .object({ domain: z.string().min(1).max(253) })
+      .strict()
+      .safeParse(await c.req.json().catch(() => null));
+    if (!project.success || !body.success)
+      return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-domain:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    const lookup = options.dnsLookup;
+    if (!lookup) return c.json({ error: "publish_dns_unavailable" }, 503);
+    const status = await service.verifyProjectDomain(
+      user.id,
+      body.data.domain,
+      lookup,
+      publishBaseDomain(),
+    );
+    return c.json({ domain: body.data.domain.toLowerCase(), status });
+  });
+  router.get("/api/publish/project/:projectId/versions", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    if (!project.success) return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-status:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    return c.json(await service.listVersions(user.id, project.data));
+  });
+  router.post("/api/publish/project/:projectId/rollback", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    const selection = PublishRollbackRequest.safeParse(
+      await c.req.json().catch(() => null),
+    );
+    if (!project.success || !selection.success)
+      return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-rollback:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    const result = await service.rollback(user.id, project.data, selection.data);
+    return c.json({ ...result.address, elapsedMs: result.elapsedMs });
   });
   return router;
 }
