@@ -103,18 +103,32 @@ function toRecord(row: JobRow): AgentJobRecord {
 }
 
 /** Part B view (`GET /api/agent/jobs/:id?detail=1`): A-shape plus tokensUsed/resultPatch/errorPayload. */
+/**
+ * Bora P2-1: paid output (`stage` files, explain-mode `text_delta`, `resultPatch`) is only
+ * revealed once the job has `succeeded` (and was debited). Before that, and for
+ * cancelled/failed jobs, the view ends right before the first such event. Cutting a prefix (not filtering) keeps
+ * event indices stable for clients that resume with `events.slice(seen)`.
+ */
+const PAID_OUTPUT_EVENTS: ReadonlySet<unknown> = new Set(['stage', 'text_delta']);
+
+export function visibleJobEvents(record: Pick<AgentJobRecord, 'state' | 'events'>): AgentJobRecord['events'] {
+  if (record.state === 'succeeded') return record.events;
+  const firstOutput = record.events.findIndex(e => PAID_OUTPUT_EVENTS.has((e as { type?: unknown }).type));
+  return firstOutput === -1 ? record.events : record.events.slice(0, firstOutput);
+}
+
 export function toAgentJobDetail(record: AgentJobRecord): AgentJobDetail {
   return AgentJobDetailSchema.parse({
     ...toAgentJobView(record),
     tokensUsed: record.tokensUsed ?? null,
-    resultPatch: record.resultPatch ?? null,
+    resultPatch: record.state === 'succeeded' ? record.resultPatch ?? null : null,
     errorPayload: record.errorPayload ?? null,
   });
 }
 
 export function toAgentJobView(record: AgentJobRecord): AgentJobView {
   return AgentJobViewSchema.parse({
-    id: record.id, state: record.state, events: record.events,
+    id: record.id, state: record.state, events: visibleJobEvents(record),
     error: record.error, createdAt: record.createdAt, updatedAt: record.updatedAt,
   });
 }
