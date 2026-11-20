@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { makeGitHubBff } from '../../../server/integrations/githubBff';
+import { GITHUB_SYNC_BFF_PATH, syncProjectToGitHub } from '../../../src/services/export/githubSync';
 
 /* Wave-2 glue (a): the BFF allow-list forwards exactly POST /api/cloud-github/export/sync,
    under the same origin, JSON, bearer and bridge rules as the existing export actions. */
@@ -90,5 +91,57 @@ describe('GitHub BFF: export/sync allow-list (wave 2 glue)', () => {
     const notConnected = await bff(() => Response.json({ error: 'github_not_connected' }, { status: 409 })).call();
     expect(notConnected.status).toBe(409);
     expect(await notConnected.json()).toEqual({ error: 'github_not_connected' });
+  });
+
+  describe('client syncProjectToGitHub goes through the BFF (Bora W2 P3-4)', () => {
+    const input = { repoName: 'export', slugSeed: 'Môj projekt', checkpointSha: null, confirmed: true as const, selection: { projectId: 'p1', snapshotId: 's1', expectedRevision: 1 } };
+
+    it('POSTs same-origin to /api/github-connect/export/sync with the bearer, never to the bridge-only server route', async () => {
+      const seen: Array<{ path: string; init: RequestInit }> = [];
+      const fetchImpl = vi.fn<typeof fetch>(async (path, init) => { seen.push({ path: String(path), init: init ?? {} }); return Response.json(success); });
+      const result = await syncProjectToGitHub(input, { fetch: fetchImpl, accessToken: 'cloud-token' });
+      expect(result).toEqual(success);
+      expect(GITHUB_SYNC_BFF_PATH).toBe('/api/github-connect/export/sync');
+      expect(seen).toHaveLength(1);
+      expect(seen[0].path).toBe('/api/github-connect/export/sync');
+      expect(seen[0].path).not.toContain('cloud-github');
+      expect(seen[0].init.method).toBe('POST');
+      expect(seen[0].init.credentials).toBe('same-origin');
+      const headers = new Headers(seen[0].init.headers);
+      expect(headers.get('Authorization')).toBe('Bearer cloud-token');
+      expect(headers.get('Content-Type')).toBe('application/json');
+      expect(headers.has('X-LOV-GitHub-Bridge')).toBe(false);
+      expect(JSON.parse(String(seen[0].init.body))).toEqual(input);
+    });
+
+    it('end to end through the real BFF allow-list: the client body passes BFF validation and reaches only the server sync route', async () => {
+      const { fetcher } = bff(() => Response.json(success));
+      const handler = makeGitHubBff({ baseUrl: 'https://hono.test', callbackUrl: ORIGIN + '/github/callback', clientId: 'fixture-client', bridgeSecret, verifyToken: async () => true, fetch: fetcher });
+      // Simulates the browser: a relative same-origin URL plus the Origin header browsers add to POSTs.
+      const browserFetch = vi.fn<typeof fetch>(async (path, init) => {
+        const headers = new Headers(init?.headers);
+        headers.set('Origin', ORIGIN);
+        return handler(new Request(new URL(String(path), ORIGIN), { ...init, headers }));
+      });
+      const result = await syncProjectToGitHub(input, { fetch: browserFetch, accessToken: 'cloud-token' });
+      expect(result).toEqual(success);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(String(fetcher.mock.calls[0][0])).toBe('https://hono.test/api/cloud-github/export/sync');
+
+      // The route-level reauth (P3-3) reaches the client as a typed failure.
+      const expiredUpstream = vi.fn<typeof fetch>(async () => Response.json({ error: 'github_reauth_required' }, { status: 401 }));
+      const expiredBff = makeGitHubBff({ baseUrl: 'https://hono.test', callbackUrl: ORIGIN + '/github/callback', clientId: 'fixture-client', bridgeSecret, verifyToken: async () => true, fetch: expiredUpstream });
+      const expired = await syncProjectToGitHub(input, { accessToken: 'cloud-token', fetch: async (path, init) => {
+        const headers = new Headers(init?.headers); headers.set('Origin', ORIGIN);
+        return expiredBff(new Request(new URL(String(path), ORIGIN), { ...init, headers }));
+      } });
+      expect(expired).toEqual({ ok: false, error: 'github_reauth_required' });
+    });
+
+    it('without a Cloud identity it does not call the network', async () => {
+      const fetchImpl = vi.fn<typeof fetch>();
+      expect(await syncProjectToGitHub(input, { fetch: fetchImpl })).toEqual({ ok: false, error: 'cloud_identity_required' });
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
   });
 });
