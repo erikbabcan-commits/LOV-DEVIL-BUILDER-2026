@@ -20,6 +20,7 @@ import { HostExecutor } from "../../../server/sandbox/executor";
 import { BLUEPRINT_REGISTRY } from "../../../src/templates/registry";
 import { checkCustomDomain, publishPlatformZones } from "../../../server/publish/router";
 import { CUSTOM_DOMAIN_PENDING_TTL_MS, MAX_PENDING_CUSTOM_DOMAINS } from "../../../server/publish/service";
+import { atomicLiveSwitch } from "../../../server/publish/rollback";
 
 const secret = "publish-engine-test-secret-01234567890123456789";
 
@@ -329,6 +330,43 @@ describe("publish wave-2 Bora fixes (pg-mem)", () => {
       }
       const res = await app.request("/api/publish/project/project-one/slug", { method: "POST", headers: headers(alice), body: "{}" });
       expect(res.status).toBe(200);
+    });
+  });
+
+  describe("P3-7 atomicLiveSwitch checks owner, project and target (defense in depth)", () => {
+    const liveRow = async (owner: string, project: string) =>
+      (await db.query("SELECT request_id, previous_request_id FROM publish_live_addresses WHERE owner_id=$1 AND project_id=$2", [owner, project])).rows[0] ?? null;
+    const switchTo = (owner: string, project: string, requestId: string, previous: string | null = null) =>
+      db.transaction!((tx) => atomicLiveSwitch(tx, owner, project, requestId, previous));
+
+    it("rejects a foreign owner, a requestId from another project, an unknown or withdrawn target; accepts the owner's own", async () => {
+      const a = await publishOnce("alice", "project-one");
+      const b = await publishOnce("alice", "project-one");
+      const bobs = await publishOnce("bob", "bob-proj");
+      await service.promote("alice", "project-one", { requestId: a.requestId, expectedVersion: null, confirmed: true });
+
+      // Bob cannot point Alice's project anywhere, even at Alice's own artifact.
+      await expect(switchTo("bob", "project-one", b.requestId)).rejects.toMatchObject({ code: "publish_not_found", status: 404 });
+      // Alice cannot point her project at Bob's artifact.
+      await expect(switchTo("alice", "project-one", bobs.requestId)).rejects.toMatchObject({ code: "publish_not_found", status: 404 });
+      await expect(switchTo("alice", "project-one", randomUUID())).rejects.toMatchObject({ code: "publish_not_found", status: 404 });
+      await service.withdraw("alice", b.requestId);
+      await expect(switchTo("alice", "project-one", b.requestId)).rejects.toMatchObject({ code: "publish_not_found", status: 404 });
+      expect(await liveRow("alice", "project-one")).toMatchObject({ request_id: a.requestId });
+      expect(await liveRow("bob", "project-one")).toBeNull();
+
+      const c = await publishOnce("alice", "project-one");
+      // A foreign previousRequestId is dropped, never stored.
+      await switchTo("alice", "project-one", c.requestId, bobs.requestId);
+      expect(await liveRow("alice", "project-one")).toEqual({ request_id: c.requestId, previous_request_id: null });
+      await switchTo("alice", "project-one", a.requestId, c.requestId);
+      expect(await liveRow("alice", "project-one")).toEqual({ request_id: a.requestId, previous_request_id: c.requestId });
+    });
+
+    it("rejects a deleted project", async () => {
+      const a = await publishOnce("alice", "project-one");
+      await db.query("UPDATE builder_projects SET deleted_at=now() WHERE owner_id='alice' AND project_id='project-one'");
+      await expect(switchTo("alice", "project-one", a.requestId)).rejects.toMatchObject({ code: "publish_not_found", status: 404 });
     });
   });
 });
