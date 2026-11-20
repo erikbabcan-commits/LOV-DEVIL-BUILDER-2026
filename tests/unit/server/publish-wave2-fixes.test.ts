@@ -18,6 +18,8 @@ import { publishRouter } from "../../../server/publish/routes";
 import type { PublishConfig } from "../../../server/publish/config";
 import { HostExecutor } from "../../../server/sandbox/executor";
 import { BLUEPRINT_REGISTRY } from "../../../src/templates/registry";
+import { checkCustomDomain, publishPlatformZones } from "../../../server/publish/router";
+import { CUSTOM_DOMAIN_PENDING_TTL_MS, MAX_PENDING_CUSTOM_DOMAINS } from "../../../server/publish/service";
 
 const secret = "publish-engine-test-secret-01234567890123456789";
 
@@ -131,6 +133,157 @@ describe("publish wave-2 Bora fixes (pg-mem)", () => {
       expect(own.versions).toHaveLength(1);
       const foreign = await (await app.request("/api/publish/project/project-one/versions", { headers: headers(bob) })).json();
       expect(foreign).toEqual({ liveVersion: null, versions: [] });
+    });
+  });
+
+  describe("P2-2 custom domain claims", () => {
+    const post = (session: string, project: string, domain: string) =>
+      app.request(`/api/publish/project/${project}/domains`, { method: "POST", headers: headers(session), body: JSON.stringify({ domain }) });
+    const del = (session: string, project: string, domain: string) =>
+      app.request(`/api/publish/project/${project}/domains/${encodeURIComponent(domain)}`, { method: "DELETE", headers: headers(session) });
+
+    it("strict hostname validation (probe B4 odd domains)", async () => {
+      const zones = ["lov-devil.test", "apps.example.org"];
+      const rejected: Array<[string, string]> = [
+        ["127.0.0.1", "publish_domain_invalid"], ["10.0.0.1.", "publish_domain_invalid"], ["::1", "publish_domain_invalid"],
+        ["[::1]", "publish_domain_invalid"], ["2001:db8::1", "publish_domain_invalid"], ["127.1", "publish_domain_invalid"],
+        ["localhost", "publish_domain_invalid"], ["localhost.", "publish_domain_invalid"],
+        ["app.localhost", "publish_domain_reserved"], ["a.b.LOCALHOST", "publish_domain_reserved"],
+        ["a", "publish_domain_invalid"], ["a..b", "publish_domain_invalid"], [".a.com", "publish_domain_invalid"], ["a.com..", "publish_domain_invalid"],
+        ["-a.com", "publish_domain_invalid"], ["a-.com", "publish_domain_invalid"], ["a_b.com", "publish_domain_invalid"], ["ľúbosť.sk", "publish_domain_invalid"],
+        ["a b.com", "publish_domain_invalid"], ["a.com/x", "publish_domain_invalid"], ["a.com:443", "publish_domain_invalid"], ["", "publish_domain_invalid"],
+        ["x".repeat(64) + ".com", "publish_domain_invalid"], [Array(64).fill("abc").join(".") + ".com", "publish_domain_invalid"],
+        ["lov-devil.test", "publish_domain_reserved"], ["evil.lov-devil.test", "publish_domain_reserved"], ["a.b.LOV-DEVIL.TEST.", "publish_domain_reserved"],
+        ["apps.example.org", "publish_domain_reserved"], ["x.apps.example.org", "publish_domain_reserved"],
+      ];
+      for (const [raw, error] of rejected) expect([raw, checkCustomDomain(raw, zones)]).toEqual([raw, { ok: false, error }]);
+      expect(checkCustomDomain(" Shop.Example.COM. ", zones)).toEqual({ ok: true, domain: "shop.example.com" });
+      expect(checkCustomDomain("xn--80ak6aa92e.com", zones)).toEqual({ ok: true, domain: "xn--80ak6aa92e.com" });
+      expect(checkCustomDomain("notlov-devil.test", zones)).toEqual({ ok: true, domain: "notlov-devil.test" });
+      expect(checkCustomDomain("x".repeat(63) + ".com", zones).ok).toBe(true);
+      // Default zones always include lov-devil.test/lov-devil.app plus PUBLISH_BASE_DOMAIN.
+      expect(publishPlatformZones({ PUBLISH_BASE_DOMAIN: "pages.example.net" })).toEqual(expect.arrayContaining(["lov-devil.test", "lov-devil.app", "pages.example.net"]));
+      expect(checkCustomDomain("lubost-cafe.lov-devil.app").ok).toBe(false);
+
+      // Over HTTP every odd domain from probe B4 is now 400.
+      const statuses: string[] = [];
+      for (const d of ["127.0.0.1", "localhost", "lov-devil.test", "evil.lov-devil.test", "a..b", "-a.com", "a"])
+        statuses.push(d + "=" + (await post(bob, "bob-proj", d)).status);
+      expect(statuses).toEqual(["127.0.0.1=400", "localhost=400", "lov-devil.test=400", "evil.lov-devil.test=400", "a..b=400", "-a.com=400", "a=400"]);
+      expect((await post(bob, "bob-proj", "xn--80ak6aa92e.com")).status).toBe(200);
+    });
+
+    it("probe B4: Bob's unverified claim blocks Alice only until it expires (72 h), then Alice takes it over atomically", async () => {
+      const squat = await post(bob, "bob-proj", "shop.alice-company.test");
+      expect(squat.status).toBe(200);
+      const squatBody = await squat.json();
+      expect(squatBody.expiresAt).toBe(new Date(clock + CUSTOM_DOMAIN_PENDING_TTL_MS).toISOString());
+
+      const blocked = await post(alice, "project-one", "shop.alice-company.test");
+      expect(blocked.status).toBe(409);
+      expect(await blocked.json()).toEqual({ error: "publish_domain_taken" });
+
+      clock += CUSTOM_DOMAIN_PENDING_TTL_MS - 1000; // still inside the window
+      expect((await post(alice, "project-one", "shop.alice-company.test")).status).toBe(409);
+
+      clock += 1000; // exactly at expiry
+      const legit = await post(alice, "project-one", "shop.alice-company.test");
+      expect(legit.status).toBe(200);
+      const legitBody = await legit.json();
+      expect(legitBody.status).toBe("pending_verification");
+      expect(legitBody.verificationToken).not.toBe(squatBody.verificationToken);
+
+      const rows = (await db.query("SELECT owner_id, project_id FROM publish_custom_domains WHERE domain=$1", ["shop.alice-company.test"])).rows;
+      expect(rows).toEqual([{ owner_id: "alice", project_id: "project-one" }]);
+      expect(await service.listProjectDomains("bob", "bob-proj")).toEqual([]);
+      // Bob can no longer verify or delete the domain he lost.
+      await expect(service.verifyProjectDomain("bob", "shop.alice-company.test", async () => ({ cname: [], txt: [`lov-devil-verify=${squatBody.verificationToken}`] }))).rejects.toMatchObject({ code: "publish_domain_not_found" });
+      expect((await del(bob, "bob-proj", "shop.alice-company.test")).status).toBe(404);
+      // Bob re-claiming while Alice's fresh claim is active is 409 again.
+      expect((await post(bob, "bob-proj", "shop.alice-company.test")).status).toBe(409);
+    });
+
+    it("verified claims never expire through the claim path", async () => {
+      await service.ensureProjectSlug("alice", "project-one");
+      const claim = await service.registerCustomDomain("alice", "project-one", "verified.example.test");
+      expect(await service.verifyProjectDomain("alice", claim.domain, async () => ({ cname: [], txt: [`lov-devil-verify=${claim.verificationToken}`] }))).toBe("verified");
+      const row = (await db.query("SELECT status, expires_at FROM publish_custom_domains WHERE domain=$1", [claim.domain])).rows[0];
+      expect(row).toEqual({ status: "verified", expires_at: null });
+      clock += 10 * CUSTOM_DOMAIN_PENDING_TTL_MS;
+      const takeover = await post(bob, "bob-proj", "verified.example.test");
+      expect(takeover.status).toBe(409);
+      expect(await takeover.json()).toEqual({ error: "publish_domain_taken" });
+      expect((await service.listProjectDomains("alice", "project-one"))[0]).toMatchObject({ domain: "verified.example.test", status: "verified", expiresAt: null });
+    });
+
+    it("same owner re-registering is idempotent; an own lapsed claim is renewed", async () => {
+      const first = await (await post(alice, "project-one", "own.example.test")).json();
+      const again = await (await post(alice, "project-one", "own.example.test")).json();
+      expect(again).toEqual(first);
+      clock += CUSTOM_DOMAIN_PENDING_TTL_MS + 1;
+      const renewed = await (await post(alice, "project-one", "own.example.test")).json();
+      expect(renewed.verificationToken).toBe(first.verificationToken);
+      expect(renewed.expiresAt).toBe(new Date(clock + CUSTOM_DOMAIN_PENDING_TTL_MS).toISOString());
+    });
+
+    it("concurrent takeovers of one expired claim: exactly one account wins", async () => {
+      await db.query("INSERT INTO users(id,email,password_hash) VALUES('carol','carol@example.test','not-a-login-hash')");
+      await seedProject("carol", "carol-proj", "Carol");
+      await service.registerCustomDomain("bob", "bob-proj", "race.example.test");
+      clock += CUSTOM_DOMAIN_PENDING_TTL_MS;
+      const res = await Promise.allSettled([
+        service.registerCustomDomain("alice", "project-one", "race.example.test"),
+        service.registerCustomDomain("carol", "carol-proj", "race.example.test"),
+      ]);
+      const ok = res.filter((r) => r.status === "fulfilled");
+      const failed = res.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+      expect(ok).toHaveLength(1);
+      expect(failed).toHaveLength(1);
+      expect(failed[0].reason).toMatchObject({ code: "publish_domain_taken", status: 409 });
+      const owners = (await db.query("SELECT owner_id FROM publish_custom_domains WHERE domain=$1", ["race.example.test"])).rows;
+      expect(owners).toHaveLength(1);
+      expect(["alice", "carol"]).toContain(owners[0].owner_id);
+    });
+
+    it(`caps unexpired pending claims at ${MAX_PENDING_CUSTOM_DOMAINS} per account (probe B4: 60/60 were accepted)`, async () => {
+      const codes: number[] = [];
+      for (let i = 0; i < 8; i++) codes.push((await post(bob, "bob-proj", `d${i}.squat.test`)).status);
+      expect(codes).toEqual([200, 200, 200, 200, 200, 429, 429, 429]);
+      const limited = await post(bob, "bob-proj", "d9.squat.test");
+      expect(await limited.json()).toEqual({ error: "publish_domain_limit" });
+      // Other accounts are unaffected.
+      expect((await post(alice, "project-one", "alice.squat.test")).status).toBe(200);
+      // Releasing one frees a slot.
+      expect((await del(bob, "bob-proj", "d0.squat.test")).status).toBe(200);
+      expect((await post(bob, "bob-proj", "d5.squat.test")).status).toBe(200);
+      expect((await post(bob, "bob-proj", "d6.squat.test")).status).toBe(429);
+      // Verified domains do not count against the pending cap.
+      const d1 = (await service.listProjectDomains("bob", "bob-proj")).find((d) => d.domain === "d1.squat.test")!;
+      expect(await service.verifyProjectDomain("bob", "d1.squat.test", async () => ({ cname: [], txt: [`lov-devil-verify=${d1.verificationToken}`] }))).toBe("verified");
+      expect((await post(bob, "bob-proj", "d6.squat.test")).status).toBe(200);
+      expect((await post(bob, "bob-proj", "d7.squat.test")).status).toBe(429);
+      // Expired claims stop counting.
+      clock += CUSTOM_DOMAIN_PENDING_TTL_MS;
+      expect((await post(bob, "bob-proj", "d7.squat.test")).status).toBe(200);
+      expect((await service.listProjectDomains("bob", "bob-proj")).length).toBeGreaterThan(MAX_PENDING_CUSTOM_DOMAINS);
+    });
+
+    it("DELETE releases a domain for its owner only; non-owners and unknown domains get 404", async () => {
+      await post(alice, "project-one", "release.example.test");
+      expect((await del(bob, "bob-proj", "release.example.test")).status).toBe(404);
+      expect((await del(bob, "project-one", "release.example.test")).status).toBe(404);
+      expect((await del(alice, "project-one", "unknown.example.test")).status).toBe(404);
+      expect((await del(alice, "project-one", "127.0.0.1")).status).toBe(404);
+      const unauth = await app.request("/api/publish/project/project-one/domains/release.example.test", { method: "DELETE" });
+      expect(unauth.status).toBe(401);
+      expect((await db.query("SELECT domain FROM publish_custom_domains WHERE domain=$1", ["release.example.test"])).rows).toHaveLength(1);
+
+      const ok = await del(alice, "project-one", "Release.Example.TEST.");
+      expect(ok.status).toBe(200);
+      expect(await ok.json()).toEqual({ domain: "release.example.test", deleted: true });
+      expect((await db.query("SELECT domain FROM publish_custom_domains WHERE domain=$1", ["release.example.test"])).rows).toHaveLength(0);
+      // Released → immediately claimable by someone else.
+      expect((await post(bob, "bob-proj", "release.example.test")).status).toBe(200);
     });
   });
 });

@@ -203,7 +203,7 @@ export function publishRouter(
     if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
     const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
     const body = z
-      .object({ domain: z.string().min(1).max(253) })
+      .object({ domain: z.string().min(1).max(254) })
       .strict()
       .safeParse(await c.req.json().catch(() => null));
     if (!project.success || !body.success)
@@ -213,6 +213,18 @@ export function publishRouter(
       await service.registerCustomDomain(user.id, project.data, body.data.domain),
     );
   });
+  router.delete("/api/publish/project/:projectId/domains/:domain", async (c) => {
+    const user = getUserFromContext(c);
+    if (!user) return c.json({ error: "unauthenticated" }, 401);
+    if (!service) return c.json({ error: "publish_disabled" }, 503);
+    if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
+    const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
+    const domain = z.string().min(1).max(254).safeParse(c.req.param("domain"));
+    if (!project.success || !domain.success)
+      return c.json({ error: "publish_invalid_request" }, 400);
+    if (!allow("publish-domain:" + user.id)) return c.json({ error: "rate_limit" }, 429);
+    return c.json(await service.deleteCustomDomain(user.id, project.data, domain.data));
+  });
   router.post("/api/publish/project/:projectId/domains/verify", async (c) => {
     const user = getUserFromContext(c);
     if (!user) return c.json({ error: "unauthenticated" }, 401);
@@ -220,7 +232,7 @@ export function publishRouter(
     if (new URL(c.req.url).search) return c.json({ error: "invalid_query" }, 400);
     const project = PublishRequest.shape.projectId.safeParse(c.req.param("projectId"));
     const body = z
-      .object({ domain: z.string().min(1).max(253) })
+      .object({ domain: z.string().min(1).max(254) })
       .strict()
       .safeParse(await c.req.json().catch(() => null));
     if (!project.success || !body.success)

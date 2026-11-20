@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS publish_custom_domains (
   verification_token TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   verified_at TIMESTAMPTZ,
+  -- Unverified claims expire (72 h, set by the service). Verified rows keep NULL
+  -- and never expire through the claim path (Bora W2 P2-2).
+  expires_at TIMESTAMPTZ,
   PRIMARY KEY (domain),
   FOREIGN KEY (owner_id, project_id)
     REFERENCES builder_projects(owner_id, project_id) ON DELETE CASCADE
@@ -37,7 +40,12 @@ CREATE INDEX IF NOT EXISTS publish_custom_domains_project
 CREATE INDEX IF NOT EXISTS publish_custom_domains_status
   ON publish_custom_domains(status);
 
+-- Per-owner pending-claim cap (max 5 unexpired pending claims per user).
+CREATE INDEX IF NOT EXISTS publish_custom_domains_owner_status
+  ON publish_custom_domains(owner_id, status);
+
 -- Rollback (manual, not run by the migrator):
+--   DROP INDEX IF EXISTS publish_custom_domains_owner_status;
 --   DROP INDEX IF EXISTS publish_custom_domains_status;
 --   DROP INDEX IF EXISTS publish_custom_domains_project;
 --   DROP TABLE IF EXISTS publish_custom_domains;

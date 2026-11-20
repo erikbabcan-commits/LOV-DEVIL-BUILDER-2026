@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { isIP } from "node:net";
 import type { DbLike } from "../db/pool";
 import { PublishError } from "./config";
 
@@ -120,6 +121,51 @@ export function publishBaseDomain(
   return raw;
 }
 
+/** Zones the platform itself serves; custom domains may never be or sit under them. */
+export const PLATFORM_ZONES = ["lov-devil.test", "lov-devil.app"] as const;
+
+export function publishPlatformZones(
+  env: Record<string, string | undefined> = process.env,
+): string[] {
+  const zones = new Set<string>(PLATFORM_ZONES);
+  try {
+    zones.add(publishBaseDomain(env).replace(/\.$/, ""));
+  } catch {
+    /* invalid PUBLISH_BASE_DOMAIN: the static zones still apply */
+  }
+  return [...zones];
+}
+
+export type CustomDomainCheck =
+  | { ok: true; domain: string }
+  | { ok: false; error: "publish_domain_invalid" | "publish_domain_reserved" };
+
+/**
+ * Strict custom-domain hostname check (Bora W2 P2-2 d). Lowercases, trims and
+ * drops one trailing dot. Rejects IP literals (v4/v6), localhost and *.localhost,
+ * single-label names, empty labels, labels > 63 or names > 253 chars, characters
+ * outside a-z0-9-, an all-numeric TLD, and any platform zone or its subdomains.
+ */
+export function checkCustomDomain(
+  raw: string,
+  zones: readonly string[] = publishPlatformZones(),
+): CustomDomainCheck {
+  const invalid = { ok: false, error: "publish_domain_invalid" } as const;
+  let domain = raw.trim().toLowerCase();
+  if (domain.endsWith(".")) domain = domain.slice(0, -1);
+  if (!domain || domain.length > 253) return invalid;
+  if (isIP(domain) || isIP(domain.replace(/^\[|\]$/g, "")) || domain.includes(":")) return invalid;
+  const labels = domain.split(".");
+  if (labels.length < 2) return invalid;
+  if (!labels.every((label) => label.length <= 63 && DNS_LABEL.test(label))) return invalid;
+  if (/^[0-9]+$/.test(labels[labels.length - 1]!)) return invalid;
+  const reserved = ["localhost", ...zones.map((zone) => zone.trim().toLowerCase().replace(/\.$/, ""))]
+    .filter(Boolean);
+  if (reserved.some((zone) => domain === zone || domain.endsWith("." + zone)))
+    return { ok: false, error: "publish_domain_reserved" };
+  return { ok: true, domain };
+}
+
 /** Resolve Host header to an owned project binding. Unverified custom domains return the row but callers must not serve. */
 export async function resolvePublishHost(
   db: DbLike,
@@ -225,7 +271,7 @@ export async function verifyCustomDomain(
        LEFT JOIN publish_project_slugs AS s
          ON s.owner_id=d.owner_id AND s.project_id=d.project_id
        WHERE d.owner_id=$1 AND d.domain=$2`,
-      [ownerId, domain.toLowerCase()],
+      [ownerId, domain.trim().toLowerCase().replace(/\.$/, "")],
     )
   ).rows[0] as
     | {
@@ -253,9 +299,9 @@ export async function verifyCustomDomain(
 
   await db.query(
     `UPDATE publish_custom_domains
-     SET status='verified', verified_at=now()
-     WHERE owner_id=$1 AND domain=$2 AND status='pending_verification'`,
-    [ownerId, row.domain],
+     SET status='verified', verified_at=now(), expires_at=NULL
+     WHERE owner_id=$1 AND domain=$2 AND status='pending_verification' AND verification_token=$3`,
+    [ownerId, row.domain, row.verification_token],
   );
   return "verified";
 }
