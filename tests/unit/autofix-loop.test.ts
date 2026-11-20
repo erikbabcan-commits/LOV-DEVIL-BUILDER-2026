@@ -93,6 +93,20 @@ describe('bezpečnostné nálezy AST guardu sa nikdy neposielajú AI', () => {
 const secret = 'agent9-autofix-test-secret-0123456789012345678';
 const db = { query: async (sql: string, params?: unknown[]) => sql === 'SELECT id, email, plan, plan_expires_at FROM users WHERE id=$1' && params?.[0] === 'alice'
   ? { rows: [{ id: 'alice', email: 'alice@example.test', plan: 'free', plan_expires_at: null }], rowCount: 1 } : { rows: [], rowCount: 0 } };
+describe('Bora W3 P3-5: autofix s reálnym HostExecutorom a AST guardom (probe A1)', () => {
+  it('AI patch, ktorý pridá eval, zastaví AST guard: blocked=security, žiadny ďalší pokus a návrh sa zahodí', async () => {
+    const provider = patching('fake', '\nconst z = eval("1"); export const q = z;\n');
+    const input = [{ path: 'src/main.tsx', content: 'import x from "./missing";\nexport const a = x;' }];
+    const result = await autofixLoop(provider, input, { executor: new HostExecutor() });
+    expect(provider.complete).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ ok: false, attempts: 1, blocked: 'security' });
+    expect(result.summary).toBeUndefined();
+    expect(result.finalFiles).toEqual(input);
+    expect(result.finalFiles.some(file => file.content.includes('eval'))).toBe(false);
+    expect(result.buildErrors.some(error => error.message.includes('[sandbox_policy_blocked:'))).toBe(true);
+  });
+});
+
 const post = async (app: ReturnType<typeof createApp>, body: unknown, token?: string) => app.request(new Request('http://localhost/api/sandbox/autofix', { method: 'POST',
   headers: { ...(token ? { Cookie: 'lov_token=' + token + '; lov_csrf=test', 'X-CSRF-Token': 'test' } : {}), 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
 

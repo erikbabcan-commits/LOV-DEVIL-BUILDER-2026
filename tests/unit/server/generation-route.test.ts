@@ -9,6 +9,9 @@ import { AgentWorker } from '../../../server/agent/worker';
 import { dbFromPool } from '../../../server/db/pool';
 import { applyMigrations } from '../../../server/db/migrate';
 import { registerProjectByteLength } from '../../helpers/projectMemoryDb';
+import { signToken } from '../../../server/auth/tokens';
+import { InMemoryQuotaStore } from '../../../server/security/quotaStore';
+import { InMemoryAiUsageStore } from '../../../server/usage/store';
 import type { AIProvider } from '../../../server/providers/types';
 
 /* Wave-3 glue + Bora W3 P3-1: the smart router runs only with AI_SMART_ROUTER=1 (default OFF).
@@ -248,5 +251,50 @@ describe('durable worker uses the same model choice', () => {
     expect(started).not.toHaveProperty('route');
     expect(r.d.calls.n).toBeGreaterThan(0);
     expect(r.small.calls.n + r.code.calls.n + r.large.calls.n).toBe(0);
+  });
+});
+
+describe('Bora W3 P3-5 regressions (probes R2 and Q1)', () => {
+  const pools: Array<{ end(): Promise<void> }> = [];
+  afterEach(async () => { while (pools.length) await pools.pop()!.end(); });
+  async function mkdb() {
+    const mem = newDb(); registerProjectByteLength(mem);
+    const pool = new (mem.adapters.createPg().Pool)(); pools.push(pool);
+    const db = dbFromPool(pool); await applyMigrations(db);
+    await db.query(`INSERT INTO users (id, email, password_hash) VALUES ('alice', 'alice@example.test', 'x')`);
+    return db;
+  }
+
+  it.each([false, true])('worker (router %s): explicit modelId runs exactly that model, unknown modelId fails invalid_model', async smartRouter => {
+    const store = new PostgresAgentJobStore(await mkdb());
+    const r = prodRegistry();
+    await store.create({ id: 'j1', ownerId: 'alice', idempotencyKey: 'k1', request: { projectId: 'p1', prompt: 'x', mode: 'create', modelId: 'mistral-large' } });
+    await store.create({ id: 'j2', ownerId: 'alice', idempotencyKey: 'k2', request: { projectId: 'p1', prompt: 'x', mode: 'create', modelId: 'gpt-9' } });
+    await new AgentWorker({ store, providers: r.registry, smartRouter, resilience: { sleep: async () => {} } }).drain();
+    const j1 = await store.get('alice', 'j1'), j2 = await store.get('alice', 'j2');
+    expect(j1!.state).toBe('succeeded');
+    const started = j1!.events.find(e => (e as { type: string }).type === 'run_started') as { route?: unknown };
+    if (smartRouter) expect(started.route).toEqual({ model: 'mistral-large', reason: 'explicit_user_choice' });
+    else expect(started).not.toHaveProperty('route');
+    expect(r.large.calls.n).toBeGreaterThan(0);
+    expect(r.d.calls.n + r.small.calls.n + r.code.calls.n).toBe(0);
+    expect(j2!.state).toBe('failed');
+    expect((j2 as { errorPayload?: { code: string } | null }).errorPayload?.code ?? j2!.error).toContain('invalid_model');
+  });
+
+  it('generate on the router path (flag ON, no modelId) with exhausted quota: 429 quota_exceeded and 0 AI calls', async () => {
+    const db = await mkdb(); const secret = 'generation-route-q1-secret-0123456789012345678';
+    const quota = new InMemoryQuotaStore();
+    while ((await quota.consume('alice')).ok) { /* exhaust */ }
+    const r = prodRegistry();
+    const app = createApp({}, null, { providers: r.registry, rateLimit: () => true, smartRouter: true,
+      auth: { db, jwtSecret: secret, quota, usage: new InMemoryAiUsageStore() }, agentJobs: { workerEnabled: false, startWorker: false } });
+    const tok = await signToken({ sub: 'alice', email: 'alice@example.test', plan: 'free' }, secret);
+    const res = await app.request(new Request('http://localhost/api/agent/generate', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `lov_token=${tok}; lov_csrf=t`, 'X-CSRF-Token': 't' },
+      body: JSON.stringify({ projectId: 'p1', prompt: 'Navrhni architektúru', mode: 'create' }) }));
+    expect(res.status).toBe(429);
+    expect(await res.text()).toContain('quota_exceeded');
+    expect(r.d.calls.n + r.small.calls.n + r.code.calls.n + r.large.calls.n).toBe(0);
   });
 });
