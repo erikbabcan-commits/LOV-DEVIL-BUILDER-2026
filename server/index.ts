@@ -190,6 +190,10 @@ export function createApp(
     // [/seam:agent-1]
 
     // [seam:agent-3] GitHub sync (gitEngine / forge branch + PR)
+    // Attach db so POST /api/cloud-github/export/sync can detect expired tokens
+    // (github_reauth_required) and load the owner-scoped snapshot. The router is
+    // already mounted above and reads wiring.db at request time.
+    if (opts.auth.cloudGitHub) opts.auth.cloudGitHub.db = opts.auth.db;
     // [/seam:agent-3]
 
     // [seam:agent-7] publish rollback + slug/custom domains (owner side)

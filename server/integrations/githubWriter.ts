@@ -5,6 +5,7 @@ import { GitHubRepoName } from '../../shared/githubExportProtocol';
 import { githubApi } from './githubApi';
 import { gitBlobSha, gitBranch, type WriteCheckpoint } from './githubCheckpoint';
 export { GitHubRepoName } from '../../shared/githubExportProtocol';
+export { syncToForgeBranch, forgeBranchName, forgeBranchSlug, type GitHubSyncResult } from './gitEngine';
 
 const sha = z.string().regex(/^[a-f0-9]{40}$/);
 const reference = z.object({ object: z.object({ sha }) });
