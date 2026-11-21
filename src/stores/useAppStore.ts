@@ -17,7 +17,8 @@ import { createProjectZip, downloadProjectZip } from '../services/export/project
 import { inspectProjectSources } from '../services/export/projectZip';
 import { WorkspaceSchema } from '../../shared/projectSchema';
 import { matchesCodeEditBase, type CodeEditBase } from '../services/editor/codeDrafts';
-import { exportToGitHub as doGitHubExport, checkGitHubAuth as doCheckGitHubAuth, checkGitHubAvailable, initiateGitHubAuth, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
+import { exportToGitHub as doGitHubExport, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
+import { getGitHubConnection, startGitHubConnect, disconnectGitHub as svcDisconnectGitHub, bridgeExportPrepare, bridgeExportConfirm, bridgeExportStatus, bridgeExportCancel } from '../services/githubConnect';
 import type { Blueprint } from '../templates/types';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
@@ -169,16 +170,61 @@ export interface AppState {
   stopSandbox: () => void;
 
   /* M4 export */
-  githubAuthState: { authenticated: boolean; username?: string; avatarUrl?: string };
+  githubAuthState: { authenticated: boolean; username?: string; avatarUrl?: string; mode?: 'bridge' | 'local'; configured?: boolean; scopes?: string[] };
   githubExportInProgress: boolean;
+  githubLastExport: string | null;
   exportToZip: () => Promise<void>;
   exportToGitHub: () => Promise<void>;
   checkGitHubAuth: () => Promise<void>;
+  connectGitHub: () => void;
+  disconnectGitHub: () => Promise<void>;
+  toggleGitHubConnection: () => Promise<void>;
 }
 
 const generationTimers: number[] = [];
 let sandboxController: AbortController | null = null;
 let githubExportRun = 0;
+
+/* Bridge export flow (BFF /api/github-connect/export/*): prepare → public confirm → confirm → poll. */
+async function runBridgeGitHubExport(snap: Snapshot, isCurrent: () => boolean): Promise<void> {
+  const st = useStore.getState();
+  const repoName = ('vorkei-' + st.projectTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, '').slice(0, 40) + '-' + Date.now().toString(36).slice(-6)).replace(/^[^a-zA-Z0-9]+/, '');
+  const requestId = crypto.randomUUID();
+  const review = await bridgeExportPrepare({
+    requestId,
+    repoName,
+    selection: { projectId: st.projectId, snapshotId: snap.id, expectedRevision: snap.v },
+  });
+  if (!isCurrent()) return;
+  const confirmed = confirm(
+    `Vytvoriť VEREJNÝ GitHub repozitár '${review.repoName}'?\n\n` +
+    `Účet: @${review.username}\nVerzia: v${review.version} — ${review.title}\nSúbory: ${review.files.length}\n\n` +
+    `Repozitár a zdrojové súbory budú verejné.`
+  );
+  if (!confirmed) {
+    await bridgeExportCancel({ requestId, fingerprint: review.fingerprint }).catch(() => undefined);
+    if (isCurrent()) useStore.getState().toast('GitHub export zrušený', 'warn');
+    return;
+  }
+  let job = await bridgeExportConfirm({ requestId, fingerprint: review.fingerprint, publicConfirmed: true });
+  if (!isCurrent()) return;
+  for (let i = 0; i < 30 && isCurrent(); i++) {
+    if (['succeeded', 'failed', 'cancelled', 'expired'].includes(job.status)) break;
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!isCurrent()) return;
+    job = await bridgeExportStatus(requestId);
+  }
+  if (!isCurrent()) return;
+  if (job.status === 'succeeded' && job.result?.ok) {
+    const url = job.result.repoUrl;
+    useStore.setState({ githubLastExport: url });
+    useStore.getState().log('✓ GitHub export: ' + url, 'ok');
+    useStore.getState().toast('GitHub export úspešný! ' + url, 'ok');
+  } else {
+    const detail = job.result && !job.result.ok ? job.result.error : job.status;
+    useStore.getState().toast('GitHub export zlyhal: ' + detail, 'err');
+  }
+}
 
 function reviewSnapshot(state: AppState): Snapshot | null {
   return state.viewing ?? state.snapshots.find(item => item.id === state.liveId) ?? state.snapshots[state.snapshots.length - 1] ?? null;
@@ -276,6 +322,7 @@ export const useStore = create<AppState>((set, get) => ({
   remoteRevision: 0,
   remoteSnapshotIds: {},
   githubExportInProgress: false,
+  githubLastExport: null,
 
   setMode: m => {
     document.body.dataset.mode = m;
@@ -916,35 +963,42 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
     
-    // Check GitHub availability first
-    const githubStatus = await checkGitHubAvailable();
+    // Unified connector status — bridge BFF (/api/github-connect/*) alebo lokálny /api/github/*
+    const connection = await getGitHubConnection();
     if (!isCurrent()) return;
-    if (!githubStatus.available || githubStatus.blocked) {
-      const msg = githubStatus.blockReason 
-        ? `GitHub export BLOCKED: ${githubStatus.blockReason} - ${githubStatus.message || ''}`
-        : `GitHub export BLOCKED: ${githubStatus.message || 'Not configured'}`;
+    set({ githubAuthState: { authenticated: connection.authenticated, username: connection.username, avatarUrl: connection.avatarUrl, mode: connection.mode, configured: connection.configured, scopes: connection.scopes } });
+    if (!connection.available || connection.blocked) {
+      const msg = connection.blockReason
+        ? `GitHub export BLOCKED: ${connection.blockReason} - ${connection.message || ''}`
+        : `GitHub export BLOCKED: ${connection.message || 'Nie je nakonfigurované'}`;
       get().toast(msg, 'err');
       return;
     }
-    
-    // Check auth
-    const authState = await doCheckGitHubAuth();
-    if (!isCurrent()) return;
-    if (!authState.authenticated || authState.blocked) {
-      const msg = authState.blockReason
-        ? `GitHub export BLOCKED: ${authState.blockReason} - ${authState.message || ''}`
-        : 'GitHub export BLOCKED: Nie ste prihlásený.';
-      get().toast(msg, 'warn');
-      // Offer to connect GitHub
-      if (!authState.authenticated && !authState.blocked) {
-        const tryConnect = confirm('Chcete sa pripojiť k GitHub?');
-        if (tryConnect) {
-          initiateGitHubAuth();
-        }
+    if (!connection.authenticated) {
+      get().toast('GitHub export: najprv pripoj GitHub.', 'warn');
+      const tryConnect = confirm('Chcete sa pripojiť k GitHub?');
+      if (tryConnect) void startGitHubConnect();
+      return;
+    }
+
+    if (connection.mode === 'bridge') {
+      set({ githubExportInProgress: true });
+      try {
+        await runBridgeGitHubExport(snap, isCurrent);
+      } catch (e) {
+        if (isCurrent()) get().toast('GitHub export zlyhal: ' + (e instanceof Error ? e.message : String(e)).slice(0, 140), 'err');
+      } finally {
+        if (githubExportRun === run && persistenceScope().epoch === epoch) set({ githubExportInProgress: false });
       }
       return;
     }
-    
+
+    const authState: GitHubAuthState = {
+      authenticated: true, configured: true,
+      username: connection.username, avatarUrl: connection.avatarUrl,
+      scopes: connection.scopes, csrfToken: connection.csrfToken,
+    };
+
     set({ githubExportInProgress: true });
     try {
       const { files, warnings, missingRequired } = prepareVfsForExport(st.vfs, snap.id);
@@ -996,6 +1050,7 @@ export const useStore = create<AppState>((set, get) => ({
       const result = await doGitHubExport(request, true, { csrfToken: authState.csrfToken, isCurrent });
       if (!isCurrent()) return;
       if (result.ok && result.repoUrl) {
+        set({ githubLastExport: result.repoUrl });
         get().log('✓ GitHub export: ' + result.repoUrl, 'ok');
         get().toast('GitHub export úspešný! ' + result.repoUrl, 'ok');
       } else if (result.blocked) {
@@ -1012,15 +1067,36 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   connectGitHub: () => {
-    initiateGitHubAuth();
+    void startGitHubConnect().catch(e => {
+      get().toast('GitHub pripojenie zlyhalo: ' + (e instanceof Error ? e.message : String(e)), 'err');
+    });
+  },
+
+  disconnectGitHub: async () => {
+    try {
+      await svcDisconnectGitHub();
+      await get().checkGitHubAuth();
+      get().toast('GitHub odpojený', 'ok');
+    } catch (e) {
+      get().toast('GitHub odpojenie zlyhalo: ' + (e instanceof Error ? e.message : String(e)), 'err');
+    }
+  },
+
+  toggleGitHubConnection: async () => {
+    if (get().githubAuthState.authenticated) {
+      if (!confirm('Odpojiť GitHub od tohto účtu? Repozitáre na GitHube zostanú zachované.')) return;
+      await get().disconnectGitHub();
+    } else {
+      get().connectGitHub();
+    }
   },
 
   checkGitHubAuth: async () => {
     const epoch = persistenceScope().epoch;
     try {
-      const authState = await doCheckGitHubAuth();
+      const conn = await getGitHubConnection();
       if (persistenceScope().epoch !== epoch) return;
-      set({ githubAuthState: authState });
+      set({ githubAuthState: { authenticated: conn.authenticated, username: conn.username, avatarUrl: conn.avatarUrl, mode: conn.mode, configured: conn.configured, scopes: conn.scopes } });
     } catch {
       if (persistenceScope().epoch === epoch) set({ githubAuthState: { authenticated: false } });
     }

@@ -33,6 +33,21 @@ export function AppShell() {
     if (hideEditor) setAuthState({ state: 'checking' });
     void fetchAuthStatus().then(status => { if (request === authRequest.current.sequence) setAuthState(status); });
   }, []);
+  /* GitHub konektor: po štarte over stav pripojenia (TopBar/ConnectionPanel ho zobrazujú). */
+  useEffect(() => { void useStore.getState().checkGitHubAuth(); }, []);
+
+  /* OAuth návrat: ?github=connected|error → toast + refresh stavu + vyčistiť URL. */
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('github');
+    if (result !== 'connected' && result !== 'error') return;
+    const st = useStore.getState();
+    st.toast(result === 'connected' ? 'GitHub účet pripojený' : 'GitHub pripojenie zlyhalo', result === 'connected' ? 'ok' : 'err');
+    void st.checkGitHubAuth();
+    const url = new URL(window.location.href);
+    url.searchParams.delete('github');
+    window.history.replaceState(null, '', url.toString());
+  }, []);
+
   useEffect(() => {
     const requests = authRequest.current;
     checkAuth();

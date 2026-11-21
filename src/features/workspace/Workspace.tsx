@@ -7,6 +7,7 @@ import { CodePane } from './CodePane';
 import { ReviewPanel } from './ReviewPanel';
 import { ProjectDiff } from './ProjectDiff';
 import { BuildRepairAction } from './BuildRepairAction';
+import { ConnectionPanel } from '../../components/ConnectionPanel';
 
 /* Workspace: chat panel + canvas panel — port 1:1 legacy štruktúry. */
 
@@ -104,6 +105,7 @@ export function Workspace() {
             Nový projekt
           </button>
         </div>
+        <ConnectionPanel />
         <div className="chat-scroll" id="chatScroll" ref={scrollRef}>
           {st.messages.length === 0 && (
             <div className="empty-chat">

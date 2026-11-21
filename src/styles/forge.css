@@ -878,3 +878,18 @@ button[aria-busy="true"]{cursor:progress}
   .billing-interval { flex-direction: column; gap: 12px; }
   .billing-card .billing-primary { width: 100%; margin-right: 0; }
 }
+
+/* ---- GitHub konektor: TopBar + ConnectionPanel ---- */
+.gh-dot{width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;flex-shrink:0}
+.conn-panel{flex-shrink:0;margin:0 10px 8px;padding:10px 12px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);background:var(--panel)}
+.conn-head{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text)}
+.conn-head b{font-weight:600}
+.conn-status{margin-left:auto;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.conn-status.on{color:var(--success)}
+.conn-note{margin-top:6px;font-size:11px;line-height:1.45;color:var(--muted)}
+.conn-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.conn-actions .chip{height:28px;font-size:11.5px;border-radius:8px}
+.conn-actions .chip:disabled{opacity:.5;cursor:not-allowed}
+.conn-link{display:inline-block;margin-top:8px;font-size:11px;color:var(--accent-text);word-break:break-all}
+.conn-link:hover{text-decoration:underline}
+.conn-error{margin-top:10px;font-size:12px;color:var(--err)}
