@@ -37,6 +37,7 @@ export interface AgentJobStore {
   findByIdempotency(ownerId: string, key: string): Promise<AgentJobRecord | null>;
   /** Returns null when the (owner, key) pair already exists — caller re-reads and replays. */
   create(job: { id: string; ownerId: string; idempotencyKey: string; request?: unknown }): Promise<AgentJobRecord | null>;
+  createBounded?(job: { id: string; ownerId: string; idempotencyKey: string; request?: unknown }, maxActive: number): Promise<{ record: AgentJobRecord | null; tooManyActive?: boolean }>;
   markRunning(id: string): Promise<void>;
   appendEvents(id: string, events: AgentEvent[]): Promise<void>;
   finish(id: string, state: Exclude<AgentJobState, 'queued' | 'running'>, error?: string | null): Promise<void>;
@@ -153,7 +154,41 @@ export function toAgentJobView(record: AgentJobRecord): AgentJobView {
 }
 
 export class PostgresAgentJobStore implements DurableAgentJobStore {
+  private readonly ownerLocks = new Map<string, Promise<void>>();
+  private readonly jobLocks = new Map<string, Promise<void>>();
+
   constructor(private readonly db: DbLike, private readonly now: () => Date = () => new Date()) {}
+
+  private async withOwnerLock<T>(ownerId: string, fn: () => Promise<T>): Promise<T> {
+    while (this.ownerLocks.has(ownerId)) {
+      await this.ownerLocks.get(ownerId);
+    }
+    let resolveLock!: () => void;
+    const lockPromise = new Promise<void>(res => { resolveLock = res; });
+    this.ownerLocks.set(ownerId, lockPromise);
+    try {
+      return await fn();
+    } finally {
+      this.ownerLocks.delete(ownerId);
+      resolveLock();
+    }
+  }
+
+  private async withJobLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+    while (this.jobLocks.has(id)) {
+      await this.jobLocks.get(id);
+    }
+    let resolveLock!: () => void;
+    const lockPromise = new Promise<void>(res => { resolveLock = res; });
+    this.jobLocks.set(id, lockPromise);
+    try {
+      return await fn();
+    } finally {
+      this.jobLocks.delete(id);
+      resolveLock();
+    }
+  }
+
   private async one(sql: string, params: unknown[]): Promise<AgentJobRecord | null> {
     const res = await this.db.query(sql, params);
     return res.rows[0] ? toRecord(res.rows[0] as JobRow) : null;
@@ -183,17 +218,64 @@ export class PostgresAgentJobStore implements DurableAgentJobStore {
     const row = await this.findByIdempotency(job.ownerId, job.idempotencyKey);
     return row && row.id === job.id ? row : null;
   }
+  async createBounded(
+    job: { id: string; ownerId: string; idempotencyKey: string; request?: unknown },
+    maxActive: number,
+  ): Promise<{ record: AgentJobRecord | null; tooManyActive?: boolean }> {
+    return this.withOwnerLock(job.ownerId, async () => {
+      const execute = async (tx: { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }> }) => {
+        // Row lock on user so concurrent workers / POST requests serialize strictly in real Postgres
+        await tx.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [job.ownerId]).catch(() => {});
+        const countRes = await tx.query(
+          `SELECT COUNT(*)::int AS n FROM agent_jobs WHERE owner_id=$1 AND state IN ('queued','running')`,
+          [job.ownerId],
+        );
+        const active = Number((countRes.rows[0] as { n: number | string } | undefined)?.n ?? 0);
+        if (active >= maxActive) {
+          return { record: null, tooManyActive: true };
+        }
+        if (job.request === undefined) {
+          await tx.query(
+            `INSERT INTO agent_jobs (id, owner_id, idempotency_key, state) VALUES ($1, $2, $3, 'queued')
+             ON CONFLICT (owner_id, idempotency_key) DO NOTHING`,
+            [job.id, job.ownerId, job.idempotencyKey],
+          );
+        } else {
+          await tx.query(
+            `INSERT INTO agent_jobs (id, owner_id, idempotency_key, state, request) VALUES ($1, $2, $3, 'queued', $4::jsonb)
+             ON CONFLICT (owner_id, idempotency_key) DO NOTHING`,
+            [job.id, job.ownerId, job.idempotencyKey, JSON.stringify(job.request)],
+          );
+        }
+        const row = await this.findByIdempotency(job.ownerId, job.idempotencyKey);
+        return { record: row && row.id === job.id ? row : null };
+      };
+
+      if (this.db.transaction) {
+        return this.db.transaction(execute);
+      }
+      return execute(this.db);
+    });
+  }
   async markRunning(id: string) {
     await this.db.query(`UPDATE agent_jobs SET state='running', updated_at=now() WHERE id=$1 AND state='queued'`, [id]);
   }
   async appendEvents(id: string, events: AgentEvent[]) {
     if (!events.length) return;
-    // Read-modify-write (single writer per job = its own stream); avoids the jsonb
-    // || operator, which pg-mem does not implement.
-    const current = await this.one(`SELECT * FROM agent_jobs WHERE id=$1 AND state IN ('queued','running')`, [id]);
-    if (!current) return;
-    const merged = [...current.events, ...events].slice(-MAX_JOB_EVENTS);
-    await this.db.query('UPDATE agent_jobs SET events=$2::jsonb, updated_at=now() WHERE id=$1', [id, JSON.stringify(merged)]);
+    return this.withJobLock(id, async () => {
+      const execute = async (tx: { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }> }) => {
+        const res = await tx.query(`SELECT * FROM agent_jobs WHERE id=$1 AND state IN ('queued','running') FOR UPDATE`, [id]).catch(() =>
+          tx.query(`SELECT * FROM agent_jobs WHERE id=$1 AND state IN ('queued','running')`, [id])
+        );
+        const row = res.rows[0] as JobRow | undefined;
+        if (!row) return;
+        const currentEvents = Array.isArray(row.events) ? row.events : [];
+        const merged = [...currentEvents, ...events].slice(-MAX_JOB_EVENTS);
+        await tx.query('UPDATE agent_jobs SET events=$2::jsonb, updated_at=now() WHERE id=$1', [id, JSON.stringify(merged)]);
+      };
+      if (this.db.transaction) return this.db.transaction(execute);
+      return execute(this.db);
+    });
   }
   async finish(id: string, state: Exclude<AgentJobState, 'queued' | 'running'>, error: string | null = null) {
     // 'failed'/'cancelled' never debit quota; the stored request is dropped once the job is terminal.
@@ -302,6 +384,11 @@ export class InMemoryAgentJobStore implements AgentJobStore {
     this.byKey.set(k, job.id);
     return rec;
   }
+  async createBounded(job: { id: string; ownerId: string; idempotencyKey: string; request?: unknown }, maxActive: number) {
+    if (await this.countActive(job.ownerId) >= maxActive) return { record: null, tooManyActive: true };
+    const record = await this.create(job);
+    return { record };
+  }
   async markRunning(id: string) {
     const r = this.byId.get(id);
     if (r && r.state === 'queued') { r.state = 'running'; r.updatedAt = new Date().toISOString(); }
@@ -389,13 +476,21 @@ export function jobsRouter(store: AgentJobStore, allow: (key: string) => boolean
     /* Bora P2-2: contract B errors are returned before enqueueing, not later as a failed job. */
     const rejected = options.admit ? await options.admit(user.id) : null;
     if (rejected) return c.json({ error: rejected.error, ...(rejected.message ? { message: rejected.message } : {}) }, rejected.status);
-    /* Bora P1-2: per-owner cap on queued + running jobs (best effort; two racing POSTs can exceed it by one). */
-    if (await store.countActive(user.id) >= maxActive) return c.json({ error: jobError('too_many_active_jobs'), message: 'Too many AI jobs are already queued or running.' }, 429);
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
     const input = parseAgentRequest(body);
     if (!input.ok) return c.json({ error: input.error.code, message: input.error.message }, 400);
-    const created = await store.create({ id: randomUUID(), ownerId: user.id, idempotencyKey: key, request: input.request });
+
+    /* Bora P1-2: per-owner cap on queued + running jobs with atomic transaction lock */
+    let created: AgentJobRecord | null = null;
+    if (typeof store.createBounded === 'function') {
+      const bounded = await store.createBounded({ id: randomUUID(), ownerId: user.id, idempotencyKey: key, request: input.request }, maxActive);
+      if (bounded.tooManyActive) return c.json({ error: jobError('too_many_active_jobs'), message: 'Too many AI jobs are already queued or running.' }, 429);
+      created = bounded.record;
+    } else {
+      if (await store.countActive(user.id) >= maxActive) return c.json({ error: jobError('too_many_active_jobs'), message: 'Too many AI jobs are already queued or running.' }, 429);
+      created = await store.create({ id: randomUUID(), ownerId: user.id, idempotencyKey: key, request: input.request });
+    }
     if (!created) return (await replay()) ?? c.json({ error: 'job_create_failed' }, 503);
     return c.json(AgentJobCreatedSchema.parse({ job: toAgentJobView(created), replayed: false }), 202);
   });

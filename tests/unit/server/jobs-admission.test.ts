@@ -124,4 +124,16 @@ describe('POST /api/agent/jobs admission (Bora P1-2, P2-2)', () => {
     expect((await post('k-body', 'not an object')).status).toBe(409);
     expect(await jobsCount(db)).toBe(1);
   });
+
+  it('Task C: 8 concurrent POST requests create at most 3 jobs and the rest get 429 too_many_active_jobs', async () => {
+    const { db, post } = await setup({ maxActivePerOwner: 3 });
+    const keys = Array.from({ length: 8 }, (_, i) => `concurrent-key-${i}`);
+    const results = await Promise.all(keys.map(k => post(k)));
+    const statuses = results.map(r => r.status);
+    const accepted = statuses.filter(s => s === 202);
+    const rejected = statuses.filter(s => s === 429);
+    expect(accepted.length).toBe(3);
+    expect(rejected.length).toBe(5);
+    expect(await jobsCount(db)).toBe(3);
+  });
 });

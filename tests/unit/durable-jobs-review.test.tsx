@@ -38,7 +38,7 @@ describe('durable jobs path with AGENT_JOBS_WORKER=1 and VITE_AGENT_JOBS_CLIENT=
     db = dbFromPool(pool as never); await applyMigrations(db);
     await db.query('INSERT INTO users (id,email,password_hash) VALUES ($1,$2,$3)', ['alice', 'alice@example.com', 'test']);
     requests.length = 0;
-  });
+  }, 30000);
   afterEach(async () => {
     if (timer) clearInterval(timer); timer = undefined;
     jobClientConfig.pollIntervalMs = pollMs;

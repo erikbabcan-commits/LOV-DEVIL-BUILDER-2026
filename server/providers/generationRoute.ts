@@ -99,9 +99,12 @@ function selectUngated(providers: ProviderRegistry, input: GenerationRouteInput)
   const picked = providers.find(decision.model);
   if (!picked) throw new Error('invalid_model');
   // AI_FALLBACK_MODELS after the pick; for a non-pro plan premium fallbacks are dropped too.
+  // Bora P2: when allowFallback is false, never append fallback models to the router pick.
   const configured = providers.catalog().models.find(model => model.id === picked.id)?.fallbackIds ?? [];
-  const fallbacks = configured.filter(id => allowPremium || !isPremiumModel(id))
-    .map(id => providers.find(id)).filter((entry): entry is ModelEntry => entry !== undefined);
+  const fallbacks = input.allowFallback === false
+    ? []
+    : configured.filter(id => allowPremium || !isPremiumModel(id))
+        .map(id => providers.find(id)).filter((entry): entry is ModelEntry => entry !== undefined);
   return { entries: [picked, ...fallbacks], decision: { model: decision.model, reason: decision.reason } };
 }
 

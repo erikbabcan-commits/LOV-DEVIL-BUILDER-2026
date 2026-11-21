@@ -106,6 +106,13 @@ describe('selectGenerationRoute, flag ON', () => {
     expect(code.entries.map(e => e.id)).toEqual(['codestral']);
   });
 
+  it('drops AI_FALLBACK_MODELS when allowFallback is false even with smart router ON (Bora P2)', () => {
+    const { registry } = prodRegistry();
+    const short = selectGenerationRoute(registry, { ...on, allowFallback: false });
+    expect(short.decision?.model).toBe('mistral-small');
+    expect(short.entries.map(e => e.id)).toEqual(['mistral-small']);
+  });
+
   it('only picks registered (allowed) models', () => {
     const { registry } = prodRegistry();
     const ids = registry.ids();

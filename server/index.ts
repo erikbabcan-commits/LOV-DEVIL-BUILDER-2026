@@ -552,10 +552,14 @@ export function createApp(
         let finished = false;
         let jobFinished = false;
         const pending: AgentEvent[] = [];
-        const flushJob = async () => {
-          if (!jobActive || !pending.length) return;
+        let flushChain = Promise.resolve();
+        const flushJob = () => {
+          if (!jobActive || !pending.length) return flushChain;
           const batch = pending.splice(0);
-          await jobStore!.appendEvents(runId, batch).catch(() => {});
+          flushChain = flushChain.then(async () => {
+            await jobStore!.appendEvents(runId, batch).catch(() => {});
+          });
+          return flushChain;
         };
         const finishJob = async (ev: AgentEvent) => {
           if (!jobActive || jobFinished) return;
