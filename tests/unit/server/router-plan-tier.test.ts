@@ -73,9 +73,10 @@ describe('selectGenerationRoute respects plan tier (flag ON)', () => {
     expect(pro.decision).toEqual({ model: 'mistral-large', reason: 'architecture_keywords' });
     expect(pro.entries.map(e => e.id)).toEqual(['mistral-large', 'codestral']);
   });
-  it('an explicit premium modelId still wins for free (explicit choice is never re-routed)', () => {
+  it('an explicit premium modelId is never re-routed: exact without plan enforcement, refused for free with it (GBBB-3)', () => {
     const { registry } = prodRegistry();
     expect(selectGenerationRoute(registry, { ...on, plan: 'free', modelId: 'mistral-large' }).entries.map(e => e.id)).toEqual(['mistral-large']);
+    expect(() => selectGenerationRoute(registry, { ...on, plan: 'free', modelId: 'mistral-large', enforcePlan: true })).toThrow('Pro');
   });
 });
 

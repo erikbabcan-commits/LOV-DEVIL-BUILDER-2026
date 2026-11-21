@@ -1,6 +1,7 @@
 import type {AIProvider} from './types';
 import {AiModelsSchema,MAX_AI_MODELS,type AiModels} from '../../shared/aiModels';
 import {safeModel} from '../usage/validation';
+import {isPremiumModel} from './smartRouter';
 export interface ModelEntry {id:string;label:string;provider:AIProvider}
 export class ProviderRegistry{
   private readonly entries:readonly ModelEntry[];
@@ -17,7 +18,7 @@ export class ProviderRegistry{
   find(id:string):ModelEntry|undefined{return this.entries.find(e=>e.id===id);}
   ids():string[]{return this.entries.map(e=>e.id);}
   get defaultProvider(){return this.entries[0]?.provider??null;}
-  catalog():AiModels{return AiModelsSchema.parse({defaultId:this.entries[0]?.id??null,models:this.entries.map(e=>({id:e.id,label:e.label,provider:e.provider.name,model:e.provider.model,fallbackIds:this.fallbacks.filter(id=>id!==e.id)}))});}
+  catalog():AiModels{return AiModelsSchema.parse({defaultId:this.entries[0]?.id??null,models:this.entries.map(e=>({id:e.id,label:e.label,provider:e.provider.name,model:e.provider.model,fallbackIds:this.fallbacks.filter(id=>id!==e.id),...(isPremiumModel(e.id)?{requiredPlan:'pro' as const}:{})}))});}
   route(id:string|undefined,allowFallback=false,fallbackIds?:readonly string[]):ModelEntry[]{
     const selected=id===undefined?this.entries[0]:this.entries.find(e=>e.id===id);if(!selected)throw new Error('invalid_model');
     const expected=this.fallbacks.filter(id=>id!==selected.id);

@@ -21,6 +21,29 @@ export interface GenerationRouteInput {
   /** Effective plan of the caller. Anything but 'pro' (also unknown/anonymous) never gets a premium
    *  model from the router (Bora W3 P3-2). An explicit modelId is not affected. */
   plan?: 'free' | 'pro';
+  /** true when the caller's plan is known server-side (auth on, worker). Then a non-pro plan may not
+   *  explicitly pick a premium model (PlanUpgradeRequiredError) and premium fallbacks are dropped
+   *  (Erik t670u, GBBB-3). false/undefined = loopback pilot without accounts: no plan gating. */
+  enforcePlan?: boolean;
+}
+
+/** Additive error code for an explicit premium model on a non-pro plan (outside shared/agentJobs.ts). */
+export const PLAN_UPGRADE_REQUIRED = 'plan_upgrade_required';
+/** 403: old cached clients map it to a non-retriable "access denied" (402 would look retriable). */
+export const PLAN_UPGRADE_STATUS = 403;
+export class PlanUpgradeRequiredError extends Error {
+  readonly code = PLAN_UPGRADE_REQUIRED;
+  constructor(readonly model: string, readonly requiredPlan: 'pro' = 'pro') {
+    super(`Model ${model} je dostupný len v pláne Pro.`);
+  }
+}
+/** JSON body for HTTP routes; the UI shows an upgrade prompt from `model` and `requiredPlan`. */
+export function planUpgradeBody(error: PlanUpgradeRequiredError, plan: 'free' | 'pro' | undefined) {
+  return { error: PLAN_UPGRADE_REQUIRED, model: error.model, requiredPlan: error.requiredPlan, plan: plan === 'pro' ? 'pro' : 'free', message: error.message };
+}
+/** Whether the request names a premium model (explicit or as a UI fallback), so the plan must be known. */
+export function referencesPremiumModel(input: Pick<GenerationRouteInput, 'modelId' | 'allowFallback' | 'fallbackIds'>): boolean {
+  return (input.modelId !== undefined && isPremiumModel(input.modelId)) || (input.allowFallback === true && (input.fallbackIds ?? []).some(isPremiumModel));
 }
 
 /** AI_SMART_ROUTER=1 turns the smart router on. Anything else (unset, 0, true) keeps it OFF. */
@@ -45,6 +68,16 @@ function routeMode(mode: GenerationRouteInput['mode']): RouteMode {
  * Throws `invalid_model` exactly like `providers.route` for an unknown model or bad fallbacks.
  */
 export function selectGenerationRoute(providers: ProviderRegistry, input: GenerationRouteInput): GenerationRoute {
+  const gated = input.enforcePlan === true && input.plan !== 'pro';
+  const selected = selectUngated(providers, input);
+  if (!gated) return selected;
+  // Explicit premium choice on a non-pro plan: refused before any quota or AI call (unknown ids already threw invalid_model).
+  if (input.modelId !== undefined && isPremiumModel(input.modelId)) throw new PlanUpgradeRequiredError(input.modelId);
+  // A non-pro plan never reaches a premium model through a fallback either.
+  return { ...selected, entries: [selected.entries[0], ...selected.entries.slice(1).filter(entry => !isPremiumModel(entry.id))] };
+}
+
+function selectUngated(providers: ProviderRegistry, input: GenerationRouteInput): GenerationRoute {
   const current = providers.route(input.modelId, input.allowFallback, input.fallbackIds);
   if (!input.smartRouter) return { entries: current, decision: null };
   if (input.modelId !== undefined) {

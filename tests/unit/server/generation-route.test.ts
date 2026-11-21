@@ -270,7 +270,8 @@ describe('Bora W3 P3-5 regressions (probes R2 and Q1)', () => {
     const r = prodRegistry();
     await store.create({ id: 'j1', ownerId: 'alice', idempotencyKey: 'k1', request: { projectId: 'p1', prompt: 'x', mode: 'create', modelId: 'mistral-large' } });
     await store.create({ id: 'j2', ownerId: 'alice', idempotencyKey: 'k2', request: { projectId: 'p1', prompt: 'x', mode: 'create', modelId: 'gpt-9' } });
-    await new AgentWorker({ store, providers: r.registry, smartRouter, resilience: { sleep: async () => {} } }).drain();
+    // A pro owner: explicit premium models need the pro plan since GBBB-3 (free is covered in plan-model-block.test.ts).
+    await new AgentWorker({ store, providers: r.registry, smartRouter, planFor: async () => 'pro', resilience: { sleep: async () => {} } }).drain();
     const j1 = await store.get('alice', 'j1'), j2 = await store.get('alice', 'j2');
     expect(j1!.state).toBe('succeeded');
     const started = j1!.events.find(e => (e as { type: string }).type === 'run_started') as { route?: unknown };

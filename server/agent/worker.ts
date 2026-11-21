@@ -5,7 +5,7 @@ import { AgentJobResultPatchSchema, type AgentJobErrorPayload, type AgentJobResu
 import type { AIProvider } from '../providers/types';
 import type { ProviderRegistry } from '../providers/registry';
 import { createProviderRun } from '../providers/run';
-import { selectGenerationRoute, withRouteDecision, type GenerationRoute } from '../providers/generationRoute';
+import { PLAN_UPGRADE_REQUIRED, PlanUpgradeRequiredError, referencesPremiumModel, selectGenerationRoute, withRouteDecision, type GenerationRoute } from '../providers/generationRoute';
 import { ProviderError } from '../providers/errors';
 import type { ResilienceOptions } from '../providers/resilience';
 import type { QuotaStore } from '../security/quotaStore';
@@ -108,9 +108,11 @@ export class AgentWorker {
     }
   }
 
-  /** Looked up only when the router can actually choose (flag ON, no modelId); flag OFF stays query-free. */
-  private async ownerPlan(ownerId: string, modelId: string | undefined): Promise<'free' | 'pro'> {
-    if (this.o.smartRouter !== true || modelId !== undefined || !this.o.planFor) return 'free';
+  /** Looked up when the router can choose (flag ON, no modelId) or the job names a premium model
+   *  (GBBB-3); otherwise the run stays query-free. No planFor or a failed lookup = free. */
+  private async ownerPlan(ownerId: string, request: { modelId?: string; allowFallback?: boolean; fallbackIds?: readonly string[] }): Promise<'free' | 'pro'> {
+    const needed = (this.o.smartRouter === true && request.modelId === undefined) || referencesPremiumModel(request);
+    if (!needed || !this.o.planFor) return 'free';
     try { return (await this.o.planFor(ownerId)) === 'pro' ? 'pro' : 'free'; } catch { return 'free'; }
   }
 
@@ -133,9 +135,12 @@ export class AgentWorker {
         mode: input.request.mode,
         fileCount: input.request.context.files.length,
         smartRouter: this.o.smartRouter === true,
-        plan: await this.ownerPlan(job.ownerId, input.request.modelId),
+        plan: await this.ownerPlan(job.ownerId, input.request),
+        enforcePlan: true,
       });
-    } catch {
+    } catch (error) {
+      // GBBB-3: explicit premium model on a non-pro plan; fails before quota and any AI call.
+      if (error instanceof PlanUpgradeRequiredError) return failed(PLAN_UPGRADE_REQUIRED, error.message + ' (model: ' + error.model + ', requiredPlan: ' + error.requiredPlan + ')', false);
       return failed(this.o.providers.defaultProvider ? 'invalid_model' : 'ai_not_configured', 'The selected AI model is not available.', false);
     }
     const route = selected.entries;
