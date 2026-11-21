@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tsconfig.json (local offline schema)",
+  "description": "Local stand-in for https://www.schemastore.org/tsconfig so editors can validate tsconfig.json without network access. Permissive: unknown properties are allowed.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "$schema": { "type": "string" },
+    "extends": {
+      "type": ["string", "array"],
+      "items": { "type": "string" }
+    },
+    "compilerOptions": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "target": { "type": "string" },
+        "lib": { "type": "array", "items": { "type": "string" } },
+        "module": { "type": "string" },
+        "moduleResolution": { "type": "string" },
+        "jsx": { "type": "string" },
+        "strict": { "type": "boolean" },
+        "noUnusedLocals": { "type": "boolean" },
+        "noUnusedParameters": { "type": "boolean" },
+        "noFallthroughCasesInSwitch": { "type": "boolean" },
+        "skipLibCheck": { "type": "boolean" },
+        "isolatedModules": { "type": "boolean" },
+        "noEmit": { "type": "boolean" },
+        "resolveJsonModule": { "type": "boolean" },
+        "forceConsistentCasingInFileNames": { "type": "boolean" },
+        "esModuleInterop": { "type": "boolean" },
+        "allowSyntheticDefaultImports": { "type": "boolean" },
+        "allowJs": { "type": "boolean" },
+        "checkJs": { "type": "boolean" },
+        "declaration": { "type": "boolean" },
+        "declarationMap": { "type": "boolean" },
+        "sourceMap": { "type": "boolean" },
+        "outDir": { "type": "string" },
+        "rootDir": { "type": "string" },
+        "baseUrl": { "type": "string" },
+        "paths": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "type": "string" } }
+        },
+        "types": { "type": "array", "items": { "type": "string" } },
+        "typeRoots": { "type": "array", "items": { "type": "string" } },
+        "sourceRoot": { "type": "string" },
+        "strictNullChecks": { "type": "boolean" },
+        "strictPropertyInitialization": { "type": "boolean" },
+        "noImplicitAny": { "type": "boolean" },
+        "noImplicitThis": { "type": "boolean" },
+        "alwaysStrict": { "type": "boolean" },
+        "useDefineForClassFields": { "type": "boolean" },
+        "experimentalDecorators": { "type": "boolean" },
+        "emitDecoratorMetadata": { "type": "boolean" }
+      }
+    },
+    "include": { "type": "array", "items": { "type": "string" } },
+    "exclude": { "type": "array", "items": { "type": "string" } },
+    "files": { "type": "array", "items": { "type": "string" } },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "path": { "type": "string" }
+        }
+      }
+    },
+    "compileOnSave": { "type": "boolean" },
+    "watchOptions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "typeAcquisition": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

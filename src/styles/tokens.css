@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Farebné povrchy a pozadia (Graphite Developer Workspace) */
+  --background: #171717;
+  --foreground: #EDEDED;
+  --surface-navigation: #191919;
+  --surface: #202020;
+  --surface-hover: #292929;
+  --surface-selected: #303030;
+
+  /* Typografické kontrasty (WCAG 2.2 AA) */
+  --text-secondary: #B5B5B5;
+  --text-muted: #A3A3A3;
+  --text-placeholder: #737373;
+  --text-disabled: #525252;
+
+  /* Ohraničenia */
+  --border-subtle: #2E2E2E;
+  --border-default: #404040;
+  --border-control: #666666;
+
+  /* Akcenty a stavy */
+  --primary: #4ADE80;
+  --primary-hover: #6EE79A;
+  --primary-pressed: #35C96A;
+  --primary-foreground: #102116;
+  --focus-ring: #4ADE80;
+  --success: #4ADE80;
+  --warning: #F5C86A;
+  --danger: #FF8A8A;
+  --info: #8AC4FF;
+
+  /* Geometria a tiene */
+  --radius-control: 6px;
+  --radius-panel: 8px;
+  --radius-popover: 8px;
+  --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --focus-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--focus-ring);
+
+  /* Časovanie mikroanimácií */
+  --duration-fast: 120ms;
+  --duration-standard: 180ms;
+}
+
+body {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  font-family: 'Geist', system-ui, -apple-system, sans-serif !important;
+  letter-spacing: 0 !important;
+}
+
+code, kbd, pre, .font-mono {
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
+  font-feature-settings: 'tnum' on, 'zero' on;
+}
+
+/* Custom Scrollbar pre Composer */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--border-default);
+}

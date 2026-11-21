@@ -38,6 +38,7 @@ import { asSandboxError } from './sandbox/errors';
 import { MAX_INPUT_JSON_BYTES, validationFailure } from './sandbox/policy';
 import { allowedOrigins } from './security/oauthPolicy';
 import { githubRouter } from './routes/githubSecure';
+import { githubConnectRouter } from './routes/githubConnect';
 import { githubCloudRouter, isCloudGitHubRoute, type CloudGitHubWiring } from './routes/githubCloud';
 import { exportRouter } from './routes/export';
 import { LocalBudgetGuard } from './security/budget';
@@ -453,6 +454,8 @@ export function createApp(
 
   // Mount routes
   app.route('/', githubRouter);
+  /* BFF bridge pre Cloud GitHub (/api/github-connect/*) — bez bridge env vracia JSON fallback, nikdy 503. */
+  app.route('/', githubConnectRouter({ jwtSecret: opts?.auth?.jwtSecret }));
   app.route('/', exportRouter);
 
   app.use('/api/agent/generate', bodyLimit({ maxSize: 8_000_000, onError: c => c.json({ error: 'agent_input_limit' }, 413) }));

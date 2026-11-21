@@ -3,7 +3,6 @@ import { useStore } from '../../stores/useAppStore';
 import { filesFor, VfsFile } from '../../lib/vfs/filesFor';
 import { hl } from '../../lib/utils';
 import { PROMPT_LIB } from '../../lib/templates/editorData';
-import { initiateGitHubAuth, revokeGitHubAuth } from '../../services/export/githubExport';
 import { withoutExternalScripts } from '../../lib/vfs';
 import {BuildRepairAction} from '../workspace/BuildRepairAction';
 const TemplateGallery = lazy(() => import('../templates/TemplateGallery').then(module => ({ default: module.TemplateGallery })));
@@ -67,19 +66,8 @@ export function EditorDashboard() {
     void useStore.getState().checkGitHubAuth();
   }, []);
 
-  const toggleGitHubConnection = async () => {
-    if (!st.githubAuthState.authenticated) {
-      initiateGitHubAuth();
-      return;
-    }
-    const result = await revokeGitHubAuth();
-    if (!result.ok) {
-      st.toast('GitHub disconnect failed: ' + (result.error || 'Unknown error'), 'err');
-      return;
-    }
-    await st.checkGitHubAuth();
-    st.toast('GitHub disconnected', 'ok');
-  };
+  /* Unified cez store — rovnaký konektor ako TopBar/ConnectionPanel/Workspace. */
+  const toggleGitHubConnection = () => st.toggleGitHubConnection();
 
   const activeFile = files.find(f => f.name === st.edFile) || files[0];
   const filteredProjects = st.snapshots.filter(s => s.prompt.toLowerCase().includes(search.toLowerCase()));
