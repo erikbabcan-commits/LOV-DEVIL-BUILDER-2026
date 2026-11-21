@@ -146,7 +146,7 @@ export function AppShell() {
       {libraryOpen&&<Suspense fallback={<p role="status">Načítavam projekty…</p>}><ProjectLibrary key={accountKey} enabled={authState.state==='authenticated'} userId={authState.state==='authenticated'?authState.user.id:undefined} quota={authState.state==='authenticated'?authState.quota:undefined} onRefreshQuota={()=>checkAuth(false)} onClose={()=>setLibraryOpen(false)}/></Suspense>}
       {st.publishModalOpen&&<Suspense fallback={<p role="status">Načítavam publikovanie…</p>}><PublishDialog key={accountKey+':'+st.projectId} userId={authState.state==='authenticated'?authState.user.id:undefined} onClose={()=>st.setPublishModalOpen(false)}/></Suspense>}
       <MobileTabs />
-      {mode === 'home' && <LandingPage />}
+      {mode === 'home' && <LandingPage quota={authState.state === 'authenticated' ? authState.quota : undefined} />}
       {mode === 'work' && <Workspace />}
       {mode === 'editor' && <EditorDashboard />}
       <div className="toasts" id="toasts">

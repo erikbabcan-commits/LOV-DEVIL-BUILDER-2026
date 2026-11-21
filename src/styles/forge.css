@@ -4,13 +4,14 @@
   /* ============ VORKEI dark theme: neutral surfaces, readable controls ============ */
   :root{
     color-scheme:dark;
-    --bg-app:#171717; --bg-panel:#202020; --bg-elevated:#292929; --bg-hover:#383838;
-    --text-primary:#F5F5F5; --text-secondary:#C6C6C6; --text-muted:#A3A3A3;
-    --border:#404040; --border-2:#525252; --border-subtle:#303030; --border-control:#858585;
-    --accent-primary:#15803D; --accent-hover:#166534; --accent-active:#14532D;
-    --accent-text:#4ADE80; --accent-soft:#16301F; --text-on-accent:#FFFFFF;
-    --focus-ring:#BBF7D0;
-    --success:#4ADE80; --warning:#FBBF24; --danger:#FB7185; --danger-text:#FDA4AF;
+    /* LUMEN — Obsidian & Carbon (hodnoty definované v tokens.css, tu len aliasy) */
+    --bg-app:var(--bg-obsidian,#070708); --bg-panel:var(--surface-carbon-bot,#0D0E10); --bg-elevated:var(--surface-carbon-top,#161719); --bg-hover:#1B1C20;
+    --text-primary:var(--text-primary,#FAFAFA); --text-secondary:var(--text-secondary,#A1A1AA); --text-muted:var(--text-muted,#71717A);
+    --border:rgba(255,255,255,0.08); --border-2:rgba(255,255,255,0.10); --border-subtle:var(--border-hairline,rgba(255,255,255,0.06)); --border-control:rgba(255,255,255,0.16);
+    --accent-primary:var(--neon-green,#4ADE80); --accent-hover:var(--neon-green-hover,#6EE79A); --accent-active:#35C96A;
+    --accent-text:var(--neon-green,#4ADE80); --accent-soft:var(--neon-tint-bg,rgba(74,222,128,0.05)); --text-on-accent:var(--neon-green-fg,#06140B);
+    --focus-ring:var(--neon-green,#4ADE80);
+    --success:#4ADE80; --warning:#F5C86A; --danger:#FF8A8A; --danger-text:#FDA4AF;
     --diff-add:#183329; --diff-delete:#3A2028;
     /* Keep existing components on the same semantic theme without a markup rewrite. */
     --bg:var(--bg-app); --panel:var(--bg-panel); --panel-2:var(--bg-elevated); --panel-3:var(--bg-hover);
