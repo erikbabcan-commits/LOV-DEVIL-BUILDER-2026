@@ -252,6 +252,270 @@ code, kbd, pre, .font-mono {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* ---- 3 VORKEI Workspace moduly (Projekty, Kredity, Konektory) podľa newUIUX.md ---- */
+.modules {
+  width: 100%;
+  max-width: 960px;
+  margin: 14px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  flex-shrink: 0;
+}
+.panel {
+  min-height: 184px;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 20px;
+}
+.panel-head > .ic {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+  flex: 0 0 16px;
+}
+.panel-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.panel-link {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-control);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--text-muted);
+  transition: color var(--duration-fast) ease;
+}
+.panel-link:hover {
+  color: var(--foreground);
+}
+.panel-link .ic {
+  width: 12px;
+  height: 12px;
+}
+
+.projects {
+  margin-top: 8px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.proj {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.proj + .proj {
+  border-top: 1px solid var(--border-subtle);
+}
+.thumb {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: var(--radius-control);
+  background: var(--surface-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+.thumb .ic {
+  width: 14px;
+  height: 14px;
+}
+.proj-text {
+  min-width: 0;
+  flex: 1;
+}
+.proj-name {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.proj-meta {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.projects-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+.projects-empty-text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.credits-body {
+  margin-top: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.credits-num {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 600;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.credits-sub {
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.bar {
+  margin-top: 12px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-hover);
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.credits-note {
+  margin-top: auto;
+  margin-bottom: 0;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.conn-grid {
+  margin-top: 8px;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 4px 8px;
+}
+.conn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: none;
+  text-align: left;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+.conn:hover {
+  background: var(--surface-hover);
+}
+.conn-icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.conn-icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+.conn-text {
+  min-width: 0;
+}
+.conn-name {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conn-status {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.conn-status.connected {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+@media (max-width: 1024px) {
+  .modules {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .panel-connectors {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 767px) {
+  .modules {
+    grid-template-columns: 1fr;
+    margin-top: 12px;
+  }
+  .panel {
+    min-height: auto;
+  }
+  .lumen-main {
+    padding: 16px !important;
+    overflow-y: auto !important;
+  }
+}
+
 /* Custom Scrollbar pre Composer */
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;

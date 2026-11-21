@@ -1,10 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../stores/useAppStore';
 import type { AppKind } from '../../lib/templates';
 import type { QuotaInfo } from '../../services/auth';
 import { Sidebar } from '../../components/Sidebar';
+import { loadProjects, type StoredProject } from '../../services/persistence/db';
 
-/* LUMEN landing: 100dvh lock, carbon canvas, hero 42px, neon composer, 4 pilulky, 3 carbon karty. */
+/* VORKEI Workspace landing: 100dvh lock, graphite canvas (#171717), hero 42px, neon composer,
+   4 pilulky, 3 dynamické moduly (Projekty, Kredity, Konektory) podľa newUIUX.md. */
 
 const PILLS: Array<{ kind: AppKind; label: string; prompt: string; icon: JSX.Element }> = [
   {
@@ -25,20 +27,18 @@ const PILLS: Array<{ kind: AppKind; label: string; prompt: string; icon: JSX.Ele
   },
 ];
 
-const CARDS = [
-  {
-    name: 'Studio web', meta: 'Upravené pred 2 h',
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.9 5.6 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.6-3.9-9S9.5 5.6 12 3Z" /></svg>
-  },
-  {
-    name: 'CRM Dashboard', meta: 'Upravené včera',
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></svg>
-  },
-  {
-    name: 'Kanban', meta: 'Upravené pred 3 dňami',
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect width="5" height="14" x="3.5" y="5" rx="1" /><rect width="5" height="9" x="10" y="5" rx="1" /><rect width="5" height="17" x="16.5" y="5" rx="1" /></svg>
-  },
-];
+function formatRelativeTime(timestamp: number): string {
+  const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+  if (diffSec < 60) return 'Práve teraz';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `Upravené pred ${diffMin} min`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `Upravené pred ${diffHours} h`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Upravené včera';
+  if (diffDays < 7) return `Upravené pred ${diffDays} dňami`;
+  return new Date(timestamp).toLocaleDateString('sk-SK');
+}
 
 export function LandingPage({ quota }: { quota?: QuotaInfo }) {
   const generate = useStore(s => s.generate);
@@ -50,6 +50,17 @@ export function LandingPage({ quota }: { quota?: QuotaInfo }) {
   const setPromptDraft = useStore(state => state.setPromptDraft);
   const busy = useStore(state => state.generating || state.pendingReview !== null);
   const checkGitHubAuth = useStore(s => s.checkGitHubAuth);
+  const githubAuthState = useStore(s => s.githubAuthState);
+  const storeQuota = useStore(s => (s as { quota?: QuotaInfo }).quota);
+  const [projects, setProjects] = useState<StoredProject[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    loadProjects().then(list => {
+      if (active) setProjects(list);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
@@ -59,6 +70,34 @@ export function LandingPage({ quota }: { quota?: QuotaInfo }) {
       inputRef.current?.focus();
     }
   }, [promptDraft, checkGitHubAuth]);
+
+  const activeQuota = quota || storeQuota;
+  const creditsRemaining = activeQuota ? activeQuota.remaining : 1240;
+  const creditsTotal = activeQuota ? activeQuota.limit : 2000;
+  const creditsUsed = activeQuota ? (activeQuota.limit - activeQuota.remaining) : (2000 - 1240);
+  const creditsPercent = Math.min(100, Math.max(0, Math.round((creditsRemaining / creditsTotal) * 100)));
+
+  const handleOpenProject = async (projectId: string) => {
+    try {
+      const { openLocalWorkspace } = await import('../../services/projects/workspace');
+      await openLocalWorkspace(projectId, new AbortController().signal);
+    } catch {
+      useStore.getState().goEditor();
+    }
+  };
+
+  const handleGitHubClick = async () => {
+    if (githubAuthState.authenticated) {
+      useStore.getState().toast(`GitHub pripojený (${githubAuthState.username || 'aktívny'})`, 'info');
+    } else {
+      try {
+        const { startGitHubConnect } = await import('../../services/githubConnect');
+        await startGitHubConnect();
+      } catch {
+        useStore.getState().toast('GitHub pripojenie zlyhalo', 'error');
+      }
+    }
+  };
 
   const submit = () => {
     const v = promptDraft.trim();
@@ -323,36 +362,192 @@ export function LandingPage({ quota }: { quota?: QuotaInfo }) {
           </div>
         </div>
 
-        {/* 3 vizuálne karty projektov (.carbon-card, max-w 960px) */}
-        <div
-          className="lumen-cards"
-          style={{
-            width: '100%',
-            maxWidth: '960px',
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '16px',
-            flexShrink: 0,
-            paddingBottom: '4px'
-          }}
-        >
-          {CARDS.map(card => (
-            <button
-              key={card.name}
-              type="button"
-              className="carbon-card"
-              onClick={() => useStore.getState().goEditor()}
-              aria-label={`Otvoriť projekt ${card.name}`}
-            >
-              <div className="carbon-thumb" aria-hidden="true">{card.icon}</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', height: '36px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary, #FAFAFA)' }}>{card.name}</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted, #71717A)' }}>{card.meta}</span>
+        {/* 3 dynamické moduly VORKEI Workspace (Projekty, Kredity, Konektory) podľa newUIUX.md */}
+        <section className="modules" data-t="modules" aria-label="Prehľad pracoviska">
+          {/* Modul 1: Posledné projekty */}
+          <section className="panel" aria-labelledby="t-projects">
+            <div className="panel-head">
+              <svg className="ic" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 18V6A1.5 1.5 0 0 1 5 4.5h4.2a1.5 1.5 0 0 1 1.2.6L12 7.5h7A1.5 1.5 0 0 1 20.5 9v9a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18Z"/></svg>
+              <h2 className="panel-title" id="t-projects">Posledné projekty</h2>
+              <button
+                type="button"
+                className="panel-link"
+                onClick={() => { useStore.getState().goEditor(); useStore.getState().setEdTab('blueprints'); }}
+              >
+                Všetky <svg className="ic" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+            {projects.length > 0 ? (
+              <div className="projects">
+                {projects.slice(0, 3).map((p, idx) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="proj"
+                    onClick={() => handleOpenProject(p.id)}
+                    aria-label={`Otvoriť projekt ${p.title}`}
+                  >
+                    <div className="thumb" aria-hidden="true">
+                      {idx === 0 ? (
+                        <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.3 3.8 5.2 3.8 8.5s-1.3 6.2-3.8 8.5c-2.5-2.3-3.8-5.2-3.8-8.5S9.5 5.8 12 3.5Z"/></svg>
+                      ) : idx === 1 ? (
+                        <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                      ) : (
+                        <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect width="4.5" height="13" x="4" y="4" rx="1.2"/><rect width="4.5" height="9" x="9.75" y="4" rx="1.2"/><rect width="4.5" height="16" x="15.5" y="4" rx="1.2"/></svg>
+                      )}
+                    </div>
+                    <div className="proj-text">
+                      <div className="proj-name">{p.title}</div>
+                      <div className="proj-meta">{formatRelativeTime(p.updatedAt || p.createdAt)}</div>
+                    </div>
+                  </button>
+                ))}
               </div>
-            </button>
-          ))}
-        </div>
+            ) : (
+              <div className="projects-empty">
+                <span className="projects-empty-text">Zatiaľ žiadne projekty</span>
+                <button
+                  type="button"
+                  className="panel-link"
+                  style={{ color: 'var(--primary)', padding: '4px 8px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-control)' }}
+                  onClick={() => { useStore.getState().goEditor(); useStore.getState().setEdTab('blueprints'); }}
+                >
+                  Preskúmať šablóny →
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* Modul 2: Kredity */}
+          <section className="panel" aria-labelledby="t-credits">
+            <div className="panel-head">
+              <svg className="ic" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+              <h2 className="panel-title" id="t-credits">Kredity</h2>
+            </div>
+            <div className="credits-body">
+              <span className="credits-num">{creditsRemaining.toLocaleString('sk-SK')}</span>
+              <span className="credits-sub">z {creditsTotal.toLocaleString('sk-SK')} kreditov</span>
+            </div>
+            <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={creditsTotal} aria-valuenow={creditsRemaining} aria-label="Využité kredity">
+              <div className="bar-fill" style={{ width: `${creditsPercent}%` }} />
+            </div>
+            <p className="credits-note">Obnova: 1. decembra</p>
+          </section>
+
+          {/* Modul 3: Konektory */}
+          <section className="panel panel-connectors" aria-labelledby="t-connectors">
+            <div className="panel-head">
+              <svg className="ic" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13.5a4 4 0 0 0 6 .4l3-3a4.24 4.24 0 0 0-6-6l-1.7 1.7"/><path d="M14 10.5a4 4 0 0 0-6-.4l-3 3a4.24 4.24 0 0 0 6 6l1.7-1.7"/></svg>
+              <h2 className="panel-title" id="t-connectors">Konektory</h2>
+              <button
+                type="button"
+                className="panel-link"
+                onClick={() => useStore.getState().toast('Správa konektorov v nastaveniach', 'info')}
+              >
+                Spravovať
+              </button>
+            </div>
+            <div className="conn-grid">
+              {/* GitHub (živé zrkadlenie stavu cez checkGitHubAuth) */}
+              <button
+                type="button"
+                className="conn"
+                onClick={handleGitHubClick}
+                aria-label={`GitHub — ${githubAuthState.authenticated ? 'Pripojené' : 'Pripojiť'}`}
+              >
+                <span className="conn-icon" style={{ color: '#EDEDED' }}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                </span>
+                <span className="conn-text">
+                  <span className="conn-name">GitHub</span><br />
+                  <span className={'conn-status' + (githubAuthState.authenticated ? ' connected' : '')}>
+                    {githubAuthState.authenticated ? 'Pripojené' : 'Pripojiť'}
+                  </span>
+                </span>
+              </button>
+
+              {/* OpenAI */}
+              <button
+                type="button"
+                className="conn"
+                onClick={() => useStore.getState().toast('OpenAI konektor — čoskoro', 'info')}
+                aria-label="OpenAI — Pripojiť"
+              >
+                <span className="conn-icon" style={{ color: '#EDEDED' }}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M22.28 9.82a6 6 0 0 0-.52-4.91 6.05 6.05 0 0 0-6.5-2.9A6.07 6.07 0 0 0 4.98 4.18a6 6 0 0 0-4 2.9 6.05 6.05 0 0 0 .74 7.1 6 6 0 0 0 .51 4.91 6.05 6.05 0 0 0 6.51 2.9A6 6 0 0 0 13.26 24a6.06 6.06 0 0 0 5.77-4.2 6 6 0 0 0 4-2.9 6.06 6.06 0 0 0-.75-7.08z"/></svg>
+                </span>
+                <span className="conn-text">
+                  <span className="conn-name">OpenAI</span><br />
+                  <span className="conn-status">Pripojiť</span>
+                </span>
+              </button>
+
+              {/* Mistral */}
+              <button
+                type="button"
+                className="conn"
+                onClick={() => useStore.getState().toast('Mistral konektor — čoskoro', 'info')}
+                aria-label="Mistral — Pripojiť"
+              >
+                <span className="conn-icon" style={{ color: '#FF7000' }}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#FF7000" d="M17.14 3.43v3.43h-3.43v3.43h-3.43V6.86H6.86V3.43H3.43v13.71H0v3.43h10.29v-3.43H6.86v-3.43h3.43v3.43h3.43v-3.43h3.43v3.43h-3.43v3.43H24v-3.43h-3.43V3.43z"/></svg>
+                </span>
+                <span className="conn-text">
+                  <span className="conn-name">Mistral</span><br />
+                  <span className="conn-status">Pripojiť</span>
+                </span>
+              </button>
+
+              {/* Stripe */}
+              <button
+                type="button"
+                className="conn"
+                onClick={() => useStore.getState().toast('Stripe konektor — čoskoro', 'info')}
+                aria-label="Stripe — Pripojiť"
+              >
+                <span className="conn-icon" style={{ color: '#635BFF' }}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#635BFF" d="M13.98 9.15c-2.17-.8-3.36-1.42-3.36-2.4 0-.84.69-1.31 1.9-1.31 2.23 0 4.52.86 6.1 1.63l.88-5.5C18.25.98 15.7 0 12.17 0 9.67 0 7.59.65 6.1 1.87 4.56 3.15 3.76 5 3.76 7.22c0 4.04 2.47 5.76 6.48 7.22 2.58.92 3.44 1.57 3.44 2.58 0 .98-.84 1.55-2.35 1.55-1.88 0-4.97-.92-7-2.11l-.89 5.55C5.18 23 8.39 24 11.72 24c2.64 0 4.84-.62 6.33-1.81 1.66-1.3 2.52-3.24 2.52-5.73 0-4.13-2.52-5.85-6.59-7.31z"/></svg>
+                </span>
+                <span className="conn-text">
+                  <span className="conn-name">Stripe</span><br />
+                  <span className="conn-status">Pripojiť</span>
+                </span>
+              </button>
+
+              {/* Cloudflare */}
+              <button
+                type="button"
+                className="conn"
+                onClick={() => useStore.getState().toast('Cloudflare konektor — čoskoro', 'info')}
+                aria-label="Cloudflare — Pripojiť"
+              >
+                <span className="conn-icon" style={{ color: '#F38020' }}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#F38020" d="M16.5 16.84c.15-.5.09-.97-.15-1.31-.23-.32-.61-.5-1.07-.52l-8.65-.11c-.05-.08-.03-.16 0-.21l8.74-.12c1.03-.04 2.16-.88 2.55-1.91l.5-1.3c-.56-2.55-2.84-4.45-5.55-4.45-2.5 0-4.63 1.62-5.39 3.86-.49-.36-1.12-.56-1.8-.5-1.2.12-2.16 1.08-2.28 2.29-.03.3-.01.61.06.89C1.57 13.17 0 14.78 0 16.75c0 .18.01.35.04.53h15.98l.12-.43h.36z"/></svg>
+                </span>
+                <span className="conn-text">
+                  <span className="conn-name">Cloudflare</span><br />
+                  <span className="conn-status">Pripojiť</span>
+                </span>
+              </button>
+
+              {/* Google */}
+              <button
+                type="button"
+                className="conn"
+                onClick={() => useStore.getState().toast('Google konektor — čoskoro', 'info')}
+                aria-label="Google — Pripojiť"
+              >
+                <span className="conn-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z"/></svg>
+                </span>
+                <span className="conn-text">
+                  <span className="conn-name">Google</span><br />
+                  <span className="conn-status">Pripojiť</span>
+                </span>
+              </button>
+            </div>
+          </section>
+        </section>
       </main>
     </div>
   );
