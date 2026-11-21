@@ -1,4 +1,4 @@
-/* LUMEN — Black + Carbon & Decent Green Neon (záväzný dizajn celej aplikácie VORKEI) */
+/* VORKEI — Graphite Developer Workspace (autoritatívny kontrakt podľa newUIUX.md) */
 @font-face {
   font-family: 'Geist';
   font-style: normal;
@@ -15,62 +15,65 @@
 }
 
 :root {
-  /* 1. Základné povrchy — Obsidian & Carbon */
-  --bg-obsidian: #070708;            /* hlavné pozadie plátna */
-  --bg-sidebar: #09090B;             /* ikonový rail */
-  --surface-carbon-top: #161719;     /* vrchný odlesk kariet */
-  --surface-carbon-bot: #0D0E10;     /* spodný tieň kariet */
-  --surface-card: #121316;           /* karty projektov */
-  --surface-control: rgba(255, 255, 255, 0.04);
-
-  /* 2. Typografia (90/8/2) */
-  --text-primary: #FAFAFA;
-  --text-secondary: #A1A1AA;
-  --text-muted: #71717A;             /* iba placeholdery, časové pečiatky, skratky */
-  --text-disabled: #52525B;
-
-  /* 3. Decentný zelený neón — výhradne funkčný signál */
-  --neon-green: #4ADE80;
-  --neon-green-bright: #86EFAC;
-  --neon-green-hover: #6EE79A;
-  --neon-green-fg: #06140B;          /* tmavý text na neóne */
-  --neon-tint-bg: rgba(74, 222, 128, 0.05);
-  --neon-border-idle: rgba(74, 222, 128, 0.34);
-  --neon-border-hover: rgba(74, 222, 128, 0.65);
-
-  /* 4. Neutrálne ohraničenia */
-  --border-hairline: rgba(255, 255, 255, 0.06);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --highlight-top: rgba(255, 255, 255, 0.06);
-
-  /* Aliasy pre existujúce komponenty (jedna sada tokenov) */
-  --background: var(--bg-obsidian);
-  --foreground: var(--text-primary);
-  --surface-navigation: var(--bg-sidebar);
-  --surface: var(--surface-card);
-  --surface-hover: #1B1C20;
-  --surface-selected: #1E1F23;
-  --text-placeholder: var(--text-muted);
-  --border-default: rgba(255, 255, 255, 0.10);
-  --border-control: rgba(255, 255, 255, 0.16);
-  --primary: var(--neon-green);
-  --primary-hover: var(--neon-green-hover);
+  /* 1. Autoritatívne dizajn tokeny VORKEI (#171717 grafitový základ) */
+  --background: #171717;
+  --foreground: #EDEDED;
+  --surface-navigation: #191919;
+  --surface: #202020;
+  --surface-hover: #292929;
+  --surface-selected: #303030;
+  --text-secondary: #B5B5B5;
+  --text-muted: #A3A3A3;
+  --text-placeholder: #A3A3A3;
+  --text-disabled: #858585;
+  --border-subtle: #343434;
+  --border-default: #484848;
+  --border-control: #858585;
+  --primary: #4ADE80;
+  --primary-hover: #6EE79A;
   --primary-pressed: #35C96A;
-  --primary-foreground: var(--neon-green-fg);
-  --focus-ring: var(--neon-green);
-  --success: var(--neon-green);
+  --primary-foreground: #102116;
+  --focus-ring: #4ADE80;
+  --success: #4ADE80;
   --warning: #F5C86A;
   --danger: #FF8A8A;
   --info: #8AC4FF;
-
   --radius-control: 6px;
   --radius-panel: 8px;
   --radius-popover: 8px;
-  --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.4);
-  --focus-shadow: 0 0 0 2px var(--bg-obsidian), 0 0 0 4px var(--focus-ring);
-
+  --shadow-popover: 0 12px 32px rgb(0 0 0 / 24%);
+  --focus-shadow: 0 0 0 2px var(--background),
+                  0 0 0 4px var(--focus-ring);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
   --duration-fast: 120ms;
   --duration-standard: 180ms;
+
+  /* Spätná kompatibilita s komponentmi používajúcimi staršie premenné */
+  --bg-obsidian: var(--background);
+  --bg-sidebar: var(--surface-navigation);
+  --surface-carbon-top: var(--surface);
+  --surface-carbon-bot: var(--surface-navigation);
+  --surface-card: var(--surface);
+  --surface-control: var(--surface-hover);
+  --text-primary: var(--foreground);
+  --neon-green: var(--primary);
+  --neon-green-bright: var(--primary-hover);
+  --neon-green-hover: var(--primary-hover);
+  --neon-green-fg: var(--primary-foreground);
+  --neon-tint-bg: rgba(74, 222, 128, 0.05);
+  --neon-border-idle: rgba(74, 222, 128, 0.34);
+  --neon-border-hover: rgba(74, 222, 128, 0.65);
+  --border-hairline: var(--border-subtle);
+  --highlight-top: var(--border-subtle);
 }
 
 body {
