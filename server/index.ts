@@ -441,6 +441,13 @@ export function createApp(
       const autoFallbacks = autoUpdates.filter(event => event.reason === 'fallback').map(event => ({ to: autoRoute.find(entry => entry.provider.name === event.provider && entry.provider.model === event.model)?.id ?? null, attempt: event.attempt }));
       return c.json(JSON.parse(redactSecrets(JSON.stringify({ ...result, route: { ...autoDecision, ...(autoFallbacks.length ? { fallbacks: autoFallbacks } : {}) }, ...(autoUpdates.length ? {providerUpdates:autoUpdates} : {}), ...(autoQuota && autoUser ? { quotaUpdate: { userId: autoUser.id, quota: autoQuota }, quotaCharged: autoCharged } : {}) }))));
     } catch (error) {
+      // Bora P3: Ak zápis do ledgeru zlyhá alebo spadne sieť/infrastruktúra pred doručením výsledku,
+      // stiahnutá kvóta sa atomicky vráti (rollback), aby používateľ neplatil za nedoručený výsledok.
+      if (opts?.auth && autoUser && autoCharged > 0 && !autoFinished) {
+        try {
+          await opts.auth.quota.refund?.(autoUser.id, autoCharged);
+        } catch { /* ignore secondary refund error */ }
+      }
       if (error instanceof ContextBudgetError) return c.json({error:'context_limit',message:error.message},413);
       if (error instanceof UsageLedgerError) return c.json({ error: 'quota_unavailable', message: error.message }, 503);
       if (error instanceof QuotaAdmissionError) return c.json({ error: error.code, message: error.message, ...(error.quota && autoUser ? { quota: error.quota, userId: autoUser.id } : {}) }, error.status);
