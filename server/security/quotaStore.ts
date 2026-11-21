@@ -21,6 +21,7 @@ export interface QuotaSnapshot {
 export interface QuotaStore {
   readonly transactionalDb?: DbLike;
   consumeRecorded?(userId: string, record: (tx: DbLike, quota: QuotaSnapshot, period: string) => Promise<void>): Promise<{ ok: boolean; snapshot: QuotaSnapshot }>;
+  refund?(userId: string, count?: number): Promise<QuotaSnapshot>;
   /** Vráti použité generácie v aktuálnom mesiaci (bez inkrementu). */
   usage(userId: string): Promise<QuotaSnapshot>;
   /** Atomic inkrement; ok=false keď je kvóta vyčerpaná (vtedy NEPOČÍTA). */
@@ -54,6 +55,18 @@ export class PostgresQuotaStore implements QuotaStore {
 
   async consume(userId: string): Promise<{ ok: boolean; snapshot: QuotaSnapshot }> {
     return this.consumeRecorded(userId, async () => {});
+  }
+
+  async refund(userId: string, count = 1): Promise<QuotaSnapshot> {
+    const period = monthWindow(this.now());
+    const r = await this.db.query(
+      `UPDATE user_quotas SET generations = GREATEST(0, generations - $3)
+       WHERE user_id = $1 AND period_start = $2
+       RETURNING generations`,
+      [userId, period, count]
+    );
+    const plan = await this.planOf(userId);
+    return snapshotFor(plan, r.rows[0] ? Number(r.rows[0].generations) : 0);
   }
 
   async consumeRecorded(userId: string, record: (tx: DbLike, quota: QuotaSnapshot, period: string) => Promise<void>): Promise<{ ok: boolean; snapshot: QuotaSnapshot }> {
@@ -119,5 +132,13 @@ export class InMemoryQuotaStore implements QuotaStore {
     }
     this.used.set(userId, next);
     return { ok: true, snapshot: snapshotFor('free', next) };
+  }
+
+  async refund(userId: string, count = 1): Promise<QuotaSnapshot> {
+    this.roll();
+    const current = this.used.get(userId) ?? 0;
+    const next = Math.max(0, current - count);
+    this.used.set(userId, next);
+    return snapshotFor('free', next);
   }
 }

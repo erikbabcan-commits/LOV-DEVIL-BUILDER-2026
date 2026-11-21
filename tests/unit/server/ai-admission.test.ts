@@ -100,4 +100,37 @@ describe('AI quota admission and cancellation through HTTP',()=>{
     const denied=await request(createApp({},provider,{auth:wiring(),rateLimit:()=>true,sandbox:sandbox(async()=>badBuild)}),'/api/sandbox/autofix',body);
     expect(denied.status).toBe(429);expect(await denied.json()).toMatchObject({error:'quota_exceeded'});expect(complete).not.toHaveBeenCalled();expect(await quota.usage('alice')).toMatchObject({used:10});
   });
+  it('refunds charged attempts when autofix ledger fails on attempt 2 or 3 (Bora P3)', async () => {
+    const provider = makeMockProvider();
+    let calls = 0;
+    vi.spyOn(provider, 'complete').mockImplementation(async messages => {
+      calls++;
+      const file = JSON.parse(messages[1].content).files[0];
+      return {
+        text: JSON.stringify({
+          version: 1,
+          summary: 'Fix',
+          changes: [{ path: file.path, action: 'modify', beforeSha256: file.sha256, edits: [{ search: file.content, replace: file.content + '\n// fix' }] }]
+        }),
+        usage: { promptTokens: 2, completionTokens: 3 }
+      };
+    });
+    const execute = vi.fn<SandboxExecutor['execute']>().mockResolvedValue(badBuild);
+    const body = { files: [{ path: 'src/main.tsx', content: 'export {};' }] };
+    const usage = new InMemoryAiUsageStore();
+    const originalStartCall = usage.startCall.bind(usage);
+    vi.spyOn(usage, 'startCall').mockImplementation(async (run, p, m) => {
+      if (calls >= 1) throw new (await import('../../../server/usage/store')).UsageLedgerError();
+      return originalStartCall(run, p, m);
+    });
+
+    const response = await request(
+      createApp({}, provider, { auth: { ...wiring(), usage }, rateLimit: () => true, sandbox: sandbox(execute) }),
+      '/api/sandbox/autofix',
+      body
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ error: 'quota_unavailable' });
+    expect(await quota.usage('alice')).toMatchObject({ used: 0 });
+  });
 });
