@@ -26,9 +26,21 @@ CREATE TABLE IF NOT EXISTS publish_custom_domains (
   verification_token TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   verified_at TIMESTAMPTZ,
+  -- Unverified claims expire (72 h, set by the service). Verified rows keep NULL
+  -- and never expire through the claim path (Bora W2 P2-2).
+  expires_at TIMESTAMPTZ,
   PRIMARY KEY (domain),
   FOREIGN KEY (owner_id, project_id)
     REFERENCES builder_projects(owner_id, project_id) ON DELETE CASCADE
+);
+
+-- Slugs of hard-deleted projects are never handed out again: a dangling CNAME
+-- (customer DNS -> <slug>.<base>) or an old link must not start resolving to
+-- another account's project (TIC TAC P2-3, slug reuse takeover). No FK on purpose.
+CREATE TABLE IF NOT EXISTS publish_slug_tombstones (
+  slug TEXT NOT NULL,
+  released_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (slug)
 );
 
 CREATE INDEX IF NOT EXISTS publish_custom_domains_project
@@ -37,8 +49,14 @@ CREATE INDEX IF NOT EXISTS publish_custom_domains_project
 CREATE INDEX IF NOT EXISTS publish_custom_domains_status
   ON publish_custom_domains(status);
 
+-- Per-owner pending-claim cap (max 5 unexpired pending claims per user).
+CREATE INDEX IF NOT EXISTS publish_custom_domains_owner_status
+  ON publish_custom_domains(owner_id, status);
+
 -- Rollback (manual, not run by the migrator):
+--   DROP INDEX IF EXISTS publish_custom_domains_owner_status;
 --   DROP INDEX IF EXISTS publish_custom_domains_status;
 --   DROP INDEX IF EXISTS publish_custom_domains_project;
+--   DROP TABLE IF EXISTS publish_slug_tombstones;
 --   DROP TABLE IF EXISTS publish_custom_domains;
 --   DROP TABLE IF EXISTS publish_project_slugs;

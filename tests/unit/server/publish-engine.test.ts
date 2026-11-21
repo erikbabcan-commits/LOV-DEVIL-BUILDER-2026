@@ -489,8 +489,9 @@ describe("publish engine: slugs, domains, rollback, cache (agent-7)", () => {
       { headers: authHeaders() },
     );
     expect(versions.status).toBe(200);
-    const rows = await versions.json();
-    expect(rows[0].requestId).toBe(published.requestId);
+    const list = await versions.json();
+    expect(list.versions[0].requestId).toBe(published.requestId);
+    expect(list.liveVersion).toBe((await service.liveAddress("alice", "project-one"))!.version);
     expect(versions.headers.get("cache-control")).toBe("no-store");
 
     // atomicLiveSwitch smoke (single UPSERT path used by rollback internals)

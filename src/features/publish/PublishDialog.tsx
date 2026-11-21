@@ -134,6 +134,6 @@ export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}
     {result?.state==='failed'&&<div role="alert"><p>{copy[result.error??'']??'Zostavenie alebo uloženie zlyhalo.'}</p>{result.errors.map((e,i)=><p key={i}>{e.file}: {e.message}</p>)}</div>}
     {result?.state==='published'&&<p role="status">{historicalResult?'Publikovaná bola predchádzajúca uložená verzia. Aktuálne zdroje tým nie sú publikované.':'Publikované'} · revízia {result.revision} · <a href={result.url!} target="_blank" rel="noopener noreferrer">{historicalResult?'Otvoriť publikáciu predchádzajúcej verzie':'Otvoriť verejnú aplikáciu'}</a></p>}
     {userId&&projectId?<p><button type="button" disabled={busy} onClick={()=>setRollbackOpen(true)}>Obnoviť predchádzajúcu verziu…</button></p>:null}
-    {rollbackOpen?<RollbackDialog projectId={projectId} liveVersion={null} onClose={()=>setRollbackOpen(false)}/>:null}
+    {rollbackOpen?<RollbackDialog projectId={projectId} onClose={()=>setRollbackOpen(false)}/>:null}
   </dialog>;
 }

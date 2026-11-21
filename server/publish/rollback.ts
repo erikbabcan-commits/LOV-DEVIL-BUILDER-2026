@@ -23,6 +23,17 @@ export const PublishVersionSummary = z.strictObject({
 export type PublishVersionSummary = z.infer<typeof PublishVersionSummary>;
 
 /**
+ * GET …/versions response. `liveVersion` is the optimistic-concurrency token of
+ * the live address (publish_live_addresses.version, null when nothing is live);
+ * the rollback UI sends it back as `expectedVersion` (Bora W2 P2-1).
+ */
+export const PublishVersionList = z.strictObject({
+  liveVersion: z.uuid().nullable(),
+  versions: z.array(PublishVersionSummary),
+});
+export type PublishVersionList = z.infer<typeof PublishVersionList>;
+
+/**
  * List immutable published (non-withdrawn) versions for an owned project.
  * Archive rows are never mutated here — only listed for the rollback UI.
  */
@@ -97,10 +108,15 @@ export async function rollbackLiveAddress(
 }
 
 /**
- * Low-level atomic switch used by tests that already hold an owner transaction
- * context via PublishService.promote. Prefer rollbackLiveAddress in app code.
+ * Low-level atomic switch of publish_live_addresses. App code uses
+ * rollbackLiveAddress (via PublishService.promote, which also verifies artifact
+ * bytes and the optimistic version token).
  *
- * Performs exactly one UPDATE/UPSERT of publish_live_addresses.
+ * Defense in depth (Bora W2 P3-7): inside the caller's transaction it locks the
+ * owner's non-deleted project row and requires the target to be a published,
+ * non-withdrawn version of that same owner + project, else 404
+ * publish_not_found. A previousRequestId that does not belong to the same owner
+ * + project is dropped (stored as NULL). Then exactly one UPSERT.
  */
 export async function atomicLiveSwitch(
   tx: DbLike,
@@ -109,6 +125,25 @@ export async function atomicLiveSwitch(
   requestId: string,
   previousRequestId: string | null,
 ): Promise<void> {
+  const project = await tx.query(
+    "SELECT project_id FROM builder_projects WHERE owner_id=$1 AND project_id=$2 AND deleted_at IS NULL FOR UPDATE",
+    [ownerId, projectId],
+  );
+  if (!project.rows.length) throw new PublishError("publish_not_found", 404);
+  const owned = async (candidate: string) =>
+    (
+      await tx.query(
+        `SELECT request_id FROM publish_jobs
+         WHERE owner_id=$1 AND project_id=$2 AND request_id=$3
+           AND state='published' AND withdrawn_at IS NULL`,
+        [ownerId, projectId, candidate],
+      )
+    ).rows.length > 0;
+  if (!(await owned(requestId))) throw new PublishError("publish_not_found", 404);
+  const previous =
+    previousRequestId && previousRequestId !== requestId && (await owned(previousRequestId))
+      ? previousRequestId
+      : null;
   await tx.query(
     `INSERT INTO publish_live_addresses (owner_id, project_id, alias_id, version, request_id, previous_request_id)
      VALUES ($1, $2, $3, $4, $5, $6)
@@ -116,16 +151,7 @@ export async function atomicLiveSwitch(
        version = EXCLUDED.version,
        request_id = EXCLUDED.request_id,
        previous_request_id = EXCLUDED.previous_request_id`,
-    [
-      ownerId,
-      projectId,
-      randomUUID(),
-      randomUUID(),
-      requestId,
-      previousRequestId && previousRequestId !== requestId
-        ? previousRequestId
-        : null,
-    ],
+    [ownerId, projectId, randomUUID(), randomUUID(), requestId, previous],
   );
 }
 

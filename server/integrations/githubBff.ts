@@ -33,6 +33,11 @@ const syncFailure = z.union([
   z.object({ ok: z.literal(false), error: z.literal('remote_changed'), changedPaths: z.array(z.string().max(512)).max(2000), checkpointSha: gitSha, remoteSha: gitSha }).strict(),
   z.object({ ok: z.literal(false), error: z.enum(['private_repo_not_allowed', 'github_reauth_required', 'invalid_export', 'github_write_failed', 'github_repo_not_found', 'default_branch_forbidden']) }).strict(),
 ]);
+/* The route itself (githubCloud.ts) answers an expired connection with a bare
+   { error: 'github_reauth_required' } (no ok field); normalize it to the typed
+   sync failure instead of collapsing to github_connection_failed (Bora W2 P3-3).
+   Only the literal code is read; nothing else from the body is forwarded. */
+const syncRouteReauth = z.object({ error: z.literal('github_reauth_required') });
 const SYNC = 'export/sync';
 
 const safeHeaders = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
@@ -143,6 +148,7 @@ export function makeGitHubBff(deps: {
           const raw = await readJson(upstream.body, 65536, signal);
           const failure = syncFailure.safeParse(raw);
           if (failure.success) return reply(failure.data, errorStatus);
+          if (upstream.status === 401 && syncRouteReauth.safeParse(raw).success) return reply({ ok: false, error: 'github_reauth_required' }, 401);
           const parsed = z.object({ error: GitHubExportError }).safeParse(raw);
           return reply({ error: parsed.success ? parsed.data.error : error }, errorStatus);
         }
