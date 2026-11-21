@@ -4,6 +4,7 @@ import { LoginScreen } from '../components/LoginScreen';
 import { AI_QUOTA_CHANGED } from '../services/ai/usage';
 import { fetchAuthStatus, type AuthStatus } from '../services/auth';
 import { selectPersistenceScope } from '../services/persistence/projectStore';
+import { apiUrl } from '../lib/api';
 import { AiModelsSchema } from '../../shared/aiModels';
 const PublishDialog=lazy(()=>import('../features/publish/PublishDialog').then(module=>({default:module.PublishDialog})));
 const ProjectLibrary=lazy(()=>import('../features/projects/ProjectLibrary').then(module=>({default:module.ProjectLibrary})));
@@ -32,6 +33,25 @@ export function AppShell() {
     if (hideEditor) setAuthState({ state: 'checking' });
     void fetchAuthStatus().then(status => { if (request === authRequest.current.sequence) setAuthState(status); });
   }, []);
+  /* GitHub konektor: po štarte over stav pripojenia (TopBar/ConnectionPanel ho zobrazujú).
+     V testoch (NODE_ENV=test) nefetc — rovnaká konvencia ako LandingPage. */
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') return;
+    void useStore.getState().checkGitHubAuth();
+  }, []);
+
+  /* OAuth návrat: ?github=connected|error → toast + refresh stavu + vyčistiť URL. */
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('github');
+    if (result !== 'connected' && result !== 'error') return;
+    const st = useStore.getState();
+    st.toast(result === 'connected' ? 'GitHub účet pripojený' : 'GitHub pripojenie zlyhalo', result === 'connected' ? 'ok' : 'err');
+    if (process.env.NODE_ENV !== 'test') void st.checkGitHubAuth();
+    const url = new URL(window.location.href);
+    url.searchParams.delete('github');
+    window.history.replaceState(null, '', url.toString());
+  }, []);
+
   useEffect(() => {
     const requests = authRequest.current;
     checkAuth();
@@ -60,7 +80,7 @@ export function AppShell() {
     setReadyAccount(null);
     if (!mayOpenEditor) return;
     let cancelled = false;
-    void restoreFromDb().then(() => { if (!cancelled) setReadyAccount(accountKey); });
+    void restoreFromDb().then(() => { if (!cancelled) { setReadyAccount(accountKey); void useStore.getState().resumeAgentJob(); } });
     return () => { cancelled = true; };
   }, [accountKey, mayOpenEditor, restoreFromDb]);
 
@@ -71,7 +91,7 @@ export function AppShell() {
     if (import.meta.env.VITE_AI_PRESELECT === '0') return;
     if (!mayOpenEditor || readyAccount === null || readyAccount !== accountKey) return;
     const controller = new AbortController();
-    void fetch('/api/ai-models', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
+    void fetch(apiUrl('/api/ai-models'), { credentials: 'include', cache: 'no-store', signal: controller.signal })
       .then(async response => {
         if (!response.ok) return;
         const parsed = AiModelsSchema.safeParse(await response.json());
@@ -126,7 +146,7 @@ export function AppShell() {
       {libraryOpen&&<Suspense fallback={<p role="status">Načítavam projekty…</p>}><ProjectLibrary key={accountKey} enabled={authState.state==='authenticated'} userId={authState.state==='authenticated'?authState.user.id:undefined} quota={authState.state==='authenticated'?authState.quota:undefined} onRefreshQuota={()=>checkAuth(false)} onClose={()=>setLibraryOpen(false)}/></Suspense>}
       {st.publishModalOpen&&<Suspense fallback={<p role="status">Načítavam publikovanie…</p>}><PublishDialog key={accountKey+':'+st.projectId} userId={authState.state==='authenticated'?authState.user.id:undefined} onClose={()=>st.setPublishModalOpen(false)}/></Suspense>}
       <MobileTabs />
-      {mode === 'home' && <LandingPage />}
+      {mode === 'home' && <LandingPage quota={authState.state === 'authenticated' ? authState.quota : undefined} />}
       {mode === 'work' && <Workspace />}
       {mode === 'editor' && <EditorDashboard />}
       <div className="toasts" id="toasts">

@@ -16,7 +16,11 @@ neháda ani automaticky nevyberá. Toto overenie nezaplo žiadneho nového provi
 
 Serverový `AI_DEFAULT_MODEL` je ID zapnutého providera (`mistral`, `openai`,
 `anthropic`). `AI_FALLBACK_MODELS` je najviac dvojica zapnutých ID oddelených
-čiarkou; default je prázdny. Konfigurácia je v `server/.env.example` a
+čiarkou; default je prázdny. `AI_SMART_ROUTER=1` zapne smart router (agent 8)
+pre požiadavky bez `modelId`; default je vypnutý a platí presne `AI_DEFAULT_MODEL`
+(alebo Mistral Agent) s `AI_FALLBACK_MODELS`. Zapnutý router vyberá len z
+zapnutých modelov a za svoj výber pripojí `AI_FALLBACK_MODELS`; explicitný
+`modelId` má vždy prednosť. Konfigurácia je v `server/.env.example` a
 `deploy/.env.example`. Kľúče a voliteľné dôveryhodné `*_BASE_URL` patria iba na
 server. Transport vyžaduje HTTPS bez userinfo, query a fragmentu a odmieta
 presmerovanie. `PROVIDER_TIMEOUT_MS` je 100–120000 ms, default 120000; zároveň

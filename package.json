@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test -c tests/e2e/playwright.config.ts",
+    "test:e2e:chaos": "playwright test -c tests/e2e/chaos/playwright.chaos.config.ts",
     "server": "cross-env LOV_SERVER=1 tsx server/index.ts",
     "server:dev": "cross-env LOV_SERVER=1 SANDBOX_MODE=host tsx watch server/index.ts",
     "server:mock": "cross-env LOV_SERVER=1 SANDBOX_MODE=host MOCK_AI=1 PORT=8787 tsx server/index.ts",

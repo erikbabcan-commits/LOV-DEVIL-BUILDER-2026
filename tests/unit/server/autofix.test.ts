@@ -61,10 +61,10 @@ describe('AUTOFIX (Step 4)', () => {
     expect(r.history.some(h => h.phase === 'done')).toBe(true);
   });
 
-  it('AI nevie opraviť → max 2 pokusy, ok=false, explicitné chyby', async () => {
+  it('AI nevie opraviť → max 3 pokusy, ok=false, explicitné chyby', async () => {
     const r = await autofixLoop(mockUselessProvider(), brokenFiles);
     expect(r.ok).toBe(false);
-    expect(r.attempts).toBeLessThanOrEqual(2);
+    expect(r.attempts).toBeLessThanOrEqual(3);
     expect(r.buildErrors.length).toBeGreaterThan(0);
     expect(r.history.some(h => h.message.includes('AI patch zlyhal'))).toBe(true);
   });
@@ -106,10 +106,10 @@ describe('AUTOFIX (Step 4)', () => {
     }
   });
 
-  it('zastaví najviac po dvoch platných opravách a hash druhého pokusu viaže na nový obsah',async()=>{
+  it('zastaví najviac po troch platných opravách a hash druhého pokusu viaže na nový obsah',async()=>{
     const provider=mockFixingProvider(),inputs:Array<{files:Array<{path:string;content:string;sha256:string}>}>=[];
     const complete=vi.spyOn(provider,'complete').mockImplementation(async messages=>{const input=JSON.parse(messages[1].content);inputs.push(input);const file=input.files.find((f:{path:string})=>f.path==='src/main.tsx');return{text:JSON.stringify({version:1,summary:'Still broken',changes:[{path:file.path,action:'modify',beforeSha256:file.sha256,edits:[{search:'const x = {',replace:'// retained error\nconst x = {'}]}]}),usage:{promptTokens:1,completionTokens:1}};});
-    const result=await autofixLoop(provider,brokenFiles);expect(result).toMatchObject({ok:false,attempts:2,patchesApplied:2});expect(complete).toHaveBeenCalledTimes(2);expect(inputs[1].files[1].sha256).toBe(sourceHash(inputs[1].files[1].content));expect(inputs[1].files[1].sha256).not.toBe(inputs[0].files[1].sha256);
+    const result=await autofixLoop(provider,brokenFiles);expect(result).toMatchObject({ok:false,attempts:3,patchesApplied:3});expect(complete).toHaveBeenCalledTimes(3);expect(inputs[1].files[1].sha256).toBe(sourceHash(inputs[1].files[1].content));expect(inputs[1].files[1].sha256).not.toBe(inputs[0].files[1].sha256);
   });
 
   it('zrušený modelový výsledok ani nepovolené dependencies nepostúpia do rebuildu',async()=>{

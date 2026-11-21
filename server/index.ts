@@ -5,8 +5,14 @@ import { ModelSelectionSchema } from '../shared/aiModels';
 import { ProviderRegistry, type ModelEntry } from './providers/registry';
 import { configuredProvidersWithMistralCatalog } from './providers/runtime';
 import { createProviderRun } from './providers/run';
+import { startAgentWorker } from './agent/worker';
 import type { ResilienceOptions, ProviderUpdate } from './providers/resilience';
 import { readAiPricePolicy, parsePricePolicy, type PricePolicy } from './usage/pricing';
+import { estimateCost, readUsdEurRate, sumSession, formatMicros } from './usage/costEstimator';
+import { route as smartRoute } from './providers/smartRouter';
+import { planLookup } from './auth/planLookup';
+import { LEGACY_CLIENT_MAX_ATTEMPTS, MAX_ATTEMPTS as AUTOFIX_MAX_ATTEMPTS } from './agent/autofixLimits';
+import { PLAN_UPGRADE_STATUS, PlanUpgradeRequiredError, planUpgradeBody, selectGenerationRoute, smartRouterEnabled, withRouteDecision, type GenerationRoute } from './providers/generationRoute';
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PostgresAiUsageStore, UsageLedgerError, type AiUsageStore, type RunStatus } from './usage/store';
@@ -23,13 +29,16 @@ import type { AIProvider, ProviderTransport } from './providers/types';
 import { runAgent, parseAgentRequest } from './agent/run';
 import { readIntentPolicyPath, selectIntentPrompt } from './agent/intentPolicy';
 import { consumeGenerationQuota, QuotaAdmissionError } from './security/generationQuota';
-import { AgentEventSchema } from './agent/schemas';
+import { AgentEventSchema, type AgentEvent } from './agent/schemas';
+import { AgentJobStore, PostgresAgentJobStore, jobsRouter, agentRunAbort, toAgentJobView, isDurableJobStore } from './agent/jobs';
+import { IdempotencyKey } from '../shared/agentJobs';
 import { SandboxFileSchema } from './sandbox/builder';
 import { createSandboxExecutor, getSandboxExecutor, type SandboxExecutor } from './sandbox/executor';
 import { asSandboxError } from './sandbox/errors';
 import { MAX_INPUT_JSON_BYTES, validationFailure } from './sandbox/policy';
 import { allowedOrigins } from './security/oauthPolicy';
 import { githubRouter } from './routes/githubSecure';
+import { githubConnectRouter } from './routes/githubConnect';
 import { githubCloudRouter, isCloudGitHubRoute, type CloudGitHubWiring } from './routes/githubCloud';
 import { exportRouter } from './routes/export';
 import { LocalBudgetGuard } from './security/budget';
@@ -54,6 +63,8 @@ import { PublishService, probePublishSchema } from './publish/service';
 import { publishRouter } from './publish/routes';
 import { publicPublishApp } from './publish/public';
 import { makeStripeBillingGateway } from './billing/gateway';
+import { assertProductionRuntime } from './production';
+import { readBillingMaintenanceInterval, startBillingMaintenance } from './billing/reconcile';
 
 /* Hono backend — server-only Mistral integrácia.
    Trust boundary (single-user pilot): server počúva len na 127.0.0.1,
@@ -66,6 +77,8 @@ export interface ServerConfig {
   port?: number;
   bind?: string;
   rateLimitPerMin?: number;
+  /** Budget for /api/agent/jobs* per user (Bora P3: must cover polling every jobClientConfig.pollIntervalMs). */
+  agentJobsRateLimitPerMin?: number;
   requestTimeoutMs?: number;
   aiGenerationEnabled?: boolean;
   publicDeployment?: boolean;
@@ -94,6 +107,9 @@ export function makeProvider(cfg: ServerConfig, transport?: ProviderTransport): 
 }
 
 /* jednoduchý in-memory rate limiter (single-user pilot) */
+/** Default per-user budget for the jobs routes: 2× the client poll rate (2 s → 30/min). */
+export const AGENT_JOBS_RATE_LIMIT_PER_MIN = 60;
+
 export function makeRateLimiter(maxPerMin: number) {
   const hits = new Map<string, number[]>();
   return (key: string): boolean => {
@@ -110,6 +126,8 @@ export function makeRateLimiter(maxPerMin: number) {
 }
 
 /** Mount the pilot and authenticated API routes according to the supplied runtime wiring. */
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 export function createApp(
   cfg: ServerConfig,
   provider: AIProvider | null,
@@ -124,15 +142,38 @@ export function createApp(
     /** Async limiter pre agent/autofix (Redis keď je REDIS_URL; inak per-user memory). */
     agentRateLimit?: AsyncRateLimiter;
     sandbox?: SandboxExecutor;
+    /** Durable agent job store; default is Postgres when auth is enabled. */
+    jobs?: AgentJobStore;
+    /** Durable jobs runtime (Bora P1-2). Defaults: workerEnabled = AGENT_JOBS_WORKER === '1',
+     *  startWorker = workerEnabled, maxActivePerOwner = AGENT_JOBS_MAX_ACTIVE_PER_USER or 3. */
+    agentJobs?: { workerEnabled?: boolean; startWorker?: boolean; maxActivePerOwner?: number };
+    /** Smart router for requests without modelId (Bora W3 P3-1). Default: AI_SMART_ROUTER === '1' (OFF otherwise). */
+    smartRouter?: boolean;
   }
 ) {
   if (cfg.aiPricing) parsePricePolicy(JSON.stringify(cfg.aiPricing.document));
   const providers = opts?.providers ?? new ProviderRegistry(provider ? [{id:'default',label:'AI ('+provider.name+')',provider}] : []);
+  const smartRouter = opts?.smartRouter ?? smartRouterEnabled();
   const app = new Hono();
   const trustedOrigins = new Set([...allowedOrigins(), 'http://localhost:5173', 'http://127.0.0.1:5173']);
   app.use('*', async (c, next) => {
     const origin = c.req.header('Origin');
     if (origin !== undefined && !trustedOrigins.has(origin)) return c.json({ error: 'origin_not_allowed' }, 403);
+    /* TIC TAC P2 (split deploy / CSRF): the session is an ambient cookie (lov_token, SameSite=Lax) and
+       CORS allows credentials for the trusted frontend origins. Besides the double-submit token, a
+       state-changing request without Origin must not come from another site: an untrusted Referer
+       or Sec-Fetch-Site cross-site/same-site (a sibling subdomain) is refused. Requests without any of
+       these headers are non-browser clients (no ambient browser cookies), e.g. Stripe webhooks. */
+    if (origin === undefined && !SAFE_METHODS.has(c.req.method.toUpperCase())) {
+      const site = c.req.header('Sec-Fetch-Site');
+      if (site === 'cross-site' || site === 'same-site') return c.json({ error: 'origin_not_allowed' }, 403);
+      const referer = c.req.header('Referer');
+      if (referer !== undefined) {
+        let refOrigin: string | null = null;
+        try { refOrigin = new URL(referer).origin; } catch { /* invalid Referer */ }
+        if (refOrigin === null || !trustedOrigins.has(refOrigin)) return c.json({ error: 'origin_not_allowed' }, 403);
+      }
+    }
     return next();
   });
   /* CORS: lokálny dev (5173 → 8787) — single-user pilot, loopback only */
@@ -141,7 +182,8 @@ export function createApp(
     cors({
       origin: (origin) => (trustedOrigins.has(origin) ? origin : undefined),
       allowMethods: ['GET', 'POST', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization'],
+      allowHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization', 'Idempotency-Key'],
+      exposeHeaders: ['Idempotent-Replay'],
       credentials: true
     })
   );
@@ -154,6 +196,10 @@ export function createApp(
   const aiAllowed = () => cfg.aiGenerationEnabled !== false && cfg.publicDeployment !== true;
   const sandbox = opts?.sandbox ?? (cfg.sandboxMode
     ? createSandboxExecutor({ ...process.env, SANDBOX_MODE: cfg.sandboxMode }) : getSandboxExecutor());
+  const jobStore = opts?.jobs ?? (opts?.auth ? new PostgresAgentJobStore(opts.auth.db) : null);
+  const jobsWorkerEnabled = opts?.agentJobs?.workerEnabled ?? process.env.AGENT_JOBS_WORKER === '1';
+  const jobsMaxActive = opts?.agentJobs?.maxActivePerOwner
+    ?? (Number.parseInt(process.env.AGENT_JOBS_MAX_ACTIVE_PER_USER ?? '', 10) > 0 ? Number.parseInt(process.env.AGENT_JOBS_MAX_ACTIVE_PER_USER!, 10) : undefined);
 
   app.use('/api/billing/webhook', bodyLimit({ maxSize: 512 * 1024, onError: c => c.json({ error: 'billing_input_limit' }, 413) }));
   app.post('/api/billing/webhook', billingWebhook(opts?.auth?.billing ?? null));
@@ -168,10 +214,88 @@ export function createApp(
     app.route('/', projectRouter(opts.auth.db, rateLimit, cfg.projectStorage));
     app.route('/', blueprintRouter(rateLimit));
     app.route('/', privateBlueprintRouter(opts.auth.db, rateLimit));
+    /* Bora P3: the client polls GET /api/agent/jobs/:id every 2 s (30/min); the generic
+       10/min budget would 429 a recovering client after ~20 s. */
+    const jobsRateLimit = opts?.rateLimit ?? makeRateLimiter(cfg.agentJobsRateLimitPerMin ?? AGENT_JOBS_RATE_LIMIT_PER_MIN);
+    if (jobStore) app.route('/', jobsRouter(jobStore, jobsRateLimit, {
+      workerEnabled: () => jobsWorkerEnabled,
+      maxActivePerOwner: jobsMaxActive,
+      /* Bora P2-2: same codes and statuses as POST /api/agent/generate, before enqueueing. */
+      admit: async ownerId => {
+        if (!aiAllowed()) return { status: 503, error: 'ai_disabled' };
+        if (!providers.defaultProvider) return { status: 503, error: 'ai_not_configured', message: 'AI engine teraz nie je dostupný. Použi Instant Draft alebo skús neskôr.' };
+        try {
+          const usage = await opts.auth!.quota.usage(ownerId);
+          if (usage.remaining < 1) return { status: 429, error: 'quota_exceeded', message: new QuotaAdmissionError('quota_exceeded').message };
+        } catch { return { status: 503, error: 'quota_unavailable', message: new QuotaAdmissionError('quota_unavailable').message }; }
+        return null;
+      },
+    }));
     if (opts.auth.cloudGitHub) app.route('/', githubCloudRouter(opts.auth.cloudGitHub, rateLimit));
+    /* ── MOUNT SEAMS (step 0, docs/plans/MOUNT-SEAMS.md): owner-scoped routers, auth required.
+       Each agent inserts its line(s) ONLY directly under its own marker; never edit another slot.
+       Routers mounted at '/' must scope middleware to their own paths (no use('*')). */
+    // [seam:agent-1] durable jobs: POST /api/agent/jobs lives in jobsRouter (server/agent/jobs.ts); worker start here
+    // Opt-in (AGENT_JOBS_WORKER=1): the queue worker runs queued POST /api/agent/jobs jobs and debits quota only at `succeeded`.
+    if (jobStore && isDurableJobStore(jobStore) && jobsWorkerEnabled && opts?.agentJobs?.startWorker !== false) {
+      startAgentWorker({ store: jobStore, providers, aiAllowed, quota: opts.auth.quota, admit: () => budget.acquire(), smartRouter,
+        planFor: planLookup(opts.auth.db),
+        resilience: opts.resilience, requestTimeoutMs: cfg.requestTimeoutMs, intentPolicyFile: cfg.intentPolicyFile });
+    }
+    // [/seam:agent-1]
+
+    // [seam:agent-3] GitHub sync (gitEngine / forge branch + PR)
+    // Attach db so POST /api/cloud-github/export/sync can detect expired tokens
+    // (github_reauth_required) and load the owner-scoped snapshot. The router is
+    // already mounted above and reads wiring.db at request time.
+    if (opts.auth.cloudGitHub) opts.auth.cloudGitHub.db = opts.auth.db;
+    // [/seam:agent-3]
+
+    // [seam:agent-7] publish rollback + slug/custom domains (owner side)
+    // Owner routes live in publishRouter (mounted below): slug, domains, versions, rollback.
+    // DNS verification uses an injected DnsLookup (tests); no live resolver is wired here.
+    // [/seam:agent-7]
   }
   app.route('/', billingRouter(opts?.auth?.billing ?? null, rateLimit));
   app.route('/', publishRouter(opts?.auth?.publish ?? null, rateLimit));
+  /* ── MOUNT SEAMS (step 0): routers that also work without auth (pilot mode). Same rules as above. */
+  // [seam:agent-5] billing webhook queue / reconcile (webhook itself stays above, before auth)
+  /* Opt-in (default off): retries due webhook queue rows, reconciles accounts, expires grace periods. */
+  const billingMaintenanceMs = opts?.auth?.billing ? readBillingMaintenanceInterval(process.env) : null;
+  if (opts?.auth?.billing && billingMaintenanceMs) startBillingMaintenance(opts.auth.billing, opts.auth.db, billingMaintenanceMs);
+  // [/seam:agent-5]
+
+  // [seam:agent-8] smart router / cost estimate endpoints
+  /* Read-only výpočty bez I/O: odhad ceny podľa AI_PRICE_POLICY_JSON + kurz AI_USD_EUR_RATE (žiadne live FX)
+     a náhľad rozhodnutia routera. Neúčtuje, nezapisuje ledger ani kvótu. */
+  const costFxRate = readUsdEurRate(process.env);
+  const CostEstimateBody = z.object({ runs: z.array(z.object({
+    model: z.string().min(1).max(128), inputTokens: z.number().int().min(0).max(1_000_000_000), outputTokens: z.number().int().min(0).max(1_000_000_000),
+  }).strict()).min(1).max(50) }).strict();
+  app.post('/api/ai-cost/estimate', bodyLimit({ maxSize: 16_384, onError: c => c.json({ error: 'payload_too_large' }, 413) }), async c => {
+    c.header('Cache-Control', 'no-store');
+    if (!rateLimit('ai-cost:' + (getUserFromContext(c)?.id ?? 'anon'))) return c.json({ error: 'rate_limit' }, 429);
+    const parsed = CostEstimateBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
+    const runs = parsed.data.runs.map(run => estimateCost(run, cfg.aiPricing ?? null, costFxRate));
+    return c.json({ runs, session: sumSession(runs), usdEurRate: costFxRate === null ? null : formatMicros(costFxRate), pricingVersion: cfg.aiPricing?.document.version ?? null });
+  });
+  const RoutePreviewBody = z.object({ prompt: z.string().max(20_000), mode: z.enum(['generate', 'fix', 'explain', 'chat']).optional(),
+    fileCount: z.number().int().min(0).max(10_000).optional(), explicitModel: z.string().max(40).nullable().optional() }).strict();
+  app.post('/api/ai-router/preview', bodyLimit({ maxSize: 65_536, onError: c => c.json({ error: 'payload_too_large' }, 413) }), async c => {
+    c.header('Cache-Control', 'no-store');
+    if (!rateLimit('ai-router:' + (getUserFromContext(c)?.id ?? 'anon'))) return c.json({ error: 'rate_limit' }, 429);
+    const parsed = RoutePreviewBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
+    const available = providers.ids();
+    if (!available.length) return c.json({ error: 'ai_not_configured' }, 503);
+    const { prompt, mode, fileCount, explicitModel } = parsed.data;
+    return c.json(smartRoute(prompt, mode ?? 'generate', { fileCount, explicitModel, availableModels: available }));
+  });
+  // [/seam:agent-8]
+
+  // [seam:agent-9] autofix loop status endpoints (wave 3)
+  // [/seam:agent-9]
 
   app.get('/api/ai-usage', async c => {
     c.header('Cache-Control', 'no-store');
@@ -211,7 +335,11 @@ export function createApp(
     if (new URL(c.req.url).search) return c.json({error:'invalid_query'},400);
     const user = opts?.auth ? getUserFromContext(c) : null;
     if (!rateLimit('ai-models:'+(user?.id??'pilot'))) return c.json({error:'rate_limit'},429);
-    return c.json(aiAllowed()?providers.catalog():{defaultId:null,models:[]});
+    if (!aiAllowed()) return c.json({defaultId:null,models:[]});
+    const catalog = providers.catalog();
+    // GBBB-3: premium models are shown locked for a non-pro account (plan from the DB row); the server still enforces it.
+    if (!opts?.auth || user?.plan === 'pro') return c.json(catalog);
+    return c.json({ ...catalog, models: catalog.models.map(model => model.requiredPlan ? { ...model, locked: true } : model) });
   });
   app.get('/api/health', (c) => c.json({ ok: true, ai: providers.defaultProvider?.name ?? 'not-configured', auth: opts?.auth ? 'enabled' : 'disabled' }));
   app.use('/api/sandbox/*', bodyLimit({ maxSize: MAX_INPUT_JSON_BYTES,
@@ -246,7 +374,7 @@ export function createApp(
     }
   });
 
-  /* Step 4: AUTOFIX — build → errors → AI patch → rebuild (max 2 pokusy) */
+  /* Step 4: AUTOFIX — build → errors → AI patch → rebuild (max 3 pokusy) */
   app.post('/api/sandbox/autofix', async (c) => {
     if (!aiAllowed()) return c.json({ error: 'ai_disabled' }, 503);
     const autoUser = opts?.auth ? getUserFromContext(c) : null;
@@ -263,26 +391,55 @@ export function createApp(
       .safeParse((body as { files?: unknown })?.files);
     if (!parsed.success) return c.json({ error: 'invalid_files' }, 400);
     const selection = ModelSelectionSchema.safeParse(body);
+    // Bora W3 P3-4: the client states how many attempts its response schema accepts; without it (old cached
+    // PWA client, attempts <= 2) the loop is capped at 2 so nobody pays for a response the client rejects.
+    const requestedAttempts = (body as { maxAttempts?: unknown })?.maxAttempts;
+    if (requestedAttempts !== undefined && !(Number.isInteger(requestedAttempts) && (requestedAttempts as number) >= 1 && (requestedAttempts as number) <= AUTOFIX_MAX_ATTEMPTS))
+      return c.json({ error: 'invalid_max_attempts' }, 400);
+    const autoMaxAttempts = (requestedAttempts as number | undefined) ?? LEGACY_CLIENT_MAX_ATTEMPTS;
     let autoRoute: ModelEntry[];
-    try { if (!selection.success) throw new Error('invalid_model'); autoRoute=providers.route(selection.data.modelId,selection.data.allowFallback,selection.data.fallbackIds); }
-    catch { return c.json({error:'invalid_model'},400); }
+    let autoDecision: { model: string; reason: string };
+    /* Same model choice as generate (mode 'fix'): smart router only with AI_SMART_ROUTER=1 and no modelId. */
+    try { if (!selection.success) throw new Error('invalid_model');
+      const autoSelected = selectGenerationRoute(providers, { modelId: selection.data.modelId, allowFallback: selection.data.allowFallback, fallbackIds: selection.data.fallbackIds,
+        prompt: '', mode: 'fix', fileCount: parsed.data.length, smartRouter, plan: autoUser?.plan, enforcePlan: Boolean(opts?.auth) });
+      autoRoute = autoSelected.entries;
+      autoDecision = autoSelected.decision ?? { model: autoRoute[0].id, reason: selection.data.modelId !== undefined ? 'explicit_user_choice' : 'configured_default' }; }
+    catch (error) {
+      // GBBB-3: before budget, quota and any AI call.
+      if (error instanceof PlanUpgradeRequiredError) return c.json(planUpgradeBody(error, autoUser?.plan), PLAN_UPGRADE_STATUS);
+      return c.json({error:'invalid_model'},400);
+    }
     if (parsed.data.some(f => containsPotentialSecret(f.path) || containsPotentialSecret(f.content))) return c.json({ error: 'secret_in_context' }, 400);
     const admission = budget.acquire();
     if (!admission.ok) return c.json({ error: 'BUDGET_EXCEEDED', reason: admission.reason }, 429);
     let autoQuota: QuotaSnapshot | undefined;
+    let autoCharged = 0;
     const autoRun = { userId: autoUser?.id ?? '', id: randomUUID(), kind: 'autofix' as const };
     const autoUpdates: ProviderUpdate[] = [];
     const autoMeter = createProviderRun(autoRoute,usageStore,autoRun,{...opts?.resilience,onUpdate:event=>autoUpdates.push(event)});
     let autoFinished = false;
     try {
       const { autofixLoop } = await import('./agent/autofix');
-      const result = await autofixLoop(autoMeter.provider, parsed.data, { executor: sandbox, signal: c.req.raw.signal,
+      const result = await autofixLoop(autoMeter.provider, parsed.data, { executor: sandbox, signal: c.req.raw.signal, maxAttempts: autoMaxAttempts,
+        // Bora W3 P3-3: every paid AI attempt consumes 1 quota unit, checked BEFORE the call.
+        // The first unit also admits the ledger run; later units are plain quota debits on the same run.
         beforeAi: async () => {
-          if (opts?.auth && autoUser && !autoQuota) autoQuota = await consumeGenerationQuota(opts.auth.quota, autoUser.id, () => usageStore!.admit(autoRun, opts.auth!.quota));
+          if (!opts?.auth || !autoUser) return;
+          try {
+            autoQuota = !autoQuota
+              ? await consumeGenerationQuota(opts.auth.quota, autoUser.id, () => usageStore!.admit(autoRun, opts.auth!.quota))
+              : await consumeGenerationQuota(opts.auth.quota, autoUser.id);
+            autoCharged++;
+          } catch (error) {
+            if (autoQuota && error instanceof QuotaAdmissionError && error.quota) autoQuota = error.quota;
+            throw error;
+          }
         },
       });
       if (autoQuota && autoMeter) { await autoMeter.finish(c.req.raw.signal.aborted ? 'cancelled' : result.ok ? 'succeeded' : 'failed'); autoFinished = true; }
-      return c.json(JSON.parse(redactSecrets(JSON.stringify({ ...result, ...(autoUpdates.length ? {providerUpdates:autoUpdates} : {}), ...(autoQuota && autoUser ? { quotaUpdate: { userId: autoUser.id, quota: autoQuota } } : {}) }))));
+      const autoFallbacks = autoUpdates.filter(event => event.reason === 'fallback').map(event => ({ to: autoRoute.find(entry => entry.provider.name === event.provider && entry.provider.model === event.model)?.id ?? null, attempt: event.attempt }));
+      return c.json(JSON.parse(redactSecrets(JSON.stringify({ ...result, route: { ...autoDecision, ...(autoFallbacks.length ? { fallbacks: autoFallbacks } : {}) }, ...(autoUpdates.length ? {providerUpdates:autoUpdates} : {}), ...(autoQuota && autoUser ? { quotaUpdate: { userId: autoUser.id, quota: autoQuota }, quotaCharged: autoCharged } : {}) }))));
     } catch (error) {
       if (error instanceof ContextBudgetError) return c.json({error:'context_limit',message:error.message},413);
       if (error instanceof UsageLedgerError) return c.json({ error: 'quota_unavailable', message: error.message }, 503);
@@ -297,6 +454,8 @@ export function createApp(
 
   // Mount routes
   app.route('/', githubRouter);
+  /* BFF bridge pre Cloud GitHub (/api/github-connect/*) — bez bridge env vracia JSON fallback, nikdy 503. */
+  app.route('/', githubConnectRouter({ jwtSecret: opts?.auth?.jwtSecret }));
   app.route('/', exportRouter);
 
   app.use('/api/agent/generate', bodyLimit({ maxSize: 8_000_000, onError: c => c.json({ error: 'agent_input_limit' }, 413) }));
@@ -306,13 +465,40 @@ export function createApp(
     if (!(await agentRateLimit(authUser ? `agent:${authUser.id}` : 'agent')))
       return c.json({ error: 'rate_limit', message: 'Priveľa požiadaviek, skús o minútu.' }, 429);
     if (!providers.defaultProvider) return c.json({ error: 'ai_not_configured', message: 'AI engine teraz nie je dostupný. Použi Instant Draft alebo skús neskôr.' }, 503);
+    /* Durable jobs (#75 step 3): with auth + Idempotency-Key a replayed request returns the
+       existing job instead of consuming quota and re-running the agent. */
+    const idempotencyKey = c.req.header('Idempotency-Key');
+    if (idempotencyKey !== undefined && !IdempotencyKey.safeParse(idempotencyKey).success)
+      return c.json({ error: 'invalid_idempotency_key' }, 400);
+    const durable = jobStore !== null && authUser !== null && idempotencyKey !== undefined;
+    if (durable) {
+      const existing = await jobStore!.findByIdempotency(authUser!.id, idempotencyKey!);
+      if (existing) return c.json({ job: toAgentJobView(existing), replayed: true as const }, 200, { 'Idempotent-Replay': 'true' });
+    }
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ error: 'bad_json' }, 400); }
     const input = parseAgentRequest(body);
     if (!input.ok) return c.json({ error: input.error.code, message: input.error.message }, 400);
-    let route: ModelEntry[];
-    try { route=providers.route(input.request.modelId,input.request.allowFallback,input.request.fallbackIds); }
-    catch { return c.json({error:'invalid_model'},400); }
+    /* Wave-3 glue: smart router only without an explicit modelId; an explicit choice stays exact. */
+    let selected: GenerationRoute;
+    try {
+      selected = selectGenerationRoute(providers, {
+        modelId: input.request.modelId,
+        allowFallback: input.request.allowFallback,
+        fallbackIds: input.request.fallbackIds,
+        prompt: input.request.prompt,
+        mode: input.request.mode,
+        fileCount: input.request.context.files.length,
+        smartRouter,
+        plan: authUser?.plan,
+        enforcePlan: Boolean(opts?.auth),
+      });
+    } catch (error) {
+      // GBBB-3: explicit premium model on a non-pro plan, before budget, job row, quota and any AI call.
+      if (error instanceof PlanUpgradeRequiredError) return c.json(planUpgradeBody(error, authUser?.plan), PLAN_UPGRADE_STATUS);
+      return c.json({ error: 'invalid_model' }, 400);
+    }
+    const route: ModelEntry[] = selected.entries;
     try{preflightContext(input.request,{contextWindowTokens:Math.min(...route.map(entry=>contextWindow(entry.provider)))});}
     catch(error){if(error instanceof ContextBudgetError)return c.json({error:'context_limit'},413);throw error;}
     if (c.req.raw.signal.aborted) return c.json({ error: 'request_cancelled' }, 400);
@@ -322,14 +508,33 @@ export function createApp(
     const run = { userId: authUser?.id ?? '', id: runId, kind: 'generation' as const };
     let providerUpdate: (event: ProviderUpdate) => void = () => {};
     const meter = createProviderRun(route,usageStore,run,{...opts?.resilience,onUpdate:event=>providerUpdate(event)});
+    let jobActive = false;
+    if (durable) {
+      let created: Awaited<ReturnType<AgentJobStore['create']>>;
+      // TIC TAC P2: a throwing create must give the budget slot back, otherwise it leaks forever.
+      try { created = await jobStore!.create({ id: runId, ownerId: authUser!.id, idempotencyKey: idempotencyKey! }); }
+      catch { admission.discard(); return c.json({ error: 'job_create_failed' }, 503); }
+      if (!created) {
+        // TIC TAC P2: after discard the request must end here. It used to fall through and run a
+        // paid generation with no job row and no budget slot.
+        admission.discard();
+        let existing: Awaited<ReturnType<AgentJobStore['findByIdempotency']>> = null;
+        try { existing = await jobStore!.findByIdempotency(authUser!.id, idempotencyKey!); } catch { /* answered below */ }
+        if (existing) return c.json({ job: toAgentJobView(existing), replayed: true as const }, 200, { 'Idempotent-Replay': 'true' });
+        return c.json({ error: 'job_create_failed' }, 503);
+      }
+      jobActive = true;
+    }
     try {
       if (opts?.auth && authUser) await consumeGenerationQuota(opts.auth.quota, authUser.id, () => usageStore!.admit(run, opts.auth!.quota));
     } catch (error) {
+      if (jobActive) await jobStore!.finish(runId, 'failed', 'quota_admission_failed').catch(() => {});
       admission.discard();
       if (error instanceof QuotaAdmissionError) return c.json({ error: error.code, message: error.message, ...(error.quota && authUser ? { quota: error.quota, userId: authUser.id } : {}) }, error.status);
       return c.json({ error: 'quota_unavailable' }, 503);
     }
     const abortController = new AbortController();
+    if (jobActive) agentRunAbort.set(runId, abortController);
     const clientSignal = c.req.raw.signal;
     const onAbort = () => abortController.abort(new Error('klient zrušil požiadavku'));
     clientSignal.addEventListener('abort', onAbort, { once: true });
@@ -345,12 +550,42 @@ export function createApp(
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         let finished = false;
+        let jobFinished = false;
+        const pending: AgentEvent[] = [];
+        let flushChain = Promise.resolve();
+        const flushJob = () => {
+          if (!jobActive || !pending.length) return flushChain;
+          const batch = pending.splice(0);
+          flushChain = flushChain.then(async () => {
+            await jobStore!.appendEvents(runId, batch).catch(() => {});
+          });
+          return flushChain;
+        };
+        const finishJob = async (ev: AgentEvent) => {
+          if (!jobActive || jobFinished) return;
+          jobFinished = true;
+          const state = ev.type === 'done' ? 'succeeded' as const : ev.type === 'cancelled' ? 'cancelled' as const : 'failed' as const;
+          const error = ev.type === 'error' ? ev.message : ev.type === 'cancelled' ? 'cancelled' : null;
+          await flushJob();
+          await jobStore!.finish(runId, state, error).catch(() => {});
+        };
+        let terminalEvent: AgentEvent | null = null;
         const send = (event: unknown) => {
           if (!outputClosed) controller.enqueue(encoder.encode(`data: ${redactSecrets(JSON.stringify(event))}\n\n`));
+          /* The job row is the durable record; SSE is only a live view of it. */
+          if (jobActive && event && typeof event === 'object' && 'type' in event) {
+            const parsed = AgentEventSchema.safeParse(event);
+            if (parsed.success) {
+              pending.push(parsed.data);
+              if (['done', 'error', 'cancelled'].includes(parsed.data.type)) terminalEvent = parsed.data;
+              else if (pending.length >= 8) void flushJob();
+            }
+          }
         };
+        if (jobActive) await jobStore!.markRunning(runId).catch(() => {});
         /* Keep-alive: SSE komentár každých 15s, aby proxy nezahodila idle spojenie
            pred koncom 120s AI timeoutu. Frontend parser (ai/client.ts) záznamy bez data: riadka ignoruje. */
-        keepAlive = setInterval(() => { if (!outputClosed) controller.enqueue(encoder.encode(': ping\n\n')); }, 15_000);
+        keepAlive = setInterval(() => { if (!outputClosed) controller.enqueue(encoder.encode(': ping\n\n')); void flushJob(); }, 15_000);
         providerUpdate = event => { const checked=AgentEventSchema.safeParse(event); if(checked.success) send(checked.data); };
         try {
           const intentPromptVersion = cfg.intentPolicyFile && authUser && input.request.mode === 'auto'
@@ -361,14 +596,20 @@ export function createApp(
               const status: RunStatus = event.type === 'done' ? 'succeeded' : event.type === 'cancelled' ? 'cancelled' : 'failed';
               await meter.finish(status); finished = true;
             }
-            const checked = AgentEventSchema.safeParse(event);
+            const checked = AgentEventSchema.safeParse(withRouteDecision(event, selected.decision));
             if (checked.success) send(checked.data);
           }
         } catch (error) {
           send({ type: 'error', code: 'stream_error', message: error instanceof UsageLedgerError ? error.message : 'Generovanie sa prerušilo. Projekt zostal zachovaný.', retriable: true });
         } finally {
           if (meter && !finished) { try { await meter.finish('incomplete'); } catch { /* unknown remains visible */ } }
+          if (jobActive && !jobFinished) {
+            await flushJob();
+            if (terminalEvent) await finishJob(terminalEvent);
+            else await jobStore!.finish(runId, abortController.signal.aborted ? 'cancelled' : 'failed', 'stream_closed').catch(() => {});
+          }
           cleanup();
+          agentRunAbort.delete(runId);
           // Hold concurrency until the provider has actually stopped, including
           // providers that do not immediately honour cancellation.
           admission.release();
@@ -497,6 +738,10 @@ if (
   (process.argv[1] && process.argv[1].endsWith('server/index.ts')) ||
   process.env.LOV_SERVER === '1'
 ) {
+  // Production starts only as a validated standalone backend (fail-closed checklist in
+  // server/production.ts): durable auth, pinned DB schema, HTTPS origin allowlist and
+  // the isolated sandbox runner are mandatory. This process is never a Vercel Function.
+  assertProductionRuntime(process.env);
   const cfg: ServerConfig = {
     mistralApiKey: process.env.MISTRAL_API_KEY,
     mistralModel: process.env.MISTRAL_MODEL ?? 'mistral-large-latest',
@@ -506,9 +751,9 @@ if (
     // BIND=0.0.0.0 pre behind-proxy (Docker/VPS); default ostáva loopback.
     bind: process.env.BIND ?? '127.0.0.1',
     aiGenerationEnabled: process.env.AI_GENERATION_ENABLED !== '0',
-    publicDeployment: process.env.NODE_ENV === 'production'
+    // PUBLIC_RUNTIME=1 keeps the hard AI/sandbox block even for a validated deployment.
+    publicDeployment: process.env.PUBLIC_RUNTIME === '1'
   };
-  if (cfg.publicDeployment) throw new Error('Public deployment blocked: auth and durable quotas not configured.');
   // Parse before provider, DB or migration side effects. Enabling OAuth does
   // not enable export; each has an explicit, default-off operator switch.
   const cloudGitHubConfig = readCloudGitHubConfig(process.env);

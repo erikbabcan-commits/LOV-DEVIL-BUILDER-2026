@@ -1,22 +1,25 @@
 import {applyFileOperations} from '../lib/projectChanges';
-import {requestBuildRepair} from '../services/ai/buildRepair';
+import {requestBuildRepair,resetRepairProgress} from '../services/ai/buildRepair';
 import {ConversationSchema,type ConversationTurn} from '../../shared/conversation';
 import { apiHeaders } from '../lib/csrf';
+import { apiUrl } from '../lib/api';
 import { create } from 'zustand';
 import { uid, now, dbg } from '../lib/utils';
 import { buildSaas, buildKanban, buildSettings, buildDashboard, detectKind, KIND_INFO, SNIPPETS, AppKind } from '../lib/templates';
 import { filesFor, filesToHtml, VfsFile } from '../lib/vfs/filesFor';
 import type { AgentEvent, GeneratedFile, Plan } from '../services/ai/types';
-import { streamAgentEvents, AiNotConfiguredError, AiRequestError, NetworkError } from '../services/ai/client';
+import { AiNotConfiguredError, AiRequestError, NetworkError } from '../services/ai/client';
 import { restoreWorkspace, scheduleAutosave, persistProjectState, persistRun, nextRevision } from '../services/persistence/projectStore';
 import type { StoredSnapshot } from '../services/persistence/db';
-import { persistenceScope } from '../services/persistence/db';
+import { persistenceScope, saveMeta } from '../services/persistence/db';
+import { createJobClientSlice, jobClient, type JobClientSlice } from './slices/jobClientSlice';
 import { prepareVfsForExport } from '../services/export/zipExport';
 import { createProjectZip, downloadProjectZip } from '../services/export/projectZip';
 import { inspectProjectSources } from '../services/export/projectZip';
 import { WorkspaceSchema } from '../../shared/projectSchema';
 import { matchesCodeEditBase, type CodeEditBase } from '../services/editor/codeDrafts';
-import { exportToGitHub as doGitHubExport, checkGitHubAuth as doCheckGitHubAuth, checkGitHubAvailable, initiateGitHubAuth, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
+import { exportToGitHub as doGitHubExport, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
+import { getGitHubConnection, startGitHubConnect, disconnectGitHub as svcDisconnectGitHub, bridgeExportPrepare, bridgeExportConfirm, bridgeExportStatus, bridgeExportCancel } from '../services/githubConnect';
 import type { Blueprint } from '../templates/types';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
@@ -58,7 +61,7 @@ export interface ReviewBase {
 }
 export interface PendingReview { messageId?:string; runId: string; prompt: string; files: GeneratedFile[]; base: ReviewBase; source?: 'template'|'patch'; summary?:string; title?: string; followups?: string[] }
 
-export interface AppState {
+export interface AppState extends JobClientSlice {
   /* workspace */
   model: string;
   aiModelId: string | undefined;
@@ -152,6 +155,7 @@ export interface AppState {
   aiAbort: AbortController | null;
   pendingReview: PendingReview | null;
   generateWithAi: (prompt: string, mode: 'create' | 'iterate' | 'fix' | 'explain' | 'auto') => Promise<void>;
+  resumeAgentJob: () => Promise<void>;
   cancelAiRun: () => void;
   approveStagedRun: () => boolean;
   rejectStagedRun: () => void;
@@ -168,16 +172,61 @@ export interface AppState {
   stopSandbox: () => void;
 
   /* M4 export */
-  githubAuthState: { authenticated: boolean; username?: string; avatarUrl?: string };
+  githubAuthState: { authenticated: boolean; username?: string; avatarUrl?: string; mode?: 'bridge' | 'local'; configured?: boolean; scopes?: string[] };
   githubExportInProgress: boolean;
+  githubLastExport: string | null;
   exportToZip: () => Promise<void>;
   exportToGitHub: () => Promise<void>;
   checkGitHubAuth: () => Promise<void>;
+  connectGitHub: () => void;
+  disconnectGitHub: () => Promise<void>;
+  toggleGitHubConnection: () => Promise<void>;
 }
 
 const generationTimers: number[] = [];
 let sandboxController: AbortController | null = null;
 let githubExportRun = 0;
+
+/* Bridge export flow (BFF /api/github-connect/export/*): prepare → public confirm → confirm → poll. */
+async function runBridgeGitHubExport(snap: Snapshot, isCurrent: () => boolean): Promise<void> {
+  const st = useStore.getState();
+  const repoName = ('vorkei-' + st.projectTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, '').slice(0, 40) + '-' + Date.now().toString(36).slice(-6)).replace(/^[^a-zA-Z0-9]+/, '');
+  const requestId = crypto.randomUUID();
+  const review = await bridgeExportPrepare({
+    requestId,
+    repoName,
+    selection: { projectId: st.projectId, snapshotId: snap.id, expectedRevision: snap.v },
+  });
+  if (!isCurrent()) return;
+  const confirmed = confirm(
+    `Vytvoriť VEREJNÝ GitHub repozitár '${review.repoName}'?\n\n` +
+    `Účet: @${review.username}\nVerzia: v${review.version} — ${review.title}\nSúbory: ${review.files.length}\n\n` +
+    `Repozitár a zdrojové súbory budú verejné.`
+  );
+  if (!confirmed) {
+    await bridgeExportCancel({ requestId, fingerprint: review.fingerprint }).catch(() => undefined);
+    if (isCurrent()) useStore.getState().toast('GitHub export zrušený', 'warn');
+    return;
+  }
+  let job = await bridgeExportConfirm({ requestId, fingerprint: review.fingerprint, publicConfirmed: true });
+  if (!isCurrent()) return;
+  for (let i = 0; i < 30 && isCurrent(); i++) {
+    if (['succeeded', 'failed', 'cancelled', 'expired'].includes(job.status)) break;
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!isCurrent()) return;
+    job = await bridgeExportStatus(requestId);
+  }
+  if (!isCurrent()) return;
+  if (job.status === 'succeeded' && job.result?.ok) {
+    const url = job.result.repoUrl;
+    useStore.setState({ githubLastExport: url });
+    useStore.getState().log('✓ GitHub export: ' + url, 'ok');
+    useStore.getState().toast('GitHub export úspešný! ' + url, 'ok');
+  } else {
+    const detail = job.result && !job.result.ok ? job.result.error : job.status;
+    useStore.getState().toast('GitHub export zlyhal: ' + detail, 'err');
+  }
+}
 
 function reviewSnapshot(state: AppState): Snapshot | null {
   return state.viewing ?? state.snapshots.find(item => item.id === state.liveId) ?? state.snapshots[state.snapshots.length - 1] ?? null;
@@ -232,6 +281,7 @@ export function matchesReviewBase(state: AppState, base: ReviewBase): boolean {
 }
 
 export const useStore = create<AppState>((set, get) => ({
+  ...createJobClientSlice(set, get),
   workspaceEpoch: persistenceScope().epoch,
   codeDraftDirty: false,
   model: 'Instant Draft',
@@ -275,6 +325,7 @@ export const useStore = create<AppState>((set, get) => ({
   remoteRevision: 0,
   remoteSnapshotIds: {},
   githubExportInProgress: false,
+  githubLastExport: null,
 
   setMode: m => {
     document.body.dataset.mode = m;
@@ -536,7 +587,7 @@ export const useStore = create<AppState>((set, get) => ({
       get().toast('AI návrh je zastaraný — projekt sa zmenil. Spusti nový run.', 'warn');
     };
     try {
-      for await (const ev of streamAgentEvents({
+      for await (const ev of jobClient.runAgentJob({
         modelId: st.aiModelId,
         allowFallback: st.aiFallbackIds.length > 0,
         fallbackIds: [...st.aiFallbackIds],
@@ -544,7 +595,7 @@ export const useStore = create<AppState>((set, get) => ({
         prompt: text,
         mode,
         context,
-      }, abort.signal)) {
+      }, abort.signal, { messageId: planMsg.id, onTransport: get().setJobTransport })) {
         // A cancelled/previous run must not mutate a newly opened project or run.
         if (get().aiAbort !== abort || abort.signal.aborted) return;
         if (!matchesReviewIdentity(get(), base) || (ev.type === 'stage' && !matchesReviewBase(get(), base))) {
@@ -552,7 +603,8 @@ export const useStore = create<AppState>((set, get) => ({
           return;
         }
         events.push(ev);
-        if (ev.type === 'run_started') set({ aiConnected: true });
+        if (ev.type === 'run_started') { set({ aiConnected: true }); void saveMeta('activeAgentJob', { id: ev.runId, prompt: text }).catch(() => {}); }
+        if (ev.type === 'done' || ev.type === 'error' || ev.type === 'cancelled') void saveMeta('activeAgentJob', null).catch(() => {});
         if(ev.type==='intent_selected'){
           resolvedIntent=ev.intent;
           get().log('› Zámer: '+({create:'nová aplikácia',iterate:'úprava',fix:'oprava',explain:'odpoveď bez zmien'}[ev.intent]),'info');
@@ -632,7 +684,56 @@ export const useStore = create<AppState>((set, get) => ({
       }
       get().updateMsg(planMsg.id, { text: answerText?answerText+'\n\nOdpoveď sa prerušila a zostala neúplná. Súbory sa nemenili.':e instanceof AiRequestError || e instanceof AiNotConfiguredError || e instanceof NetworkError ? e.message : abort.signal.aborted ? 'AI generovanie bolo zrušené.' : 'AI úlohu sa nepodarilo dokončiť. Lokálna práca zostala zachovaná.', done: true });
     } finally {
-      if (get().aiAbort === abort) {set({ generating: false, aiAbort: null });void get().persistNow();}
+      if (get().aiAbort === abort) {set({ generating: false, aiAbort: null });void get().persistNow();void saveMeta('activeAgentJob', null).catch(() => {});}
+    }
+  },
+
+  /* #75 step 3: resume a durable agent job after a page reload — the server-side
+     job row is the source of truth, SSE was only a live view. */
+  resumeAgentJob: async () => {
+    const st = get();
+    if (st.generating) return;
+    let active: Awaited<ReturnType<typeof jobClient.loadJobResume>> = null;
+    try { active = await jobClient.loadJobResume(); } catch { return; }
+    if (!active?.id) return;
+    const abort = new AbortController();
+    set({ generating: true, aiAbort: abort });
+    // forge_job_cache: continue the message that already shows the received events (no duplicates).
+    const cached = active.messageId ? get().messages.find(m => m.id === active.messageId && m.role === 'assistant') : undefined;
+    const planMsg = cached ?? get().addMsg('assistant', '', {});
+    let answerText = jobClient.answerFromEvents(active.events);
+    get().updateMsg(planMsg.id, { text: answerText || 'Obnovujem prebiehajúcu AI úlohu…', done: false });
+    const events = [...active.events];
+    try {
+      for await (const ev of jobClient.resumeJobEvents(active, abort.signal, { messageId: planMsg.id, onTransport: get().setJobTransport }, get().projectId)) {
+        if (get().aiAbort !== abort || abort.signal.aborted) return;
+        events.push(ev);
+        if (ev.type === 'text_delta') { answerText += ev.delta; get().updateMsg(planMsg.id, { text: answerText }); }
+        if (ev.type === 'plan') get().updateMsg(planMsg.id, { text: '', plan: ev.plan.steps.map(x => ({ label: x.title, state: 'done' as const })), planTitle: 'AI plán', model: ev.plan.summary });
+        if (ev.type === 'error') get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + 'AI úlohu sa nepodarilo dokončiť. Projekt zostal zachovaný.', done: true });
+        if (ev.type === 'cancelled') get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + 'AI úloha bola zastavená.', done: true });
+      }
+      if (get().aiAbort !== abort || abort.signal.aborted) return;
+      const stage = events.find(e => e.type === 'stage');
+      const doneEv = events.find(e => e.type === 'done');
+      if (doneEv && stage && stage.type === 'stage') {
+        const base = captureReviewBase(get());
+        set({ pendingReview: { messageId: planMsg.id, runId: active.id, prompt: active.prompt, files: stage.files.map(f => ({ ...f })), base, ...(stage.editMode === 'patch' ? { source: 'patch' as const, summary: stage.summary } : {}) } });
+        get().updateMsg(planMsg.id, { text: `Súbory čakajúce na schválenie: ${stage.files.length}. Žiadne zmeny sa zatiaľ neaplikovali.`, reviewPending: true, done: true });
+        get().toast('AI zmeny pripravené na kontrolu', 'warn');
+      } else if (!events.some(e => e.type === 'error' || e.type === 'cancelled')) {
+        get().updateMsg(planMsg.id, { text: answerText || 'AI úloha skončila.', done: true });
+      }
+      void saveMeta('activeAgentJob', null).catch(() => {});
+    } catch (error) {
+      if (get().aiAbort === abort) {
+        const timeout = error instanceof Error && error.message === 'job_recovery_timeout';
+        get().updateMsg(planMsg.id, { text: (answerText ? answerText + '\n\n' : '') + (timeout ? 'AI úloha na serveri neodpovedá. Skús spustiť nový run.' : 'Stav AI úlohy sa nepodarilo načítať. Skús spustiť nový run.'), done: true });
+        if (!timeout) get().toast('Stav AI úlohy sa nepodarilo načítať', 'warn');
+      }
+      void saveMeta('activeAgentJob', null).catch(() => {});
+    } finally {
+      if (get().aiAbort === abort) { set({ generating: false, aiAbort: null }); void get().persistNow(); }
     }
   },
 
@@ -779,7 +880,7 @@ export const useStore = create<AppState>((set, get) => ({
     try{
       const result=await requestBuildRepair(files,{modelId:st.aiModelId,allowFallback:st.aiFallbackIds.length>0,fallbackIds:[...st.aiFallbackIds]},abort.signal);
       if(get().aiAbort!==abort||abort.signal.aborted)return;
-      if(!matchesReviewBase(get(),base)){get().updateMsg(message.id,{text:'Projekt sa počas opravy zmenil. Návrh bol zahodený; spusti novú úlohu.',done:true});return;}
+      if(!matchesReviewBase(get(),base)){resetRepairProgress();get().updateMsg(message.id,{text:'Projekt sa počas opravy zmenil. Návrh bol zahodený; spusti novú úlohu.',done:true});return;}
       if(!result.ok){get().updateMsg(message.id,{text:'AI oprava neprešla overením. Projekt zostal zachovaný; podrobnosti sú v konzole.',done:true});get().log('✗ AI oprava: '+result.buildErrors.map(error=>error.file+': '+error.message).join('; ').slice(0,800),'err');return;}
       if(!result.changes.length){get().updateMsg(message.id,{text:'Aktuálny projekt prešiel buildom bez AI opravy. Súbory sa nemenili.',done:true});return;}
       set({pendingReview:{runId:'build-repair-'+uid(),messageId:message.id,prompt,source:'patch',base,files:result.changes,summary:'Návrh prešiel buildom. '+(result.summary??'Skontroluj cielené zmeny.')},tab:'diff'});get().setMview('canvas');
@@ -811,11 +912,14 @@ export const useStore = create<AppState>((set, get) => ({
     const base = captureReviewBase(st);
     set({ sandboxBuilding: true, sandboxErrors: [], sandboxHtml: null });
     try {
-      const res = await fetch((import.meta.env?.VITE_AI_API_BASE ?? '') + '/api/sandbox/build', {
+      const aiBase = (import.meta.env?.VITE_AI_API_BASE ?? '').trim().replace(/\/+$/, '');
+      const buildUrl = aiBase ? `${aiBase}/api/sandbox/build` : apiUrl('/api/sandbox/build');
+      const res = await fetch(buildUrl, {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({ files }),
         signal: controller.signal,
+        credentials: 'include',
       });
       const result = await res.json() as { ok: boolean; html: string | null; errors: Array<{ file: string; message: string }> };
       if (controller.signal.aborted || sandboxController !== controller || !matchesReviewBase(get(), base)) return;
@@ -912,35 +1016,42 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
     
-    // Check GitHub availability first
-    const githubStatus = await checkGitHubAvailable();
+    // Unified connector status — bridge BFF (/api/github-connect/*) alebo lokálny /api/github/*
+    const connection = await getGitHubConnection();
     if (!isCurrent()) return;
-    if (!githubStatus.available || githubStatus.blocked) {
-      const msg = githubStatus.blockReason 
-        ? `GitHub export BLOCKED: ${githubStatus.blockReason} - ${githubStatus.message || ''}`
-        : `GitHub export BLOCKED: ${githubStatus.message || 'Not configured'}`;
+    set({ githubAuthState: { authenticated: connection.authenticated, username: connection.username, avatarUrl: connection.avatarUrl, mode: connection.mode, configured: connection.configured, scopes: connection.scopes } });
+    if (!connection.available || connection.blocked) {
+      const msg = connection.blockReason
+        ? `GitHub export BLOCKED: ${connection.blockReason} - ${connection.message || ''}`
+        : `GitHub export BLOCKED: ${connection.message || 'Nie je nakonfigurované'}`;
       get().toast(msg, 'err');
       return;
     }
-    
-    // Check auth
-    const authState = await doCheckGitHubAuth();
-    if (!isCurrent()) return;
-    if (!authState.authenticated || authState.blocked) {
-      const msg = authState.blockReason
-        ? `GitHub export BLOCKED: ${authState.blockReason} - ${authState.message || ''}`
-        : 'GitHub export BLOCKED: Nie ste prihlásený.';
-      get().toast(msg, 'warn');
-      // Offer to connect GitHub
-      if (!authState.authenticated && !authState.blocked) {
-        const tryConnect = confirm('Chcete sa pripojiť k GitHub?');
-        if (tryConnect) {
-          initiateGitHubAuth();
-        }
+    if (!connection.authenticated) {
+      get().toast('GitHub export: najprv pripoj GitHub.', 'warn');
+      const tryConnect = confirm('Chcete sa pripojiť k GitHub?');
+      if (tryConnect) void startGitHubConnect();
+      return;
+    }
+
+    if (connection.mode === 'bridge') {
+      set({ githubExportInProgress: true });
+      try {
+        await runBridgeGitHubExport(snap, isCurrent);
+      } catch (e) {
+        if (isCurrent()) get().toast('GitHub export zlyhal: ' + (e instanceof Error ? e.message : String(e)).slice(0, 140), 'err');
+      } finally {
+        if (githubExportRun === run && persistenceScope().epoch === epoch) set({ githubExportInProgress: false });
       }
       return;
     }
-    
+
+    const authState: GitHubAuthState = {
+      authenticated: true, configured: true,
+      username: connection.username, avatarUrl: connection.avatarUrl,
+      scopes: connection.scopes, csrfToken: connection.csrfToken,
+    };
+
     set({ githubExportInProgress: true });
     try {
       const { files, warnings, missingRequired } = prepareVfsForExport(st.vfs, snap.id);
@@ -992,6 +1103,7 @@ export const useStore = create<AppState>((set, get) => ({
       const result = await doGitHubExport(request, true, { csrfToken: authState.csrfToken, isCurrent });
       if (!isCurrent()) return;
       if (result.ok && result.repoUrl) {
+        set({ githubLastExport: result.repoUrl });
         get().log('✓ GitHub export: ' + result.repoUrl, 'ok');
         get().toast('GitHub export úspešný! ' + result.repoUrl, 'ok');
       } else if (result.blocked) {
@@ -1008,15 +1120,36 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   connectGitHub: () => {
-    initiateGitHubAuth();
+    void startGitHubConnect().catch(e => {
+      get().toast('GitHub pripojenie zlyhalo: ' + (e instanceof Error ? e.message : String(e)), 'err');
+    });
+  },
+
+  disconnectGitHub: async () => {
+    try {
+      await svcDisconnectGitHub();
+      await get().checkGitHubAuth();
+      get().toast('GitHub odpojený', 'ok');
+    } catch (e) {
+      get().toast('GitHub odpojenie zlyhalo: ' + (e instanceof Error ? e.message : String(e)), 'err');
+    }
+  },
+
+  toggleGitHubConnection: async () => {
+    if (get().githubAuthState.authenticated) {
+      if (!confirm('Odpojiť GitHub od tohto účtu? Repozitáre na GitHube zostanú zachované.')) return;
+      await get().disconnectGitHub();
+    } else {
+      get().connectGitHub();
+    }
   },
 
   checkGitHubAuth: async () => {
     const epoch = persistenceScope().epoch;
     try {
-      const authState = await doCheckGitHubAuth();
+      const conn = await getGitHubConnection();
       if (persistenceScope().epoch !== epoch) return;
-      set({ githubAuthState: authState });
+      set({ githubAuthState: { authenticated: conn.authenticated, username: conn.username, avatarUrl: conn.avatarUrl, mode: conn.mode, configured: conn.configured, scopes: conn.scopes } });
     } catch {
       if (persistenceScope().epoch === epoch) set({ githubAuthState: { authenticated: false } });
     }

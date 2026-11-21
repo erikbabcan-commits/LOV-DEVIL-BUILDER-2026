@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { WorkspaceSchema, ProjectId, type ServerWorkspace } from '../../../shared/projectSchema';
 import { apiHeaders } from '../../lib/csrf';
+import { apiUrl } from '../../lib/api';
 import { ProjectStorageUsage } from '../../../shared/projectStorage';
 
 const Metadata=z.object({id:ProjectId,title:z.string(),revision:z.number().int().positive(),updatedAt:z.string(),deletedAt:z.string().nullable()});
@@ -18,7 +19,7 @@ function matchingId<T extends {id:string}>(id:string,value:T):T {
 }
 async function call(path:string,signal:AbortSignal,body?:unknown,root='/api/projects'):Promise<unknown>{
   try{
-    const response=await fetch(root+path,{method:body===undefined?'GET':'POST',credentials:'include',cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(20_000)]),...(body===undefined?{}:{headers:apiHeaders(),body:JSON.stringify(body)})});
+    const response=await fetch(apiUrl(root+path),{method:body===undefined?'GET':'POST',credentials:'include',cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(20_000)]),...(body===undefined?{}:{headers:apiHeaders(),body:JSON.stringify(body)})});
     const json:unknown=await response.json().catch(()=>null);
     if(!response.ok)throw new ProjectApiError(response.status===413&&json&&typeof json==='object'&&'error' in json&&json.error==='project_storage_quota'?'storage_quota':response.status===409?(json&&typeof json==='object'&&'error' in json&&json.error==='immutable_history'?'history_conflict':'conflict'):response.status===401?'login_required':response.status===403?'access_denied':response.status===410?'deleted':response.status===413||response.status===400?'project_limits':response.status===429?'rate_limit':'unavailable');
     return json;

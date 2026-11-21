@@ -1,3 +1,5 @@
+import { apiUrl } from '../../lib/api';
+
 /* M4.G: Real GitHub repository export
    
    Security principles:
@@ -95,7 +97,7 @@ export async function checkGitHubAvailable(): Promise<{
   blockReason?: string;
 }> {
   try {
-    const response = await fetch('/api/github/status');
+    const response = await fetch(apiUrl('/api/github/status'), { credentials: 'include' });
     if (!response.ok) {
       return {
         available: false,
@@ -116,7 +118,7 @@ export async function checkGitHubAvailable(): Promise<{
 /** Checks GitHub authentication status */
 export async function checkGitHubAuth(): Promise<GitHubAuthState> {
   try {
-    const response = await fetch('/api/github/auth');
+    const response = await fetch(apiUrl('/api/github/auth'), { credentials: 'include' });
     if (!response.ok) {
       return {
         authenticated: false,
@@ -139,7 +141,7 @@ export function initiateGitHubAuth(): void {
   // The server endpoint /api/github/auth/start returns HTTP 302 redirect to GitHub
   // We can use a simple fetch that follows redirects, or just navigate directly
   // Using window.location for simplicity - the server will redirect via HTTP 302
-  window.location.href = '/api/github/auth/start';
+  window.location.href = apiUrl('/api/github/auth/start');
 }
 
 /** Revokes GitHub authentication */
@@ -147,8 +149,8 @@ export async function revokeGitHubAuth(): Promise<{ ok: boolean; error?: string 
   try {
     const auth = await checkGitHubAuth();
     if (!auth.authenticated || !auth.csrfToken) return { ok: false, error: 'Not authenticated' };
-    const response = await fetch('/api/github/auth/revoke', {
-      method: 'POST',
+    const response = await fetch(apiUrl('/api/github/auth/revoke'), {
+      method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': auth.csrfToken },
     });
     if (!response.ok) {
@@ -190,8 +192,8 @@ export async function exportToGitHub(
     if (!auth.authenticated || !auth.csrfToken) {
       return { ok: false, error: 'Not authenticated', errorType: 'auth' };
     }
-    const response = await fetch('/api/github/export', {
-      method: 'POST',
+    const response = await fetch(apiUrl('/api/github/export'), {
+      method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': auth.csrfToken },
       body: JSON.stringify({ ...request, confirmed: true }),
     });

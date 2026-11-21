@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { PublishJob, PublishReadiness, PublishRequest, type PublishResult, type PublishReady } from '../../../shared/publish';
 import { apiHeaders } from '../../lib/csrf';
+import { apiUrl } from '../../lib/api';
 import { useStore } from '../../stores/useAppStore';
 import { persistenceScope } from '../../services/persistence/db';
 import { saveRemoteWorkspace, workspacePayload } from '../../services/projects/workspace';
+import { RollbackDialog } from './RollbackDialog';
 
 const Receipt = z.object({ selection: PublishRequest, fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
 // These POST rejections occur before a job is created. Other outcomes must keep their recovery UUID.
@@ -37,7 +39,7 @@ const copy: Record<string,string> = {
   stale:'Účet alebo projekt sa zmenil. Oneskorený výsledok sa nepoužil.',
 };
 async function call(path:string, signal:AbortSignal, body?:unknown) {
-  const response=await fetch('/api/publish'+path,{method:body===undefined?'GET':'POST',credentials:'include',cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(110_000)]),...(body===undefined?{}:{headers:apiHeaders(),body:JSON.stringify(body)})});
+  const response=await fetch(apiUrl('/api/publish'+path),{method:body===undefined?'GET':'POST',credentials:'include',cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(110_000)]),...(body===undefined?{}:{headers:apiHeaders(),body:JSON.stringify(body)})});
   const data=await response.json().catch(()=>null);
   if(!response.ok) {
     const code=typeof data?.error==='string'?data.error:'publish_unavailable';
@@ -53,7 +55,7 @@ async function digest(text:string) { return Array.from(new Uint8Array(await cryp
 export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}) {
   const state=useStore(),dialog=useRef<HTMLDialogElement>(null),controller=useRef<AbortController|null>(null),alive=useRef(false);
   const [ready,setReady]=useState<PublishReady|null>(null),[busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[error,setError]=useState(''),[result,setResult]=useState<PublishResult|null>(null);
-  const [uncertain,setUncertain]=useState(false),[historicalResult,setHistoricalResult]=useState(false);
+  const [uncertain,setUncertain]=useState(false),[historicalResult,setHistoricalResult]=useState(false),[rollbackOpen,setRollbackOpen]=useState(false);
   const scope=persistenceScope(),epoch=useRef(scope.epoch).current,projectId=useRef(state.projectId).current;
   const snapshot=state.viewing??state.snapshots.find(s=>s.id===state.liveId);
   const blocked=state.generating||state.sandboxBuilding||!!state.pendingReview||state.codeDraftDirty||state.edEditing||!snapshot;
@@ -131,5 +133,7 @@ export function PublishDialog({userId,onClose}:{userId?:string;onClose:()=>void}
     {result?.state==='withdrawn'&&<p role="status">Verejný odkaz bol odvolaný.</p>}
     {result?.state==='failed'&&<div role="alert"><p>{copy[result.error??'']??'Zostavenie alebo uloženie zlyhalo.'}</p>{result.errors.map((e,i)=><p key={i}>{e.file}: {e.message}</p>)}</div>}
     {result?.state==='published'&&<p role="status">{historicalResult?'Publikovaná bola predchádzajúca uložená verzia. Aktuálne zdroje tým nie sú publikované.':'Publikované'} · revízia {result.revision} · <a href={result.url!} target="_blank" rel="noopener noreferrer">{historicalResult?'Otvoriť publikáciu predchádzajúcej verzie':'Otvoriť verejnú aplikáciu'}</a></p>}
+    {userId&&projectId?<p><button type="button" disabled={busy} onClick={()=>setRollbackOpen(true)}>Obnoviť predchádzajúcu verziu…</button></p>:null}
+    {rollbackOpen?<RollbackDialog projectId={projectId} onClose={()=>setRollbackOpen(false)}/>:null}
   </dialog>;
 }

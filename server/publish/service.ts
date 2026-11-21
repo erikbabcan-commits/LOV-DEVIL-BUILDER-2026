@@ -27,6 +27,39 @@ import {
   type PublishConfig,
 } from "./config";
 export { PublishError } from "./config";
+import {
+  checkCustomDomain,
+  newVerificationToken,
+  uniqueSlug,
+  verifyCustomDomain,
+  type DnsLookup,
+} from "./router";
+import {
+  listPublishVersions,
+  PublishVersionList,
+  rollbackLiveAddress,
+  type PublishRollbackRequest,
+} from "./rollback";
+/** Fresh-transaction attempts for a slug insert that lost a unique race (P3-1). */
+const SLUG_INSERT_ATTEMPTS = 3;
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "23505";
+}
+/** Unverified custom-domain claims expire after 72 h (Bora W2 P2-2 a). */
+export const CUSTOM_DOMAIN_PENDING_TTL_MS = 72 * 60 * 60 * 1000;
+/** Max unexpired pending custom-domain claims per account (Bora W2 P2-2 c). */
+export const MAX_PENDING_CUSTOM_DOMAINS = 5;
+/** Verified claims never expire here; legacy pending rows without expires_at age from created_at. */
+function pendingClaimExpired(
+  row: { status: string; created_at: Date | string; expires_at: Date | string | null },
+  now: number,
+): boolean {
+  if (row.status !== "pending_verification") return false;
+  const expires = row.expires_at
+    ? new Date(row.expires_at).getTime()
+    : new Date(row.created_at).getTime() + CUSTOM_DOMAIN_PENDING_TTL_MS;
+  return Number.isFinite(expires) && expires <= now;
+}
 type StoragePhase = "legacy_unknown" | "compiling" | "writing" | "retained" | "empty";
 type Receipt = { sha256: string; bytes: number };
 interface Row {
@@ -537,10 +570,364 @@ export class PublishService {
       await this.fail(row,error,errors,receipt).catch(() => {});
     } finally { if (timer) clearTimeout(timer); }
   }
+  /**
+   * Assign or return the project's stable DNS slug (deterministic, unique, reserved-safe).
+   * The project row lock does not cover the candidate slug, so a concurrent insert
+   * can raise 23505. Retry in a fresh transaction (which sees the winner's slug
+   * and picks the next suffix); after SLUG_INSERT_ATTEMPTS it is a typed 409
+   * instead of a raw 503 (Bora W2 P3-1).
+   */
+  async ensureProjectSlug(
+    owner: string,
+    projectId: string,
+    seed?: string,
+  ): Promise<{ slug: string; created: boolean }> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.ensureProjectSlugOnce(owner, projectId, seed);
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+        if (attempt >= SLUG_INSERT_ATTEMPTS) throw new PublishError("publish_slug_conflict", 409);
+      }
+    }
+  }
+
+  private async ensureProjectSlugOnce(
+    owner: string,
+    projectId: string,
+    seed?: string,
+  ): Promise<{ slug: string; created: boolean }> {
+    return this.owner(owner, async (tx) => {
+      const project = await tx.query(
+        "SELECT title FROM builder_projects WHERE owner_id=$1 AND project_id=$2 AND deleted_at IS NULL FOR UPDATE",
+        [owner, projectId],
+      );
+      if (!project.rows.length)
+        throw new PublishError("publish_project_not_found", 404);
+      const existing = (
+        await tx.query(
+          "SELECT slug FROM publish_project_slugs WHERE owner_id=$1 AND project_id=$2",
+          [owner, projectId],
+        )
+      ).rows[0] as { slug: string } | undefined;
+      if (existing) return { slug: existing.slug, created: false };
+      const title = String(project.rows[0].title ?? projectId);
+      const slug = await uniqueSlug(seed ?? title, async (candidate) => {
+        const hit = await tx.query(
+          "SELECT 1 FROM publish_project_slugs WHERE slug=$1",
+          [candidate],
+        );
+        if (hit.rows.length > 0) return true;
+        // Released slugs of hard-deleted projects are never reused (TIC TAC P2-3).
+        const tomb = await tx.query(
+          "SELECT 1 FROM publish_slug_tombstones WHERE slug=$1",
+          [candidate],
+        );
+        return tomb.rows.length > 0;
+      });
+      await tx.query(
+        "INSERT INTO publish_project_slugs(owner_id, project_id, slug) VALUES($1,$2,$3)",
+        [owner, projectId, slug],
+      );
+      return { slug, created: true };
+    });
+  }
+
+  /**
+   * Hard-delete an owned project (soft-deleted or not) and everything it serves,
+   * in ONE owner transaction (TIC TAC P2-3): withdraw every publication (so
+   * /p/<artifact>/ and /p/live/<alias>/ stop serving even though publish_jobs
+   * rows survive the project FK cascade), drop the live address, release custom
+   * domains, tombstone and release the slug, then delete the project row.
+   * Nothing is served under the old slug or domain once they become claimable,
+   * and the slug itself is never handed to another project.
+   */
+  async hardDeleteProject(
+    owner: string,
+    projectId: string,
+  ): Promise<{ slug: string | null; domains: string[]; withdrawn: number }> {
+    return this.owner(owner, async (tx) => {
+      const project = await tx.query(
+        "SELECT project_id FROM builder_projects WHERE owner_id=$1 AND project_id=$2 FOR UPDATE",
+        [owner, projectId],
+      );
+      if (!project.rows.length)
+        throw new PublishError("publish_project_not_found", 404);
+      const slug = (
+        await tx.query(
+          "SELECT slug FROM publish_project_slugs WHERE owner_id=$1 AND project_id=$2",
+          [owner, projectId],
+        )
+      ).rows[0] as { slug: string } | undefined;
+      const withdrawn = await tx.query(
+        `UPDATE publish_jobs SET withdrawn_at=$3
+         WHERE owner_id=$1 AND project_id=$2 AND state='published' AND withdrawn_at IS NULL
+         RETURNING request_id`,
+        [owner, projectId, new Date(this.now()).toISOString()],
+      );
+      await tx.query(
+        "DELETE FROM publish_live_addresses WHERE owner_id=$1 AND project_id=$2",
+        [owner, projectId],
+      );
+      const domains = await tx.query(
+        "DELETE FROM publish_custom_domains WHERE owner_id=$1 AND project_id=$2 RETURNING domain",
+        [owner, projectId],
+      );
+      if (slug) {
+        const tombstoned = await tx.query(
+          "SELECT 1 FROM publish_slug_tombstones WHERE slug=$1",
+          [slug.slug],
+        );
+        if (!tombstoned.rows.length)
+          await tx.query(
+            "INSERT INTO publish_slug_tombstones(slug, released_at) VALUES($1,$2)",
+            [slug.slug, new Date(this.now()).toISOString()],
+          );
+        await tx.query(
+          "DELETE FROM publish_project_slugs WHERE owner_id=$1 AND project_id=$2",
+          [owner, projectId],
+        );
+      }
+      await tx.query(
+        "DELETE FROM builder_projects WHERE owner_id=$1 AND project_id=$2",
+        [owner, projectId],
+      );
+      return {
+        slug: slug?.slug ?? null,
+        domains: (domains.rows as Array<{ domain: string }>).map((row) => row.domain).sort(),
+        withdrawn: withdrawn.rows.length,
+      };
+    });
+  }
+
+  async getProjectSlug(
+    owner: string,
+    projectId: string,
+  ): Promise<string | null> {
+    const row = (
+      await this.db.query(
+        "SELECT slug FROM publish_project_slugs WHERE owner_id=$1 AND project_id=$2",
+        [owner, projectId],
+      )
+    ).rows[0] as { slug: string } | undefined;
+    return row?.slug ?? null;
+  }
+
+  /**
+   * Register a custom domain in pending_verification. No live DNS mutation.
+   * Bora W2 P2-2: strict hostname check, unverified claims expire after 72 h
+   * (an expired claim may be taken over atomically by another account; verified
+   * claims never expire here), and at most 5 unexpired pending claims per account.
+   */
+  async registerCustomDomain(
+    owner: string,
+    projectId: string,
+    domainRaw: string,
+  ): Promise<{
+    domain: string;
+    status: "pending_verification" | "verified";
+    verificationToken: string;
+    expiresAt: string | null;
+  }> {
+    const checked = checkCustomDomain(domainRaw);
+    if (!checked.ok) throw new PublishError(checked.error, 400);
+    const domain = checked.domain;
+    try {
+      return await this.claimCustomDomain(owner, projectId, domain);
+    } catch (error) {
+      // Two accounts inserting the same new domain at once: PRIMARY KEY(domain)
+      // decides the winner; the loser gets the same 409 as a sequential claim (P3-1).
+      if (isUniqueViolation(error)) throw new PublishError("publish_domain_taken", 409);
+      throw error;
+    }
+  }
+
+  private async claimCustomDomain(
+    owner: string,
+    projectId: string,
+    domain: string,
+  ): Promise<{
+    domain: string;
+    status: "pending_verification" | "verified";
+    verificationToken: string;
+    expiresAt: string | null;
+  }> {
+    return this.owner(owner, async (tx) => {
+      const project = await tx.query(
+        "SELECT project_id FROM builder_projects WHERE owner_id=$1 AND project_id=$2 AND deleted_at IS NULL FOR UPDATE",
+        [owner, projectId],
+      );
+      if (!project.rows.length)
+        throw new PublishError("publish_project_not_found", 404);
+      const now = this.now();
+      const nowIso = new Date(now).toISOString();
+      const expiresAt = new Date(now + CUSTOM_DOMAIN_PENDING_TTL_MS).toISOString();
+      const existing = (
+        await tx.query(
+          `SELECT owner_id, domain, status, verification_token, created_at, expires_at
+           FROM publish_custom_domains WHERE domain=$1 FOR UPDATE`,
+          [domain],
+        )
+      ).rows[0] as
+        | {
+            owner_id: string;
+            domain: string;
+            status: "pending_verification" | "verified";
+            verification_token: string;
+            created_at: Date | string;
+            expires_at: Date | string | null;
+          }
+        | undefined;
+      if (existing && existing.owner_id === owner) {
+        if (pendingClaimExpired(existing, now)) {
+          // Own lapsed claim: renewing counts against the pending cap like a new claim.
+          await this.assertPendingDomainCapacity(tx, owner, nowIso);
+          await tx.query(
+            `UPDATE publish_custom_domains SET created_at=$3, expires_at=$4
+             WHERE domain=$1 AND owner_id=$2 AND status='pending_verification'`,
+            [domain, owner, nowIso, expiresAt],
+          );
+          return {
+            domain: existing.domain,
+            status: "pending_verification" as const,
+            verificationToken: existing.verification_token,
+            expiresAt,
+          };
+        }
+        return {
+          domain: existing.domain,
+          status: existing.status,
+          verificationToken: existing.verification_token,
+          expiresAt: existing.expires_at ? new Date(existing.expires_at).toISOString() : null,
+        };
+      }
+      if (existing && !pendingClaimExpired(existing, now))
+        throw new PublishError("publish_domain_taken", 409);
+      await this.assertPendingDomainCapacity(tx, owner, nowIso);
+      const token = newVerificationToken();
+      if (existing) {
+        // Expired unverified claim of another account: compare-and-swap on the
+        // exact row we read, so a concurrent verify or takeover wins exactly once.
+        const taken = await tx.query(
+          `UPDATE publish_custom_domains
+           SET owner_id=$2, project_id=$3, verification_token=$4, created_at=$5, expires_at=$6, verified_at=NULL
+           WHERE domain=$1 AND owner_id=$7 AND status='pending_verification' AND verification_token=$8
+           RETURNING domain`,
+          [domain, owner, projectId, token, nowIso, expiresAt, existing.owner_id, existing.verification_token],
+        );
+        if (!taken.rows.length) throw new PublishError("publish_domain_taken", 409);
+      } else {
+        await tx.query(
+          `INSERT INTO publish_custom_domains(owner_id, project_id, domain, status, verification_token, created_at, expires_at)
+           VALUES($1,$2,$3,'pending_verification',$4,$5,$6)`,
+          [owner, projectId, domain, token, nowIso, expiresAt],
+        );
+      }
+      return {
+        domain,
+        status: "pending_verification" as const,
+        verificationToken: token,
+        expiresAt,
+      };
+    });
+  }
+
+  private async assertPendingDomainCapacity(tx: DbLike, owner: string, nowIso: string) {
+    const pending = (
+      await tx.query(
+        `SELECT domain FROM publish_custom_domains
+         WHERE owner_id=$1 AND status='pending_verification' AND expires_at > $2`,
+        [owner, nowIso],
+      )
+    ).rows.length;
+    if (pending >= MAX_PENDING_CUSTOM_DOMAINS)
+      throw new PublishError("publish_domain_limit", 429);
+  }
+
+  /** Owner releases a domain (pending or verified). Non-owners get 404, never 403. */
+  async deleteCustomDomain(
+    owner: string,
+    projectId: string,
+    domainRaw: string,
+  ): Promise<{ domain: string; deleted: true }> {
+    const checked = checkCustomDomain(domainRaw, []);
+    if (!checked.ok) throw new PublishError("publish_domain_not_found", 404);
+    return this.owner(owner, async (tx) => {
+      const deleted = await tx.query(
+        `DELETE FROM publish_custom_domains
+         WHERE owner_id=$1 AND project_id=$2 AND domain=$3
+         RETURNING domain`,
+        [owner, projectId, checked.domain],
+      );
+      if (!deleted.rows.length)
+        throw new PublishError("publish_domain_not_found", 404);
+      return { domain: checked.domain, deleted: true as const };
+    });
+  }
+
+  async verifyProjectDomain(
+    owner: string,
+    domain: string,
+    lookup: DnsLookup,
+    baseDomain?: string,
+  ): Promise<"pending_verification" | "verified"> {
+    return this.owner(owner, (tx) =>
+      verifyCustomDomain(tx, owner, domain, lookup, baseDomain),
+    );
+  }
+
+  async listProjectDomains(owner: string, projectId: string) {
+    const rows = (
+      await this.db.query(
+        `SELECT domain, status, verification_token, verified_at, expires_at
+         FROM publish_custom_domains
+         WHERE owner_id=$1 AND project_id=$2
+         ORDER BY created_at ASC`,
+        [owner, projectId],
+      )
+    ).rows as Array<{
+      domain: string;
+      status: "pending_verification" | "verified";
+      verification_token: string;
+      verified_at: Date | string | null;
+      expires_at: Date | string | null;
+    }>;
+    return rows.map((row) => ({
+      domain: row.domain,
+      status: row.status,
+      verificationToken: row.verification_token,
+      verifiedAt: row.verified_at
+        ? new Date(row.verified_at).toISOString()
+        : null,
+      expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+    }));
+  }
+
+  /**
+   * Versions for the rollback UI plus the live address version token. The server
+   * keeps the strict optimistic check in promote(); a stale token still gets 409.
+   */
+  async listVersions(
+    owner: string,
+    projectId: string,
+  ): Promise<PublishVersionList> {
+    const live = await this.liveAddress(owner, projectId);
+    const versions = await listPublishVersions(this.db, owner, projectId);
+    return PublishVersionList.parse({ liveVersion: live?.version ?? null, versions });
+  }
+
+  async rollback(
+    owner: string,
+    projectId: string,
+    selection: PublishRollbackRequest,
+  ) {
+    return rollbackLiveAddress(this, owner, projectId, selection);
+  }
   async settled(): Promise<void> {
     await Promise.all([...this.jobs.values()]);
   }
 }
+
 /** Refuse to start publication without its storage, lease and withdrawal columns. */
 export async function probePublishSchema(db: DbLike): Promise<boolean> {
   try {

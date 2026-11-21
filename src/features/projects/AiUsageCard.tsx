@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AiUsageSchema, type AiUsage } from '../../../shared/aiUsage';
 import { AI_QUOTA_CHANGED } from '../../services/ai/usage';
+import { apiUrl } from '../../lib/api';
 
 /** Mounted only inside the account-keyed project dialog. Never replace missing
  * consumption with zero; background refresh errors hide the stale snapshot. */
@@ -13,7 +14,7 @@ export function AiUsageCard() {
     const refresh = async () => {
       pending?.abort(); const controller = new AbortController(); pending = controller;
       try {
-        const response = await fetch('/api/ai-usage', { credentials: 'same-origin', signal: controller.signal, cache: 'no-store' });
+        const response = await fetch(apiUrl('/api/ai-usage'), { credentials: 'include', signal: controller.signal, cache: 'no-store' });
         if (!response.ok) throw new Error('unavailable');
         const parsed = AiUsageSchema.parse(await response.json());
         if (active && !controller.signal.aborted) { setReport(parsed); setError(false); }

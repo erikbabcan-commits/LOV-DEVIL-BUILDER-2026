@@ -7,13 +7,16 @@ import { cloudBearer, CLOUD_AUTH_HEADER } from '../auth/cloud';
 import type { githubCloud } from '../integrations/githubCloud';
 import type { githubExporter } from '../integrations/githubExporter';
 import { PrepareGitHubExport, ConfirmGitHubExport, CancelGitHubExport, ReadGitHubExport } from '../../shared/githubExportProtocol';
+import type { DbLike } from '../db/pool';
+import { GitHubSyncRequest, githubConnectionExpired, syncToForgeBranch } from '../integrations/gitEngine';
+import { loadGitHubSnapshot } from '../integrations/githubSnapshot';
 
 export const GITHUB_BRIDGE_HEADER = 'X-LOV-GitHub-Bridge';
 export function isCloudGitHubRoute(method: string, path: string): boolean {
   return method === 'GET' ? path === '/api/cloud-github/status' : method === 'POST' &&
-    ['/api/cloud-github/start', '/api/cloud-github/finish', '/api/cloud-github/disconnect', ...['prepare', 'confirm', 'status', 'review', 'cancel', 'reconcile'].map(action => '/api/cloud-github/export/' + action)].includes(path);
+    ['/api/cloud-github/start', '/api/cloud-github/finish', '/api/cloud-github/disconnect', ...['prepare', 'confirm', 'status', 'review', 'cancel', 'reconcile', 'sync'].map(action => '/api/cloud-github/export/' + action)].includes(path);
 }
-export interface CloudGitHubWiring { service: ReturnType<typeof githubCloud>; bridgeSecret: string; exporter?: ReturnType<typeof githubExporter> }
+export interface CloudGitHubWiring { service: ReturnType<typeof githubCloud>; bridgeSecret: string; exporter?: ReturnType<typeof githubExporter>; db?: DbLike; fetch?: typeof fetch }
 const nonce = z.string().regex(/^[a-f0-9]{64}$/);
 const startSchema = z.object({ browserNonce: nonce }).strict();
 const finishSchema = z.object({ browserNonce: nonce, state: nonce, code: z.string().regex(/^[A-Za-z0-9_-]{1,512}$/) }).strict();
@@ -74,6 +77,40 @@ export function githubCloudRouter(wiring: CloudGitHubWiring, allow: (key: string
       : action === 'reconcile' ? await wiring.exporter.reconcile(owner, ReadGitHubExport.parse(input).requestId, c.req.raw.signal)
       : await wiring.exporter[action](owner, ReadGitHubExport.parse(input).requestId);
     if ('error' in result) return c.json(result, result.error.endsWith('not_found') ? 404 : result.error === 'invalid_export_request' || result.error === 'public_confirmation_required' ? 400 : 409);
+    return c.json(result);
+  });
+
+  router.post('/api/cloud-github/export/sync', async c => {
+    const owner = getUserFromContext(c)!.id;
+    const parsed = GitHubSyncRequest.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success || !parsed.data.selection) return c.json({ error: 'invalid_export_request' }, 400);
+    if (!wiring.db) return c.json({ error: 'github_export_not_configured' }, 503);
+    const access = await wiring.service.exportAccess(owner);
+    if (!access) {
+      if (await githubConnectionExpired(wiring.db, owner))
+        return c.json({ error: 'github_reauth_required' }, 401);
+      return c.json({ error: 'github_not_connected' }, 409);
+    }
+    const snapshot = await loadGitHubSnapshot(wiring.db, owner, parsed.data.selection);
+    if (!snapshot.ok) return c.json({ error: snapshot.error }, snapshot.error.endsWith('not_found') ? 404 : 409);
+    const result = await access.run(credentials => syncToForgeBranch({
+      ...credentials,
+      repoName: parsed.data.repoName,
+      files: snapshot.files,
+      slugSeed: parsed.data.slugSeed,
+      checkpointSha: parsed.data.checkpointSha,
+      signal: c.req.raw.signal,
+      ...(wiring.fetch ? { fetch: wiring.fetch } : {}),
+    }));
+    if (!result.ok) {
+      const status = result.error === 'github_reauth_required' ? 401
+        : result.error === 'private_repo_not_allowed' ? 403
+        : result.error === 'github_repo_not_found' ? 404
+        : result.error === 'invalid_export' ? 400
+        : result.error === 'github_write_failed' ? 502
+        : 409;
+      return c.json(result, status);
+    }
     return c.json(result);
   });
   return router;

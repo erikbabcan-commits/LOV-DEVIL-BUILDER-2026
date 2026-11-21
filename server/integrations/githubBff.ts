@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PrepareGitHubExport, ConfirmGitHubExport, CancelGitHubExport, ReadGitHubExport, GitHubExportJob, GitHubExportReview, GitHubExportError } from '../../shared/githubExportProtocol';
+import { PrepareGitHubExport, ConfirmGitHubExport, CancelGitHubExport, ReadGitHubExport, GitHubExportJob, GitHubExportReview, GitHubExportError, GitHubRepoName } from '../../shared/githubExportProtocol';
 // Standalone BFF core: no Hono or JOSE runtime dependency in the UI server.
 const CLOUD_AUTH_HEADER = 'X-LOV-Cloud-Authorization';
 const GITHUB_BRIDGE_HEADER = 'X-LOV-GitHub-Bridge';
@@ -9,6 +9,37 @@ const COOKIE = '__Host-lov-github-nonce';
 const ROOT = '/api/github-connect/';
 const finish = z.object({ state: z.string().regex(/^[a-f0-9]{64}$/), code: z.string().regex(/^[A-Za-z0-9_-]{1,512}$/) }).strict();
 const status = z.union([z.object({ connected: z.literal(false) }), z.object({ connected: z.literal(true), username: z.string().regex(/^[A-Za-z0-9-]{1,39}$/), githubId: z.number().int().positive(), scopes: z.tuple([z.literal('public_repo')]) })]);
+/* export/sync (agent 3, server route POST /api/cloud-github/export/sync). Mirrors
+   GitHubSyncRequest/GitHubSyncResult in server/integrations/gitEngine.ts, kept local so
+   this BFF core stays free of server runtime imports. */
+const gitSha = z.string().regex(/^[a-f0-9]{40}$/);
+const syncRequest = z.object({
+  repoName: GitHubRepoName,
+  slugSeed: z.string().min(1).max(200),
+  checkpointSha: gitSha.nullable().optional(),
+  confirmed: z.literal(true),
+  selection: z.object({
+    projectId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+    snapshotId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+    expectedRevision: z.number().int().positive().max(2_147_483_646),
+  }).strict(),
+}).strict();
+const syncSuccess = z.object({
+  ok: z.literal(true), branch: z.string().regex(/^forge\/[a-z0-9-]{1,100}$/), commitSha: gitSha,
+  pullNumber: z.number().int().positive(), pullUrl: z.string().url().max(500), filesUploaded: z.number().int().min(0),
+  repoFullName: z.string().max(200), repoUrl: z.string().url().max(500), repositoryId: z.number().int().positive(), createdPull: z.boolean(),
+}).strict();
+const syncFailure = z.union([
+  z.object({ ok: z.literal(false), error: z.literal('remote_changed'), changedPaths: z.array(z.string().max(512)).max(2000), checkpointSha: gitSha, remoteSha: gitSha }).strict(),
+  z.object({ ok: z.literal(false), error: z.enum(['private_repo_not_allowed', 'github_reauth_required', 'invalid_export', 'github_write_failed', 'github_repo_not_found', 'default_branch_forbidden']) }).strict(),
+]);
+/* The route itself (githubCloud.ts) answers an expired connection with a bare
+   { error: 'github_reauth_required' } (no ok field); normalize it to the typed
+   sync failure instead of collapsing to github_connection_failed (Bora W2 P3-3).
+   Only the literal code is read; nothing else from the body is forwarded. */
+const syncRouteReauth = z.object({ error: z.literal('github_reauth_required') });
+const SYNC = 'export/sync';
+
 const safeHeaders = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
 const reply = (body: unknown, code = 200) => Response.json(body, { status: code, headers: safeHeaders });
 
@@ -52,13 +83,13 @@ export function makeGitHubBff(deps: {
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url), action = url.pathname.slice(ROOT.length);
     if (url.protocol !== 'https:' || url.origin !== callback.origin || !url.pathname.startsWith(ROOT) || url.search ||
-      !['start', 'finish', 'status', 'disconnect', 'export/prepare', 'export/confirm', 'export/status', 'export/review', 'export/cancel', 'export/reconcile'].includes(action) || request.method !== (action === 'status' ? 'GET' : 'POST')) return reply({ error: 'github_route_unavailable' }, 404);
+      !['start', 'finish', 'status', 'disconnect', 'export/prepare', 'export/confirm', 'export/status', 'export/review', 'export/cancel', 'export/reconcile', SYNC].includes(action) || request.method !== (action === 'status' ? 'GET' : 'POST')) return reply({ error: 'github_route_unavailable' }, 404);
     if (request.headers.get('sec-fetch-site') === 'cross-site' || (request.headers.has('Origin') && request.headers.get('Origin') !== url.origin) ||
       (request.method === 'POST' && request.headers.get('Origin') !== url.origin)) return reply({ error: 'origin_not_allowed' }, 403);
     if (request.method === 'POST' && request.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase() !== 'application/json') return reply({ error: 'json_required' }, 415);
     const token = bearerToken(request.headers.get('Authorization') ?? undefined);
     if (!token) return reply({ error: 'cloud_identity_required' }, 401);
-    const signal = AbortSignal.any([request.signal, AbortSignal.timeout(action === 'export/confirm' ? 75_000 : action === 'export/reconcile' ? 35_000 : 15_000)]);
+    const signal = AbortSignal.any([request.signal, AbortSignal.timeout(action === 'export/confirm' || action === SYNC ? 75_000 : action === 'export/reconcile' ? 35_000 : 15_000)]);
     let nonce: string | undefined;
     try {
       // The deadline also covers providers that don't themselves honor AbortSignal.
@@ -75,7 +106,11 @@ export function makeGitHubBff(deps: {
       let body: unknown;
       if (request.method === 'POST') {
         const input = await readJson(request.body, 2048, signal);
-        if (action.startsWith('export/')) {
+        if (action === SYNC) {
+          const parsed = syncRequest.safeParse(input);
+          if (!parsed.success) return reply({ error: 'invalid_export_request' }, 400);
+          body = parsed.data;
+        } else if (action.startsWith('export/')) {
           const schema = action === 'export/prepare' ? PrepareGitHubExport : action === 'export/confirm' ? ConfirmGitHubExport : action === 'export/cancel' ? CancelGitHubExport : ReadGitHubExport;
           const parsed = schema.safeParse(input);
           if (!parsed.success) return reply({ error: 'invalid_export_request' }, 400);
@@ -107,6 +142,16 @@ export function makeGitHubBff(deps: {
       });
       if (!upstream.ok) {
         let error = 'github_connection_failed';
+        const errorStatus = [400, 401, 403, 404, 409, 410, 413, 422, 429, 502, 503].includes(upstream.status) ? upstream.status : 502;
+        if (action === SYNC) {
+          // Keep the typed sync failure (remote_changed carries changedPaths); other bodies collapse to export errors.
+          const raw = await readJson(upstream.body, 65536, signal);
+          const failure = syncFailure.safeParse(raw);
+          if (failure.success) return reply(failure.data, errorStatus);
+          if (upstream.status === 401 && syncRouteReauth.safeParse(raw).success) return reply({ ok: false, error: 'github_reauth_required' }, 401);
+          const parsed = z.object({ error: GitHubExportError }).safeParse(raw);
+          return reply({ error: parsed.success ? parsed.data.error : error }, errorStatus);
+        }
         if (action.startsWith('export/')) {
           const parsed = z.object({ error: GitHubExportError }).safeParse(await readJson(upstream.body, 16384, signal));
           if (parsed.success) error = parsed.data.error;
@@ -116,7 +161,8 @@ export function makeGitHubBff(deps: {
       const isReview = action === 'export/prepare' || action === 'export/review';
       const data = await readJson(upstream.body, isReview ? 65536 : 16384, signal);
       let result: Response;
-      if (action.startsWith('export/')) result = reply(isReview ? GitHubExportReview.parse(data) : GitHubExportJob.parse(data));
+      if (action === SYNC) result = reply(syncSuccess.parse(data));
+      else if (action.startsWith('export/')) result = reply(isReview ? GitHubExportReview.parse(data) : GitHubExportJob.parse(data));
       else if (action === 'status') result = reply(status.parse(data));
       else if (action === 'start') {
         const value = z.object({ authorizationUrl: z.string() }).parse(data);

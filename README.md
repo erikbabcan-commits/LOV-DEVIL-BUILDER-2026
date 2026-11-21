@@ -49,12 +49,36 @@ Spustenie tohto koreňového Vite projektu samo neotvára Lovable frontend.
 
 ## 🚀 Rýchly štart
 
+Ak sa nachádzaš v nadradenom priečinku, najprv sa prepni do adresára repozitára:
+
 ```bash
-git clone https://github.com/erikbabcan-commits/LOV-DEVIL-BUILDER-2026.git
-cd LOV-DEVIL-BUILDER-2026
+cd LOV-DEVIL-BUILDER-2026-main # alebo cd ~/Projekty/LOV-DEVIL-BUILDER-2026/LOV-DEVIL-BUILDER-2026-main
 ```
 
-Aktuálny React pilot potrebuje Node.js a lokálnu inštaláciu závislostí:
+### 1. Spustenie lokálneho vývoja (Backend + Frontend)
+
+Vytvor `.env` v koreni projektu so svojím API kľúčom (napr. pre Mistral AI):
+```env
+MISTRAL_API_KEY=tvoj_mistral_api_kluc
+MISTRAL_MODEL=codestral-latest
+```
+
+V **dvoch oddelených termináloch** spusti nasledujúce 2 príkazy:
+
+* **Terminál 1 — Backend (AI engine + API na porte 8787):**
+  ```bash
+  npm run server:dev
+  ```
+  *(Ak nemáš API kľúč a chceš testovať lokálne bez kľúčov cez Mock AI, použi: `npm run server:mock`)*
+
+* **Terminál 2 — Frontend (Vite app na http://localhost:5173):**
+  ```bash
+  npm run dev
+  ```
+
+Po spustení otvor v prehliadači **http://localhost:5173**. V hornej lište aj v poli promptu je zobrazený vybraný model (napr. `Model: Codestral`), po odoslaní zadania sa automaticky spustí AI agent.
+
+### Inštalácia závislostí a verifikácia:
 
 ```bash
 npm ci
@@ -63,10 +87,19 @@ MISTRAL_API_KEY= OPENAI_API_KEY= ANTHROPIC_API_KEY= npm test -- --exclude '**/li
 npm run build
 ```
 
-Na lokálne skúšanie backendu a UI použite v oddelených termináloch
-`npm run server:mock` a `npm run dev`. Backend je určený iba pre loopback
-single-user pilot, bez skutočného produkčného AI kľúča. `demo/index.html` možno
-otvoriť samostatne bez build nástrojov, ale je to **historická referencia**.
+### 🌐 Nasadenie frontendu na Vercel (Statická Vite aplikácia)
+
+Frontend repozitára možno nasadiť na Vercel ako samostatnú statickú aplikáciu:
+- **Framework Preset**: Vite
+- **Build Command**: `npm run build` (vykonáva `tsc --noEmit && vite build`)
+- **Output Directory**: `dist`
+- **SPA Routing**: Konfigurácia v `vercel.json` zabezpečuje fallback na `/index.html` pre klientske cesty a zároveň striktne vynecháva `/api` a `/api/*` požiadavky, aby nedochádzalo k ich nechcenému prepisovaniu na HTML.
+
+**Verejné premenné prostredia (Environment Variables):**
+- `VITE_API_BASE_URL` *(voliteľné)*: Verejná adresa produkčného backendového API (napr. `https://api.lov-devil.sk`).
+  - Ak nie je nastavená, frontend používa relatívne cesty `/api/...` (predvolené pre lokálny vývoj cez Vite proxy aj prevádzku za spoločným reverzným proxy).
+  - **Bezpečnostné pravidlo**: Do `VITE_*` premenných nikdy nevkladajte žiadne privátne tajomstvá, kľúče ani heslá; premenné s prefixom `VITE_` sa vkladajú do verejného klientskeho balíčka.
+- `VITE_AI_API_BASE` *(voliteľné)*: Voliteľná verejná adresa pre oddelený AI runner/sandbox backend (ak sa nepoužije, predvolene sa použije `VITE_API_BASE_URL` alebo relatívne cesty).
 
 V historickom deme: **Ctrl+Enter** odoslať · **Ctrl+K** zamerať prompt ·
 **Ctrl+S** uložiť verziu · **Ctrl+Shift+T** spustiť vstavané kontroly.
@@ -94,7 +127,49 @@ V historickom deme: **Ctrl+Enter** odoslať · **Ctrl+K** zamerať prompt ·
 | Custom domény | ✗ | 1 | 10 | neobmedzené |
 | Tím | ✗ | 1 používateľ | 3+ seats | RBAC + SLA |
 
-## 🧪 Kvalita — test suite
+## 🧪 Kvalita — test suite & Best Practices príkazy
+
+Kompletná integračná brána (Full Gate):
+```bash
+npm run typecheck && npm test && npx playwright test -c tests/e2e/playwright.config.ts
+```
+
+### Prehľad funkčných príkazov podľa 8 kategórií testov:
+
+1. **Vizuálna regresia (Pixel-Diffing):**
+   - Aktualizácia snapshotov: `npx playwright test tests/e2e/visual.spec.ts --update-snapshots`
+   - Spustenie porovnania: `npx playwright test tests/e2e/visual.spec.ts`
+   - Grafický diff report: `npx playwright show-report`
+
+2. **Dostupnosť & Kontrast (a11y — WCAG 2.2 AA):**
+   - Playwright axe audit: `npx playwright test tests/e2e/a11y.spec.ts`
+   - Lighthouse CLI audit: `npx lighthouse http://127.0.0.1:5175 --only-categories=accessibility --chrome-flags="--headless"`
+
+3. **Core Web Vitals & UX Výkon (LCP, CLS, INP):**
+   - Kompletný audit výkonu: `npx lighthouse http://127.0.0.1:5175 --only-categories=performance --chrome-flags="--headless"`
+   - Simulácia 4x slow CPU / Fast 3G: `npx playwright test tests/e2e/performance.spec.ts --project=chromium-slow3g`
+
+4. **Responzivita & Viewporty:**
+   - Mobil (iPhone 14, 390x844): `npx playwright test tests/e2e/responsive.spec.ts --device="iPhone 14"`
+   - Tablet (iPad Mini, 768x1024): `npx playwright test tests/e2e/responsive.spec.ts --device="iPad Mini"`
+   - Referenčný monitor (1439x688): `npx playwright test tests/e2e/responsive.spec.ts --viewport-size=1439,688`
+   - 4K displej (2560x1440): `npx playwright test tests/e2e/responsive.spec.ts --viewport-size=2560,1440`
+
+5. **Interakčné & Chaos testy:**
+   - Playwright Chaos Suite: `npx playwright test tests/e2e/chaos.spec.ts --repeat-each=3 --retries=0`
+   - Simulácia výpadku siete: `npx playwright test tests/e2e/network-offline.spec.ts`
+   - Input fuzzing: `npx vitest run tests/unit/prompt-fuzzing.test.ts`
+
+6. **Integrita klientskeho stavu:**
+   - IndexedDB & obnovenie konceptu: `npx vitest run tests/unit/template-flow.test.tsx`
+   - Multi-Tab synchronizácia: `npx playwright test tests/e2e/multi-tab-sync.spec.ts`
+
+7. **Bezpečnosť na úrovni UI (Iframe & Secrets):**
+   - Iframe sandbox atribúty: `npx playwright test tests/e2e/sandbox-security.spec.ts`
+   - AST guard a maskovanie secretov: `npx vitest run tests/unit/ast-guard.test.ts`
+
+8. **Úniky pamäte (Memory Leaks):**
+   - Heap garbage collection test: `node --expose-gc ./node_modules/.bin/vitest run tests/unit/memory-leak.test.ts`
 
 História `demo/index.html` obsahuje vlastné browserové kontroly. Aktuálny
 React/server kód má samostatné Vitest unit/integration testy a Playwright E2E.

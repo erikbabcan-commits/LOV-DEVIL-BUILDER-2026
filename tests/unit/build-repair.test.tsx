@@ -5,6 +5,7 @@ import {useStore} from '../../src/stores/useAppStore';
 import {BuildRepairAction} from '../../src/features/workspace/BuildRepairAction';
 import {ProjectDiff} from '../../src/features/workspace/ProjectDiff';
 import {ReviewPanel} from '../../src/features/workspace/ReviewPanel';
+import {RepairStatus} from '../../src/features/workspace/RepairStatus';
 import {BUILD_REPAIR_FILES} from '../fixtures/buildRepairProject';
 import {PATCH_PROJECT_FILES} from '../fixtures/patchProject';
 const originalSandbox=useStore.getState().runSandbox;
@@ -38,5 +39,43 @@ describe('explicit build repair with immutable review',()=>{
  });
  it('blocks duplicate actions while reviewing, editing or viewing history',async()=>{
   const fetch=vi.fn();vi.stubGlobal('fetch',fetch);for(const gate of [{generating:true},{edEditing:true},{viewing:useStore.getState().snapshots[0]}]){const original={generating:false,edEditing:false,viewing:null};useStore.setState({...original,...gate});await useStore.getState().repairSandbox();expect(fetch).not.toHaveBeenCalled();useStore.setState(original);}
+ });
+});
+
+const failedSteps=(n:number,lastOk=false)=>Array.from({length:n},(_,i)=>[{attempt:i+1,step:'build',status:'failed'},{attempt:i+1,step:'patch',status:'ok'},{attempt:i+1,step:'rebuild',status:lastOk&&i===n-1?'ok':'failed'}]).flat();
+describe('Agent 9: 3 pokusy a RepairStatus',()=>{
+ it('po 3 neúspešných pokusoch nič neaplikuje, nenastaví pendingReview a ukáže posledný funkčný stav',async()=>{
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json(result({ok:false,attempts:3,patchesApplied:3,finalFiles:BUILD_REPAIR_FILES,progress:failedSteps(3)}))));const before=JSON.stringify(useStore.getState().vfs);
+  render(<BuildRepairAction/>);
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Navrhnúť AI opravu'}));});
+  expect(useStore.getState().pendingReview).toBeNull();expect(JSON.stringify(useStore.getState().vfs)).toBe(before);
+  const status=screen.getByRole('status',{name:'AI oprava: neúspech, 3 z 3 pokusov'});
+  expect(status).toHaveTextContent('Ostal posledný funkčný stav projektu');expect(status).toHaveTextContent('Pokus 3 z 3: build zlyhal · AI oprava v poriadku · rebuild zlyhal');
+ });
+ it('oprava na 3. pokus prejde schémou a ide do pendingReview ako doteraz',async()=>{
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json(result({attempts:3,patchesApplied:3,progress:failedSteps(3,true),route:{model:'mistral-small',reason:'short_fix_or_explain'}}))));
+  render(<BuildRepairAction/>);
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Navrhnúť AI opravu'}));});
+  expect(useStore.getState().pendingReview).toMatchObject({source:'patch'});expect(useStore.getState().pendingReview?.files.length).toBeGreaterThan(0);
+  const status=screen.getByRole('status',{name:'AI oprava: úspech, 3 z 3 pokusov'});expect(status).toHaveTextContent('Pokus 3 z 3: build zlyhal · AI oprava v poriadku · rebuild v poriadku');expect(status).toHaveTextContent('Model: mistral-small');
+ });
+ it('bezpečnostný nález ukáže blokujúcu hlášku bez návrhu',async()=>{
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json(result({ok:false,attempts:0,patchesApplied:0,blocked:'security',finalFiles:BUILD_REPAIR_FILES,progress:[]}))));
+  render(<BuildRepairAction/>);
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Navrhnúť AI opravu'}));});
+  expect(useStore.getState().pendingReview).toBeNull();expect(screen.getByRole('status')).toHaveTextContent('AI neopravuje');
+ });
+ it('počas behu ukazuje priebeh a po novom builde starý výsledok skryje',async()=>{
+  let resolve!:(response:Response)=>void;vi.stubGlobal('fetch',vi.fn(()=>new Promise<Response>(done=>{resolve=done;})));
+  render(<BuildRepairAction/>);
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Navrhnúť AI opravu'}));});
+  expect(screen.getByRole('status',{name:'Priebeh AI opravy'})).toHaveAttribute('aria-busy','true');
+  await act(async()=>{resolve(Response.json(result({ok:false,attempts:3,patchesApplied:3,finalFiles:BUILD_REPAIR_FILES,progress:failedSteps(3)})));});
+  expect(screen.getByRole('status')).toHaveTextContent('Pokus 1 z 3');
+  act(()=>{useStore.setState({sandboxErrors:[{file:'src/App.tsx',message:'Iná chyba'}]});});
+  expect(screen.queryByRole('status')).toBeNull();
+ });
+ it('RepairStatus bez behu nič nerenderuje',()=>{
+  render(<RepairStatus progress={{state:'idle',attempts:0,steps:[]}}/>);expect(screen.queryByRole('status')).toBeNull();
  });
 });

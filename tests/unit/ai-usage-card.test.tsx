@@ -7,7 +7,7 @@ describe('honest token usage display',()=>{
   it('shows reported input/output tokens and incomplete coverage',async()=>{
     const fetch=vi.fn().mockResolvedValue(Response.json(report));vi.stubGlobal('fetch',fetch);render(<AiUsageCard/>);
     expect(await screen.findByText(/1 200 vstupných/)).toBeInTheDocument();expect(screen.getByRole('status')).toHaveTextContent('Súčet je preto neúplný');
-    expect(fetch).toHaveBeenCalledWith('/api/ai-usage',expect.objectContaining({credentials:'same-origin',cache:'no-store'}));
+    expect(fetch).toHaveBeenCalledWith('/api/ai-usage',expect.objectContaining({credentials:'include',cache:'no-store'}));
   });
   it('shows unavailable for invalid data and permits an explicit retry',async()=>{
     const fetch=vi.fn().mockResolvedValueOnce(Response.json({...report,reportedCalls:4})).mockResolvedValueOnce(Response.json({...report,calls:0,reportedCalls:0,unknownCalls:0,pendingCalls:0,promptTokens:0,completionTokens:0}));

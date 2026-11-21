@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LOV-DEVIL BUILDER 2026 — Vercel Design Backlog Dashboard</title>
+  <style>
+    :root {
+      --bg: #171717;
+      --card-bg: #1c1c1c;
+      --card-hover: #222222;
+      --border: #2e2e2e;
+      --border-subtle: #262626;
+      --text-main: #ededed;
+      --text-muted: #a1a1a1;
+      --text-dim: #737373;
+      
+      /* Accent colors */
+      --green: #10b981;
+      --green-glow: rgba(16, 185, 129, 0.15);
+      --green-badge: rgba(16, 185, 129, 0.1);
+      
+      --red: #f43f5e;
+      --red-glow: rgba(244, 63, 94, 0.15);
+      --red-badge: rgba(244, 63, 94, 0.1);
+      
+      --orange: #f59e0b;
+      --orange-glow: rgba(245, 158, 11, 0.15);
+      --orange-badge: rgba(245, 158, 11, 0.1);
+
+      --blue: #3b82f6;
+      --blue-badge: rgba(59, 130, 246, 0.1);
+      
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Geist", "Inter", sans-serif;
+      --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding: 32px 24px 64px;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.04) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.04) 0px, transparent 50%);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+    }
+
+    /* Top Navigation / Brand */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #000 0%, #262626 100%);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .brand-title {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-title span {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .live-pulse {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--green-badge);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      box-shadow: 0 0 16px var(--green-glow);
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      background-color: var(--green);
+      border-radius: 50%;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    /* Key Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .metric-card:hover {
+      border-color: #3e3e3e;
+      background: var(--card-hover);
+    }
+
+    .metric-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .metric-val {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .metric-val small {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
+
+    .metric-sub {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
+
+    /* Overall Progress Section */
+    .progress-section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 36px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .progress-bar-bg {
+      height: 10px;
+      background: #262626;
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+      gap: 3px;
+      padding: 2px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .fill-green { width: 92%; background: var(--green); box-shadow: 0 0 12px var(--green-glow); }
+    .fill-orange { width: 6%; background: var(--orange); box-shadow: 0 0 12px var(--orange-glow); }
+    .fill-red { width: 2%; background: var(--red); box-shadow: 0 0 12px var(--red-glow); }
+
+    /* Filters */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: #212121;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-btn:hover {
+      background: #2b2b2b;
+      color: var(--text-main);
+    }
+
+    .filter-btn.active {
+      background: var(--text-main);
+      color: #000;
+      border-color: var(--text-main);
+    }
+
+    .badge-count {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+
+    /* Category & Cards */
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin: 28px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .pill-green { background: var(--green-badge); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .pill-red { background: var(--red-badge); color: var(--red); border: 1px solid rgba(244, 63, 94, 0.25); }
+    .pill-orange { background: var(--orange-badge); color: var(--orange); border: 1px solid rgba(245, 158, 11, 0.25); }
+
+    .task-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 12px;
+      position: relative;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .task-card:hover {
+      transform: translateY(-2px);
+      border-color: #404040;
+    }
+
+    .border-green { border-left: 4px solid var(--green); }
+    .border-red { border-left: 4px solid var(--red); }
+    .border-orange { border-left: 4px solid var(--orange); }
+
+    .task-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      gap: 12px;
+    }
+
+    .task-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .task-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .task-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      flex-wrap: wrap;
+    }
+
+    .task-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    code {
+      background: #111;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #ddd;
+    }
+
+    /* Agent Matrix */
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .agent-card {
+      background: #191919;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 12px;
+    }
+
+    .agent-head {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-dim);
+      font-size: 12px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Top Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z"/></svg>
+        </div>
+        <div class="brand-title">
+          VORKEI <span>/ LOV-DEVIL BUILDER 2026</span>
+        </div>
+      </div>
+      <div class="live-pulse">
+        <div class="pulse-dot"></div>
+        LIVE SPRINT · 1 400 TESTOV ZELENÝCH (0 FAIL)
+      </div>
+    </header>
+
+    <!-- Top Key Metrics -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Celkový počet testov</div>
+        <div class="metric-val">1 400 <small>+220 dnes</small></div>
+        <div class="metric-sub">0 failov · 0 unhandled · 221 skipped</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Stav kompilácie & typov</div>
+        <div class="metric-val" style="color: var(--green);">0 CHÝB</div>
+        <div class="metric-sub">tsc --noEmit & vite build PASS</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Aktuálna fáza</div>
+        <div class="metric-val" style="color: var(--orange);">VLNA 4</div>
+        <div class="metric-sub">Agent 10: Playwright chaos testy bežia</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Review status (Bora)</div>
+        <div class="metric-val" style="color: var(--green);">PASS 1, 2, 3</div>
+        <div class="metric-sub">Vlna 1, 2 aj 3 schválené · P2 opravené</div>
+      </div>
+    </section>
+
+    <!-- Overall Progress Meter -->
+    <div class="progress-section">
+      <div class="progress-header">
+        <span>Celkový postup do produkčného merge</span>
+        <span style="color: var(--green);">92 % DOKONČENÉ</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-fill fill-green" title="Hotové: 92%"></div>
+        <div class="progress-fill fill-orange" title="Prebieha: 6%"></div>
+        <div class="progress-fill fill-red" title="Na opravu: 2%"></div>
+      </div>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterTasks('all')">Všetko <span class="badge-count">22</span></button>
+      <button class="filter-btn" onclick="filterTasks('green')">🟢 Hotové <span class="badge-count">14</span></button>
+      <button class="filter-btn" onclick="filterTasks('red')">🔴 Na Opravu <span class="badge-count">4</span></button>
+      <button class="filter-btn" onclick="filterTasks('orange')">🟠 V Priebehu <span class="badge-count">4</span></button>
+    </div>
+
+    <!-- SECTION 1: HOTOVÉ (GREEN) -->
+    <div class="task-group group-green">
+      <div class="section-title">
+        <span class="status-pill pill-green">Hotové & Otestované (PASS)</span>
+        <span>Základňa, schválené vlny a overené opravy</span>
+      </div>
+
+      <div class="task-card border-green">
+        <div class="task-top">
+          <div class="task-name">PR #76 & Produkčné spevnenie (Krok 0)</div>
+          <span class="status-pill pill-green">PASS</span>
+        </div>
+        <div class="task-desc">Vercel SPA routing v <code>vercel.json</code>, <code>credentials: 'include'</code> pre cross-origin cookie auth, viditeľný a plne funkčný <code>Model: [názov]</code> chip v TopBare, LandingPage a Workspace.</div>
+        <div class="task-meta">
+          <span>Vetva: <code>feat/issue-75-production-vercel</code></span>
+          <span>Commit: <code>c63b9eb</code></span>
+        </div>
+      </div>
+
+      <div class="task-card border-green">
+        <div class="task-top">
+          <div class="task-name">Integrácia PR #77 & Oprava Healthchecku</div>
+          <span class="status-pill pill-green">PASS</span>
+        </div>
+        <div class="task-desc">Schéma <code>023_agent_jobs.sql</code> začlenená. Router middleware izolovaný na <code>/api/agent/jobs*</code>, takže <code>GET /api/health</code> je 100% anonymne 200 OK. Ošetrených 6 volaní <code>saveMeta</code> s <code>.catch</code>.</div>
+        <div class="task-meta">
+          <span>Commit: <code>6dd44d0</code></span>
+          <span>Audit: Bora PASS</span>
+        </div>
+      </div>
+
+      <div class="task-card border-green">
+        <div class="task-top">
+          <div class="task-name">Vlna 1: Trvalé AI Úlohy, AST Guard, Billing & Editor</div>
+          <span class="status-pill pill-green">BORA PASS (c72ee9b)</span>
+        </div>
+        <div class="task-desc">5 agentov úspešne spojených: Agent 1 (Durable Jobs & Worker s idempotenciou a limitom 3 jobov), Agent 2 (SSE fallback na polling), Agent 4 (AST guard pre zakázané API a leštenie secretov), Agent 5 (Stripe idempotencia a grace period), Agent 6 (CodeMirror záložky a fuzzy search Ctrl+P).</div>
+        <div class="task-meta">
+          <span>Agenty: 1, 2, 4, 5, 6</span>
+          <span>Commit: <code>c72ee9b</code></span>
+        </div>
+      </div>
+
+      <div class="task-card border-green">
+        <div class="task-top">
+          <div class="task-name">Vlna 2: GitHub Cloud Sync & Publikačný Engine</div>
+          <span class="status-pill pill-green">BORA PASS (bf600fb)</span>
+        </div>
+        <div class="task-desc">Agent 3 (GitHub sync do forge vetiev a PR), Agent 7 (subdomény a nemenné snapshoty), Agent 8 (Smart Router kaskáda a výpočet nákladov). Bora udelila PASS: 0 P0, 0 P1.</div>
+        <div class="task-meta">
+          <span>Agenty: 3, 7, 8</span>
+          <span>Testy: 1 368 pass</span>
+        </div>
+      </div>
+
+      <div class="task-card border-green">
+        <div class="task-top">
+          <div class="task-name">Opravy Vlny 2: Rollback UI, Expirácia Domén & Ochrana Slugov</div>
+          <span class="status-pill pill-green">VERIFIED (5d106f6)</span>
+        </div>
+        <div class="task-desc">Vyriešené oba P2 nálezy: UI Rollback 409 opravený zasielaním živej verzie. Ochrana pred doménovým squattingom: 72h expirácia neoverenej domény, možnosť uvoľnenia vlastníkom, max 5 čakajúcich domén a odmietnutie IP/localhost. Zablokované prevzatie slugu po zmazaní projektu.</div>
+        <div class="task-meta">
+          <span>Commit: <code>5d106f6</code></span>
+          <span>Testy: 1 390 pass, 0 fail</span>
+        </div>
+      </div>
+
+      <div class="task-card border-green">
+        <div class="task-top">
+          <div class="task-name">Vlna 3: AI Auto-Fixer, 512 MB Docker & Chromium</div>
+          <span class="status-pill pill-green">BORA PASS (5395459)</span>
+        </div>
+        <div class="task-desc">Agent 9 (autofixer) začlenený: 3 pokusy o samoopravu s bezpečným fallbackom a AST stopom. Zvýšený Docker limit na 512 MB. Smart router s feature flagom a garanciou manuálnej voľby modelu. Nainštalované Chromium pre Agenta 10. Bora udelila PASS (0 P0, 0 P1, 0 P2).</div>
+        <div class="task-meta">
+          <span>Commit: <code>5395459</code></span>
+          <span>Testy: 1 400 pass, 0 fail</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: NA OPRAVU (RED) -->
+    <div class="task-group group-red">
+      <div class="section-title">
+        <span class="status-pill pill-red">Na Opravu & Kontrolné Body (ACTION NEEDED)</span>
+        <span>Zostávajúce úlohy pred ostrým spustením produkcie</span>
+      </div>
+
+      <div class="task-card border-red">
+        <div class="task-top">
+          <div class="task-name">Úloha C: Race Condition pri Súbežných Joboch</div>
+          <span class="status-pill pill-red">TODO OPRAVA</span>
+        </div>
+        <div class="task-desc">Súbežnými HTTP požiadavkami od rovnakého používateľa je možné obísť limit 3 aktívnych jobov. Je nutné doplniť atomický databázový zámok (<code>SELECT ... FOR UPDATE</code> alebo transakčný check constraint) pred zapnutím <code>AGENT_JOBS_WORKER=1</code>.</div>
+        <div class="task-meta">
+          <span>Zaradené v: <code>Úloha C (pred worker launch)</code></span>
+          <span>Priorita: P1</span>
+        </div>
+      </div>
+
+      <div class="task-card border-red">
+        <div class="task-top">
+          <div class="task-name">TIC TAC Bezpečnostné & Tokové P2 Nálezy</div>
+          <span class="status-pill pill-red">V RIEŠENÍ</span>
+        </div>
+        <div class="task-desc">1) Uvoľnenie slotu, keď zlyhá vytvorenie jobu. 2) Oprava toku pri zahodení rozpracovaných zmien (discard). 3) CSRF ochrana, keď frontend (Vercel) a API bežia na rôznych subdoménach.</div>
+        <div class="task-meta">
+          <span>Priorita: P2</span>
+          <span>Rieši: BOSS vetva opráv</span>
+        </div>
+      </div>
+
+      <div class="task-card border-red">
+        <div class="task-top">
+          <div class="task-name">Lovable BFF Deployment pre GitHub Sync</div>
+          <span class="status-pill pill-red">ČAKÁ NA SYNC</span>
+        </div>
+        <div class="task-desc">Nová BFF proxy cesta pre GitHub sync ešte nie je nasadená v bežiacej verzii backendu v Lovable (na živej appke by vrátila 404, kým sa nenasadí).</div>
+        <div class="task-meta">
+          <span>Sledované v: <code>Backlog infra</code></span>
+        </div>
+      </div>
+
+      <div class="task-card border-red">
+        <div class="task-top">
+          <div class="task-name">Nálezy z auditu SEO4WEB (TIC TAC)</div>
+          <span class="status-pill pill-red">PRIPRAVENÉ</span>
+        </div>
+        <div class="task-desc">V <code>index.html</code> chýbajú OpenGraph a Twitter meta tagy; v projekte chýba priečinok <code>public/</code> s <code>manifest.webmanifest</code>, <code>robots.txt</code> a <code>favicon.svg</code> pre čistý Vercel deploy.</div>
+        <div class="task-meta">
+          <span>Pridelené: <code>Mistral Local Agent (PWA Pack)</code></span>
+          <span>Rozsah: 4 drobné nálezy</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: V PRIEBEHU (ORANGE) -->
+    <div class="task-group group-orange">
+      <div class="section-title">
+        <span class="status-pill pill-orange">V Priebehu & Budúce Kroky (IN PROGRESS)</span>
+        <span>Aktuálne bežiace procesy pred uvoľnením na produkciu</span>
+      </div>
+
+      <div class="task-card border-orange">
+        <div class="task-top">
+          <div class="task-name">Vlna 4: Agent 10 (Playwright E2E & Chaos Suite)</div>
+          <span class="status-pill pill-orange">PRÁVE BEŽÍ 🔥</span>
+        </div>
+        <div class="task-desc">Agent 10 bol vyslaný QA & Ship tímom. Testuje lokálne na porte 3002+ s mockmi. Podmienka: 3× po sebe bezchybný prechod celého balíka (výpadok siete počas generovania, responzivita 390/768/1280px, kompletný flow od promptu po export).</div>
+        <div class="task-meta">
+          <span>Stav: QA & Ship Suite</span>
+          <span>Port: 3002+</span>
+        </div>
+      </div>
+
+      <div class="task-card border-orange">
+        <div class="task-top">
+          <div class="task-name">Spojenie Vlny 3 a opravenej Vlny 2 na presné SHA</div>
+          <span class="status-pill pill-orange">NA RADE</span>
+        </div>
+        <div class="task-desc">Po dobehnutí Agenta 10 BOSS spojí vetvy <code>5395459</code> a <code>5d106f6</code> a predloží finálny SHA hash Bore a TIC TAC na záverečný verdikt.</div>
+        <div class="task-meta">
+          <span>Vlastník: BOSS Bot</span>
+        </div>
+      </div>
+
+      <div class="task-card border-orange">
+        <div class="task-top">
+          <div class="task-name">Finálny Systémový Audit TIC TAC</div>
+          <span class="status-pill pill-orange">NA RADE</span>
+        </div>
+        <div class="task-desc">Záverečná previerka celkovej integrity, Redis rate-limiteru a stability pred zlučovaním do hlavnej vetvy.</div>
+        <div class="task-meta">
+          <span>Auditor: TIC TAC</span>
+        </div>
+      </div>
+
+      <div class="task-card border-orange">
+        <div class="task-top">
+          <div class="task-name">Finálny Push, PR & Merge do main (Erik ÁNO)</div>
+          <span class="status-pill pill-orange">POSLEDNÝ KROK</span>
+        </div>
+        <div class="task-desc">Manuálne schválenie a merge vetvy <code>feat/issue-75-production-vercel</code> do <code>main</code> Erik-om. Následne plná CI s natívnym Postgresom a aktivácia produkčného prostredia.</div>
+        <div class="task-meta">
+          <span>Schvaľovateľ: Erik (výhradne na pokyn)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Roster Grid -->
+    <div class="section-title" style="margin-top: 40px;">
+      <span>Tím 10 Agentov & Stav</span>
+    </div>
+    <div class="agent-grid">
+      <div class="agent-card">
+        <div class="agent-head"><span>Agent 1 (Jobs)</span> <span style="color:var(--green)">PASS</span></div>
+        <div style="color:var(--text-dim)">Commit <code>a8a6519</code></div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-head"><span>Agent 2 (Client)</span> <span style="color:var(--green)">PASS</span></div>
+        <div style="color:var(--text-dim)">Commit <code>3ac8180</code></div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-head"><span>Agent 3 (GitHub)</span> <span style="color:var(--green)">PASS</span></div>
+        <div style="color:var(--text-dim)">Commit <code>e4012d6</code></div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-head"><span>Agent 4 (AST)</span> <span style="color:var(--green)">PASS</span></div>
+        <div style="color:var(--text-dim)">Commit <code>f533777</code></div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-head"><span>Agent 5 (Billing)</span> <span style="color:var(--green)">PASS</span></div>
+        <div style="color:var(--text-dim)">Commit <code>afbddc7</code></div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-head"><span>Agent 6 (Editor)</span> <span style="color:var(--green)">PASS</span></div>
+        <div style="color:var(--text-dim)">Commit <code>748ded8</code></div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-head"><span>Agent 7 (Publish)</span> <span style="color:var(--green)">PASS</span></div>
+        <div style="color:var(--text-dim)">Commit <code>6824d87</code></div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-head"><span>Agent 8 (Router)</span> <span style="color:var(--green)">PASS</span></div>
+        <div style="color:var(--text-dim)">Commit <code>cd000b2</code></div>
+      </div>
+      <div class="agent-card" style="border-color: rgba(16, 185, 129, 0.4);">
+        <div class="agent-head"><span>Agent 9 (Autofix)</span> <span style="color:var(--green)">PASS</span></div>
+        <div style="color:var(--text-dim)">Commit <code>5395459</code></div>
+      </div>
+      <div class="agent-card" style="border-color: rgba(245, 158, 11, 0.5); box-shadow: 0 0 10px rgba(245, 158, 11, 0.1);">
+        <div class="agent-head"><span>Agent 10 (E2E)</span> <span style="color:var(--orange)">BEŽÍ 🚀</span></div>
+        <div style="color:var(--text-dim)">Playwright Chaos 3x</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div>VORKEI Engine · LOV-DEVIL BUILDER 2026</div>
+      <div>Multi-agent koordinácia: BOSS · Bora · TIC TAC · Erik</div>
+    </footer>
+
+  </div>
+
+  <script>
+    function filterTasks(type) {
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.filter-btn').classList.add('active');
+
+      const green = document.querySelector('.group-green');
+      const red = document.querySelector('.group-red');
+      const orange = document.querySelector('.group-orange');
+
+      if (type === 'all') {
+        green.style.display = 'block';
+        red.style.display = 'block';
+        orange.style.display = 'block';
+      } else if (type === 'green') {
+        green.style.display = 'block';
+        red.style.display = 'none';
+        orange.style.display = 'none';
+      } else if (type === 'red') {
+        green.style.display = 'none';
+        red.style.display = 'block';
+        orange.style.display = 'none';
+      } else if (type === 'orange') {
+        green.style.display = 'none';
+        red.style.display = 'none';
+        orange.style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>

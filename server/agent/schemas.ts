@@ -58,7 +58,9 @@ export type ValidationResult = z.infer<typeof ValidationResultSchema>;
 
 /* ---------- SSE udalosti generovania (reálne, nie timery) ---------- */
 export const AgentEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('run_started'), runId: z.string(), model: z.string(), intentPromptVersion: IntentPromptVersionSchema.optional() }),
+  z.object({ type: z.literal('run_started'), runId: z.string(), model: z.string(), intentPromptVersion: IntentPromptVersionSchema.optional(),
+    /* Wave-3 glue (additive): which model the smart router or the user picked, and why. */
+    route: z.object({ model: z.string().max(128), reason: z.string().max(40) }).strict().optional() }),
   z.object({type:z.literal('provider_update'),reason:z.enum(['retry','fallback']),provider:z.string().max(128),model:z.string().max(128),attempt:z.number().int().min(2).max(4),maxAttempts:z.number().int().min(2).max(4),message:z.string().max(250)}),
   z.object({type:z.literal('context_update'),state:z.enum(['summarizing','ready']),summarizedTurns:z.number().int().min(0).max(512),summaryCalls:z.number().int().min(0).max(200)}),
   z.object({type:z.literal('intent_selected'),intent:z.enum(['create','iterate','fix','explain'])}),

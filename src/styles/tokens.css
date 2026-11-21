@@ -1,0 +1,278 @@
+/* VORKEI — Graphite Developer Workspace (autoritatívny kontrakt podľa newUIUX.md) */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: local('Geist'), local('Inter'), local('Segoe UI'), system-ui, sans-serif;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: local('Geist Mono'), local('JetBrains Mono'), local('Consolas'), monospace;
+}
+
+:root {
+  /* 1. Autoritatívne dizajn tokeny VORKEI (#171717 grafitový základ) */
+  --background: #171717;
+  --foreground: #EDEDED;
+  --surface-navigation: #191919;
+  --surface: #202020;
+  --surface-hover: #292929;
+  --surface-selected: #303030;
+  --text-secondary: #B5B5B5;
+  --text-muted: #A3A3A3;
+  --text-placeholder: #A3A3A3;
+  --text-disabled: #858585;
+  --border-subtle: #343434;
+  --border-default: #484848;
+  --border-control: #858585;
+  --primary: #4ADE80;
+  --primary-hover: #6EE79A;
+  --primary-pressed: #35C96A;
+  --primary-foreground: #102116;
+  --focus-ring: #4ADE80;
+  --success: #4ADE80;
+  --warning: #F5C86A;
+  --danger: #FF8A8A;
+  --info: #8AC4FF;
+  --radius-control: 6px;
+  --radius-panel: 8px;
+  --radius-popover: 8px;
+  --shadow-popover: 0 12px 32px rgb(0 0 0 / 24%);
+  --focus-shadow: 0 0 0 2px var(--background),
+                  0 0 0 4px var(--focus-ring);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --duration-fast: 120ms;
+  --duration-standard: 180ms;
+
+  /* Spätná kompatibilita s komponentmi používajúcimi staršie premenné */
+  --bg-obsidian: var(--background);
+  --bg-sidebar: var(--surface-navigation);
+  --surface-carbon-top: var(--surface);
+  --surface-carbon-bot: var(--surface-navigation);
+  --surface-card: var(--surface);
+  --surface-control: var(--surface-hover);
+  --text-primary: var(--foreground);
+  --neon-green: var(--primary);
+  --neon-green-bright: var(--primary-hover);
+  --neon-green-hover: var(--primary-hover);
+  --neon-green-fg: var(--primary-foreground);
+  --neon-tint-bg: rgba(74, 222, 128, 0.05);
+  --neon-border-idle: rgba(74, 222, 128, 0.34);
+  --neon-border-hover: rgba(74, 222, 128, 0.65);
+  --border-hairline: var(--border-subtle);
+  --highlight-top: var(--border-subtle);
+}
+
+body {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  font-family: 'Geist', system-ui, -apple-system, sans-serif !important;
+  letter-spacing: 0 !important;
+}
+
+code, kbd, pre, .font-mono {
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
+  font-feature-settings: 'tnum' on, 'zero' on;
+}
+
+/* ---- Carbon plátno: základ #070708 + horný smaragdový kužeľ + uhlíková mikro-väzba ---- */
+.carbon-canvas {
+  background-color: var(--bg-obsidian);
+  background-image:
+    radial-gradient(58% 44% at 50% 0%, rgba(74, 222, 128, 0.055) 0%, rgba(74, 222, 128, 0) 100%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.013) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.013) 0 1px, transparent 1px 5px);
+}
+
+/* ---- Rotujúci neónový border okolo chat composeru ---- */
+@property --neon-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes neon-rotate {
+  to { --neon-angle: 360deg; }
+}
+
+.neon-composer-shell {
+  position: relative;
+  isolation: isolate;
+  border-radius: 21px;
+  padding: 1.5px;
+  background: conic-gradient(from var(--neon-angle),
+    rgba(74, 222, 128, 0.08) 0%,
+    rgba(74, 222, 128, 0.08) 55%,
+    rgba(74, 222, 128, 0.85) 75%,
+    #86EFAC 80%,
+    rgba(74, 222, 128, 0.08) 92%,
+    rgba(74, 222, 128, 0.08) 100%);
+  animation: neon-rotate 6.5s linear infinite;
+}
+.neon-composer-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  filter: blur(11px);
+  opacity: 0.32;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.carbon-composer-inner {
+  border-radius: 19.5px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(22, 23, 25, 0.96) 0%, rgba(13, 14, 15, 0.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ---- Neónové ovládacie prvky ---- */
+.neon-btn-outline {
+  border: 1px solid var(--neon-border-idle) !important;
+  color: var(--neon-green);
+  background: var(--neon-tint-bg);
+  border-radius: 999px;
+  transition: border-color var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+.neon-btn-outline:hover {
+  border-color: var(--neon-border-hover) !important;
+  background: rgba(74, 222, 128, 0.10);
+}
+
+.neon-cta-active {
+  background: var(--neon-green) !important;
+  color: var(--neon-green-fg) !important;
+  box-shadow: 0 0 20px -2px rgba(74, 222, 128, 0.55);
+}
+.neon-cta-active:hover {
+  background: var(--neon-green-hover) !important;
+}
+
+.neon-logo {
+  border: 1px solid var(--neon-border-idle);
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.35), inset 0 0 6px rgba(74, 222, 128, 0.25);
+}
+
+.neon-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) ease, color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+.neon-icon-btn:hover {
+  background: var(--surface-control);
+  color: var(--text-primary);
+}
+.neon-icon-btn.active {
+  border-color: var(--neon-border-idle);
+  color: var(--neon-green);
+  background: var(--neon-tint-bg);
+}
+
+/* ---- Hero + pilulky + hlavička ---- */
+.lumen-h1 {
+  font-size: 42px;
+  line-height: 46px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  color: var(--text-primary);
+}
+.lumen-pill {
+  border-radius: 9999px !important;
+  height: 30px !important;
+}
+
+.carbon-core-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-hairline);
+  background: var(--surface-control);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.carbon-core-badge i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--neon-green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ---- Vizuálne karty projektov (náhrada za 3 textové moduly) ---- */
+.carbon-card {
+  background: linear-gradient(180deg, var(--surface-carbon-top) 0%, var(--surface-carbon-bot) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.carbon-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(74, 222, 128, 0.42);
+}
+.carbon-thumb {
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--neon-green);
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #141518 0%, #0C0D0F 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Custom Scrollbar pre Composer */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--border-default);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-composer-shell,
+  .neon-composer-shell::before {
+    animation: none !important;
+  }
+  .carbon-core-badge i {
+    animation: none !important;
+  }
+}
