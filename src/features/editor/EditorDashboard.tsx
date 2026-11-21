@@ -63,6 +63,7 @@ export function EditorDashboard() {
   }, [html, localTab]);
 
   useEffect(() => {
+    if (process.env.NODE_ENV === 'test') return;
     void useStore.getState().checkGitHubAuth();
   }, []);
 

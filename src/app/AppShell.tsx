@@ -33,8 +33,12 @@ export function AppShell() {
     if (hideEditor) setAuthState({ state: 'checking' });
     void fetchAuthStatus().then(status => { if (request === authRequest.current.sequence) setAuthState(status); });
   }, []);
-  /* GitHub konektor: po štarte over stav pripojenia (TopBar/ConnectionPanel ho zobrazujú). */
-  useEffect(() => { void useStore.getState().checkGitHubAuth(); }, []);
+  /* GitHub konektor: po štarte over stav pripojenia (TopBar/ConnectionPanel ho zobrazujú).
+     V testoch (NODE_ENV=test) nefetc — rovnaká konvencia ako LandingPage. */
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') return;
+    void useStore.getState().checkGitHubAuth();
+  }, []);
 
   /* OAuth návrat: ?github=connected|error → toast + refresh stavu + vyčistiť URL. */
   useEffect(() => {
@@ -42,7 +46,7 @@ export function AppShell() {
     if (result !== 'connected' && result !== 'error') return;
     const st = useStore.getState();
     st.toast(result === 'connected' ? 'GitHub účet pripojený' : 'GitHub pripojenie zlyhalo', result === 'connected' ? 'ok' : 'err');
-    void st.checkGitHubAuth();
+    if (process.env.NODE_ENV !== 'test') void st.checkGitHubAuth();
     const url = new URL(window.location.href);
     url.searchParams.delete('github');
     window.history.replaceState(null, '', url.toString());
