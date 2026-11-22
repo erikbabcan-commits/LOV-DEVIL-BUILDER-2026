@@ -1,40 +1,53 @@
 #!/usr/bin/env bash
-# LOV-DEVIL VPS redeploy — rsync kódu + docker rebuild + restart kontajnera + health check.
-# Použitie: ./deploy/vps-redeploy.sh [ssh-host]   (default: hetzner-vps z ~/.ssh/config)
+# LOV-DEVIL VPS redeploy — build frontendu + rsync kódu + docker rebuild API + databázové migrácie + restart kontajnera + Nginx reload + health check.
+# Použitie: ./deploy/vps-redeploy.sh [ssh-host]   (default: root@2.29.52.59)
 set -euo pipefail
 
-SSH_HOST="${1:-hetzner-vps}"
+SSH_HOST="${1:-${SSH_HOST:-root@2.29.52.59}}"
 REMOTE_DIR="/opt/lov-devil"
+HOST_PORT="8788"          # Nginx proxy_pass smeruje na 127.0.0.1:8788
+CONTAINER_PORT="8787"     # API počúva na internom porte 8787
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "==> 1/5 rsync ${REPO_ROOT} → ${SSH_HOST}:${REMOTE_DIR}"
+echo "🚀 Začínam deploy LOV-DEVIL na ${SSH_HOST}:${REMOTE_DIR}"
+
+echo "==> 1/7 Lokálny build produkčného frontendu (Vite)"
+(cd "$REPO_ROOT" && npm run build)
+
+echo "==> 2/7 Rsync kódu ${REPO_ROOT} → ${SSH_HOST}:${REMOTE_DIR}"
 rsync -az --delete \
   --exclude node_modules --exclude .git --exclude .env \
   "$REPO_ROOT/" "$SSH_HOST:$REMOTE_DIR/"
 
-echo "==> 2/5 práva + ochrana .env"
-ssh "$SSH_HOST" "chown -R root:root $REMOTE_DIR
+echo "==> 3/7 Nastavenie práv a ochrana .env na VPS"
+ssh -o StrictHostKeyChecking=no "$SSH_HOST" "chown -R root:root $REMOTE_DIR
 find $REMOTE_DIR -type d -exec chmod 755 {} +
 find $REMOTE_DIR -type f -exec chmod 644 {} +
+chmod +x $REMOTE_DIR/deploy/*.sh 2>/dev/null || true
 chmod 600 $REMOTE_DIR/.env
-[ -f $REMOTE_DIR/.env ] || { echo 'CHYBA: $REMOTE_DIR/.env neexistuje — doplň ho pred deployom'; exit 1; }"
+[ -f $REMOTE_DIR/.env ] || { echo 'CHYBA: $REMOTE_DIR/.env neexistuje na VPS!'; exit 1; }"
 
-echo "==> 3/5 docker build"
-ssh "$SSH_HOST" "docker build -q -t lov-devil-api -f $REMOTE_DIR/deploy/Dockerfile $REMOTE_DIR/ >/dev/null"
+echo "==> 4/7 Docker build API kontajnera (lov-devil-api)"
+ssh -o StrictHostKeyChecking=no "$SSH_HOST" "docker build -t lov-devil-api -f $REMOTE_DIR/deploy/Dockerfile $REMOTE_DIR/"
 
-echo "==> 4/5 restart kontajnera"
-# --network lov-net: pripojenie na lov-postgres (AUTH_ENABLED=1 vyžaduje DATABASE_URL)
-ssh "$SSH_HOST" "docker rm -f lov-devil-api >/dev/null 2>&1 || true
+echo "==> 5/7 Spustenie kontajnera lov-devil-api (port ${HOST_PORT}:${CONTAINER_PORT})"
+ssh -o StrictHostKeyChecking=no "$SSH_HOST" "docker rm -f lov-devil-api >/dev/null 2>&1 || true
 docker run -d --name lov-devil-api --restart unless-stopped --network lov-net \\
   --env-file $REMOTE_DIR/.env \\
   -v lov-devil-sessions:/data/sessions \\
-  -p 127.0.0.1:8787:8787 \\
+  -p 127.0.0.1:${HOST_PORT}:${CONTAINER_PORT} \\
   --memory 700m \\
-  lov-devil-api >/dev/null"
+  lov-devil-api"
 
-echo "==> 5/5 health check"
+echo "==> 6/7 Aplikácia a overenie databázových migrácií (PostgreSQL)"
+# Počkáme 3 sekundy na inicializáciu API
 sleep 3
-ssh "$SSH_HOST" "curl -sf http://127.0.0.1:8787/api/health && echo && docker ps --filter name=lov-devil-api --format '{{.Names}}: {{.Status}}'"
+ssh -o StrictHostKeyChecking=no "$SSH_HOST" "docker exec lov-devil-api npx tsx server/db/migrate.ts"
+ssh -o StrictHostKeyChecking=no "$SSH_HOST" "systemctl reload nginx"
 
-echo "✅ Redeploy hotový. Verejná URL: https://lov.2.29.52.59.sslip.io (basic auth: /etc/nginx/.htpasswd-lov)"
+echo "==> 7/7 Health check & overenie dostupnosti"
+ssh -o StrictHostKeyChecking=no "$SSH_HOST" "curl -sf http://127.0.0.1:${HOST_PORT}/api/health && echo '' && docker ps --filter name=lov-devil-api --format '{{.Names}}: {{.Status}} ({{.Ports}})'"
+
+echo "✅ Redeploy úspešne dokončený!"
+echo "   Verejná URL: https://lov.2.29.52.59.sslip.io (Basic Auth: vorkei)"
