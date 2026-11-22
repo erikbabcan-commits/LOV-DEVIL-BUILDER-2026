@@ -22,7 +22,7 @@ declare module 'hono' {
   }
 }
 
-const PUBLIC_PREFIXES = ['/api/health', '/api/auth/'];
+const PUBLIC_PREFIXES = ['/api/health', '/api/auth/', '/api/share/'];
 /* GitHub routes majú vlastný CSRF + OAuth session mechanizmus — dvojitý token
    tu nekontrolujeme (auth sa však vyžaduje aj pre ne). Rovnako BFF bridge
    (/api/github-connect/*) používa vlastný nonce cookie. */
