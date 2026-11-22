@@ -11,8 +11,12 @@ export function GitHubIcon({ size = 14 }: { size?: number }) {
 }
 
 export function ConnectionPanel() {
-  const st = useStore();
-  const gh = st.githubAuthState;
+  const gh = useStore(s => s.githubAuthState);
+  const githubExportInProgress = useStore(s => s.githubExportInProgress);
+  const githubLastExport = useStore(s => s.githubLastExport);
+  const toggleGitHubConnection = useStore(s => s.toggleGitHubConnection);
+  const exportToGitHub = useStore(s => s.exportToGitHub);
+
   const connected = gh.authenticated;
   const statusText = connected
     ? `Pripojené${gh.username ? ' · @' + gh.username : ''}`
@@ -33,18 +37,18 @@ export function ConnectionPanel() {
           : 'Lokálny režim. Export vytvorí repozitár podľa udeleného scope.'}
       </p>
       <div className="conn-actions">
-        <button type="button" className="chip" id="connGitHubToggle" onClick={() => { void st.toggleGitHubConnection(); }}>
+        <button type="button" className="chip" id="connGitHubToggle" onClick={() => { void toggleGitHubConnection(); }}>
           {connected ? 'Odpojiť GitHub' : 'Pripojiť GitHub'}
         </button>
         <button type="button" className="chip" id="connGitHubExport"
-          disabled={!connected || st.githubExportInProgress}
+          disabled={!connected || githubExportInProgress}
           title={connected ? 'Exportovať aktuálny projekt na GitHub' : 'Najprv pripoj GitHub'}
-          onClick={() => { void st.exportToGitHub(); }}>
-          {st.githubExportInProgress ? 'Exportujem…' : 'Exportovať na GitHub'}
+          onClick={() => { void exportToGitHub(); }}>
+          {githubExportInProgress ? 'Exportujem…' : 'Exportovať na GitHub'}
         </button>
       </div>
-      {st.githubLastExport && (
-        <a className="conn-link" id="connGitHubLastExport" href={st.githubLastExport} target="_blank" rel="noreferrer">
+      {githubLastExport && (
+        <a className="conn-link" id="connGitHubLastExport" href={githubLastExport} target="_blank" rel="noreferrer">
           Posledný export ↗
         </a>
       )}

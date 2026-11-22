@@ -21,6 +21,7 @@ import { matchesCodeEditBase, type CodeEditBase } from '../services/editor/codeD
 import { exportToGitHub as doGitHubExport, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
 import { getGitHubConnection, startGitHubConnect, disconnectGitHub as svcDisconnectGitHub, bridgeExportPrepare, bridgeExportConfirm, bridgeExportStatus, bridgeExportCancel } from '../services/githubConnect';
 import type { Blueprint } from '../templates/types';
+import type { InspectedElement } from '../features/workspace/inspectorBridge';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
 export interface Message {
@@ -73,6 +74,7 @@ export interface AppState extends JobClientSlice {
   zoomPct: number;
   tab: 'preview' | 'code' | 'console' | 'diff';
   editMode: boolean;
+  inspectedElement: InspectedElement | null;
   isPublic: boolean;
   publishedUrl: string | null;
   messages: Message[];
@@ -114,6 +116,8 @@ export interface AppState extends JobClientSlice {
   setModel: (m: string) => void;
   togglePublic: () => void;
   toggleEditMode: () => void;
+  setInspectedElement: (el: InspectedElement | null) => void;
+  clearInspectedElement: () => void;
   addMsg: (role: Message['role'], text: string, extra?: Partial<Message>) => Message;
   updateMsg: (id: string, patch: Partial<Message>) => void;
   log: (txt: string, cls?: string) => void;
@@ -298,6 +302,7 @@ export const useStore = create<AppState>((set, get) => ({
   zoomPct: 100,
   tab: 'preview',
   editMode: false,
+  inspectedElement: null,
   isPublic: false,
   publishedUrl: null,
   messages: [],
@@ -366,7 +371,9 @@ export const useStore = create<AppState>((set, get) => ({
     get().setMode('work'); get().setMview('chat');
   },
   togglePublic: () => set(s => ({ isPublic: !s.isPublic })),
-  toggleEditMode: () => set(s => ({ editMode: !s.editMode })),
+  toggleEditMode: () => set(s => ({ editMode: !s.editMode, inspectedElement: s.editMode ? null : s.inspectedElement })),
+  setInspectedElement: el => set({ inspectedElement: el }),
+  clearInspectedElement: () => set({ inspectedElement: null }),
 
   addMsg: (role, text, extra) => {
     const m: Message = { id: uid(), role, text, ...extra };
@@ -553,6 +560,7 @@ export const useStore = create<AppState>((set, get) => ({
       remoteSnapshotIds: {},
       branches: [{ name: 'main', headIdx: Infinity }], branch: 'main', pendingReview: null,
       generating: false, aiAbort: null,
+      editMode: false, inspectedElement: null,
       sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false, promptDraft: '', templateFollowups: [],
     });
   },

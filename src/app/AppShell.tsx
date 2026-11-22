@@ -76,7 +76,7 @@ export function AppShell() {
       useStore.getState().newProject();
       useStore.getState().setMode('home');
       useStore.getState().setMview('chat');
-      useStore.setState({ console: [], toasts: [], githubAuthState: { authenticated: false }, githubExportInProgress: false, model:'Instant Draft', aiModelId:undefined, aiFallbackIds:[], modelMenuOpen: false, settingsOpen: false, publishModalOpen: false, isPublic: false, editMode: false, historyExpanded: false, tab: 'preview', edTab: 'preview' });
+      useStore.setState({ console: [], toasts: [], githubAuthState: { authenticated: false }, githubExportInProgress: false, model:'Instant Draft', aiModelId:undefined, aiFallbackIds:[], modelMenuOpen: false, settingsOpen: false, publishModalOpen: false, isPublic: false, editMode: false, inspectedElement: null, historyExpanded: false, tab: 'preview', edTab: 'preview' });
     }
     setReadyAccount(null);
     if (!mayOpenEditor) return;

@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useStore } from '../../stores/useAppStore';
 
 export function LiveGenerationInspector() {
-  const st = useStore();
+  const generating = useStore(s => s.generating);
+  const activeGeneratingFile = useStore(s => s.activeGeneratingFile);
+  const cancelAiRun = useStore(s => s.cancelAiRun);
   const [elapsedMs, setElapsedMs] = useState(0);
 
   useEffect(() => {
-    if (!st.generating) {
+    if (!generating) {
       setElapsedMs(0);
       return;
     }
@@ -15,9 +17,9 @@ export function LiveGenerationInspector() {
       setElapsedMs(Math.round(performance.now() - start));
     }, 100);
     return () => clearInterval(interval);
-  }, [st.generating]);
+  }, [generating]);
 
-  if (!st.generating) return null;
+  if (!generating) return null;
 
   const seconds = (elapsedMs / 1000).toFixed(1);
   const minutes = Math.floor(elapsedMs / 60000);
@@ -28,8 +30,8 @@ export function LiveGenerationInspector() {
   const estimatedTokens = Math.min(1800, Math.floor(elapsedMs * 0.052));
   const rateStr = elapsedMs > 500 ? '52 tok/s' : 'inicializácia…';
 
-  const fileName = st.activeGeneratingFile
-    ? st.activeGeneratingFile.replace(/^.*[\\/]/, '')
+  const fileName = activeGeneratingFile
+    ? activeGeneratingFile.replace(/^.*[\\/]/, '')
     : 'React Component';
 
   return (
@@ -40,7 +42,7 @@ export function LiveGenerationInspector() {
           <div className="live-inspector-title">
             <span className="live-beacon-dot" />
             <span className="live-inspector-spark">⚡</span>
-            <span className="live-component-name" title={st.activeGeneratingFile || 'Generovanie'}>
+            <span className="live-component-name" title={activeGeneratingFile || 'Generovanie'}>
               Synthesizing: <strong>{fileName}</strong>
             </span>
           </div>
@@ -51,7 +53,7 @@ export function LiveGenerationInspector() {
             <button
               type="button"
               className="live-cancel-btn"
-              onClick={st.cancelAiRun}
+              onClick={cancelAiRun}
               title="Zrušiť generovanie"
               aria-label="Zrušiť generovanie"
             >

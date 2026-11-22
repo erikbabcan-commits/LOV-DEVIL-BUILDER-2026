@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { useStore } from '../../stores/useAppStore';
 import { esc, hl } from '../../lib/utils';
 import { THUMBS } from '../../lib/templates';
@@ -10,6 +10,13 @@ import { ProjectDiff } from './ProjectDiff';
 import { BuildRepairAction } from './BuildRepairAction';
 import { ConnectionPanel } from '../../components/ConnectionPanel';
 import { LiveGenerationInspector } from './LiveGenerationInspector';
+import {
+  injectInspectorBridge,
+  INSPECTOR_MESSAGE_TYPE,
+  INSPECTOR_SET_MODE_TYPE,
+  INSPECTOR_CLEAR_TYPE,
+  type InspectedElement
+} from './inspectorBridge';
 
 /* Workspace: chat panel + canvas panel — port 1:1 legacy štruktúry. */
 
@@ -84,7 +91,49 @@ export function Workspace() {
   const snapshot = st.edSnap();
   const needsCompile = !!snapshot && (st.vfs[snapshot.id] ?? []).some(file => file.name === 'src/main.tsx') && !st.sandboxHtml;
 
-  const previewDocument = st.sandboxHtml ?? ('<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">' + withoutExternalScripts(html ?? '') + '</body></html>');
+  const rawHtml = st.sandboxHtml ?? ('<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">' + withoutExternalScripts(html ?? '') + '</body></html>');
+  const previewDocument = useMemo(() => injectInspectorBridge(rawHtml, st.editMode), [rawHtml, st.editMode]);
+
+  /* Synchronizácia editMode režimu do preview iframe cez postMessage */
+  useEffect(() => {
+    const iframe = document.getElementById('previewFrame') as HTMLIFrameElement | null;
+    iframe?.contentWindow?.postMessage({ type: INSPECTOR_SET_MODE_TYPE, enabled: st.editMode }, '*');
+  }, [st.editMode]);
+
+  /* Odchytávanie správ z inšpektora z preview iframe */
+  useEffect(() => {
+    const onMessage = (ev: MessageEvent) => {
+      if (!ev.data || ev.data.type !== INSPECTOR_MESSAGE_TYPE) return;
+      const { tag, text, selector, outerHTML } = ev.data as { type: string } & InspectedElement;
+      st.setInspectedElement({ tag, text, selector, outerHTML });
+
+      // Predvyplnenie prompt draftu podľa požiadavky 3
+      const snippet = text ? ` ("${text.length > 35 ? text.slice(0, 32) + '…' : text}")` : '';
+      const promptContext = `Uprav tento prvok <${tag}>${snippet}: `;
+
+      const current = useStore.getState().promptDraft.trim();
+      let nextDraft = '';
+      if (!current || current.startsWith('Uprav tento prvok <')) {
+        nextDraft = promptContext;
+      } else if (!current.includes(promptContext)) {
+        nextDraft = `${promptContext}${current}`;
+      } else {
+        nextDraft = current;
+      }
+      st.setPromptDraft(nextDraft);
+
+      // Focus na #promptInput
+      if (inputRef.current) {
+        inputRef.current.focus();
+        try {
+          inputRef.current.setSelectionRange(nextDraft.length, nextDraft.length);
+        } catch {}
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [st.setInspectedElement, st.setPromptDraft]);
 
   /* applyViewport port: auto-fit scale, rovnaký výpočet ako legacy */
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -100,13 +149,16 @@ export function Workspace() {
   }, [st.viewport, st.zoomPct, html]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight });
   }, [st.messages.length]);
 
   const submit = () => {
     const v = st.promptDraft.trim();
     if (!v || st.generating || st.pendingReview) return;
     st.setPromptDraft('');
+    st.clearInspectedElement();
+    const iframe = document.getElementById('previewFrame') as HTMLIFrameElement | null;
+    iframe?.contentWindow?.postMessage({ type: INSPECTOR_CLEAR_TYPE }, '*');
     /* M2: AI (Mistral) model → reálny engine; Instant Draft / iné → template mód */
     if (st.model !== 'Instant Draft') {
       void st.generateWithAi(v, 'auto');
@@ -147,7 +199,7 @@ export function Workspace() {
           <button
             type="button"
             className="floating-scroll-down-btn"
-            onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })}
+            onClick={() => scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })}
             title="Posunúť na najnovšiu správu"
             aria-label="Posunúť nadol"
           >
@@ -159,6 +211,33 @@ export function Workspace() {
 
         <div className="composer">
           <div className="comp-box">
+            {st.inspectedElement && (
+              <div className="inspector-target-badge" id="inspectorTargetBadge" role="status" aria-label="Vybraný prvok na úpravu">
+                <div className="itb-info">
+                  <span className="itb-icon">🎯</span>
+                  <span className="itb-label">Vybraný prvok:</span>
+                  <strong className="itb-tag">&lt;{st.inspectedElement.tag}&gt;</strong>
+                  {st.inspectedElement.text && (
+                    <span className="itb-text" title={st.inspectedElement.text}>"{st.inspectedElement.text.slice(0, 30)}"</span>
+                  )}
+                  <code className="itb-selector" title={st.inspectedElement.selector}>{st.inspectedElement.selector}</code>
+                </div>
+                <button
+                  type="button"
+                  className="itb-clear"
+                  id="clearInspectBtn"
+                  onClick={() => {
+                    st.clearInspectedElement();
+                    const iframe = document.getElementById('previewFrame') as HTMLIFrameElement | null;
+                    iframe?.contentWindow?.postMessage({ type: INSPECTOR_CLEAR_TYPE }, '*');
+                  }}
+                  title="Zrušiť výber prvku"
+                  aria-label="Zrušiť výber prvku"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             <textarea
               id="promptInput"
               ref={inputRef}
