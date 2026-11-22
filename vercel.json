@@ -4,6 +4,17 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://lov.2.29.52.59.sslip.io/api/:path*"
+    },
+    {
+      "source": "/p/:path*",
+      "destination": "https://lov.2.29.52.59.sslip.io/p/:path*"
+    },
+    {
+      "source": "/((?!api|p).*)$",
+      "destination": "/index.html"
+    }
   ]
 }
