@@ -75,4 +75,5 @@ echo "==> 7/7 Health check & overenie dostupnosti"
 ssh -o StrictHostKeyChecking=no "$SSH_HOST" "curl -sf http://127.0.0.1:${HOST_PORT}/api/health && echo '' && docker ps --filter name=lov-devil-api --format '{{.Names}}: {{.Status}} ({{.Ports}})'"
 
 echo "✅ Redeploy úspešne dokončený!"
-echo "   Verejná URL: https://lov.2.29.52.59.sslip.io (Basic Auth: vorkei)"
+echo "   Verejná URL: https://lov.vorkei.com (Basic Auth: vorkei)"
+echo "   Wildcard alias: https://lov.2.29.52.59.sslip.io (Basic Auth: vorkei)"

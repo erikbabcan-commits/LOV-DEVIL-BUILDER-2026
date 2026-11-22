@@ -110,7 +110,7 @@ export function shareRouter(db?: DbLike | null, allow: (key: string) => boolean 
       });
     }
 
-    const host = c.req.header('host') || 'lov.2.29.52.59.sslip.io';
+    const host = c.req.header('host') || 'lov.vorkei.com';
     const proto = c.req.header('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
     const shareUrl = `${proto}://${host}/p/${shareId}`;
 
@@ -227,7 +227,7 @@ export function shareRouter(db?: DbLike | null, allow: (key: string) => boolean 
       }
 
       const escapedTitle = escapeHtml(row.title);
-      const host = c.req.header('host') || 'lov.2.29.52.59.sslip.io';
+      const host = c.req.header('host') || 'lov.vorkei.com';
       const homeUrl = (host.includes('localhost') ? 'http://' : 'https://') + host;
 
       const pageHtml = `<!DOCTYPE html>
