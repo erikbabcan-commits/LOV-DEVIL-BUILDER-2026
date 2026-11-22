@@ -62,5 +62,15 @@ async function post(path: string, body: unknown): Promise<{ ok: boolean; error?:
 export const authApi = {
   login: (email: string, password: string) => post('/api/auth/login', { email, password }),
   register: (email: string, password: string) => post('/api/auth/register', { email, password }),
-  logout: () => post('/api/auth/logout', {})
+  logout: () => post('/api/auth/logout', {}),
+  googleStatus: async (): Promise<{ configured: boolean; clientId: string | null }> => {
+    try {
+      const res = await fetch(apiUrl('/api/auth/google/status'), { credentials: 'include', signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return { configured: false, clientId: null };
+      return (await res.json()) as { configured: boolean; clientId: string | null };
+    } catch {
+      return { configured: false, clientId: null };
+    }
+  },
+  loginWithGoogleCredential: (credential: string) => post('/api/auth/google/credential', { credential })
 };

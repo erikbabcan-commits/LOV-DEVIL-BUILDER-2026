@@ -46,6 +46,8 @@ temp/
 # Persistent OAuth data must live outside this repository.
 .github-sessions/
 *.session.json
+.agents/
+.sessions/
 
 # Chaos E2E output (agent 10)
 tests/e2e/chaos/test-results/

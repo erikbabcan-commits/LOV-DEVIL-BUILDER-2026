@@ -8,7 +8,8 @@ const envKeys = [
   'GITHUB_CALLBACK_URL',
   'LOV_APP_URL',
   'GITHUB_OAUTH_SCOPE',
-  'GITHUB_ALLOWED_ORIGINS'
+  'GITHUB_ALLOWED_ORIGINS',
+  'AUTH_ENABLED'
 ] as const;
 const originalEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
 
@@ -73,6 +74,7 @@ async function authenticate() {
 
 describe('GitHub OAuth and export security', () => {
   beforeEach(() => {
+    delete process.env.AUTH_ENABLED;
     process.env.GITHUB_CLIENT_ID = 'client-id';
     process.env.GITHUB_CLIENT_SECRET = 'client-secret';
     process.env.GITHUB_CALLBACK_URL = 'http://localhost:8787/api/github/auth/callback';

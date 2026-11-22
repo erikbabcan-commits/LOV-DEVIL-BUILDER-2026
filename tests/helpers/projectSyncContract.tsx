@@ -28,6 +28,7 @@ export function projectSyncContract(name:string,connect:()=>Promise<{db:DbLike;c
   let sequence=0;
   const secret='sync-contract-local-test-secret-0123456789';
   beforeEach(async()=>{
+   vi.stubEnv('VITE_AGENT_JOBS_CLIENT', '0');
    // Hono/Jose run in Node while the UI runs in jsdom; align binary crypto realms for this harness.
    vi.stubGlobal('Uint8Array',new NodeTextEncoder().encode('').constructor);
    vi.stubGlobal('crypto',webcrypto);

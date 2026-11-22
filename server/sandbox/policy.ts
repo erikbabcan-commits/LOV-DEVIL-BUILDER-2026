@@ -11,7 +11,58 @@ export interface BuildResult {
   durationMs: number;
   moduleCount: number;
 }
-export const APPROVED_DEPS = new Set(['react', 'react-dom', '@types/react', '@types/react-dom']);
+export const APPROVED_CORE_DEPS = new Set(['react', 'react-dom', '@types/react', '@types/react-dom']);
+
+export const APPROVED_ESM_PACKAGES = new Set([
+  'framer-motion',
+  'lucide-react',
+  'recharts',
+  'three',
+  'three.js',
+  '@types/three',
+  'canvas-confetti',
+  '@types/canvas-confetti',
+  'clsx',
+  'tailwind-merge',
+  'class-variance-authority',
+  'zustand',
+  'date-fns',
+  'd3',
+  '@types/d3',
+  'chart.js',
+  'react-chartjs-2',
+  'lottie-web',
+  'howler',
+  '@types/howler',
+  'roughjs',
+  '@radix-ui/react-slot',
+  '@radix-ui/react-dialog',
+  '@radix-ui/react-dropdown-menu',
+  '@radix-ui/react-popover',
+  '@radix-ui/react-tabs',
+  '@radix-ui/react-tooltip',
+  '@radix-ui/react-accordion',
+  '@radix-ui/react-icons',
+  '@radix-ui/react-avatar',
+  '@radix-ui/react-switch',
+  '@radix-ui/react-slider',
+  '@radix-ui/react-progress',
+  '@radix-ui/react-checkbox',
+  '@radix-ui/react-radio-group',
+  '@radix-ui/react-select',
+]);
+
+export function isApprovedDependency(name: string): boolean {
+  if (APPROVED_CORE_DEPS.has(name)) return true;
+  if (APPROVED_ESM_PACKAGES.has(name)) return true;
+  if (name.startsWith('@radix-ui/')) return true;
+  return false;
+}
+
+export const APPROVED_DEPS = new Set([
+  ...APPROVED_CORE_DEPS,
+  ...APPROVED_ESM_PACKAGES,
+]);
 export const MAX_BUNDLE_BYTES = 2_000_000;
 // JSON escaping can expand the existing 2 MB source limit by up to six times.
 export const MAX_INPUT_JSON_BYTES = 13_000_000;
@@ -40,7 +91,7 @@ export function validateFiles(files: SandboxFile[]): BuildResult['errors'] {
   if (manifest) {
     try {
       const pkg = JSON.parse(manifest.content);
-      const bad = Object.keys(pkg.dependencies ?? {}).filter(name => !APPROVED_DEPS.has(name));
+      const bad = Object.keys(pkg.dependencies ?? {}).filter(name => !isApprovedDependency(name));
       if (bad.length) errors.push({ file: 'package.json', message: 'ne schválené dependencies: ' + bad.join(', ') });
     } catch { errors.push({ file: 'package.json', message: 'nevalidný JSON' }); }
   }

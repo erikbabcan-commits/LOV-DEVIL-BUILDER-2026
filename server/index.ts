@@ -44,6 +44,7 @@ import { exportRouter } from './routes/export';
 import { LocalBudgetGuard } from './security/budget';
 import { containsPotentialSecret, redactSecrets } from './security/secrets';
 import { authRouter } from './auth/routes';
+import { googleAuthRouter } from './auth/google';
 import { accountExportRouter } from './auth/accountExport';
 import { accountClosureRouter } from './auth/accountClosure';
 import { makeAuthMiddleware, getUserFromContext } from './auth/middleware';
@@ -209,6 +210,7 @@ export function createApp(
     if (opts.auth.cloudGitHub && !opts.auth.cloudAuth) throw new Error('Cloud GitHub requires Cloud authentication');
     app.use('/api/*', makeAuthMiddleware(opts.auth.jwtSecret, opts.auth.cloudAuth, opts.auth.cloudGitHub ? isCloudGitHubRoute : undefined, opts.auth.db));
     app.route('/', authRouter(opts.auth));
+    app.route('/', googleAuthRouter({ db: opts.auth.db, jwtSecret: opts.auth.jwtSecret }));
     app.route('/', accountExportRouter(opts.auth.db, opts?.rateLimit ?? makeRateLimiter(60)));
     app.route('/', accountClosureRouter(opts.auth.db, rateLimit));
     app.route('/', projectRouter(opts.auth.db, rateLimit, cfg.projectStorage));

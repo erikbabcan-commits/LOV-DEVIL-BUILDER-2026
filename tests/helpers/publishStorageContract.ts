@@ -43,7 +43,7 @@ export function publishStorageContract(name: string, connect: () => Promise<{
       directory = await mkdtemp(path.join(tmpdir(), "lov-publish-phase-"));
       config = { baseUrl: "http://127.0.0.1:8791/", appUrl: "http://localhost:5176/", artifactDir: directory, bind: "127.0.0.1", port: 8791, maxArtifacts: 20, maxArtifactBytes: 1000, maxOwnerBytes: 10000, minFreeBytes: 0, allowHostTest: true };
       selection = { requestId: randomUUID(), projectId: "project-one", expectedRevision: 1, snapshotId: "snapshot-one", publicConsent: true };
-      gate = new FilesystemGate(2,8,200); store = new ArtifactStore(directory,1000,0,gate);
+      gate = new FilesystemGate(2,8,1000); store = new ArtifactStore(directory,1000,0,gate);
       compiler = vi.fn(async () => compiled);
       service = new PublishService(db,config,{ ready: async () => ({ready:true,mode:"isolated"}), execute: compiler },{artifacts:store});
       const prototype = Object.getPrototypeOf(store);
