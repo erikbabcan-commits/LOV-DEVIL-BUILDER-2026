@@ -142,7 +142,8 @@
   .send-btn:disabled{background:var(--panel-2);color:var(--muted);cursor:not-allowed;box-shadow:none;transform:none}
   .home-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
   .chip-pill{display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:20px;
-    background:var(--panel);border:1px solid var(--border-control);font-size:12.5px;color:var(--text-dim);transition:.13s}
+    background:var(--panel);border:1px solid var(--border-control);font-size:12.5px;color:var(--text-dim);transition:.13s;
+    white-space:nowrap;flex-shrink:0}
   .chip-pill:hover{border-color:var(--accent-text);background:var(--accent-soft);color:var(--text);transform:translateY(-1px)}
   .home-shortcuts{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;font-size:11px;color:var(--muted);margin-top:2px}
   .kbd{font-family:var(--mono);font-size:10px;background:var(--panel);border:1px solid var(--border-2);
@@ -914,6 +915,15 @@ button[aria-busy="true"]{cursor:progress}
 @media(max-width:760px){
   .mobile-only-btn { display: inline-flex !important; }
   .desktop-only { display: none !important; }
+  .hide-on-home-mobile { display: none !important; }
+  .hide-mobile-compact { display: none !important; }
+  .hide-mobile-text { display: none !important; }
+
+  /* Vypnutie IDE status baru na landing page na mobile kvôli fixed composeru */
+  body[data-mode="home"] .ide-status-bar,
+  .landing-canvas ~ .ide-status-bar {
+    display: none !important;
+  }
   
   /* 100dvh App layout */
   html, body {
@@ -1158,6 +1168,23 @@ button[aria-busy="true"]{cursor:progress}
   .hp-left::-webkit-scrollbar {
     display: none !important;
   }
+  .chip-pill,
+  .chip-pill.lumen-pill {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+  .home-template-link {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+  .hp-model-text {
+    max-width: 120px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+  }
   .hp-right {
     display: flex !important;
     align-items: center !important;
@@ -1165,13 +1192,30 @@ button[aria-busy="true"]{cursor:progress}
     flex-shrink: 0 !important;
   }
   #homeSend {
-    width: 36px !important;
-    height: 36px !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
     padding: 0 !important;
     border-radius: 50% !important;
-    display: flex !important;
+    display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%) !important;
+    box-shadow: 0 3px 12px rgba(34, 197, 94, 0.45) !important;
+    border: none !important;
+    color: #ffffff !important;
+    flex-shrink: 0 !important;
+    cursor: pointer !important;
+  }
+  #homeSend .hide-mobile-text {
+    display: none !important;
+  }
+  #homeSend:disabled {
+    background: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: none !important;
+    color: var(--text-muted, #71717A) !important;
+    cursor: not-allowed !important;
   }
   
   /* Moduly na celú šírku */

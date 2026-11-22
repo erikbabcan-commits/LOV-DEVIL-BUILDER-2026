@@ -511,7 +511,7 @@ code, kbd, pre, .font-mono {
     min-height: auto;
   }
   .lumen-main {
-    padding: 16px !important;
+    padding: 14px 14px calc(140px + env(safe-area-inset-bottom, 16px)) 14px !important;
     overflow-y: auto !important;
   }
 }

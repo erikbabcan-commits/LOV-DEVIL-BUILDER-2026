@@ -11,19 +11,46 @@ import { loadProjects, type StoredProject } from '../../services/persistence/db'
 const PILLS: Array<{ kind: AppKind; label: string; prompt: string; icon: JSX.Element }> = [
   {
     kind: 'saas', label: 'Web pre štúdio', prompt: 'Web pre štúdio s ponukou služieb',
-    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="m10 15 5-3-5-3v6Z" /></svg>
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" />
+        <line x1="2" y1="8" x2="22" y2="8" />
+        <circle cx="5" cy="5.5" r="0.9" fill="currentColor" />
+        <circle cx="8" cy="5.5" r="0.9" fill="currentColor" />
+        <circle cx="11" cy="5.5" r="0.9" fill="currentColor" />
+        <line x1="6" y1="12" x2="13" y2="12" />
+        <line x1="6" y1="15" x2="10" y2="15" />
+      </svg>
+    )
   },
   {
     kind: 'kanban', label: 'Kanban', prompt: 'Kanban board s 3 stĺpcami',
-    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="6" height="14" x="4" y="5" rx="1" /><rect width="6" height="10" x="14" y="5" rx="1" /></svg>
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="5" height="15" x="3.5" y="4.5" rx="1.5" />
+        <rect width="5" height="10" x="10" y="4.5" rx="1.5" />
+        <rect width="5" height="13" x="16.5" y="4.5" rx="1.5" />
+      </svg>
+    )
   },
   {
     kind: 'dashboard', label: 'CRM', prompt: 'CRM Dashboard s prehľadom',
-    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></svg>
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3v18h18" />
+        <path d="m19 7-6 6-4-4-5 5" />
+        <circle cx="19" cy="7" r="1.5" fill="currentColor" />
+      </svg>
+    )
   },
   {
     kind: 'settings', label: 'Blog', prompt: 'Jednoduchý blog so zoznamom článkov',
-    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" /></svg>
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+    )
   },
 ];
 
@@ -222,14 +249,14 @@ export function LandingPage({ quota }: { quota?: QuotaInfo }) {
                   title={`Aktuálny model: ${model}`}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a4 4 0 0 1 4 4c2.5.5 4 2.5 4 5a5 5 0 0 1-3 4.6V18a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-2.4A5 5 0 0 1 4 11c0-2.5 1.5-4.5 4-5a4 4 0 0 1 4-4Z" /></svg>
-                  <strong>{model}</strong>
+                  <strong className="hp-model-text">{model}</strong>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" /></svg>
                 </button>
 
                 {/* Predvoľba optimalizácie / viditeľnosti */}
                 <button
                   type="button"
-                  className="chip mobile-composer-chip"
+                  className="chip mobile-composer-chip hide-mobile-compact"
                   onClick={togglePublic}
                   aria-pressed={isPublic}
                   title={isPublic ? 'Projekt je verejný' : 'Režim: Vyvážený'}
@@ -258,7 +285,7 @@ export function LandingPage({ quota }: { quota?: QuotaInfo }) {
                   title="Odoslať (Ctrl+Enter)"
                   aria-label="Vytvoriť projekt"
                 >
-                  <span className="hide-s">{busy ? 'Vytváram…' : 'Vytvoriť'}</span>
+                  <span className="hide-s hide-mobile-text">{busy ? 'Vytváram…' : 'Vytvoriť'}</span>
                   {busy ? (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
                       <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />

@@ -64,7 +64,7 @@ export function TopBar({ onOpenProjects, quota }: { onOpenProjects?: () => void;
           <svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z" /></svg>
         </div>
         <span className="app-name desktop-only">VORKEI</span>
-        <div className="session">
+        <div className={'session' + (st.mode === 'home' ? ' hide-on-home-mobile' : '')}>
           {st.titleEditing ? (
             <input ref={titleRef} className="session-title-input" value={st.projectTitle}
               onChange={e => st.setTitle(e.target.value)} onBlur={commitTitle}
@@ -86,7 +86,7 @@ export function TopBar({ onOpenProjects, quota }: { onOpenProjects?: () => void;
         </span>
         <button className="chip" id="editorBtn" title="/editor — dashboard projektov" onClick={st.goEditor}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg>
-          <span className="hide-s">Editor</span>
+          <span className="hide-s hide-mobile-text">Editor</span>
         </button>
       </div>
       <div className="tb-group">
@@ -127,7 +127,7 @@ export function TopBar({ onOpenProjects, quota }: { onOpenProjects?: () => void;
         </button>
         <button className="btn-primary" id="publishBtn" onClick={st.publish} title="Publikovať">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2 0-2.8-.8-.7-2-.8-3 0Zm7-5.5 2 2c5-5 7-11 7-11s-6 2-11 7l2 2Zm-5 1c-2 1-3 3-3 5 1 0 3.5-.5 5-2" /></svg>
-          <span className="hide-s" id="publishBtnTxt">Publikovať</span>
+          <span className="hide-s hide-mobile-text" id="publishBtnTxt">Publikovať</span>
         </button>
         <div className="pop-wrap">
           <button className="icon-btn" id="settingsBtn" title="Nastavenia" style={{ padding: '0 7px' }}
