@@ -283,6 +283,126 @@
     color: var(--danger, #FB7185);
     background: rgba(251, 113, 133, 0.12);
   }
+
+  /* ---- AI Self-Healing Error Boundary Crash Banner ---- */
+  .runtime-crash-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(244, 63, 94, 0.09);
+    border: 1px solid rgba(244, 63, 94, 0.38);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text-primary, #FAFAFA);
+    box-shadow: 0 4px 14px rgba(244, 63, 94, 0.12);
+    animation: rcb-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes rcb-appear {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .rcb-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+  .rcb-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #fb7185;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .rcb-pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fb7185;
+    box-shadow: 0 0 6px #fb7185;
+    animation: rcb-pulse-anim 1.6s infinite ease-in-out;
+  }
+  @keyframes rcb-pulse-anim {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.8); }
+  }
+  .rcb-icon {
+    font-size: 13px;
+  }
+  .rcb-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .rcb-comp {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fb7185;
+    font-family: var(--mono, monospace);
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .rcb-msg {
+    color: var(--text-secondary, #E4E4E7);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
+  }
+  .rcb-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .rcb-repair-btn {
+    background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+    border: none;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 8px rgba(244, 63, 94, 0.3);
+    transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+  }
+  .rcb-repair-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(244, 63, 94, 0.45);
+  }
+  .rcb-repair-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .rcb-dismiss-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #71717A);
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s, background 0.12s;
+  }
+  .rcb-dismiss-btn:hover {
+    color: var(--text-primary, #FAFAFA);
+    background: rgba(255, 255, 255, 0.08);
+  }
   #promptInput{width:100%;background:none;border:none;resize:none;color:var(--text);
     font-family:inherit;font-size:13.5px;line-height:1.55;min-height:44px;max-height:160px;overflow-y:auto}
   #promptInput::placeholder{color:var(--muted)}

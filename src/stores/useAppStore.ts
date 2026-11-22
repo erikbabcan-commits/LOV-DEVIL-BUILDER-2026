@@ -22,6 +22,7 @@ import { exportToGitHub as doGitHubExport, type GitHubExportRequest, type GitHub
 import { getGitHubConnection, startGitHubConnect, disconnectGitHub as svcDisconnectGitHub, bridgeExportPrepare, bridgeExportConfirm, bridgeExportStatus, bridgeExportCancel } from '../services/githubConnect';
 import type { Blueprint } from '../templates/types';
 import type { InspectedElement } from '../features/workspace/inspectorBridge';
+import type { RuntimeCrashPayload } from '../features/workspace/runtimeBoundary';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
 export interface Message {
@@ -75,6 +76,7 @@ export interface AppState extends JobClientSlice {
   tab: 'preview' | 'code' | 'console' | 'diff';
   editMode: boolean;
   inspectedElement: InspectedElement | null;
+  runtimeCrash: RuntimeCrashPayload | null;
   isPublic: boolean;
   publishedUrl: string | null;
   messages: Message[];
@@ -118,6 +120,9 @@ export interface AppState extends JobClientSlice {
   toggleEditMode: () => void;
   setInspectedElement: (el: InspectedElement | null) => void;
   clearInspectedElement: () => void;
+  setRuntimeCrash: (crash: RuntimeCrashPayload | null) => void;
+  clearRuntimeCrash: () => void;
+  triggerAiRuntimeRepair: (crash?: RuntimeCrashPayload | null) => Promise<void>;
   addMsg: (role: Message['role'], text: string, extra?: Partial<Message>) => Message;
   updateMsg: (id: string, patch: Partial<Message>) => void;
   log: (txt: string, cls?: string) => void;
@@ -303,6 +308,7 @@ export const useStore = create<AppState>((set, get) => ({
   tab: 'preview',
   editMode: false,
   inspectedElement: null,
+  runtimeCrash: null,
   isPublic: false,
   publishedUrl: null,
   messages: [],
@@ -374,6 +380,43 @@ export const useStore = create<AppState>((set, get) => ({
   toggleEditMode: () => set(s => ({ editMode: !s.editMode, inspectedElement: s.editMode ? null : s.inspectedElement })),
   setInspectedElement: el => set({ inspectedElement: el }),
   clearInspectedElement: () => set({ inspectedElement: null }),
+  setRuntimeCrash: crash => set({ runtimeCrash: crash }),
+  clearRuntimeCrash: () => set({ runtimeCrash: null }),
+  triggerAiRuntimeRepair: async crashOverride => {
+    const s = get();
+    const crash = crashOverride ?? s.runtimeCrash;
+    if (!crash) return;
+    if (s.generating) {
+      get().toast('AI generovanie už prebieha', 'warn');
+      return;
+    }
+    if (s.pendingReview) {
+      get().toast('Najprv schváľ alebo odmietni pripravené zmeny', 'warn');
+      return;
+    }
+
+    const compStr = crash.component ? ` v komponente <${crash.component}>` : '';
+    const stackLines = crash.stack
+      ? crash.stack
+          .split('\n')
+          .filter(l => !l.includes('runtimeBoundary') && !l.includes('inspectorBridge'))
+          .slice(0, 5)
+          .join('\n')
+      : '';
+    const stackStr = stackLines ? `\nStack trace:\n${stackLines}` : '';
+
+    const fixPrompt = `Oprav nasledujúcu runtime chybu${compStr} v kóde náhľadu:\n"${crash.message}"${stackStr}\nZabezpeč ošetrenie vstupov (null-checks, bezpečné prístupy, platný JSX a syntax).`;
+
+    get().log(`[AI Self-Healing] Spúšťam opravný stream pre chybu: ${crash.message}`, 'warn');
+    get().toast(`⚡ Spúšťam AI opravu runtime chyby (${s.model})...`, 'info');
+    set({ promptDraft: fixPrompt, runtimeCrash: null });
+
+    if (s.model !== 'Instant Draft') {
+      await get().generateWithAi(fixPrompt, 'fix');
+    } else {
+      get().generate(fixPrompt);
+    }
+  },
 
   addMsg: (role, text, extra) => {
     const m: Message = { id: uid(), role, text, ...extra };
@@ -560,7 +603,7 @@ export const useStore = create<AppState>((set, get) => ({
       remoteSnapshotIds: {},
       branches: [{ name: 'main', headIdx: Infinity }], branch: 'main', pendingReview: null,
       generating: false, aiAbort: null,
-      editMode: false, inspectedElement: null,
+      editMode: false, inspectedElement: null, runtimeCrash: null,
       sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false, promptDraft: '', templateFollowups: [],
     });
   },

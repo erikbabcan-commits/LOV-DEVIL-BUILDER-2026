@@ -17,6 +17,12 @@ import {
   INSPECTOR_CLEAR_TYPE,
   type InspectedElement
 } from './inspectorBridge';
+import {
+  injectRuntimeBoundary,
+  RUNTIME_CRASH_MESSAGE_TYPE,
+  RUNTIME_ERROR_DETECTED_TYPE,
+  type RuntimeCrashPayload
+} from './runtimeBoundary';
 
 /* Workspace: chat panel + canvas panel — port 1:1 legacy štruktúry. */
 
@@ -92,7 +98,10 @@ export function Workspace() {
   const needsCompile = !!snapshot && (st.vfs[snapshot.id] ?? []).some(file => file.name === 'src/main.tsx') && !st.sandboxHtml;
 
   const rawHtml = st.sandboxHtml ?? ('<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">' + withoutExternalScripts(html ?? '') + '</body></html>');
-  const previewDocument = useMemo(() => injectInspectorBridge(rawHtml, st.editMode), [rawHtml, st.editMode]);
+  const previewDocument = useMemo(() => {
+    const withBoundary = injectRuntimeBoundary(rawHtml);
+    return injectInspectorBridge(withBoundary, st.editMode);
+  }, [rawHtml, st.editMode]);
 
   /* Synchronizácia editMode režimu do preview iframe cez postMessage */
   useEffect(() => {
@@ -100,40 +109,76 @@ export function Workspace() {
     iframe?.contentWindow?.postMessage({ type: INSPECTOR_SET_MODE_TYPE, enabled: st.editMode }, '*');
   }, [st.editMode]);
 
-  /* Odchytávanie správ z inšpektora z preview iframe */
+  /* Odchytávanie správ z inšpektora a runtime error boundary z preview iframe */
   useEffect(() => {
     const onMessage = (ev: MessageEvent) => {
-      if (!ev.data || ev.data.type !== INSPECTOR_MESSAGE_TYPE) return;
-      const { tag, text, selector, outerHTML } = ev.data as { type: string } & InspectedElement;
-      st.setInspectedElement({ tag, text, selector, outerHTML });
+      if (!ev.data || typeof ev.data !== 'object') return;
 
-      // Predvyplnenie prompt draftu podľa požiadavky 3
-      const snippet = text ? ` ("${text.length > 35 ? text.slice(0, 32) + '…' : text}")` : '';
-      const promptContext = `Uprav tento prvok <${tag}>${snippet}: `;
+      // 1. Inšpektor elementov
+      if (ev.data.type === INSPECTOR_MESSAGE_TYPE) {
+        const { tag, text, selector, outerHTML } = ev.data as { type: string } & InspectedElement;
+        st.setInspectedElement({ tag, text, selector, outerHTML });
 
-      const current = useStore.getState().promptDraft.trim();
-      let nextDraft = '';
-      if (!current || current.startsWith('Uprav tento prvok <')) {
-        nextDraft = promptContext;
-      } else if (!current.includes(promptContext)) {
-        nextDraft = `${promptContext}${current}`;
-      } else {
-        nextDraft = current;
+        // Predvyplnenie prompt draftu podľa požiadavky 3
+        const snippet = text ? ` ("${text.length > 35 ? text.slice(0, 32) + '…' : text}")` : '';
+        const promptContext = `Uprav tento prvok <${tag}>${snippet}: `;
+
+        const current = useStore.getState().promptDraft.trim();
+        let nextDraft = '';
+        if (!current || current.startsWith('Uprav tento prvok <')) {
+          nextDraft = promptContext;
+        } else if (!current.includes(promptContext)) {
+          nextDraft = `${promptContext}${current}`;
+        } else {
+          nextDraft = current;
+        }
+        st.setPromptDraft(nextDraft);
+
+        // Focus na #promptInput
+        if (inputRef.current) {
+          inputRef.current.focus();
+          try {
+            inputRef.current.setSelectionRange(nextDraft.length, nextDraft.length);
+          } catch {}
+        }
+        return;
       }
-      st.setPromptDraft(nextDraft);
 
-      // Focus na #promptInput
-      if (inputRef.current) {
-        inputRef.current.focus();
-        try {
-          inputRef.current.setSelectionRange(nextDraft.length, nextDraft.length);
-        } catch {}
+      // 2. Detekcia runtime chyby (pasívny zber & banner)
+      if (ev.data.type === RUNTIME_ERROR_DETECTED_TYPE) {
+        const payload = ev.data as { type: string } & RuntimeCrashPayload;
+        st.setRuntimeCrash({
+          message: payload.message,
+          stack: payload.stack,
+          component: payload.component,
+          filename: payload.filename,
+          lineno: payload.lineno,
+          colno: payload.colno,
+          timestamp: payload.timestamp || Date.now()
+        });
+        st.log(`[Preview Error] ${payload.message}`, 'error');
+        return;
+      }
+
+      // 3. 1-Click AI oprava z crash overlayu v iframe
+      if (ev.data.type === RUNTIME_CRASH_MESSAGE_TYPE) {
+        const payload = ev.data as { type: string } & RuntimeCrashPayload;
+        void st.triggerAiRuntimeRepair({
+          message: payload.message,
+          stack: payload.stack,
+          component: payload.component,
+          filename: payload.filename,
+          lineno: payload.lineno,
+          colno: payload.colno,
+          timestamp: payload.timestamp || Date.now()
+        });
+        return;
       }
     };
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [st.setInspectedElement, st.setPromptDraft]);
+  }, [st.setInspectedElement, st.setPromptDraft, st.setRuntimeCrash, st.log, st.triggerAiRuntimeRepair]);
 
   /* applyViewport port: auto-fit scale, rovnaký výpočet ako legacy */
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -211,6 +256,46 @@ export function Workspace() {
 
         <div className="composer">
           <div className="comp-box">
+            {st.runtimeCrash && (
+              <div className="runtime-crash-banner" id="runtimeCrashBanner" role="alert" aria-label="Zistená runtime chyba v náhľade">
+                <div className="rcb-content">
+                  <div className="rcb-badge">
+                    <span className="rcb-pulse" />
+                    <span className="rcb-icon">⚠️</span>
+                    <strong>Chyba v náhľade:</strong>
+                  </div>
+                  <div className="rcb-info" title={st.runtimeCrash.message}>
+                    {st.runtimeCrash.component && (
+                      <code className="rcb-comp">&lt;{st.runtimeCrash.component}&gt;</code>
+                    )}
+                    <span className="rcb-msg">{st.runtimeCrash.message}</span>
+                  </div>
+                </div>
+                <div className="rcb-actions">
+                  <button
+                    type="button"
+                    className="rcb-repair-btn"
+                    id="runtimeRepairBtn"
+                    disabled={st.generating || !!st.pendingReview}
+                    onClick={() => void st.triggerAiRuntimeRepair()}
+                    title="Jedným klikom spustiť opravu cez AI (Mistral)"
+                  >
+                    <span className="spark-icon">⚡</span>
+                    Opraviť cez AI ({st.model})
+                  </button>
+                  <button
+                    type="button"
+                    className="rcb-dismiss-btn"
+                    id="dismissCrashBtn"
+                    onClick={st.clearRuntimeCrash}
+                    title="Zavrieť chybové hlásenie"
+                    aria-label="Zavrieť chybové hlásenie"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
             {st.inspectedElement && (
               <div className="inspector-target-badge" id="inspectorTargetBadge" role="status" aria-label="Vybraný prvok na úpravu">
                 <div className="itb-info">
