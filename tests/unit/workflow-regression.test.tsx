@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import 'fake-indexeddb/auto';
 import { LoginScreen } from '../../src/components/LoginScreen';
 import { LandingPage } from '../../src/features/landing/LandingPage';
@@ -24,6 +24,7 @@ const catalogFixture = {
 beforeEach(() => {
   useStore.getState().newProject();
   vi.mocked(streamAgentEvents).mockReset();
+  try { sessionStorage.clear(); } catch {}
   useStore.setState({
     model: 'Instant Draft',
     aiModelId: undefined,
@@ -55,13 +56,19 @@ describe('Ostrý Regresný Test — hraničné stavy, zlyhania a zotavenie', () 
       render(<LoginScreen onAuthenticated={onAuth} />);
 
       // Prepnutie do režimu registrácie
-      fireEvent.click(screen.getByText('Nemáš účet? Zaregistruj sa'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Nemáš účet? Zaregistruj sa'));
+      });
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Registrácia');
 
-      fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'existing@vorkei.sk' } });
-      fireEvent.change(screen.getByLabelText(/Heslo/), { target: { value: 'password123' } });
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'existing@vorkei.sk' } });
+        fireEvent.change(screen.getByLabelText(/Heslo/), { target: { value: 'password123' } });
+      });
 
-      fireEvent.click(screen.getByRole('button', { name: 'Vytvoriť účet' }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Vytvoriť účet' }));
+      });
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent('Tento e-mail už je zaregistrovaný.');
@@ -70,8 +77,10 @@ describe('Ostrý Regresný Test — hraničné stavy, zlyhania a zotavenie', () 
 
       // Používateľ zmení e-mail a skúsi znova
       mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
-      fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'fresh@vorkei.sk' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Vytvoriť účet' }));
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'fresh@vorkei.sk' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Vytvoriť účet' }));
+      });
 
       await waitFor(() => {
         expect(onAuth).toHaveBeenCalledTimes(1);
@@ -87,10 +96,11 @@ describe('Ostrý Regresný Test — hraničné stavy, zlyhania a zotavenie', () 
       const onAuth = vi.fn();
       render(<LoginScreen onAuthenticated={onAuth} />);
 
-      fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'test@vorkei.sk' } });
-      fireEvent.change(screen.getByLabelText(/Heslo/), { target: { value: 'password123' } });
-
-      fireEvent.click(screen.getByRole('button', { name: 'Prihlásiť sa' }));
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'test@vorkei.sk' } });
+        fireEvent.change(screen.getByLabelText(/Heslo/), { target: { value: 'password123' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Prihlásiť sa' }));
+      });
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent('Server teraz neodpovedá');
@@ -101,7 +111,9 @@ describe('Ostrý Regresný Test — hraničné stavy, zlyhania a zotavenie', () 
       expect((screen.getByLabelText('E-mail') as HTMLInputElement).value).toBe('test@vorkei.sk');
 
       // Druhý pokus je úspešný
-      fireEvent.click(screen.getByRole('button', { name: 'Prihlásiť sa' }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Prihlásiť sa' }));
+      });
       await waitFor(() => {
         expect(onAuth).toHaveBeenCalledTimes(1);
       });
@@ -126,26 +138,32 @@ describe('Ostrý Regresný Test — hraničné stavy, zlyhania a zotavenie', () 
       render(<LandingPage />);
 
       const promptInput = screen.getByLabelText('Tvoj nápad') as HTMLTextAreaElement;
-      fireEvent.change(promptInput, { target: { value: 'Dôležitý rozpracovaný projekt s detailným popisom funkcií' } });
+      await act(async () => {
+        fireEvent.change(promptInput, { target: { value: 'Dôležitý rozpracovaný projekt s detailným popisom funkcií' } });
+      });
       expect(useStore.getState().promptDraft).toContain('Dôležitý rozpracovaný');
 
       // Zmena modelu
       const menuView = render(<AiModelMenu open={true} />);
       const mistralBtn = await screen.findByRole('button', { name: /AI \(Mistral\)/ });
-      fireEvent.click(mistralBtn);
+      await act(async () => {
+        fireEvent.click(mistralBtn);
+      });
 
       expect(useStore.getState().aiModelId).toBe('mistral');
       expect(useStore.getState().promptDraft).toBe('Dôležitý rozpracovaný projekt s detailným popisom funkcií');
       menuView.unmount();
     });
 
-    it('zablokuje odoslanie pre prázdny alebo whitespace-only prompt', () => {
+    it('zablokuje odoslanie pre prázdny alebo whitespace-only prompt', async () => {
       render(<LandingPage />);
       const sendBtn = screen.getByRole('button', { name: 'Vytvoriť projekt' });
       expect(sendBtn).toBeDisabled();
 
       const promptInput = screen.getByLabelText('Tvoj nápad');
-      fireEvent.change(promptInput, { target: { value: '   \n\t   ' } });
+      await act(async () => {
+        fireEvent.change(promptInput, { target: { value: '   \n\t   ' } });
+      });
       expect(sendBtn).toBeDisabled();
     });
   });

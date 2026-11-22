@@ -150,7 +150,7 @@ export function AppShell() {
       {mode === 'home' && <LandingPage quota={authState.state === 'authenticated' ? authState.quota : undefined} />}
       {mode === 'work' && <Workspace />}
       {mode === 'editor' && <EditorDashboard />}
-      <BottomStatusBar quota={authState.state === 'authenticated' ? authState.quota : undefined} />
+      {mode !== 'home' && <BottomStatusBar quota={authState.state === 'authenticated' ? authState.quota : undefined} />}
       <div className="toasts" id="toasts">
         {st.toasts.map(t => (
           <div key={t.id} className={'toast ' + t.kind}><span className="dot"></span>{t.msg}</div>

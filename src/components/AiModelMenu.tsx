@@ -21,7 +21,7 @@ export function AiModelMenu({open}:{open:boolean}){
     {catalog?.models.map(entry=><button key={entry.id} className="item" disabled={state.generating} onClick={()=>{state.chooseAiModel(entry.id,entry.label);document.getElementById('modelChip')?.focus();}}>
       <span>{entry.label}<span className="sub">{entry.model}</span></span><span className="check">{selected?.id===entry.id?'✓':''}</span>
     </button>)}
-    {catalog&&catalog.models.length===0&&<p>Server nemá nastavený žiadny AI model, preto sa kód negeneruje cez AI. Spusti server s MOCK_AI=1 (npm run server:mock) alebo nastav MISTRAL_API_KEY v .env súbore. Dovtedy funguje len Instant Draft (šablóny).</p>}
+    {catalog&&catalog.models.length===0&&<><p>Server nemá nastavený žiadny AI model, preto sa kód negeneruje cez AI. Spusti server s MOCK_AI=1 (npm run server:mock) alebo nastav MISTRAL_API_KEY v .env súbore. Dovtedy funguje len Instant Draft (šablóny).</p><button className="item" onClick={()=>setRevision(v=>v+1)}>Skúsiť načítať modely znova</button></>}
     {selected&&selected.fallbackIds.length>0&&<div className="model-backup">
       <label><input type="checkbox" aria-label="Povoliť záložné modely" disabled={state.generating} checked={state.aiFallbackIds.length>0} onChange={event=>state.setAiFallback(event.target.checked?selected.fallbackIds:[])}/>Pri výpadku použiť záložné modely</label>
       <small>Kontext sa môže odoslať aj do: {selected.fallbackIds.map(id=>catalog!.models.find(entry=>entry.id===id)!.label).join(', ')}. Ďalšie volania sa počítajú do spotreby.</small>

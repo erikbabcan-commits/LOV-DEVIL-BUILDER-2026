@@ -81,21 +81,53 @@ export function LandingPage({ quota }: { quota?: QuotaInfo }) {
   const storeQuota = useStore(s => (s as { quota?: QuotaInfo }).quota);
   const [projects, setProjects] = useState<StoredProject[]>([]);
 
+  const PROMPT_DRAFT_KEY = 'vorkei_prompt_draft';
+
+  // Obnova rozpracovaného promptu zo sessionStorage pri štarte
   useEffect(() => {
-    let active = true;
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const saved = window.sessionStorage.getItem(PROMPT_DRAFT_KEY);
+        if (saved && !promptDraft) {
+          setPromptDraft(saved);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Automatické ukladanie rozpracovaného konceptu (debounce 300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          if (promptDraft.trim()) {
+            window.sessionStorage.setItem(PROMPT_DRAFT_KEY, promptDraft);
+          } else {
+            window.sessionStorage.removeItem(PROMPT_DRAFT_KEY);
+          }
+        }
+      } catch {}
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [promptDraft]);
+
+  useEffect(() => {
+    let mounted = true;
     loadProjects().then(list => {
-      if (active) setProjects(list);
+      if (mounted) setProjects(list);
     }).catch(() => {});
-    return () => { active = false; };
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
+    let mounted = true;
     if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
-      void checkGitHubAuth();
+      void checkGitHubAuth().catch?.(() => {});
     }
-    if (promptDraft && document.activeElement !== inputRef.current) {
+    if (promptDraft && document.activeElement !== inputRef.current && mounted) {
       inputRef.current?.focus();
     }
+    return () => { mounted = false; };
   }, [promptDraft, checkGitHubAuth]);
 
   const activeQuota = quota || storeQuota;
@@ -130,6 +162,11 @@ export function LandingPage({ quota }: { quota?: QuotaInfo }) {
     const v = promptDraft.trim();
     if (!v || busy) return;
     setPromptDraft('');
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.removeItem(PROMPT_DRAFT_KEY);
+      }
+    } catch {}
     const st = useStore.getState();
     if (st.model !== 'Instant Draft') {
       void st.generateWithAi(v, 'auto');
@@ -187,7 +224,7 @@ export function LandingPage({ quota }: { quota?: QuotaInfo }) {
                 onClick={() => generate(pill.prompt, pill.kind)}
               >
                 {pill.icon}
-                {pill.label}
+                <span className="pill-text">{pill.label}</span>
               </button>
             ))}
             <button
@@ -246,7 +283,7 @@ export function LandingPage({ quota }: { quota?: QuotaInfo }) {
                     s.setModelMenuOpen(!s.modelMenuOpen);
                     document.getElementById('modelChip')?.focus();
                   }}
-                  title={`Aktuálny model: ${model}`}
+                  title={model === 'Instant Draft' ? 'Režim: Instant Draft (klikni pre výber alebo opätovné načítanie AI modelov)' : `Aktuálny model: ${model}`}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a4 4 0 0 1 4 4c2.5.5 4 2.5 4 5a5 5 0 0 1-3 4.6V18a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-2.4A5 5 0 0 1 4 11c0-2.5 1.5-4.5 4-5a4 4 0 0 1 4-4Z" /></svg>
                   <strong className="hp-model-text">{model}</strong>

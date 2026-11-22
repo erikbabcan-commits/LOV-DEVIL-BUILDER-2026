@@ -1172,13 +1172,20 @@ button[aria-busy="true"]{cursor:progress}
   .chip-pill.lumen-pill {
     white-space: nowrap !important;
     flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+  }
+  .pill-text {
+    white-space: nowrap !important;
+    line-height: 1 !important;
   }
   .home-template-link {
     white-space: nowrap !important;
     flex-shrink: 0 !important;
   }
   .hp-model-text {
-    max-width: 120px !important;
+    max-width: 95px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
@@ -1652,6 +1659,10 @@ button[aria-busy="true"]{cursor:progress}
 }
 
 @media (max-width: 760px) {
+  body[data-mode="home"] .ide-status-bar,
+  .landing-canvas ~ .ide-status-bar {
+    display: none !important;
+  }
   .ide-status-bar {
     padding: 0 8px;
     font-size: 10px;

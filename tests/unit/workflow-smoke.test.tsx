@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import 'fake-indexeddb/auto';
 import { AppShell } from '../../src/app/AppShell';
 import { LandingPage } from '../../src/features/landing/LandingPage';
@@ -23,13 +23,14 @@ const catalogFixture = {
 };
 
 const userFixture = {
-  user: { id: 'usr-101', email: 'founder@vorkei.sk', plan: 'free' },
-  quota: { used: 0, limit: 10, remaining: 10, plan: 'free' },
+  user: { id: 'usr-101', email: 'founder@vorkei.sk', plan: 'free' as const },
+  quota: { used: 0, limit: 10, remaining: 10, plan: 'free' as const },
 };
 
 beforeEach(() => {
   useStore.getState().newProject();
   vi.mocked(streamAgentEvents).mockReset();
+  try { sessionStorage.clear(); } catch {}
   useStore.setState({
     model: 'Instant Draft',
     aiModelId: undefined,
@@ -51,11 +52,8 @@ afterEach(() => {
 describe('End-to-End Smoke Test — kompletný používateľský workflow', () => {
   it('prejde celým cyklom: registrácia -> prihlásenie -> výber modelu Mistral -> zadanie promptu -> vygenerovanie projektu -> uloženie snapshotu', async () => {
     /* 1. KROK: Registrácia nového používateľa cez authApi */
-    const mockFetch = vi.fn(async (url: string, opts?: RequestInit) => {
-      if (url === '/api/auth/register') {
-        return Response.json({ user: userFixture.user, quota: userFixture.quota });
-      }
-      if (url === '/api/auth/login') {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url === '/api/auth/register' || url === '/api/auth/login') {
         return Response.json({ user: userFixture.user, quota: userFixture.quota });
       }
       if (url === '/api/auth/me') {
@@ -89,11 +87,13 @@ describe('End-to-End Smoke Test — kompletný používateľský workflow', () =
     render(<LandingPage quota={userFixture.quota} />);
 
     // Overíme prítomnosť model chipu v composeri
-    const modelChip = screen.getByTitle(/Aktuálny model:/);
+    const modelChip = await screen.findByTitle(/Aktuálny model:|Režim: Instant Draft/);
     expect(modelChip).toBeInTheDocument();
 
     // Otvorenie menu AI modelov
-    fireEvent.click(modelChip);
+    await act(async () => {
+      fireEvent.click(modelChip);
+    });
     expect(useStore.getState().modelMenuOpen).toBe(true);
 
     // Vykreslenie a výber presného modelu Mistral
@@ -101,7 +101,9 @@ describe('End-to-End Smoke Test — kompletný používateľský workflow', () =
     const mistralOption = await screen.findByRole('button', { name: /AI \(Mistral\)/ });
     expect(mistralOption).toBeInTheDocument();
 
-    fireEvent.click(mistralOption);
+    await act(async () => {
+      fireEvent.click(mistralOption);
+    });
 
     // Overíme nastavenie v store
     expect(useStore.getState().aiModelId).toBe('mistral');
@@ -112,8 +114,10 @@ describe('End-to-End Smoke Test — kompletný používateľský workflow', () =
     const promptInput = screen.getByLabelText('Tvoj nápad') as HTMLTextAreaElement;
     expect(promptInput).toBeInTheDocument();
 
-    fireEvent.change(promptInput, {
-      target: { value: 'Vytvor prémiové klientské štúdio pre moderný architektonický ateliér s kontaktným formulárom' },
+    await act(async () => {
+      fireEvent.change(promptInput, {
+        target: { value: 'Vytvor prémiové klientské štúdio pre moderný architektonický ateliér s kontaktným formulárom' },
+      });
     });
     expect(useStore.getState().promptDraft).toContain('architektonický ateliér');
 
@@ -137,7 +141,9 @@ describe('End-to-End Smoke Test — kompletný používateľský workflow', () =
     expect(sendBtn).toBeEnabled();
 
     // Vyvolanie generovania
-    await useStore.getState().generateWithAi(useStore.getState().promptDraft, 'auto');
+    await act(async () => {
+      await useStore.getState().generateWithAi(useStore.getState().promptDraft, 'auto');
+    });
 
     // Overíme, že streamAgentEvents bol zavolaný s presným modelId 'mistral'
     expect(vi.mocked(streamAgentEvents)).toHaveBeenCalled();
@@ -146,20 +152,23 @@ describe('End-to-End Smoke Test — kompletný používateľský workflow', () =
     expect(callArgs.prompt).toContain('architektonický ateliér');
 
     /* 6. KROK: Overenie vytvorenia snapshotu a prepnutia do pracoviska */
-    const createdSnap = useStore.getState().createSnapshot(
-      'ai',
-      'Architektonický ateliér',
-      '<div id="root"><h1>Ateliér VORKEI</h1></div>'
-    );
-    useStore.setState({
-      mode: 'work',
-      liveId: createdSnap.id,
-      liveHtml: createdSnap.html,
-      vfs: {
-        [createdSnap.id]: [
-          { name: 'src/App.tsx', content: 'export default function App() { return <h1>Ateliér VORKEI</h1>; }', modified: false },
-        ],
-      },
+    let createdSnap: any;
+    act(() => {
+      createdSnap = useStore.getState().createSnapshot(
+        'ai',
+        'Architektonický ateliér',
+        '<div id="root"><h1>Ateliér VORKEI</h1></div>'
+      );
+      useStore.setState({
+        mode: 'work',
+        liveId: createdSnap.id,
+        liveHtml: createdSnap.html,
+        vfs: {
+          [createdSnap.id]: [
+            { name: 'src/App.tsx', content: 'export default function App() { return <h1>Ateliér VORKEI</h1>; }', modified: false },
+          ],
+        },
+      });
     });
 
     expect(useStore.getState().mode).toBe('work');
@@ -167,7 +176,9 @@ describe('End-to-End Smoke Test — kompletný používateľský workflow', () =
     expect(useStore.getState().snapshots[0].html).toContain('Ateliér VORKEI');
 
     /* 7. KROK: Uloženie ručného snapshotu (verzie) a overenie persistence */
-    useStore.getState().manualSnapshot();
+    await act(async () => {
+      useStore.getState().manualSnapshot();
+    });
 
     expect(useStore.getState().snapshots).toHaveLength(2);
     expect(useStore.getState().snapshots[1].kind).toBe('manual');
