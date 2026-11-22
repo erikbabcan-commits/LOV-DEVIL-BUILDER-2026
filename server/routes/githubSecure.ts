@@ -649,4 +649,76 @@ githubRouter.post('/api/github/export', async (c) => {
   } as const);
 });
 
+// ─── POST /api/github/provision ──────────────────────────────────────────────
+// 1-Click GitHub Repository Provisioner: creates a new standalone repo,
+// scaffolds project files, and makes an initial commit on `main`.
+githubRouter.post('/api/github/provision', async (c) => {
+  const config = getGitHubConfig();
+  if (!config)
+    return c.json({ ok: false, error: 'GitHub integration not configured', errorType: 'config' } as const, 503);
+
+  const found = authenticatedSession(c);
+  if (!found)
+    return c.json({ ok: false, error: 'Not authenticated. Connect GitHub first.', errorType: 'auth' } as const, 401);
+
+  if (!csrfMatches(c, found.session))
+    return c.json({ ok: false, error: 'Invalid CSRF token', errorType: 'auth' } as const, 403);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: 'Invalid JSON body', errorType: 'validation' } as const, 400);
+  }
+
+  const { provisionRepository, ProvisionRequest } = await import('../integrations/githubProvisioner.js');
+  const parsed = ProvisionRequest.safeParse(body);
+  if (!parsed.success)
+    return c.json({ ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid input', errorType: 'validation' } as const, 400);
+
+  const session = found.session as AuthenticatedSession;
+  const outcome = await provisionRepository(
+    parsed.data,
+    { token: session.githubToken, username: session.githubUsername },
+    { signal: AbortSignal.timeout(35_000) }
+  );
+
+  if (!outcome.ok) {
+    const status = outcome.error === 'repo_exists' ? 409 : outcome.error === 'github_unauthorized' ? 401 : 502;
+    return c.json({ ok: false, error: outcome.message ?? outcome.error, errorType: outcome.error } as const, status);
+  }
+
+  return c.json(outcome, 201);
+});
+
+// ─── POST /api/github/deploy-hook ────────────────────────────────────────────
+// Triggers a Vercel Deploy Hook or Netlify Build Hook after provisioning.
+githubRouter.post('/api/github/deploy-hook', async (c) => {
+  const found = authenticatedSession(c);
+  if (!found)
+    return c.json({ ok: false, error: 'Not authenticated', errorType: 'auth' } as const, 401);
+
+  if (!csrfMatches(c, found.session))
+    return c.json({ ok: false, error: 'Invalid CSRF token', errorType: 'auth' } as const, 403);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: 'Invalid JSON body', errorType: 'validation' } as const, 400);
+  }
+
+  const { triggerDeployHook, DeployHookRequest } = await import('../integrations/deployHook.js');
+  const parsed = DeployHookRequest.safeParse(body);
+  if (!parsed.success)
+    return c.json({ ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid webhook URL', errorType: 'validation' } as const, 400);
+
+  const outcome = await triggerDeployHook(parsed.data, { signal: AbortSignal.timeout(16_000) });
+  if (!outcome.ok) {
+    return c.json({ ok: false, error: outcome.message ?? outcome.error } as const, 502);
+  }
+
+  return c.json(outcome, 200);
+});
+
 export { githubRouter };

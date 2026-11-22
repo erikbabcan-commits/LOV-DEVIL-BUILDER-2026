@@ -5,6 +5,7 @@ import { hl } from '../../lib/utils';
 import { PROMPT_LIB } from '../../lib/templates/editorData';
 import { withoutExternalScripts } from '../../lib/vfs';
 import {BuildRepairAction} from '../workspace/BuildRepairAction';
+import { ExportDialog } from '../export/ExportDialog';
 const TemplateGallery = lazy(() => import('../templates/TemplateGallery').then(module => ({ default: module.TemplateGallery })));
 
 /* /editor dashboard — port 1:1 štruktúry; core flow: preview, súbory, história (M1 rozsah);
@@ -30,6 +31,7 @@ export function EditorDashboard() {
   const [search, setSearch] = useState('');
   const localTab = st.edTab;
   const [projectsOpen, setProjectsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const closeProjects = () => setProjectsOpen(false);
   const projectsToggleRef = useRef<HTMLButtonElement>(null);
   const snap = st.edSnap();
@@ -140,9 +142,9 @@ export function EditorDashboard() {
             <button className="ed-act" id="edShareBtn"
               onClick={() => { if (!st.publishedUrl){ st.toast('Najprv publikuj projekt', 'warn'); return; } st.toast('Share link skopírovaný', 'ok'); }}>↗ Share</button>
             <button className="ed-act primary" id="edPublishBtn" onClick={st.publish}>Publish</button>
-            {/* M4 Export: ZIP + GitHub */}
+            {/* M4 Export: ZIP + GitHub + Cloud Deploy */}
             <button className="ed-act" id="edZipExportBtn" onClick={() => void st.exportToZip()}> Download ZIP</button>
-            <button className="ed-act" id="edGitHubExportBtn" onClick={() => void st.exportToGitHub()}> Export to GitHub</button>
+            <button className="ed-act" id="edGitHubExportBtn" onClick={() => setExportOpen(true)}> Export & Deploy</button>
           </div>
         </div>
         <div className="ed-tabs" id="edTabs">
@@ -277,6 +279,16 @@ export function EditorDashboard() {
           </div>
         </div>
       </div>
+      {exportOpen && (
+        <ExportDialog
+          projectTitle={snap?.prompt || st.projectTitle || 'lov-project'}
+          htmlContent={html ?? undefined}
+          onClose={() => setExportOpen(false)}
+          githubAuthenticated={st.githubAuthState.authenticated}
+          githubUsername={st.githubAuthState.username}
+          onDownloadZip={() => void st.exportToZip()}
+        />
+      )}
     </section>
   );
 }
