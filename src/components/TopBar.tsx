@@ -125,6 +125,20 @@ export function TopBar({ onOpenProjects, quota }: { onOpenProjects?: () => void;
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" /></svg>
           <span id="githubExportLabel">{st.githubExportInProgress ? 'Exportujem…' : 'Export GH'}</span>
         </button>
+        <button
+          type="button"
+          className="btn-ghost share-instant-btn"
+          id="shareInstantBtn"
+          title="1-Click Instant Share Link pre klientov (verejný náhľad bez prihlasovania)"
+          aria-label="Zdieľať verejný odkaz pre klientov"
+          onClick={() => void st.generateInstantShareLink()}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+          <span className="hide-s hide-mobile-text" id="shareBtnTxt">Zdieľať</span>
+        </button>
         <button className="btn-primary" id="publishBtn" onClick={st.publish} title="Publikovať">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2 0-2.8-.8-.7-2-.8-3 0Zm7-5.5 2 2c5-5 7-11 7-11s-6 2-11 7l2 2Zm-5 1c-2 1-3 3-3 5 1 0 3.5-.5 5-2" /></svg>
           <span className="hide-s hide-mobile-text" id="publishBtnTxt">Publikovať</span>

@@ -17,6 +17,7 @@ import { LandingPage } from '../features/landing/LandingPage';
 import { Workspace } from '../features/workspace/Workspace';
 import { EditorDashboard } from '../features/editor/EditorDashboard';
 import { BottomStatusBar } from '../components/BottomStatusBar';
+import { ShareModal } from '../components/ShareModal';
 
 /* AppShell — rovnaké body[data-mode]/data-view správanie ako legacy. */
 export function AppShell() {
@@ -146,6 +147,7 @@ export function AppShell() {
       <TopBar onOpenProjects={()=>setLibraryOpen(true)} quota={authState.state==='authenticated'?authState.quota:undefined} />
       {libraryOpen&&<Suspense fallback={<p role="status">Načítavam projekty…</p>}><ProjectLibrary key={accountKey} enabled={authState.state==='authenticated'} userId={authState.state==='authenticated'?authState.user.id:undefined} quota={authState.state==='authenticated'?authState.quota:undefined} onRefreshQuota={()=>checkAuth(false)} onClose={()=>setLibraryOpen(false)}/></Suspense>}
       {st.publishModalOpen&&<Suspense fallback={<p role="status">Načítavam publikovanie…</p>}><PublishDialog key={accountKey+':'+st.projectId} userId={authState.state==='authenticated'?authState.user.id:undefined} onClose={()=>st.setPublishModalOpen(false)}/></Suspense>}
+      {st.shareModalOpen && <ShareModal />}
       <MobileTabs />
       {mode === 'home' && <LandingPage quota={authState.state === 'authenticated' ? authState.quota : undefined} />}
       {mode === 'work' && <Workspace />}

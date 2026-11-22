@@ -22,6 +22,7 @@ import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import { projectRouter } from './projects/routes';
+import { shareRouter } from './share/routes';
 import { privateBlueprintRouter } from './projects/privateBlueprints';
 import { readProjectStoragePolicy, type ProjectStoragePolicy } from './projects/storage';
 import { MistralProvider, makeFetchTransport } from './providers/mistral';
@@ -260,6 +261,7 @@ export function createApp(
   }
   app.route('/', billingRouter(opts?.auth?.billing ?? null, rateLimit));
   app.route('/', publishRouter(opts?.auth?.publish ?? null, rateLimit));
+  app.route('/', shareRouter(opts?.auth?.db ?? null, rateLimit));
   /* ── MOUNT SEAMS (step 0): routers that also work without auth (pilot mode). Same rules as above. */
   // [seam:agent-5] billing webhook queue / reconcile (webhook itself stays above, before auth)
   /* Opt-in (default off): retries due webhook queue rows, reconciles accounts, expires grace periods. */

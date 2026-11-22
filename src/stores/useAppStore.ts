@@ -23,6 +23,7 @@ import { getGitHubConnection, startGitHubConnect, disconnectGitHub as svcDisconn
 import type { Blueprint } from '../templates/types';
 import type { InspectedElement } from '../features/workspace/inspectorBridge';
 import type { RuntimeCrashPayload } from '../features/workspace/runtimeBoundary';
+import { createInstantShare } from '../services/share/shareService';
 
 export interface PlanStep { label: string; state: 'pending' | 'running' | 'done' }
 export interface Message {
@@ -106,6 +107,9 @@ export interface AppState extends JobClientSlice {
   modelMenuOpen: boolean;
   settingsOpen: boolean;
   publishModalOpen: boolean;
+  shareModalOpen: boolean;
+  lastShareUrl: string | null;
+  lastShareId: string | null;
   historyExpanded: boolean;
   toasts: { id: string; msg: string; kind: string }[];
 
@@ -123,6 +127,8 @@ export interface AppState extends JobClientSlice {
   setRuntimeCrash: (crash: RuntimeCrashPayload | null) => void;
   clearRuntimeCrash: () => void;
   triggerAiRuntimeRepair: (crash?: RuntimeCrashPayload | null) => Promise<void>;
+  setShareModalOpen: (open: boolean) => void;
+  generateInstantShareLink: () => Promise<string | null>;
   addMsg: (role: Message['role'], text: string, extra?: Partial<Message>) => Message;
   updateMsg: (id: string, patch: Partial<Message>) => void;
   log: (txt: string, cls?: string) => void;
@@ -332,6 +338,9 @@ export const useStore = create<AppState>((set, get) => ({
   modelMenuOpen: false,
   settingsOpen: false,
   publishModalOpen: false,
+  shareModalOpen: false,
+  lastShareUrl: null,
+  lastShareId: null,
   mobileSidebarOpen: false,
   activeGeneratingFile: null,
   historyExpanded: false,
@@ -416,6 +425,39 @@ export const useStore = create<AppState>((set, get) => ({
     } else {
       get().generate(fixPrompt);
     }
+  },
+
+  setShareModalOpen: open => set({ shareModalOpen: open }),
+
+  generateInstantShareLink: async () => {
+    const s = get();
+    const html = s.sandboxHtml ?? s.currentHtml() ?? s.liveHtml;
+    if (!html) {
+      get().toast('Najprv vytvor alebo vygeneruj projekt na zdieľanie', 'warn');
+      return null;
+    }
+
+    try {
+      const res = await createInstantShare(s.projectId, s.projectTitle, html);
+      if (res.ok && res.shareUrl) {
+        set({
+          lastShareUrl: res.shareUrl,
+          lastShareId: res.shareId,
+          shareModalOpen: true
+        });
+        try {
+          await navigator.clipboard?.writeText(res.shareUrl);
+          get().toast('Link pre klienta bol skopírovaný do schránky! 🚀', 'ok');
+        } catch {
+          get().toast('Verejný link bol vygenerovaný!', 'ok');
+        }
+        return res.shareUrl;
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Chyba servera';
+      get().toast('Nepodarilo sa vytvoriť odkaz: ' + msg, 'err');
+    }
+    return null;
   },
 
   addMsg: (role, text, extra) => {
@@ -604,6 +646,7 @@ export const useStore = create<AppState>((set, get) => ({
       branches: [{ name: 'main', headIdx: Infinity }], branch: 'main', pendingReview: null,
       generating: false, aiAbort: null,
       editMode: false, inspectedElement: null, runtimeCrash: null,
+      shareModalOpen: false, lastShareUrl: null, lastShareId: null,
       sandboxHtml: null, sandboxErrors: [], sandboxBuilding: false, promptDraft: '', templateFollowups: [],
     });
   },

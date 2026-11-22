@@ -44,7 +44,32 @@ echo "==> 6/7 Aplikácia a overenie databázových migrácií (PostgreSQL)"
 # Počkáme 3 sekundy na inicializáciu API
 sleep 3
 ssh -o StrictHostKeyChecking=no "$SSH_HOST" "docker exec lov-devil-api npx tsx server/db/migrate.ts"
-ssh -o StrictHostKeyChecking=no "$SSH_HOST" "systemctl reload nginx"
+
+# Zabezpečenie verejných ciest /p/ a /api/share/ bez auth_basic
+ssh -o StrictHostKeyChecking=no "$SSH_HOST" 'python3 -c "
+with open(\"/etc/nginx/sites-available/lov-devil\", \"r\") as f:
+    content = f.read()
+share_block = \"\"\"    location /p/ {
+        auth_basic off;
+        proxy_pass http://127.0.0.1:8788;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /api/share/ {
+        auth_basic off;
+        proxy_pass http://127.0.0.1:8788;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+\"\"\"
+if \"location /p/ {\" not in content:
+    content = content.replace(\"location /api/ {\", share_block + \"\n    location /api/ {\")
+    with open(\"/etc/nginx/sites-available/lov-devil\", \"w\") as f:
+        f.write(content)
+" && nginx -t && systemctl reload nginx'
 
 echo "==> 7/7 Health check & overenie dostupnosti"
 ssh -o StrictHostKeyChecking=no "$SSH_HOST" "curl -sf http://127.0.0.1:${HOST_PORT}/api/health && echo '' && docker ps --filter name=lov-devil-api --format '{{.Names}}: {{.Status}} ({{.Ports}})'"
