@@ -142,6 +142,7 @@ describe('transport state machine', () => {
   });
 
   it('with VITE_AGENT_JOBS_CLIENT off (default) never calls POST /api/agent/jobs and passes an Idempotency-Key to SSE', async () => {
+    vi.stubEnv('VITE_AGENT_JOBS_CLIENT', '0');
     const fetch = stubFetch(() => new Response('{}', { status: 500 }));
     vi.mocked(streamAgentEvents).mockImplementation(async function* () { yield ev.started; yield ev.done; });
     const t = transports();

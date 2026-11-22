@@ -143,6 +143,10 @@ export interface AppState extends JobClientSlice {
   setModelMenuOpen: (v: boolean) => void;
   setSettingsOpen: (v: boolean) => void;
   setPublishModalOpen: (v: boolean) => void;
+  mobileSidebarOpen: boolean;
+  setMobileSidebarOpen: (v: boolean) => void;
+  activeGeneratingFile: string | null;
+  setActiveGeneratingFile: (file: string | null) => void;
   currentHtml: () => string | null;
   edSnap: () => Snapshot | null;
 
@@ -317,6 +321,8 @@ export const useStore = create<AppState>((set, get) => ({
   modelMenuOpen: false,
   settingsOpen: false,
   publishModalOpen: false,
+  mobileSidebarOpen: false,
+  activeGeneratingFile: null,
   historyExpanded: false,
   toasts: [],
 
@@ -553,6 +559,8 @@ export const useStore = create<AppState>((set, get) => ({
   setModelMenuOpen: v => set({ modelMenuOpen: v }),
   setSettingsOpen: v => set({ settingsOpen: v }),
   setPublishModalOpen: v => set({ publishModalOpen: v }),
+  setMobileSidebarOpen: v => set({ mobileSidebarOpen: v }),
+  setActiveGeneratingFile: file => set({ activeGeneratingFile: file }),
 
   /* ---------- M2: AI engine ---------- */
   aiMode: true,
@@ -633,8 +641,8 @@ export const useStore = create<AppState>((set, get) => ({
             });
           }
         }
-        if (ev.type === 'file_started') get().log('› generujem ' + ev.path, 'info');
-        if (ev.type === 'file_done') get().log('✓ ' + ev.path + ' (' + ev.bytes + ' B)', 'ok');
+        if (ev.type === 'file_started') { set({ activeGeneratingFile: ev.path }); get().log('› generujem ' + ev.path, 'info'); }
+        if (ev.type === 'file_done') { set({ activeGeneratingFile: null }); get().log('✓ ' + ev.path + ' (' + ev.bytes + ' B)', 'ok'); }
         if (ev.type === 'validation' && !ev.result.ok) {
           get().log('⚠ validácia: ' + ev.result.errors.map(e => e.path + ': ' + e.message).join('; ').slice(0, 200), 'warn');
         }
@@ -684,7 +692,7 @@ export const useStore = create<AppState>((set, get) => ({
       }
       get().updateMsg(planMsg.id, { text: answerText?answerText+'\n\nOdpoveď sa prerušila a zostala neúplná. Súbory sa nemenili.':e instanceof AiRequestError || e instanceof AiNotConfiguredError || e instanceof NetworkError ? e.message : abort.signal.aborted ? 'AI generovanie bolo zrušené.' : 'AI úlohu sa nepodarilo dokončiť. Lokálna práca zostala zachovaná.', done: true });
     } finally {
-      if (get().aiAbort === abort) {set({ generating: false, aiAbort: null });void get().persistNow();void saveMeta('activeAgentJob', null).catch(() => {});}
+      if (get().aiAbort === abort) {set({ generating: false, aiAbort: null, activeGeneratingFile: null });void get().persistNow();void saveMeta('activeAgentJob', null).catch(() => {});}
     }
   },
 

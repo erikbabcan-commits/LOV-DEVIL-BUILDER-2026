@@ -9,6 +9,7 @@ import { JobTransportStatus } from './JobTransportStatus';
 import { ProjectDiff } from './ProjectDiff';
 import { BuildRepairAction } from './BuildRepairAction';
 import { ConnectionPanel } from '../../components/ConnectionPanel';
+import { LiveGenerationInspector } from './LiveGenerationInspector';
 
 /* Workspace: chat panel + canvas panel — port 1:1 legacy štruktúry. */
 
@@ -26,14 +27,35 @@ function ChatMessage({ m }: { m: ReturnType<typeof useStore.getState>['messages'
               Agent Mode{m.planTitle ? ' · ' + m.planTitle : ''}
             </div>
             {m.plan.map((s, i) => (
-              <div key={i} className={'plan-step ' + s.state}><span className="pi">{s.state === 'done' ? '✓' : ''}</span>{s.label}</div>
+              <div key={i} className={'plan-step ' + s.state}>
+                <span className="pi">{s.state === 'done' ? '✓' : s.state === 'running' ? '⚡' : '○'}</span>
+                <span className="plan-step-label">{s.label}</span>
+              </div>
             ))}
           </div>
         )}
         {m.text && <div className="content" style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>}
         {m.code && m.done && (
           <div className="code-block">
-            <div className="code-head"><span>{esc(m.file || 'index.html')}</span></div>
+            <div className="code-head">
+              <div className="code-head-left">
+                <span className="code-lang-tag">
+                  <i className="lang-dot" /> {m.file ? (m.file.endsWith('.sh') ? 'bash' : m.file.endsWith('.tsx') ? 'tsx' : m.file.replace(/^.*\./, '')) : 'bash'}
+                </span>
+                <span className="code-file-name">{esc(m.file || 'main.tsx')}</span>
+              </div>
+              <button
+                type="button"
+                className="code-copy-btn"
+                title="Kopírovať kód"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(m.code ?? '');
+                  st.toast('Kód skopírovaný', 'ok');
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+              </button>
+            </div>
             <pre dangerouslySetInnerHTML={{ __html: hl(m.code) }} />
           </div>
         )}
@@ -116,39 +138,105 @@ export function Workspace() {
           )}
           {st.messages.map(m => <ChatMessage key={m.id} m={m} />)}
         </div>
+        <LiveGenerationInspector />
         <JobTransportStatus />
         <ReviewPanel />
         {st.templateFollowups.length > 0 && !st.pendingReview && <div className="workspace-followups" aria-label="Nápady na ďalší krok">{st.templateFollowups.map(prompt => <button key={prompt} onClick={() => st.usePrompt(prompt)}>{prompt}</button>)}</div>}
+        
+        {st.messages.length > 2 && (
+          <button
+            type="button"
+            className="floating-scroll-down-btn"
+            onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })}
+            title="Posunúť na najnovšiu správu"
+            aria-label="Posunúť nadol"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 5v14M19 12l-7 7-7-7" />
+            </svg>
+          </button>
+        )}
+
         <div className="composer">
           <div className="comp-box">
-            <textarea id="promptInput" ref={inputRef} rows={1} aria-label="Popíš zmenu" value={st.promptDraft} onChange={event => st.setPromptDraft(event.target.value)} placeholder="Popíš zmenu alebo polož otázku… (Ctrl+Enter)"
-              onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); submit(); } }} />
+            <textarea
+              id="promptInput"
+              ref={inputRef}
+              rows={1}
+              aria-label="Popíš zmenu"
+              value={st.promptDraft}
+              onChange={event => st.setPromptDraft(event.target.value)}
+              placeholder="Ask anything or type @ to add context (Ctrl+Enter)"
+              onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); submit(); } }}
+            />
             <div className="comp-actions">
               <div className="comp-left">
-                <button className="icon-btn" id="attachBtn" title="Prílohy — pripravujeme" disabled style={{ padding: '0 7px' }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21.4 11.1-9.2 9.2a5.7 5.7 0 0 1-8-8l9-9a3.8 3.8 0 0 1 5.4 5.4l-9 9a1.9 1.9 0 0 1-2.7-2.7l8.3-8.2" /></svg>
-                </button>
+                {/* Book / doc context icon (Image 3) */}
                 <button
                   type="button"
-                  className="chip hide-xs"
+                  className="icon-btn hp-action-btn mobile-only-btn"
+                  title="Dokumentácia a kontext"
+                  onClick={() => st.toast('Kontext projektu pripravený', 'info')}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/></svg>
+                </button>
+
+                {/* Attach / + icon button */}
+                <button
+                  type="button"
+                  className="icon-btn hp-action-btn"
+                  id="attachBtn"
+                  title="Prílohy a súbory"
+                  disabled
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>
+                </button>
+
+                {/* Model Pill (Image 3) */}
+                <button
+                  type="button"
+                  className="chip mobile-composer-chip"
                   id="workspaceModelChip"
-                  style={{ fontSize: '11px', height: '22px', padding: '0 6px', cursor: 'pointer' }}
                   onClick={() => {
                     st.setModelMenuOpen(!st.modelMenuOpen);
                     document.getElementById('modelChip')?.focus();
                   }}
                   title={`Aktuálny model: ${st.model} · klikni pre zmenu`}
                 >
-                  <span style={{ opacity: 0.7, marginRight: 2 }}>Model:</span>
+                  <span className="spark-icon">✦</span>
                   <strong>{st.model}</strong>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" /></svg>
                 </button>
-                <span className="token-count" id="tokenCount">≈ {tokens} tok · kontext podľa modelu</span>
+
+                {/* Optimization / Balance Pill (Image 3) */}
+                <button
+                  type="button"
+                  className="chip mobile-composer-chip mobile-only-btn"
+                  onClick={() => st.toast('Režim optimalizácie: Vyvážený (Balance)', 'info')}
+                  title="Optimalizácia modelu"
+                >
+                  <span>Optimized for: Balance ▾</span>
+                </button>
+
+                {/* Speedometer Badge (Image 3) */}
+                <span className="hp-speedometer-badge mobile-only-btn" title="Rýchlosť odpovede">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </span>
+
+                <span className="token-count desktop-only" id="tokenCount">≈ {tokens} tok · kontext podľa modelu</span>
               </div>
               <div className="comp-right">
                 {st.generating && st.aiAbort ? (
-                  <button className="send-btn" id="cancelBtn" title="Zrušiť generovanie" onClick={st.cancelAiRun}>✕</button>
+                  <button className="send-btn cancel-btn" id="cancelBtn" title="Zrušiť generovanie" onClick={st.cancelAiRun}>✕</button>
                 ) : (
-                  <button className="send-btn" id="sendBtn" title="Odoslať (Ctrl+Enter)" disabled={st.generating || !!st.pendingReview || !st.promptDraft.trim()} onClick={submit}>
+                  <button
+                    className={'send-btn' + (st.promptDraft.trim() && !st.generating && !st.pendingReview ? ' neon-cta-active' : '')}
+                    id="sendBtn"
+                    title="Odoslať (Ctrl+Enter)"
+                    disabled={st.generating || !!st.pendingReview || !st.promptDraft.trim()}
+                    onClick={submit}
+                    aria-label="Odoslať správu"
+                  >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z" /></svg>
                   </button>
                 )}

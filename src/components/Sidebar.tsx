@@ -5,6 +5,7 @@ import { useStore } from '../stores/useAppStore';
 
 export function Sidebar({ activeTab = 'overview', onSelect }: { activeTab?: string; onSelect?: (tab: string) => void }) {
   const st = useStore();
+  const isOpen = st.mobileSidebarOpen;
 
   const navItems = [
     {
@@ -55,114 +56,132 @@ export function Sidebar({ activeTab = 'overview', onSelect }: { activeTab?: stri
   ];
 
   return (
-    <aside
-      aria-label="Navigácia pracoviska"
-      className="workspace-sidebar"
-      style={{
-        width: '54px',
-        height: 'calc(100dvh - 56px)',
-        background: 'var(--bg-sidebar, #09090B)',
-        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 0',
-        boxSizing: 'border-box',
-        flexShrink: 0
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-        {/* Logo 32x32, zelený neónový okraj */}
-        <div
-          className="neon-logo"
-          title="VORKEI"
-          aria-label="VORKEI"
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '10px',
-            background: 'var(--neon-green, #4ADE80)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '8px'
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="#EAFBF0" aria-hidden="true">
-            <path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z" />
-          </svg>
-        </div>
-
-        {/* 4 ikonové tlačidlá 36x36 */}
-        {navItems.map(item => {
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={'neon-icon-btn' + (isActive ? ' active' : '')}
-              aria-label={item.label}
-              aria-current={isActive ? 'page' : undefined}
-              title={item.label}
-              onClick={() => {
-                if (item.action) item.action();
-                if (onSelect) onSelect(item.id);
-              }}
-            >
-              {item.icon}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Spodná časť: nastavenia + avatar 32px */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '8px',
-          width: '100%',
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-          paddingTop: '10px'
-        }}
+    <>
+      {isOpen && <div className="sidebar-backdrop" onClick={() => st.setMobileSidebarOpen(false)} aria-hidden="true" />}
+      <aside
+        aria-label="Navigácia pracoviska"
+        className={'workspace-sidebar' + (isOpen ? ' mobile-open' : '')}
       >
-        <button
-          type="button"
-          className="neon-icon-btn"
-          aria-label="Nastavenia"
-          title="Nastavenia"
-          onClick={() => st.setSettingsOpen(true)}
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z" />
-          </svg>
-        </button>
-        <div
-          className="avatar-chip"
-          role="img"
-          aria-label="Účet používateľa"
-          title="Účet"
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: 'var(--surface-carbon-top, #161719)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            color: 'var(--text-secondary, #A1A1AA)',
-            fontSize: '11px',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            userSelect: 'none'
-          }}
-        >
-          YH
+        <div className="sidebar-top-group">
+          {/* Mobilná hlavička so zatvorením */}
+          <div className="sidebar-mobile-head">
+            <div className="neon-logo" title="VORKEI" aria-label="VORKEI">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#EAFBF0" aria-hidden="true">
+                <path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z" />
+              </svg>
+            </div>
+            <span className="sidebar-mobile-title">VORKEI Workspace</span>
+            <button
+              type="button"
+              className="icon-btn sidebar-close-btn"
+              onClick={() => st.setMobileSidebarOpen(false)}
+              aria-label="Zatvoriť menu"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Štandardné logo pre desktop */}
+          <div
+            className="neon-logo desktop-only"
+            title="VORKEI"
+            aria-label="VORKEI"
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '10px',
+              background: 'var(--neon-green, #4ADE80)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '8px'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#EAFBF0" aria-hidden="true">
+              <path d="M12 21s-7.5-4.7-10-9.3C.4 8.2 2.5 4.5 6.1 4.5c2.2 0 3.9 1.2 4.9 3-1.6-3-1-9 1-9s2.6 6 1 9c1-1.8 2.7-3 4.9-3 3.6 0 5.7 3.7 4.1 7.2C19.5 16.3 12 21 12 21Z" />
+            </svg>
+          </div>
+
+          {/* Navigačné položky */}
+          <nav className="sidebar-nav-items">
+            {navItems.map(item => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={'neon-icon-btn' + (isActive ? ' active' : '')}
+                  aria-label={item.label}
+                  aria-current={isActive ? 'page' : undefined}
+                  title={item.label}
+                  onClick={() => {
+                    st.setMobileSidebarOpen(false);
+                    if (item.action) item.action();
+                    if (onSelect) onSelect(item.id);
+                  }}
+                >
+                  {item.icon}
+                  <span className="sidebar-item-label">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Mobilné rýchle akcie v draweri */}
+          <div className="sidebar-mobile-actions">
+            <button
+              type="button"
+              className="drawer-action-btn"
+              onClick={() => { st.setMobileSidebarOpen(false); void st.exportToZip(); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+              <span>Export ZIP</span>
+            </button>
+            <button
+              type="button"
+              className="drawer-action-btn"
+              onClick={() => { st.setMobileSidebarOpen(false); void st.toggleGitHubConnection(); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg>
+              <span>{st.githubAuthState.authenticated ? (st.githubAuthState.username ? '@' + st.githubAuthState.username : 'GitHub Pripojený') : 'Pripojiť GitHub'}</span>
+            </button>
+            <button
+              type="button"
+              className="drawer-action-btn"
+              disabled={st.githubExportInProgress || !st.githubAuthState.authenticated}
+              onClick={() => { st.setMobileSidebarOpen(false); void st.exportToGitHub(); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" /></svg>
+              <span>Export na GitHub</span>
+            </button>
+          </div>
         </div>
-      </div>
-    </aside>
+
+        {/* Spodná časť: nastavenia + avatar */}
+        <div className="sidebar-bottom-group">
+          <button
+            type="button"
+            className="neon-icon-btn"
+            aria-label="Nastavenia"
+            title="Nastavenia"
+            onClick={() => { st.setMobileSidebarOpen(false); st.setSettingsOpen(true); }}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z" />
+            </svg>
+            <span className="sidebar-item-label">Nastavenia</span>
+          </button>
+          <div
+            className="avatar-chip"
+            role="img"
+            aria-label="Účet používateľa"
+            title="Účet"
+          >
+            YH
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

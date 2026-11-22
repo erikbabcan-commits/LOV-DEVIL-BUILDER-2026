@@ -16,6 +16,7 @@ import { MobileTabs } from './MobileTabs';
 import { LandingPage } from '../features/landing/LandingPage';
 import { Workspace } from '../features/workspace/Workspace';
 import { EditorDashboard } from '../features/editor/EditorDashboard';
+import { BottomStatusBar } from '../components/BottomStatusBar';
 
 /* AppShell — rovnaké body[data-mode]/data-view správanie ako legacy. */
 export function AppShell() {
@@ -149,6 +150,7 @@ export function AppShell() {
       {mode === 'home' && <LandingPage quota={authState.state === 'authenticated' ? authState.quota : undefined} />}
       {mode === 'work' && <Workspace />}
       {mode === 'editor' && <EditorDashboard />}
+      <BottomStatusBar quota={authState.state === 'authenticated' ? authState.quota : undefined} />
       <div className="toasts" id="toasts">
         {st.toasts.map(t => (
           <div key={t.id} className={'toast ' + t.kind}><span className="dot"></span>{t.msg}</div>

@@ -1,0 +1,18 @@
+{
+  "name": "VORKEI – AI Builder",
+  "short_name": "VORKEI",
+  "description": "VORKEI – Autonómny AI web & app builder pre moderných vývojárov a štúdiá.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#171717",
+  "theme_color": "#171717",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
