@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 364" width="100%" height="100%">
+  <title>Astro Logo</title>
+  <defs>
+    <linearGradient id="astro_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BC52EE"/>
+      <stop offset="100%" stop-color="#6D28D9"/>
+    </linearGradient>
+    <linearGradient id="astro_flame" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF5D01"/>
+      <stop offset="100%" stop-color="#FFBD38"/>
+    </linearGradient>
+  </defs>
+  <path d="M128 0C128 0 88 56 88 140C88 196 116 236 128 252C140 236 168 196 168 140C168 56 128 0 128 0Z" fill="url(#astro_grad)"/>
+  <path d="M128 252C118 274 100 300 80 320C110 324 140 310 152 290C140 278 132 264 128 252Z" fill="url(#astro_flame)"/>
+  <path d="M64 164C64 164 40 196 40 248C56 248 80 240 96 228C84 204 74 182 64 164Z" fill="url(#astro_grad)"/>
+  <path d="M192 164C192 164 216 196 216 248C200 248 176 240 160 228C172 204 182 182 192 164Z" fill="url(#astro_grad)"/>
+</svg>

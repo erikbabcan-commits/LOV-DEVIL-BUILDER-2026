@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250" width="100%" height="100%">
+  <title>Angular Logo</title>
+  <defs>
+    <linearGradient id="ang_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E91E63"/>
+      <stop offset="50%" stop-color="#BD10E0"/>
+      <stop offset="100%" stop-color="#9C27B0"/>
+    </linearGradient>
+  </defs>
+  <polygon points="125,18 226,54 209,190 125,236 41,190 24,54" fill="url(#ang_grad)"/>
+  <polygon points="125,48 190,180 162,180 148,148 102,148 88,180 60,180" fill="#ffffff"/>
+  <polygon points="125,82 110,124 140,124" fill="url(#ang_grad)"/>
+</svg>
