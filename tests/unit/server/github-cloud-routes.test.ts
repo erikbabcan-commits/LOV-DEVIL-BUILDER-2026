@@ -40,7 +40,7 @@ describe('mounted Cloud GitHub API', () => {
     api = vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json({ access_token: 'server-only-token', scope: 'public_repo', token_type: 'bearer' }))
       .mockResolvedValueOnce(Response.json({ id: 42, login: 'fixture-user' }));
     const service = githubCloud(db, { clientId: 'fixture-client', clientSecret: 'fixture-secret', encryptionKey: 'ef'.repeat(32), callbackUrl: 'https://lovable.test/github/callback', allowedOrigin: 'https://lovable.test', fetch: api });
-    auth = { db, jwtSecret, quota: new InMemoryQuotaStore(), cloudAuth: makeCloudAuth(db, issuer, keys), cloudGitHub: { service, bridgeSecret } };
+    auth = { db, jwtSecret, quota: new InMemoryQuotaStore(), cloudAuth: makeCloudAuth(db, issuer, keys), cloudGitHub: { service, bridgeSecret, fetch: api } };
     app = createApp({}, null, { rateLimit: () => true, auth });
   });
   const request = (action: string, body?: unknown, token = alice, secret = bridgeSecret) => app.request('/api/cloud-github/' + action, {
@@ -110,6 +110,25 @@ describe('mounted Cloud GitHub API', () => {
     }));
     return { call, upstream };
   }
+  it('imports through the BFF with the connected user, public visibility policy and a paginated repository list', async () => {
+    const state = await start();
+    expect((await request('finish', { browserNonce: nonce, state, code: 'fixture-code' })).status).toBe(200);
+    const { call } = bff();
+    const repo = { full_name: 'alice/demo', default_branch: 'main', private: false };
+    api.mockResolvedValueOnce(Response.json([repo]));
+    expect(await (await call('repos?page=2')).json()).toEqual({ repos: [{ fullName: 'alice/demo', defaultBranch: 'main' }], more: false });
+    expect((await call('repos?owner=bob')).status).toBe(404);
+    api.mockResolvedValueOnce(Response.json({ ...repo, private: true }));
+    expect((await call('import', { repoFullName: repo.full_name })).status).toBe(403);
+    const content = 'x'.repeat(20_000);
+    api.mockResolvedValueOnce(Response.json(repo)).mockResolvedValueOnce(Response.json({ truncated: false,
+      tree: [{ sha: 'a'.repeat(40), path: 'src/app.ts', size: content.length, mode: '100644', type: 'blob' }] }))
+      .mockResolvedValueOnce(new Response(content));
+    const response = await call('import', { repoFullName: repo.full_name });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ files: [{ name: 'src/app.ts', content }] });
+  });
+
   it('runs browser → BFF with private nonce cookie → Basic/Cloud Hono → GitHub → encrypted DB', async () => {
     const { call, upstream } = bff();
     const started = await call('start', {});

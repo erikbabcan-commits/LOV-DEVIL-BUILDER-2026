@@ -1,3 +1,4 @@
+import { githubImporter, githubImportResponse } from '../integrations/githubImporter';
 import { timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -13,8 +14,8 @@ import { loadGitHubSnapshot } from '../integrations/githubSnapshot';
 
 export const GITHUB_BRIDGE_HEADER = 'X-LOV-GitHub-Bridge';
 export function isCloudGitHubRoute(method: string, path: string): boolean {
-  return method === 'GET' ? path === '/api/cloud-github/status' : method === 'POST' &&
-    ['/api/cloud-github/start', '/api/cloud-github/finish', '/api/cloud-github/disconnect', ...['prepare', 'confirm', 'status', 'review', 'cancel', 'reconcile', 'sync'].map(action => '/api/cloud-github/export/' + action)].includes(path);
+  return method === 'GET' ? ['/api/cloud-github/repos', '/api/cloud-github/status'].includes(path) : method === 'POST' &&
+    ['/api/cloud-github/import', '/api/cloud-github/start', '/api/cloud-github/finish', '/api/cloud-github/disconnect', ...['prepare', 'confirm', 'status', 'review', 'cancel', 'reconcile', 'sync'].map(action => '/api/cloud-github/export/' + action)].includes(path);
 }
 export interface CloudGitHubWiring { service: ReturnType<typeof githubCloud>; bridgeSecret: string; exporter?: ReturnType<typeof githubExporter>; db?: DbLike; fetch?: typeof fetch }
 const nonce = z.string().regex(/^[a-f0-9]{64}$/);
@@ -39,7 +40,7 @@ export function githubCloudRouter(wiring: CloudGitHubWiring, allow: (key: string
     const expected = Buffer.from(wiring.bridgeSecret);
     if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected))
       return c.json({ error: 'github_bridge_required' }, 403);
-    if (new URL(c.req.url).search) return c.json({ error: 'invalid_github_query' }, 400);
+    if (new URL(c.req.url).search && c.req.path !== '/api/cloud-github/repos') return c.json({ error: 'invalid_github_query' }, 400);
     if (!isCloudGitHubRoute(c.req.method, c.req.path)) return c.json({ error: 'github_route_unavailable' }, 404);
     if (!allow('cloud-github:' + user.id)) return c.json({ error: 'rate_limit' }, 429);
     if (c.req.method === 'POST' && c.req.header('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json')
@@ -47,6 +48,15 @@ export function githubCloudRouter(wiring: CloudGitHubWiring, allow: (key: string
     return next();
   });
   router.use('/api/cloud-github/*', bodyLimit({ maxSize: 2048, onError: c => c.json({ error: 'github_request_too_large' }, 413) }));
+  router.on(['GET', 'POST'], ['/api/cloud-github/repos', '/api/cloud-github/import'], async c => {
+    const access = await wiring.service.exportAccess(getUserFromContext(c)!.id);
+    if (!access) return c.json({ error: 'github_not_connected' }, 401);
+    return access.run(async credentials => {
+      const response = await githubImportResponse(githubImporter(credentials.token, false, c.req.raw.signal, wiring.fetch), c.req.raw);
+      await credentials.assertAuthorized();
+      return response;
+    });
+  });
   router.get('/api/cloud-github/status', async c => c.json(await wiring.service.status(getUserFromContext(c)!.id)));
   router.post('/api/cloud-github/start', async c => {
     const body = startSchema.safeParse(await c.req.json().catch(() => null));

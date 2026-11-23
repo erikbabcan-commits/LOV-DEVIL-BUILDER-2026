@@ -68,7 +68,7 @@ describe('GitHub connector account isolation', () => {
     const foreign = await app.request('/api/github/auth', { headers: headers(bob, flow.github) });
     expect(foreign.headers.get('Cache-Control')).toBe('no-store');
     expect(await foreign.json()).toMatchObject({ authenticated: false });
-    for (const path of ['/api/github/export', '/api/github/auth/revoke']) {
+    for (const path of ['/api/github/export', '/api/github/import', '/api/github/auth/revoke']) {
       expect((await app.request(path, { method: 'POST', headers: {
         ...headers(bob, flow.github), Origin: 'http://localhost:5173',
         'Content-Type': 'application/json', 'X-CSRF-Token': flow.auth.csrfToken
@@ -77,6 +77,23 @@ describe('GitHub connector account isolation', () => {
     expect(flow.fetchMock).toHaveBeenCalledTimes(2);
     const own = await app.request('/api/github/auth', { headers: headers(alice, flow.github) });
     expect(await own.json()).toMatchObject({ authenticated: true });
+  });
+
+  it('lists repositories and imports through the authenticated local routes with CSRF protection', async () => {
+    const flow = await connect();
+    const repo = { full_name: 'alice/demo', private: false, default_branch: 'main' };
+    const request = { method: 'POST', headers: { ...headers(alice, flow.github), Origin: 'http://localhost:5173',
+      'Content-Type': 'application/json' }, body: JSON.stringify({ repoFullName: repo.full_name }) };
+    expect((await app.request('/api/github/import', request)).status).toBe(403);
+    flow.fetchMock.mockResolvedValueOnce(Response.json([repo]));
+    const list = await app.request('/api/github/repos', { headers: headers(alice, flow.github) });
+    expect(await list.json()).toMatchObject({ repos: [{ fullName: 'alice/demo' }] });
+    flow.fetchMock.mockResolvedValueOnce(Response.json(repo)).mockResolvedValueOnce(Response.json({
+      truncated: false, tree: [{ type: 'blob', path: 'README.md', mode: '100644', sha: 'a'.repeat(40), size: 4 }],
+    })).mockResolvedValueOnce(new Response('demo'));
+    const response = await app.request('/api/github/import', { ...request, headers: { ...request.headers, 'X-CSRF-Token': flow.auth.csrfToken } });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ repoFullName: 'alice/demo', branch: 'main', skipped: 0, files: [{ name: 'README.md', content: 'demo' }] });
   });
 
   it('rejects an OAuth callback after switching accounts without consuming the owner’s state', async () => {

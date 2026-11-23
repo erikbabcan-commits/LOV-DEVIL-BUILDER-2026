@@ -1,3 +1,4 @@
+import { ImportRequest, ImportResult, RepoList, importErrors } from '../../shared/githubImport';
 import { z } from 'zod';
 import { PrepareGitHubExport, ConfirmGitHubExport, CancelGitHubExport, ReadGitHubExport, GitHubExportJob, GitHubExportReview, GitHubExportError, GitHubRepoName } from '../../shared/githubExportProtocol';
 // Standalone BFF core: no Hono or JOSE runtime dependency in the UI server.
@@ -82,14 +83,14 @@ export function makeGitHubBff(deps: {
   }
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url), action = url.pathname.slice(ROOT.length);
-    if (url.protocol !== 'https:' || url.origin !== callback.origin || !url.pathname.startsWith(ROOT) || url.search ||
-      !['start', 'finish', 'status', 'disconnect', 'export/prepare', 'export/confirm', 'export/status', 'export/review', 'export/cancel', 'export/reconcile', SYNC].includes(action) || request.method !== (action === 'status' ? 'GET' : 'POST')) return reply({ error: 'github_route_unavailable' }, 404);
+    if (url.protocol !== 'https:' || url.origin !== callback.origin || !url.pathname.startsWith(ROOT) || (url.search && !(action === 'repos' && /^\?page=[1-9]\d{0,4}$/.test(url.search))) ||
+      !['import', 'repos', 'start', 'finish', 'status', 'disconnect', 'export/prepare', 'export/confirm', 'export/status', 'export/review', 'export/cancel', 'export/reconcile', SYNC].includes(action) || request.method !== (action === 'status' || action === 'repos' ? 'GET' : 'POST')) return reply({ error: 'github_route_unavailable' }, 404);
     if (request.headers.get('sec-fetch-site') === 'cross-site' || (request.headers.has('Origin') && request.headers.get('Origin') !== url.origin) ||
       (request.method === 'POST' && request.headers.get('Origin') !== url.origin)) return reply({ error: 'origin_not_allowed' }, 403);
     if (request.method === 'POST' && request.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase() !== 'application/json') return reply({ error: 'json_required' }, 415);
     const token = bearerToken(request.headers.get('Authorization') ?? undefined);
     if (!token) return reply({ error: 'cloud_identity_required' }, 401);
-    const signal = AbortSignal.any([request.signal, AbortSignal.timeout(action === 'export/confirm' || action === SYNC ? 75_000 : action === 'export/reconcile' ? 35_000 : 15_000)]);
+    const signal = AbortSignal.any([request.signal, AbortSignal.timeout(action === 'export/confirm' || action === SYNC || action === 'import' ? 75_000 : action === 'export/reconcile' ? 35_000 : 15_000)]);
     let nonce: string | undefined;
     try {
       // The deadline also covers providers that don't themselves honor AbortSignal.
@@ -106,7 +107,11 @@ export function makeGitHubBff(deps: {
       let body: unknown;
       if (request.method === 'POST') {
         const input = await readJson(request.body, 2048, signal);
-        if (action === SYNC) {
+        if (action === 'import') {
+          const parsed = ImportRequest.safeParse(input);
+          if (!parsed.success) return reply({ error: 'invalid_import' }, 400);
+          body = parsed.data;
+        } else if (action === SYNC) {
           const parsed = syncRequest.safeParse(input);
           if (!parsed.success) return reply({ error: 'invalid_export_request' }, 400);
           body = parsed.data;
@@ -137,7 +142,7 @@ export function makeGitHubBff(deps: {
         headers[CLOUD_AUTH_HEADER] = 'Bearer ' + token;
       }
       if (body !== undefined) headers['Content-Type'] = 'application/json';
-      const upstream = await deps.fetch(new URL('/api/cloud-github/' + action, base), {
+      const upstream = await deps.fetch(new URL('/api/cloud-github/' + action + url.search, base), {
         method: request.method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }), redirect: 'error', signal
       });
       if (!upstream.ok) {
@@ -152,16 +157,21 @@ export function makeGitHubBff(deps: {
           const parsed = z.object({ error: GitHubExportError }).safeParse(raw);
           return reply({ error: parsed.success ? parsed.data.error : error }, errorStatus);
         }
-        if (action.startsWith('export/')) {
+        if (action === 'import' || action === 'repos') {
+          const parsed = z.object({ error: z.string() }).safeParse(await readJson(upstream.body, 4096, signal));
+          if (parsed.success && Object.hasOwn(importErrors, parsed.data.error)) error = parsed.data.error;
+        } else if (action.startsWith('export/')) {
           const parsed = z.object({ error: GitHubExportError }).safeParse(await readJson(upstream.body, 16384, signal));
           if (parsed.success) error = parsed.data.error;
         } else void upstream.body?.cancel().catch(() => undefined);
         return reply({ error }, [400, 401, 403, 404, 409, 410, 413, 422, 429, 502, 503].includes(upstream.status) ? upstream.status : 502);
       }
       const isReview = action === 'export/prepare' || action === 'export/review';
-      const data = await readJson(upstream.body, isReview ? 65536 : 16384, signal);
+      const data = await readJson(upstream.body, action === 'import' ? 12_100_000 : isReview || action === 'repos' ? 65536 : 16384, signal);
       let result: Response;
-      if (action === SYNC) result = reply(syncSuccess.parse(data));
+      if (action === 'import') result = reply(ImportResult.parse(data));
+      else if (action === 'repos') result = reply(RepoList.parse(data));
+      else if (action === SYNC) result = reply(syncSuccess.parse(data));
       else if (action.startsWith('export/')) result = reply(isReview ? GitHubExportReview.parse(data) : GitHubExportJob.parse(data));
       else if (action === 'status') result = reply(status.parse(data));
       else if (action === 'start') {

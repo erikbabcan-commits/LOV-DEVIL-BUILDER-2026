@@ -7,10 +7,11 @@
  */
 
 import { useState } from 'react';
+import { GitHubImportPanel } from '../editor/GitHubImportPanel';
 import { OneClickExportModal } from './OneClickExportModal';
 import { apiUrl } from '../../lib/api';
 
-export type ExportDialogTab = 'github' | 'cloud' | 'zip';
+export type ExportDialogTab = 'github' | 'import' | 'cloud' | 'zip';
 
 interface ExportDialogProps {
   projectTitle: string;
@@ -93,7 +94,10 @@ export function ExportDialog({
           <button className="oce-close" onClick={onClose} aria-label="Zavrieť">✕</button>
         </div>
 
-        <div className="oce-toggle-row">
+        <div className="oce-toggle-row" style={{ flexWrap: 'wrap' }}>
+          <button className={`oce-toggle${tab === 'import' ? ' active' : ''}`} onClick={() => setTab('import')}>
+            Import z GitHubu
+          </button>
           <button
             className={`oce-toggle${tab === 'github' ? ' active' : ''}`}
             onClick={() => setTab('github')}
@@ -113,6 +117,8 @@ export function ExportDialog({
             📦 ZIP Archív
           </button>
         </div>
+
+        {tab === 'import' && <GitHubImportPanel onClose={onClose} />}
 
         {/* Tab 1: GitHub Provision */}
         {tab === 'github' && (
