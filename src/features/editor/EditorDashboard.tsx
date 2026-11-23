@@ -112,14 +112,14 @@ export function EditorDashboard() {
             <button className="ed-conn" id="edGitHubConnect" onClick={() => void toggleGitHubConnection()}>
               🖧 {st.githubAuthState.authenticated ? `GitHub: ${st.githubAuthState.username || 'Connected'} (Disconnect)` : 'Connect GitHub'}
             </button>
-            <button className="ed-conn" onClick={() => st.toast('Figma connector — demo', 'warn')}>🎨 Figma</button>
-            <button className="ed-conn" onClick={() => st.toast('Notion connector — demo', 'warn')}>📓 Notion</button>
+            <button className="ed-conn" style={{ opacity: 0.6, cursor: 'not-allowed' }} title="Pripravujeme pre ďalšiu verziu" disabled>🎨 Figma (Pripravujeme)</button>
+            <button className="ed-conn" style={{ opacity: 0.6, cursor: 'not-allowed' }} title="Pripravujeme pre ďalšiu verziu" disabled>📓 Notion (Pripravujeme)</button>
           </div>
         </div>
         <div className="ed-build">
           <b>VORKEI Pro</b>
           <p>Odomyká private projekty, viac modelov a rýchlejšie buildy.</p>
-          <button id="edUpgrade" onClick={() => st.toast('Upgrade — demo (M1)', 'warn')}>Upgrade to Pro</button>
+          <button id="edUpgrade" onClick={() => st.setSettingsOpen(true)}>Upgrade to Pro</button>
         </div>
       </aside>
       <div className="ed-main">
@@ -264,17 +264,17 @@ export function EditorDashboard() {
           </div>
           <div className={'ed-pane' + (localTab === 'backend' ? ' active' : '')} data-edpane="backend">
             <div className="pane-empty">
-              🔒 Backend & data (DB schémy, data browser, auth) — mock panel ako v legacy; reálna implementácia až v M3.
+              🔒 Backend & Data (PostgreSQL, schémy a autentifikácia) — funkcia bude aktivovaná v nadchádzajúcom vydaní.
             </div>
           </div>
           <div className={'ed-pane' + (localTab === 'team' ? ' active' : '')} data-edpane="team">
             <div className="pane-empty">
-              👥 Tím & kolaborácia (seats, RBAC, komentáre v preview) — mock panel ako v legacy; reálna implementácia až v M4.
+              👥 Tím & Kolaborácia (zdieľanie projektov a správa rolí) — funkcia bude aktivovaná v nadchádzajúcom vydaní.
             </div>
           </div>
           <div className={'ed-pane' + (localTab === 'gallery' ? ' active' : '')} data-edpane="gallery">
             <div className="pane-empty">
-              🌐 Komunitná galéria (publikácia blueprintov, hodnotenie, trending) — mock panel ako v legacy; reálna implementácia až v M6.
+              🌐 Komunitná galéria blueprintov — pripravujeme oficiálny katalóg.
             </div>
           </div>
         </div>

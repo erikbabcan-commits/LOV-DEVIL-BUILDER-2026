@@ -640,7 +640,7 @@ export const useStore = create<AppState>((set, get) => ({
       codeDraftDirty: false,
       messages: [], snapshots: [], liveHtml: null, viewing: null, liveId: null,
       publishedUrl: null, vfs: {}, edFile: null, edEditing: false,
-      projectTitle: 'Nový projekt', projectId: 'pilot-' + uid(),
+      projectTitle: 'Nový projekt', projectId: 'prj_' + uid(),
       remoteRevision: 0,
       remoteSnapshotIds: {},
       branches: [{ name: 'main', headIdx: Infinity }], branch: 'main', pendingReview: null,
@@ -659,7 +659,7 @@ export const useStore = create<AppState>((set, get) => ({
   /* ---------- M2: AI engine ---------- */
   aiMode: true,
   aiConnected: null,
-  projectId: 'pilot-' + Math.random().toString(36).slice(2, 8),
+  projectId: 'prj_' + Math.random().toString(36).slice(2, 8),
   aiAbort: null,
   pendingReview: null,
 

@@ -11,8 +11,8 @@ const ProjectLibrary=lazy(()=>import('../features/projects/ProjectLibrary').then
 
 /* E2E test hook */
 (window as unknown as { __forgeStore: typeof useStore }).__forgeStore = useStore;
-import { TopBar } from './TopBar';
-import { MobileTabs } from './MobileTabs';
+import { TopBar } from '../components/TopBar';
+import { MobileTabs } from '../components/MobileTabs';
 import { LandingPage } from '../features/landing/LandingPage';
 import { Workspace } from '../features/workspace/Workspace';
 import { EditorDashboard } from '../features/editor/EditorDashboard';

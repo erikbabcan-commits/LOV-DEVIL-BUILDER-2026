@@ -51,9 +51,9 @@ def replace_env(path, data):
 def apply():
     updates = json.load(sys.stdin)
     expected = {
-        'GITHUB_CALLBACK_URL': 'https://lov.2.29.52.59.sslip.io/api/github/auth/callback',
-        'LOV_APP_URL': 'https://lov.2.29.52.59.sslip.io/',
-        'GITHUB_ALLOWED_ORIGINS': 'https://lov.2.29.52.59.sslip.io',
+        'GITHUB_CALLBACK_URL': 'https://lov.vorkei.com/api/github/auth/callback',
+        'LOV_APP_URL': 'https://lov.vorkei.com/',
+        'GITHUB_ALLOWED_ORIGINS': 'https://lov.vorkei.com',
         'GITHUB_SESSION_DIR': '/data/sessions'
     }
     allowed = set(expected) | {'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_OAUTH_SCOPE'}
