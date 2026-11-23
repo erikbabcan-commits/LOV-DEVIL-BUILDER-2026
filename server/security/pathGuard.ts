@@ -24,6 +24,19 @@ export function isSafePath(p: string): boolean {
   return isRootFile || inAllowedRoot;
 }
 
+/** Passive editor files may live outside the build sandbox's src/public allowlist. */
+export function isRepositorySourcePath(path: string): boolean {
+  if (!path || path.length > 200 || /[\\:\p{Cc}\p{Cf}]/u.test(path)) return false;
+  const parts = path.split('/');
+  if (parts.some(part => !part || part === '.' || part === '..' || /[. ]$/.test(part) ||
+    (part.startsWith('.') && !(parts.length === 1 && part === '.gitignore')) ||
+    /^(node_modules|dist|build|coverage|__pycache__|con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(part))) return false;
+  const name = parts[parts.length - 1];
+  if (isSafePath(path)) return true;
+  return /\.(?:[cm]?[jt]sx?|jsonc?|css|scss|sass|less|html?|mdx?|txt|ya?ml|toml|xml|svg|graphql|sql|py|go|rs|rb|java|kt|sh|c|cc|cpp|h|hpp|vue|svelte|astro|properties|ini|lock)$/i.test(name) ||
+    /^(?:Dockerfile|Makefile|LICENSE|README|Procfile)$/i.test(name);
+}
+
 /** Veľkostné limity výstupu modelu. */
 export function withinSizeLimits(files: { path: string; content: string }[]): { ok: boolean; reason?: string } {
   if (files.length > MAX_FILES) return { ok: false, reason: `file count ${files.length} > ${MAX_FILES}` };

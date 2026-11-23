@@ -16,6 +16,7 @@ import { createJobClientSlice, jobClient, type JobClientSlice } from './slices/j
 import { prepareVfsForExport } from '../services/export/zipExport';
 import { createProjectZip, downloadProjectZip } from '../services/export/projectZip';
 import { inspectProjectSources } from '../services/export/projectZip';
+import { pullGitHubFiles } from '../services/githubImport';
 import { WorkspaceSchema } from '../../shared/projectSchema';
 import { matchesCodeEditBase, type CodeEditBase } from '../services/editor/codeDrafts';
 import { exportToGitHub as doGitHubExport, type GitHubExportRequest, type GitHubAuthState } from '../services/export/githubExport';
@@ -136,6 +137,7 @@ export interface AppState extends JobClientSlice {
   dismissToast: (id: string) => void;
   generate: (prompt: string, kindOverride?: AppKind) => void;
   createSnapshot: (kind: string, prompt: string, html: string) => Snapshot;
+  importFromGitHub: (repoFullName: string, branch?: string) => Promise<void>;
   manualSnapshot: () => void;
   viewSnapshot: (id: string) => void;
   backToLive: () => void;
@@ -543,6 +545,40 @@ export const useStore = create<AppState>((set, get) => ({
     const snap: Snapshot = { id: uid(), parentId: s.liveId, v: Math.max(0, ...s.snapshots.map(item => item.v)) + 1, prompt, kind, time: now(), html };
     set({ snapshots: [...s.snapshots, snap] });
     return snap;
+  },
+  importFromGitHub: async (repoFullName, branch) => {
+    const initial = get();
+    const scope = persistenceScope();
+    const busy = (s: AppState) => s.codeDraftDirty || s.edEditing || s.generating || s.sandboxBuilding || !!s.pendingReview || !!s.viewing;
+    if (busy(initial) || !scope.databaseName || scope.epoch !== initial.workspaceEpoch)
+      throw new Error('Otvor aktívnu verziu projektu a dokonči rozpracované úpravy.');
+    const base = captureReviewBase(initial);
+    const result = await pullGitHubFiles(repoFullName, branch);
+    const st = get();
+    if (scope.epoch !== persistenceScope().epoch || busy(st) || !matchesReviewBase(st, base))
+      throw new Error('Počas importu sa zmenil účet alebo projekt. Spusti import znova.');
+    const files = result.files.map(({ name, content }) => ({ name, content, modified: false }));
+    const [problem] = inspectProjectSources(files).errors;
+    if (problem) throw new Error('Import súborov zastavila kontrola zdrojov projektu.');
+    const html = filesToHtml(files);
+    const snap: Snapshot = {
+      id: uid(), parentId: st.liveId, v: Math.max(0, ...st.snapshots.map(s => s.v)) + 1,
+      prompt: 'git-import: ' + result.repoFullName, kind: 'git-import', time: now(), html, sourceFiles: JSON.stringify(files),
+    };
+    const snapshots = [...st.snapshots, snap];
+    if (!WorkspaceSchema.safeParse({ title: st.projectTitle, isPublic: st.isPublic, liveId: snap.id, files,
+      snapshots: snapshots.map(({id,v,prompt,kind,time,html,pinned,msg,parentId,sourceFiles}) => ({id,v,prompt,kind,time,html,pinned,msg,parentId,sourceFiles})),
+    }).success)
+      throw new Error('Import prekračuje limity projektu alebo histórie.');
+    const first = files.find(file => file.name === 'index.html') ?? files[0];
+    set({ snapshots, vfs: { ...st.vfs, [snap.id]: files }, liveId: snap.id, liveHtml: html, viewing: null,
+      edFile: first.name, tab: 'code', sandboxHtml: null, sandboxErrors: [], runtimeCrash: null });
+    st.setMode('work');
+    st.setMview('canvas');
+    const saved = await get().persistNow();
+    if (scope.epoch === persistenceScope().epoch && get().projectId === st.projectId)
+      get().toast('v' + snap.v + ' · ' + result.branch + ' · súbory: ' + files.length + ', preskočené: ' + result.skipped +
+        (saved ? '' : ' · Lokálne uloženie zlyhalo, verzia je v pamäti.'), saved ? 'ok' : 'warn');
   },
   manualSnapshot: () => {
     const s = get();

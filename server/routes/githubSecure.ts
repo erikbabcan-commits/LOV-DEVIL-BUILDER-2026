@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { githubImporter, githubImportResponse } from '../integrations/githubImporter';
 import { Hono, type Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
@@ -719,6 +720,17 @@ githubRouter.post('/api/github/deploy-hook', async (c) => {
   }
 
   return c.json(outcome, 200);
+});
+
+githubRouter.on(['GET', 'POST'], ['/api/github/repos', '/api/github/import'], c => {
+  if ((c.req.method === 'GET') !== c.req.path.endsWith('/repos')) return c.notFound();
+  const config = getGitHubConfig();
+  const found = authenticatedSession(c);
+  if (!config || !found) return c.json({ error: 'github_not_connected' }, 401);
+  if (c.req.method === 'POST' && !csrfMatches(c, found.session))
+    return c.json({ error: 'github_import_forbidden' }, 403);
+  const privateAllowed = effectiveScopes(found.session, config).includes('repo');
+  return githubImportResponse(githubImporter(found.session.githubToken, privateAllowed, c.req.raw.signal), c.req.raw);
 });
 
 export { githubRouter };

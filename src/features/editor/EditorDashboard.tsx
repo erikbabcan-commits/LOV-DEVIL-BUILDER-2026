@@ -176,7 +176,7 @@ export function EditorDashboard() {
                     ))}
                     <BuildRepairAction/>
                   </div>
-                ) : needsCompile ? <div className="product-empty"><h3>Projekt je pripravený na náhľad.</h3><p>Spusti kompiláciu React súborov a vyskúšaj výsledok.</p><button className="btn-primary" disabled={st.sandboxBuilding} onClick={() => void st.runSandbox()}>{st.sandboxBuilding ? 'Kompilujem…' : 'Spustiť náhľad'}</button></div> : html ? <iframe id="editorFrame" ref={frameRef} sandbox="allow-scripts" title="Editor live preview" /> : (
+                ) : needsCompile ? <div className="product-empty"><h3>Projekt je pripravený na náhľad.</h3><p>Spusti kompiláciu React súborov a vyskúšaj výsledok.</p><button className="btn-primary" disabled={st.sandboxBuilding} onClick={() => void st.runSandbox()}>{st.sandboxBuilding ? 'Kompilujem…' : 'Spustiť náhľad'}</button></div> : html && (snap?.kind !== 'git-import' || localTab === 'preview') ? <iframe id="editorFrame" ref={frameRef} sandbox="allow-scripts" title="Editor live preview" /> : (
                   <div className="ed-empty" id="edEmpty">
                     <div className="ed-empty-ic">▦</div>
                     <b>Zatiaľ žiadny projekt</b>

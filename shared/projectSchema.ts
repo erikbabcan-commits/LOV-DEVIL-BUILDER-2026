@@ -1,12 +1,12 @@
 import {ConversationSchema} from './conversation';
 import { z } from 'zod';
 import { containsPotentialSecret } from '../server/security/secrets';
-import { isSafePath, withinSizeLimits } from '../server/security/pathGuard';
+import { isRepositorySourcePath, isSafePath, withinSizeLimits } from '../server/security/pathGuard';
 
 export const ProjectId = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
 const File = z.object({ name: z.string().max(200), content: z.string().max(200_000), modified: z.boolean().optional() }).strict();
 const filesValid = (files: z.infer<typeof File>[]) => new Set(files.map(file => file.name)).size === files.length &&
-  files.every(file => isSafePath(file.name) || ['styles.css', 'app.js'].includes(file.name)) &&
+  files.every(file => isSafePath(file.name) || isRepositorySourcePath(file.name)) &&
   withinSizeLimits(files.map(file => ({ path: file.name, content: file.content }))).ok;
 export const Files = File.array().max(40).refine(filesValid, 'invalid_files');
 export const SnapshotSchema = z.object({
