@@ -345,7 +345,13 @@ export function createApp(
     if (!opts?.auth || user?.plan === 'pro') return c.json(catalog);
     return c.json({ ...catalog, models: catalog.models.map(model => model.requiredPlan ? { ...model, locked: true } : model) });
   });
-  app.get('/api/health', (c) => c.json({ ok: true, ai: providers.defaultProvider?.name ?? 'not-configured', auth: opts?.auth ? 'enabled' : 'disabled' }));
+  app.get('/api/health', (c) => c.json({
+    ok: true,
+    ai: providers.defaultProvider?.name ?? 'not-configured',
+    auth: opts?.auth ? 'enabled' : 'disabled',
+    stripe: opts?.auth?.billing ? 'configured' : 'disabled',
+    worker: jobsWorkerEnabled ? 'active' : 'disabled',
+  }));
   app.use('/api/sandbox/*', bodyLimit({ maxSize: MAX_INPUT_JSON_BYTES,
     onError: c => c.json({ error: 'sandbox_input_limit' }, 413) }));
   app.get('/api/sandbox/ready', async c => {

@@ -39,6 +39,11 @@ export function billingRouter(
   rateLimit: (key: string) => boolean,
 ) {
   const router = new Hono();
+  router.get("/billing/success", (c) => c.redirect("/?billing=success"));
+  router.get("/billing/cancel", (c) => c.redirect("/?billing=cancel"));
+  router.get("/api/billing/success", (c) => c.redirect("/?billing=success"));
+  router.get("/api/billing/cancel", (c) => c.redirect("/?billing=cancel"));
+
   router.use("/api/billing", async (c, next) => {
     c.header("Cache-Control", "no-store");
     await next();

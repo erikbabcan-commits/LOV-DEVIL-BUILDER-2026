@@ -35,6 +35,7 @@ echo "==> 5/7 Spustenie kontajnera lov-devil-api (port ${HOST_PORT}:${CONTAINER_
 ssh -o StrictHostKeyChecking=no "$SSH_HOST" "docker rm -f lov-devil-api >/dev/null 2>&1 || true
 docker run -d --name lov-devil-api --restart unless-stopped --network lov-net \\
   --env-file $REMOTE_DIR/.env \\
+  -e AGENT_JOBS_WORKER=1 \
   -v lov-devil-sessions:/data/sessions \\
   -p 127.0.0.1:${HOST_PORT}:${CONTAINER_PORT} \\
   --memory 700m \\

@@ -82,7 +82,16 @@ const uuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
   );
-const returnUrl = (config: BillingConfig) => config.appUrl;
+const returnUrl = (config: BillingConfig, status?: 'success' | 'cancel') => {
+  if (!status) return config.appUrl;
+  try {
+    const u = new URL(config.appUrl);
+    u.searchParams.set('billing', status);
+    return u.toString();
+  } catch {
+    return config.appUrl;
+  }
+};
 function trustedUrl(value: string | null, host: string): string {
   if (!value) throw new BillingError("billing_provider_unavailable");
   let parsed: URL;
@@ -542,8 +551,8 @@ export class BillingService
                     customerId: customer,
                     priceId: this.config.prices[attempt.interval_name].priceId,
                     trialDays: attempt.trial_days,
-                    successUrl: returnUrl(this.config),
-                    cancelUrl: returnUrl(this.config),
+                    successUrl: returnUrl(this.config, 'success'),
+                    cancelUrl: returnUrl(this.config, 'cancel'),
                     expiresAt: Number(attempt.requested_expires_at),
                   },
                   "forge-" + this.mode + "-checkout:" + attempt.request_id,

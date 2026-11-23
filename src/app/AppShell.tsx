@@ -54,6 +54,22 @@ export function AppShell() {
     window.history.replaceState(null, '', url.toString());
   }, []);
 
+  /* Stripe Checkout návrat: ?billing=success|cancel → toast + vyčistiť URL. */
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('billing');
+    if (!result) return;
+    const st = useStore.getState();
+    if (result === 'success') {
+      st.toast('Predplatné VORKEI Pro bolo úspešne aktivované! 🎉', 'ok');
+      checkAuth(false);
+    } else if (result === 'cancel') {
+      st.toast('Platba predplatného bola zrušená.', 'warn');
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('billing');
+    window.history.replaceState(null, '', url.toString());
+  }, [checkAuth]);
+
   useEffect(() => {
     const requests = authRequest.current;
     checkAuth();
