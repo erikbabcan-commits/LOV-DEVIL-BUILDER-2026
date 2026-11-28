@@ -23,7 +23,7 @@ rsync -az --delete \
 echo "==> 3/7 Nastavenie práv a ochrana .env na VPS"
 ssh -o StrictHostKeyChecking=no "$SSH_HOST" "chown -R root:root $REMOTE_DIR
 find $REMOTE_DIR -type d -exec chmod 755 {} +
-find $REMOTE_DIR -type f -exec chmod 644 {} +
+find $REMOTE_DIR -type f ! -name .env ! -name '.env.*' -exec chmod 644 {} +
 chmod +x $REMOTE_DIR/deploy/*.sh 2>/dev/null || true
 chmod 600 $REMOTE_DIR/.env
 [ -f $REMOTE_DIR/.env ] || { echo 'CHYBA: $REMOTE_DIR/.env neexistuje na VPS!'; exit 1; }"
@@ -32,8 +32,14 @@ echo "==> 4/7 Docker build API kontajnera (lov-devil-api)"
 ssh -o StrictHostKeyChecking=no "$SSH_HOST" "docker build -t lov-devil-api -f $REMOTE_DIR/deploy/Dockerfile $REMOTE_DIR/"
 
 echo "==> 5/7 Spustenie kontajnera lov-devil-api (port ${HOST_PORT}:${CONTAINER_PORT})"
-ssh -o StrictHostKeyChecking=no "$SSH_HOST" "docker rm -f lov-devil-api >/dev/null 2>&1 || true
-docker run -d --name lov-devil-api --restart unless-stopped --network lov-net \\
+ssh -o StrictHostKeyChecking=no "$SSH_HOST" "set -eu
+sandbox_network=''
+if grep -qx 'SANDBOX_MODE=isolated' $REMOTE_DIR/.env; then
+  test \"\$(docker network inspect -f '{{.Internal}}' lov-sandbox-control)\" = true
+  sandbox_network='--network lov-sandbox-control'
+fi
+docker rm -f lov-devil-api >/dev/null 2>&1 || true
+docker run -d --name lov-devil-api --restart unless-stopped --network lov-net \$sandbox_network \\
   --env-file $REMOTE_DIR/.env \\
   -e AGENT_JOBS_WORKER=1 \
   -v lov-devil-sessions:/data/sessions \\
