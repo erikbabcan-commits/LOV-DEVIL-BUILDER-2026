@@ -13,7 +13,7 @@
       "destination": "https://lov.2.29.52.59.sslip.io/p/:path*"
     },
     {
-      "source": "/((?!api|p).*)$",
+      "source": "/((?!(?:api|p)(?:/|$)).*)",
       "destination": "/index.html"
     }
   ]

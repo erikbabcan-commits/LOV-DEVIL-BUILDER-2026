@@ -51,7 +51,7 @@ describe('P0 local cost and security guards', () => {
     const app = createApp({}, null);
     const res = await app.request('/api/health');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, ai: 'not-configured', auth: 'disabled' });
+    expect(await res.json()).toEqual({ ok: true, ai: 'not-configured', auth: 'disabled', stripe: 'disabled', worker: 'disabled' });
   });
 
   it('blocks over-concurrent and over-daily admissions, with idempotent release', () => {
