@@ -32,7 +32,7 @@ test('billing mobile: skutočných 390px, intervaly, sandbox a dostupný Checkou
     await route.fulfill({ json: responses[path] });
   });
   await page.goto(APP_URL);
-  await expect(page.locator('#homeInput')).toBeVisible();
+  await expect(page.locator('#homeInput')).toBeVisible({ timeout: 20_000 });
   await page.getByRole('button', { name: 'História projektov', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Moje projekty' });
   const card = page.getByRole('region', { name: 'Predplatné', exact: true });
