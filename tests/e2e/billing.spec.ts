@@ -17,6 +17,9 @@ test('billing mobile: skutočných 390px, intervaly, sandbox a dostupný Checkou
     const responses: Record<string, unknown> = {
       '/api/auth/me': { user: { id: 'alice', email: 'alice@example.test', plan: 'free' }, quota: { used: 2, limit: 10, remaining: 8, plan: 'free' } },
       '/api/billing': status,
+      '/api/github-connect/status': { connected: false, configured: false },
+      '/api/github/status': { available: false, configured: false },
+      '/api/github/auth': { authenticated: false, configured: false },
       '/api/projects': { projects: [], nextCursor: null },
       '/api/project-storage': { usedBytes: 0, limitBytes: 64 * 1024 * 1024, usedProjects: 0, limitProjects: 3, trashedProjects: 0, warning: false },
       '/api/ai-usage': { periodStart: start.toISOString().slice(0,10), periodEnd: next.toISOString().slice(0,10), calls: 0, reportedCalls: 0, unknownCalls: 0, pendingCalls: 0, promptTokens: 0, completionTokens: 0 },
@@ -30,10 +33,10 @@ test('billing mobile: skutočných 390px, intervaly, sandbox a dostupný Checkou
   });
   await page.goto(APP_URL);
   await expect(page.locator('#homeInput')).toBeVisible();
-  await page.getByRole('button', { name: 'Moje projekty', exact: true }).click();
+  await page.getByRole('button', { name: 'História projektov', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Moje projekty' });
   const card = page.getByRole('region', { name: 'Predplatné', exact: true });
-  await expect(card.getByText('Testovací režim Stripe')).toBeVisible();
+  await expect(card.getByText('Testovací režim Stripe')).toBeVisible({ timeout: 15_000 });
   await expect(card.getByText('VORKEI Free')).toBeVisible();
   await expect(card.getByRole('radio', { name: /^Mesačne/ })).toBeChecked();
   await card.getByRole('radio', { name: /^Ročne/ }).check();

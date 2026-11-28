@@ -247,7 +247,11 @@ export class PostgresAgentJobStore implements DurableAgentJobStore {
             [job.id, job.ownerId, job.idempotencyKey, JSON.stringify(job.request)],
           );
         }
-        const row = await this.findByIdempotency(job.ownerId, job.idempotencyKey);
+        const result = await tx.query(
+          'SELECT * FROM agent_jobs WHERE owner_id=$1 AND idempotency_key=$2',
+          [job.ownerId, job.idempotencyKey],
+        );
+        const row = result.rows[0] ? toRecord(result.rows[0] as JobRow) : null;
         return { record: row && row.id === job.id ? row : null };
       };
 

@@ -41,6 +41,26 @@ describe('InMemoryAgentJobStore', () => {
 });
 
 describe('PostgresAgentJobStore (pg-mem + migrations)', () => {
+  it('reads a newly queued job through the same transaction that inserted it', async () => {
+    const mem = newDb();
+    registerProjectByteLength(mem);
+    const pool = new (mem.adapters.createPg().Pool)();
+    const db = dbFromPool(pool);
+    try {
+      await applyMigrations(db);
+      await db.query("INSERT INTO users (id, email, password_hash) VALUES ('alice', 'a@b.c', 'x')");
+      const store = new PostgresAgentJobStore({
+        ...db,
+        query: async () => { throw new Error('Unexpected query outside the transaction'); },
+      });
+      const job = { id: 'job-1', ownerId: 'alice', idempotencyKey: 'key-1', request: { prompt: 'Build a UI' } };
+      expect(await store.createBounded(job, 3)).toMatchObject({ record: { id: job.id, state: 'queued' } });
+      expect(await store.createBounded({ ...job, id: 'job-2' }, 3)).toEqual({ record: null });
+    } finally {
+      await pool.end();
+    }
+  });
+
   it('persists jobs with idempotency conflict and owner scoping', async () => {
     const mem = newDb();
     registerProjectByteLength(mem);

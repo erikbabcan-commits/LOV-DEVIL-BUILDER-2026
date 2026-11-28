@@ -59,7 +59,13 @@ describe('direct stateless text provider adapters',()=>{
 });
 describe('single-attempt bounded HTTP transport and error classification',()=>{
   it.each([[401,'authentication'],[402,'quota'],[403,'authentication'],[422,'request'],[500,'unavailable'],[503,'unavailable'],[504,'timeout'],[529,'unavailable']] as const)('maps HTTP %i to %s without private response content',async(status,kind)=>{
-    await expect(assertProviderResponse(Response.json({error:{message:'private-api-key'}},{status}))).rejects.toMatchObject({kind});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await expect(assertProviderResponse(Response.json({error:{message:'private-api-key'}},{status}))).rejects.toMatchObject({kind});
+      expect(warn.mock.calls).toEqual([['provider_http_rejected', { status, kind }]]);
+    } finally {
+      warn.mockRestore();
+    }
   });
   it('separates retryable 429 from quota caps and headerless 429',async()=>{
     await expect(assertProviderResponse(Response.json({error:{type:'rate_limit_error'}},{status:429,headers:{'retry-after':'2'}}))).rejects.toMatchObject({kind:'rate_limited',retryAfterMs:2000});

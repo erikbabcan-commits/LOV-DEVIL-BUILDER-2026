@@ -78,7 +78,7 @@ test('zoom + viewport segment', async ({ page }) => {
 test('mobile: mtabs navigácia', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(APP_URL);
-  await expect(page.locator('.home')).toBeVisible();
+  await expect(page.locator('#homeInput')).toBeVisible();
   await page.fill('#homeInput', 'SaaS');
   await page.click('#homeSend');
   // na mobile je canvas skrytý (data-view=chat) — čakaj na správu v chate, potom prepní na canvas
@@ -146,9 +146,9 @@ test('M1.1 editor: všetkých 8 tabov prístupných (blueprints/prompts/team/gal
     await page.click(`[data-edtab="${tab}"]`);
     await expect(page.locator(`.ed-pane[data-edpane="${tab}"]`)).toBeVisible();
   }
-  // Aktuálna galéria obsahuje 12 skutočných projektových šablón.
+  // Galéria obsahuje projektové šablóny aj frameworkové základy.
   await page.click('[data-edtab="blueprints"]');
-  await expect(page.locator('.template-card')).toHaveCount(12);
+  await expect(page.locator('.template-card')).toHaveCount(24);
   await expect(page.locator('.template-card').first()).toContainText(/SaaS/i);
   // prompts: 8 kariet
   await page.click('[data-edtab="prompts"]');

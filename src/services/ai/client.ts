@@ -15,11 +15,9 @@ export interface AgentRunHandle {
   finished: Promise<void>;
 }
 
-export const AI_API_BASE: string = (
-  import.meta.env?.VITE_AI_API_BASE ??
-  import.meta.env?.VITE_API_BASE_URL ??
-  ''
-).trim().replace(/\/+$/, '');
+export const AI_API_BASE: string =
+  (import.meta.env?.VITE_AI_API_BASE ?? '').trim().replace(/\/+$/, '') ||
+  (import.meta.env?.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
 
 export class AiNotConfiguredError extends Error {
   constructor() { super('AI engine teraz nie je dostupný. Použi Instant Draft alebo skús neskôr.'); }
