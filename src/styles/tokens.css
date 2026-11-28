@@ -456,12 +456,14 @@ code, kbd, pre, .font-mono {
   padding: 4px 6px;
   border-radius: var(--radius-control);
   border: 1px solid transparent;
-  cursor: pointer;
   background: none;
   text-align: left;
   transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
 }
-.conn:hover {
+button.conn {
+  cursor: pointer;
+}
+button.conn:hover {
   background: var(--surface-hover);
 }
 .conn-icon {

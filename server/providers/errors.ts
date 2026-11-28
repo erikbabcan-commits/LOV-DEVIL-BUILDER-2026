@@ -7,7 +7,11 @@ const messages:Record<ProviderFailure,string>={
   refusal:'AI provider túto požiadavku odmietol. Uprav zadanie a skús novú úlohu.',attempt_limit:'AI úloha dosiahla limit pokusov. Projekt zostal zachovaný.',
 };
 export class ProviderError extends Error {
-  constructor(readonly kind:ProviderFailure,readonly retryAfterMs:number|null=null){super(messages[kind]);}
+  constructor(
+    readonly kind: ProviderFailure,
+    readonly retryAfterMs: number | null = null,
+    readonly httpStatus?: number,
+  ) { super(messages[kind]); }
   get retryable(){return this.kind==='unavailable'||(this.kind==='rate_limited'&&this.retryAfterMs!==null);}
 }
 export function retryAfter(value:string|null,now=Date.now()):number|null{

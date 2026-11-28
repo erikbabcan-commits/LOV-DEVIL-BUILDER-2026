@@ -542,7 +542,7 @@
   .pub-url button:hover{color:var(--text)}
 
   /* ---- Toasts ---- */
-  .toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:400}
+  .toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:400;pointer-events:none}
   .toast{display:flex;align-items:center;gap:10px;padding:11px 15px;border-radius:13px;font-size:12.5px;color:var(--text);
     background:var(--bg-elevated);backdrop-filter:blur(12px);border:1px solid var(--border-2);
     box-shadow:0 10px 30px rgba(0,0,0,.24);animation:fadeUp .2s ease;max-width:330px}
@@ -1788,10 +1788,7 @@ button[aria-busy="true"]{cursor:progress}
    Bottom IDE Status Bar (Image 1)
    ========================================================================== */
 .ide-status-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   height: 24px;
   background: #141414;
   border-top: 1px solid rgba(255, 255, 255, 0.08);

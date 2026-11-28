@@ -38,7 +38,7 @@
     "src/components/forge/GitHubConnection.tsx": "2b8613b89437db858f623def0769661303fd5183567fdb55f48a36b4c5e5a5c3",
     "src/components/forge/GitHubExport.test.tsx": "7770c3ec48a6e02083fbecaca5e36d88c09ee1dad342c61b17d0d492772c9e0d",
     "src/components/forge/GitHubExport.tsx": "870a84c890496d28892b8cb897647a7efe7b0f4f546c80071cefa8e0f412be66",
-    "src/components/forge/TopBar.tsx": "fd139b37642fc59d29414e9c3703b16765eb4eb4d3b026338f9385fcd7de5f54",
+    "src/components/forge/TopBar.tsx": "645f2f3e4f3f20f1951b54b5303df5a0f662fad1121e94a436f1bbe48c549f0e",
     "src/components/forge/WorkspaceView.tsx": "83f13eab00d045dd89806f6ba00ae91342ec6c575dc2a93c83c1d6722b83fcc2",
     "src/lib/ai-quota.ts": "ce9ddf425a675c50f5bb6327b96e619c3b2d8324f3320c6a741325f1ba1d0b59",
     "src/lib/ai-usage.ts": "97a8b306d3f83d61cf9538d9f54fc584b54cefa5f3866625e883571e4d5548cd",

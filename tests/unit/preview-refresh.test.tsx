@@ -18,11 +18,19 @@ it('refreshes the compiled application without erasing its document or granting 
   useStore.setState({ liveId: snap.id, sandboxHtml: html });
   render(<Workspace />);
   const original = screen.getByTitle('Live preview');
-  expect(original.getAttribute('srcdoc')).toBe(html);
+  const documentBeforeRefresh = original.getAttribute('srcdoc')!;
+  const preview = new DOMParser().parseFromString(documentBeforeRefresh, 'text/html');
+  expect(preview.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content')).toBe("form-action 'none'");
+  for (const id of ['__vorkei_runtime_boundary', '__vorkei_inspector_bridge']) {
+    const script = preview.getElementById(id);
+    expect(script?.tagName).toBe('SCRIPT');
+    script!.remove();
+  }
+  expect(preview.body.innerHTML).toBe('COMPILED_APP');
   expect(original.getAttribute('sandbox')).toBe('allow-scripts allow-forms');
   fireEvent.click(screen.getByTitle('Obnoviť preview'));
   const refreshed = screen.getByTitle('Live preview');
   expect(refreshed).not.toBe(original);
-  expect(refreshed.getAttribute('srcdoc')).toBe(html);
+  expect(refreshed.getAttribute('srcdoc')).toBe(documentBeforeRefresh);
   expect(refreshed.getAttribute('sandbox')).not.toContain('allow-same-origin');
 });

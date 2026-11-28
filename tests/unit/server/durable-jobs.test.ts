@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
 import { newDb } from 'pg-mem';
+import { MistralProvider } from '../../../server/providers/mistral';
 import { Hono } from 'hono';
 import { dbFromPool, type DbLike } from '../../../server/db/pool';
 import { applyMigrations, listMigrations } from '../../../server/db/migrate';
@@ -247,6 +248,20 @@ describe('worker + quota ledger', () => {
     expect(again).toEqual({ transitioned: false, debited: false });
     expect(await used(db)).toBe(1);
     expect(await ledger(db)).toBe(1);
+  });
+
+  it('persists the provider HTTP status without storing the upstream body or charging the job', async () => {
+    const db = await makeDb();
+    const model = new MistralProvider({ apiKey: 'test', model: 'qa' }, {
+      postChat: async () => Response.json({ code: 'private-upstream-detail', message: 'private-upstream-detail' }, { status: 400 }),
+    });
+    const { store, w } = worker(db, { providers: registry(model) });
+    await enqueue(store, 'rejected');
+    await w.drain();
+    const job = await store.get('alice', 'rejected');
+    expect(job).toMatchObject({ state: 'failed', errorPayload: { code: 'provider_request_http_400', retriable: false } });
+    expect(JSON.stringify(job)).not.toContain('private-upstream-detail');
+    expect(await ledger(db)).toBe(0);
   });
 
   it('a failed run keeps a structured errorPayload and debits nothing', async () => {

@@ -1,5 +1,5 @@
 import type {ProviderTransport} from './types';
-import {ProviderError,retryAfter} from './errors';
+import {ProviderError,retryAfter,type ProviderFailure} from './errors';
 
 export function record(value:unknown):Record<string,unknown>{return value!==null&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};}
 export async function readJson(response:Response,maxBytes=16_000_000):Promise<unknown>{
@@ -11,16 +11,31 @@ export async function readJson(response:Response,maxBytes=16_000_000):Promise<un
   }catch(error){if(error instanceof ProviderError)throw error;throw new ProviderError('protocol');}
   finally{try{await reader.cancel();}catch{/* preserve failure */}reader.releaseLock();}
 }
+const diagnosticCodes = new Set([
+  'invalid_request_error', 'invalid_model', 'model_not_found', 'invalid_api_key',
+  'validation_error', 'context_length_exceeded', 'insufficient_quota', 'billing_error',
+  'usage_limit_reached', 'spend_limit_exceeded', 'timeout_error', 'rate_limit_error',
+]);
+
 export async function assertProviderResponse(response:Response):Promise<void>{
   if(response.ok)return;
   let code:unknown;
-  try{const error=record(record(await readJson(response,8192)).error);code=error.code??error.type;}catch{/* status remains authoritative */}
-  if(['insufficient_quota','billing_error','usage_limit_reached','spend_limit_exceeded'].includes(String(code))||response.status===402)throw new ProviderError('quota');
-  if(code==='timeout_error'||[408,504].includes(response.status))throw new ProviderError('timeout');
-  if([401,403].includes(response.status))throw new ProviderError('authentication');
-  if(response.status===429)throw new ProviderError('rate_limited',retryAfter(response.headers.get('retry-after')));
-  if([500,502,503,529].includes(response.status))throw new ProviderError('unavailable',retryAfter(response.headers.get('retry-after')));
-  throw new ProviderError('request');
+  try {
+    const body = record(await readJson(response, 8192));
+    const error = record(body.error);
+    code = error.code ?? error.type ?? body.code ?? body.type;
+  } catch { /* The HTTP status is sufficient when the error body cannot be parsed. */ }
+  const reject = (kind: ProviderFailure, retryAfterMs: number | null = null): never => {
+    const safeCode = typeof code === 'string' && diagnosticCodes.has(code) ? code : undefined;
+    console.warn('provider_http_rejected', { status: response.status, kind, ...(safeCode && { code: safeCode }) });
+    throw new ProviderError(kind, retryAfterMs, response.status);
+  };
+  if(['insufficient_quota','billing_error','usage_limit_reached','spend_limit_exceeded'].includes(String(code))||response.status===402)reject('quota');
+  if(code==='timeout_error'||[408,504].includes(response.status))reject('timeout');
+  if([401,403].includes(response.status))reject('authentication');
+  if(response.status===429)reject('rate_limited',retryAfter(response.headers.get('retry-after')));
+  if([500,502,503,529].includes(response.status))reject('unavailable',retryAfter(response.headers.get('retry-after')));
+  reject('request');
 }
 /** Single HTTP attempt, no hidden retries, redirects or browser-owned headers. */
 export function makeProviderTransport(config:{apiKey:string;url:string;timeoutMs:number;headers?:Record<string,string>},fetcher:typeof fetch=fetch):ProviderTransport{

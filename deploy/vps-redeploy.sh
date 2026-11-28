@@ -13,7 +13,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 echo "🚀 Začínam deploy LOV-DEVIL na ${SSH_HOST}:${REMOTE_DIR}"
 
 echo "==> 1/7 Lokálny build produkčného frontendu (Vite)"
-(cd "$REPO_ROOT" && npm run build)
+(cd "$REPO_ROOT" && VITE_AGENT_JOBS_CLIENT="${VITE_AGENT_JOBS_CLIENT:-1}" npm run build)
 
 echo "==> 2/7 Rsync kódu ${REPO_ROOT} → ${SSH_HOST}:${REMOTE_DIR}"
 rsync -az --delete \

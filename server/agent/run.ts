@@ -124,6 +124,10 @@ export async function* runAgent(req: unknown, opts: RunOptions): AsyncGenerator<
     }
     if(err instanceof PatchError){yield{type:'error',code:err.code,message:err.message,retriable:false};return;}
     if(err instanceof ContextBudgetError){yield{type:'error',code:'context_limit',message:err.message,retriable:false};return;}
+    if (err instanceof ProviderError && err.httpStatus !== undefined) {
+      yield { type: 'error', code: `provider_${err.kind}_http_${err.httpStatus}`, message: err.message, retriable: err.retryable };
+      return;
+    }
     const msg = err instanceof Error ? err.message : String(err);
     const retriable = err instanceof ProviderError ? err.retryable : /timeout|HTTP 5\d\d|network|ECONN/i.test(msg);
     yield { type: 'error', code: retriable ? 'provider_error' : 'generation_failed', message: redactSecrets(msg).slice(0, 400), retriable };

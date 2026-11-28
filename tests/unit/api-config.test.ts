@@ -61,6 +61,8 @@ describe('Vercel routing rewrite rules (vercel.json)', () => {
     expect(regex.test('/api/billing/checkout')).toBe(false);
     expect(regex.test('/api/projects')).toBe(false);
     expect(regex.test('/api/sandbox/build')).toBe(false);
+    expect(regex.test('/p')).toBe(false);
+    expect(regex.test('/p/qa-page')).toBe(false);
   });
 
   it('specifies the correct Vite build settings in vercel.json', () => {

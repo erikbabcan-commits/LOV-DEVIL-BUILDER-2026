@@ -201,7 +201,7 @@ describe('Hono app (Workstream A/D)', () => {
     });
     const text = await res.text();
     expect(text).toContain('"type":"error"');
-    expect(text).toContain('provider_error');
+    expect(text).toContain('provider_unavailable_http_500');
   });
 
   it('health endpoint hlási AI stav', async () => {
