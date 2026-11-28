@@ -11,13 +11,24 @@ export async function readJson(response:Response,maxBytes=16_000_000):Promise<un
   }catch(error){if(error instanceof ProviderError)throw error;throw new ProviderError('protocol');}
   finally{try{await reader.cancel();}catch{/* preserve failure */}reader.releaseLock();}
 }
+const diagnosticCodes = new Set([
+  'invalid_request_error', 'invalid_model', 'model_not_found', 'invalid_api_key',
+  'validation_error', 'context_length_exceeded', 'insufficient_quota', 'billing_error',
+  'usage_limit_reached', 'spend_limit_exceeded', 'timeout_error', 'rate_limit_error',
+]);
+
 export async function assertProviderResponse(response:Response):Promise<void>{
   if(response.ok)return;
   let code:unknown;
-  try{const error=record(record(await readJson(response,8192)).error);code=error.code??error.type;}catch{/* status remains authoritative */}
+  try {
+    const body = record(await readJson(response, 8192));
+    const error = record(body.error);
+    code = error.code ?? error.type ?? body.code ?? body.type;
+  } catch { /* The HTTP status is sufficient when the error body cannot be parsed. */ }
   const reject = (kind: ProviderFailure, retryAfterMs: number | null = null): never => {
-    console.warn('provider_http_rejected', { status: response.status, kind });
-    throw new ProviderError(kind, retryAfterMs);
+    const safeCode = typeof code === 'string' && diagnosticCodes.has(code) ? code : undefined;
+    console.warn('provider_http_rejected', { status: response.status, kind, ...(safeCode && { code: safeCode }) });
+    throw new ProviderError(kind, retryAfterMs, response.status);
   };
   if(['insufficient_quota','billing_error','usage_limit_reached','spend_limit_exceeded'].includes(String(code))||response.status===402)reject('quota');
   if(code==='timeout_error'||[408,504].includes(response.status))reject('timeout');

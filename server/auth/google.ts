@@ -57,7 +57,10 @@ export function googleAuthRouter(deps: GoogleAuthDeps, env: Record<string, strin
       clientSecret,
       callbackUrl,
       appUrl,
-      configured: Boolean(clientId && clientSecret)
+      configured: Boolean(
+        clientId && /^\d+(?:-[\w-]+)?\.apps\.googleusercontent\.com$/.test(clientId) &&
+        clientSecret && !/^(?:placeholder|your[_-]|change[_-]?me|example|dummy|replace[_-]|x{3,}$)/i.test(clientSecret)
+      )
     };
   };
 
@@ -65,7 +68,7 @@ export function googleAuthRouter(deps: GoogleAuthDeps, env: Record<string, strin
     const config = getGoogleConfig();
     return c.json({
       configured: config.configured,
-      clientId: config.clientId ?? null
+      clientId: config.configured ? config.clientId : null
     });
   });
 
@@ -110,7 +113,7 @@ export function googleAuthRouter(deps: GoogleAuthDeps, env: Record<string, strin
       return c.redirect(`${config.appUrl}?error=invalid_oauth_state`);
     }
 
-    if (!config.clientId || !config.clientSecret) {
+    if (!config.configured || !config.clientId || !config.clientSecret) {
       return c.redirect(`${config.appUrl}?error=google_not_configured`);
     }
 
@@ -153,7 +156,7 @@ export function googleAuthRouter(deps: GoogleAuthDeps, env: Record<string, strin
       picture?: string;
     } | null;
 
-    if (!profile?.sub || !profile.email || profile.email_verified === false) {
+    if (!profile?.sub || !profile.email || profile.email_verified !== true) {
       return c.redirect(`${config.appUrl}?error=google_email_unverified`);
     }
 
@@ -221,6 +224,7 @@ export function googleAuthRouter(deps: GoogleAuthDeps, env: Record<string, strin
   // Direct ID Token / credential exchange (Google Identity Services / One Tap / Firebase)
   router.post('/api/auth/google/credential', async (c) => {
     const config = getGoogleConfig();
+    if (!config.configured) return c.json({ error: 'google_auth_not_configured' }, 503);
     const body = await c.req.json().catch(() => null) as { credential?: string; idToken?: string } | null;
     const idToken = body?.credential || body?.idToken;
 
@@ -245,7 +249,10 @@ export function googleAuthRouter(deps: GoogleAuthDeps, env: Record<string, strin
       return c.json({ error: 'invalid_token_payload' }, 401);
     }
 
-    if (config.clientId && payload.aud !== config.clientId) {
+    if (payload.email_verified !== true && payload.email_verified !== 'true') {
+      return c.json({ error: 'google_email_unverified' }, 401);
+    }
+    if (payload.aud !== config.clientId) {
       return c.json({ error: 'audience_mismatch' }, 401);
     }
 
