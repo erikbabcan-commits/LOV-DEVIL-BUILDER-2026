@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, Hammer, Pencil, Settings, Menu } from "lucide-react";
 import { Btn } from "./ui";
 import { cn } from "@/lib/utils";
@@ -26,10 +26,23 @@ export function TopBar({
 }) {
   const [editing, setEditing] = useState(false);
   const [conn, setConn] = useState(false);
+  const connectionTrigger = useRef<HTMLButtonElement | null>(null);
   const { state, controller, authenticated } = useForge();
 
+  function closeConnection() {
+    setConn(false);
+    connectionTrigger.current?.focus();
+  }
+
   return (
-    <header className="relative flex min-h-[52px] shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-2 py-2 sm:h-[52px] sm:flex-nowrap sm:px-3 sm:py-0">
+    <header
+      className="relative flex min-h-[52px] shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-2 py-2 sm:h-[52px] sm:flex-nowrap sm:px-3 sm:py-0"
+      onKeyDown={(event) => {
+        if (!conn || event.defaultPrevented || event.key !== "Escape") return;
+        event.preventDefault();
+        closeConnection();
+      }}
+    >
       <Btn
         variant="ghost"
         size="icon"
@@ -128,13 +141,16 @@ export function TopBar({
           variant="ghost"
           aria-label="Pripojenie backendov"
           aria-expanded={conn}
-          onClick={() => setConn((c) => !c)}
+          onClick={(event) => {
+            connectionTrigger.current = event.currentTarget;
+            setConn((c) => !c);
+          }}
         >
           <Settings className="h-4 w-4" />
         </Btn>
         <AccountMenu />
       </div>
-      {conn && <ConnectionPanel onClose={() => setConn(false)} />}
+      {conn && <ConnectionPanel onClose={closeConnection} />}
     </header>
   );
 }
